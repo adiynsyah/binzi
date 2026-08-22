@@ -1,0 +1,36 @@
+// BINZI global styles — TASK 001 baseline.
+// Minimal reset + typography base only, to prove the Sass pipeline works.
+// The full SCSS architecture (tokens, mixins, global tokens import) is
+// established in TASK 002. Do not build feature styles here.
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  font-family:
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    "Helvetica Neue",
+    Arial,
+    sans-serif;
+  line-height: 1.6;
+  color: #212121;
+  background-color: #ffffff;
+
+  // Nested rule — placeholder page styling, replaced by TASK 002+ UI work.
+  main {
+    max-width: 48rem;
+    margin-inline: auto;
+    padding: 4rem 1.5rem;
+  }
+}
