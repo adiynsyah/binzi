@@ -8,3 +8,26 @@
   margin-inline: auto;
   padding: $spacing-16 $spacing-6;
 }
+
+// TEMPORARY TASK 003 showcase layout — removed with the showcase.
+.showcase {
+  margin-top: $spacing-12;
+}
+
+.showcaseNote {
+  color: var(--color-text-muted);
+}
+
+.showcaseRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $spacing-3;
+  margin-block: $spacing-4;
+}
+
+.showcaseForm {
+  display: grid;
+  gap: $spacing-4;
+  margin-top: $spacing-4;
+}

@@ -1,0 +1,34 @@
+// BINZI Badge primitive (TASK 003).
+// Backgrounds are subtle tints derived from semantic color tokens.
+@use '@/styles/tokens' as *;
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: $spacing-1 $spacing-3;
+  border-radius: $radius-full;
+  font-size: $font-size-small;
+  font-weight: $font-weight-semibold;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.neutral {
+  color: var(--color-text-muted);
+  background-color: color-mix(in srgb, var(--color-text-muted) 12%, transparent);
+}
+
+.success {
+  color: var(--color-success);
+  background-color: color-mix(in srgb, var(--color-success) 12%, transparent);
+}
+
+.warning {
+  color: var(--color-warning);
+  background-color: color-mix(in srgb, var(--color-warning) 14%, transparent);
+}
+
+.danger {
+  color: var(--color-danger);
+  background-color: color-mix(in srgb, var(--color-danger) 12%, transparent);
+}

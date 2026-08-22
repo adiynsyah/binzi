@@ -19,6 +19,9 @@
 :root {
   --color-primary: #2f7d5a;
   --color-primary-hover: #256a4b;
+  // Text color used on filled primary/danger surfaces (added in TASK 003;
+  // §40's token list is exemplary, not exhaustive).
+  --color-text-on-primary: #ffffff;
 
   --color-background: #ffffff;
   --color-surface: #ffffff;

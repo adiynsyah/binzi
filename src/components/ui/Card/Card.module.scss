@@ -1,0 +1,9 @@
+// BINZI Card primitive (TASK 003).
+@use '@/styles/tokens' as *;
+
+.card {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: $radius-lg;
+  padding: $spacing-6;
+}

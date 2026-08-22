@@ -1,0 +1,60 @@
+// BINZI Button primitive (TASK 003).
+// Consumes shared design tokens; no component-local design values.
+@use '@/styles/tokens' as *;
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: $spacing-2;
+  min-height: 2.75rem; // 44px — comfortable touch target (UI/UX §34)
+  padding: $spacing-2 $spacing-6;
+  border: 1px solid transparent;
+  border-radius: $radius-md;
+  font-family: inherit;
+  font-size: $font-size-body;
+  font-weight: $font-weight-semibold;
+  line-height: 1.2;
+  cursor: pointer;
+  transition:
+    background-color $transition-base $transition-easing,
+    border-color $transition-base $transition-easing,
+    color $transition-base $transition-easing,
+    filter $transition-base $transition-easing;
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  // Focus indication comes from the global :focus-visible rule (globals.scss).
+}
+
+.primary {
+  background-color: var(--color-primary);
+  color: var(--color-text-on-primary);
+
+  &:hover:not(:disabled) {
+    background-color: var(--color-primary-hover);
+  }
+}
+
+.secondary {
+  background-color: var(--color-surface);
+  border-color: var(--color-border);
+  color: var(--color-text);
+
+  &:hover:not(:disabled) {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+  }
+}
+
+.danger {
+  background-color: var(--color-danger);
+  color: var(--color-text-on-primary);
+
+  &:hover:not(:disabled) {
+    filter: brightness(0.9); // token-derived adjustment; no danger-hover token exists
+  }
+}
