@@ -1,0 +1,21 @@
+// Registration form styles (TASK 011).
+@use '@/styles/tokens' as *;
+
+.form {
+  display: grid;
+  gap: $spacing-4;
+}
+
+.message {
+  margin: 0;
+  font-size: $font-size-small;
+  line-height: $line-height-body;
+}
+
+.messageError {
+  color: var(--color-danger);
+}
+
+.messageSuccess {
+  color: var(--color-success);
+}
