@@ -1,0 +1,53 @@
+// Login page styles (TASK 012).
+@use '@/styles/tokens' as *;
+
+.main {
+  display: grid;
+  place-items: center;
+  min-height: 100dvh;
+  padding: $spacing-8 $spacing-6;
+}
+
+.card {
+  width: 100%;
+  max-width: 26rem;
+}
+
+.title {
+  margin: 0 0 $spacing-2;
+  font-size: $font-size-h1;
+  line-height: $line-height-heading;
+}
+
+.intro {
+  margin: 0 0 $spacing-6;
+  color: var(--color-text-muted);
+  font-size: $font-size-small;
+  line-height: $line-height-body;
+}
+
+.email {
+  color: var(--color-text);
+  font-weight: $font-weight-medium;
+}
+
+.logoutForm {
+  display: grid;
+  justify-items: start;
+}
+
+.registerLink {
+  margin: $spacing-6 0 0;
+  font-size: $font-size-small;
+  color: var(--color-text-muted);
+}
+
+.link {
+  color: var(--color-primary);
+  font-weight: $font-weight-medium;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}

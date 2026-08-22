@@ -1,0 +1,17 @@
+// Login form styles (TASK 012).
+@use '@/styles/tokens' as *;
+
+.form {
+  display: grid;
+  gap: $spacing-4;
+}
+
+.message {
+  margin: 0;
+  font-size: $font-size-small;
+  line-height: $line-height-body;
+}
+
+.messageError {
+  color: var(--color-danger);
+}
