@@ -1,0 +1,79 @@
+// ==========================================================================
+// BINZI V1 — SCSS Mixins (TASK 002)
+// --------------------------------------------------------------------------
+// Reusable, cross-cutting mixins. This file emits no CSS by itself.
+// Consumed via: `@use '@/styles/mixins' as *;`
+// ==========================================================================
+
+@use 'sass:map';
+@use 'tokens' as *;
+
+// Media query helpers — mobile-first (UI/UX §33: content-based breakpoints).
+// Usage:
+//   @include respond-above('medium') { ... }
+//   @include respond-below('large')  { ... }
+@mixin respond-above($name) {
+  $min: map.get($breakpoints, $name);
+
+  @if not $min {
+    @error 'Unknown breakpoint "#{$name}". Available: small, medium, large, wide.';
+  }
+
+  @media (min-width: $min) {
+    @content;
+  }
+}
+
+@mixin respond-below($name) {
+  $max: map.get($breakpoints, $name);
+
+  @if not $max {
+    @error 'Unknown breakpoint "#{$name}". Available: small, medium, large, wide.';
+  }
+
+  @media (max-width: ($max - 0.0625em)) {
+    @content;
+  }
+}
+
+// Page-level shell container (headers, footers, wide sections).
+@mixin container {
+  max-width: $container-max;
+  margin-inline: auto;
+  padding-inline: $spacing-6;
+}
+
+// Accessible focus indication (UI/UX §43).
+@mixin focus-ring {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+// Respect reduced-motion preferences (UI/UX §42).
+// Usage: @include reduced-motion { ... }
+@mixin reduced-motion {
+  @media (prefers-reduced-motion: reduce) {
+    @content;
+  }
+}
+
+// Visually hide content while keeping it available to screen readers (UI/UX §43).
+@mixin visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+// Single-line text truncation.
+@mixin truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

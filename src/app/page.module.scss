@@ -1,0 +1,10 @@
+// Homepage placeholder styles (TASK 002).
+// Demonstrates the SCSS Module pipeline consuming shared design tokens.
+// Replaced by real UI work in later tasks.
+@use '@/styles/tokens' as *;
+
+.main {
+  max-width: $content-measure;
+  margin-inline: auto;
+  padding: $spacing-16 $spacing-6;
+}

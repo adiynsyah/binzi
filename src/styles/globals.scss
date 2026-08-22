@@ -1,0 +1,103 @@
+// ==========================================================================
+// BINZI V1 — Global Styles (TASK 002)
+// --------------------------------------------------------------------------
+// Global SCSS is limited to: the design-token custom properties, reset,
+// base typography, and truly global accessibility rules
+// (Architecture §3, Blueprint §39). All component styling lives in
+// SCSS Modules next to their components.
+// ==========================================================================
+
+@use 'tokens' as *;
+@use 'mixins' as *;
+
+// --------------------------------------------------------------------------
+// Runtime design tokens — semantic names per UI/UX §40
+// --------------------------------------------------------------------------
+// Colors and font families are exposed as CSS custom properties so they can
+// be themed/read at runtime. Provisional palette pending the visual design
+// pass; text/background/base-font values carry over from TASK 001 unchanged.
+:root {
+  --color-primary: #2f7d5a;
+  --color-primary-hover: #256a4b;
+
+  --color-background: #ffffff;
+  --color-surface: #ffffff;
+  --color-text: #212121;
+  --color-text-muted: #6e675f;
+  --color-border: #e4dfd8;
+
+  --color-success: #1f7a3d;
+  --color-warning: #b26b00;
+  --color-danger: #b3362a;
+
+  --font-family-body: system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  --font-family-heading: var(--font-family-body);
+}
+
+// --------------------------------------------------------------------------
+// Reset / base
+// --------------------------------------------------------------------------
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+// Heading/paragraph margins intentionally keep browser defaults for now —
+// zeroing them would change the current page's visual behavior. The UI
+// primitives (TASK 003+) own those rules alongside the design pass.
+
+body {
+  margin: 0;
+  font-family: var(--font-family-body);
+  font-size: $font-size-body;
+  line-height: $line-height-body;
+  color: var(--color-text);
+  background-color: var(--color-background);
+}
+
+// Responsive, non-overflowing media.
+img,
+svg,
+video,
+canvas {
+  display: block;
+  max-width: 100%;
+}
+
+// Form controls must not shrink to browser-default font sizing.
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+// Base link color from the semantic palette.
+a {
+  color: var(--color-primary);
+}
+
+// --------------------------------------------------------------------------
+// Global accessibility behavior (UI/UX §42–§43)
+// --------------------------------------------------------------------------
+:focus-visible {
+  @include focus-ring;
+}
+
+@include reduced-motion {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
