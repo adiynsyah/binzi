@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/Badge/Badge";
 import { Card } from "@/components/ui/Card/Card";
 import { LessonContentPanel } from "@/features/courses/components/LessonContentPanel/LessonContentPanel";
 import { assignContentToLessonAction } from "@/features/courses/mutations/assignContentToLesson";
+import { reorderLessonContentAction } from "@/features/courses/mutations/reorderLessonContent";
 import { getCourseById } from "@/features/courses/queries/getCourse";
 import {
   getLessonContents,
@@ -29,12 +30,13 @@ import styles from "./page.module.scss";
  *
  * Layout per CMS §9: Basic Information (read-only display — lesson
  * metadata editing is not part of TASK 028), Content (assigned list +
- * assignment search; the TASK 028 scope), Lesson Quiz (placeholder —
- * its builder is a later task), and the publish state as the header
- * Badge. While the course is PUBLISHED the structure is locked in V1
- * (Decisions Log #11): the search/add surface is not rendered at all
- * and the mutation would reject independently anyway (fail closed at
- * both layers).
+ * assignment search from TASK 028; drag-and-drop ordering with the
+ * accessible Naik/Turun fallback from TASK 029), Lesson Quiz
+ * (placeholder — its builder is a later task), and the publish state
+ * as the header Badge. While the course is PUBLISHED the structure is
+ * locked in V1 (Decisions Log #11): the ordering controls and the
+ * search/add surface are not rendered at all and the mutations would
+ * reject independently anyway (fail closed at both layers).
  *
  * Search state lives in the URL (q / page) — shareable views, plain
  * GET form, no client data access. The mutation's actionable
@@ -150,6 +152,11 @@ export default async function AdminLessonEditorPage({
         searchQuery={query}
         error={error}
         action={assignContentToLessonAction.bind(null, course.id, lesson.id)}
+        reorderAction={reorderLessonContentAction.bind(
+          null,
+          course.id,
+          lesson.id,
+        )}
       />
 
       <section

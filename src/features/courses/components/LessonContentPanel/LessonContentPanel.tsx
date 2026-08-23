@@ -7,28 +7,34 @@ import { Input } from "@/components/ui/Input/Input";
 import type { AssignedContentItem } from "../../queries/getLessonForEditor";
 import type { AssignableContentResult } from "../../queries/searchAssignableContents";
 
+import { AssignedContentOrderList } from "./AssignedContentOrderList";
 import styles from "./LessonContentPanel.module.scss";
 
 /**
- * Lesson editor "Content" panel (TASK 028, CMS Spec §9/§10/§11).
+ * Lesson editor "Content" panel (TASK 028, CMS Spec §9/§10/§11;
+ * ordering added by TASK 029, CMS Spec §9/§26).
  *
- * Server Component — no client JavaScript required. The assigned
- * list reflects the persisted per-lesson sort_order (BR §3.2/§27);
- * reordering is TASK 029 and is only announced, never implemented
- * here. The search area is a plain GET form (shareable URL state,
- * works without JavaScript) and each available candidate row is a
- * plain <form> posting ONLY contentId to the bound
+ * Server Component shell — the search area is a plain GET form
+ * (shareable URL state, works without JavaScript) and each available
+ * candidate row is a plain <form> posting ONLY contentId to the bound
  * assignContentToLessonAction. Already-assigned Content (ANYWHERE —
  * the global UNIQUE(content_id), CMS §11/BR §25) renders a disabled
  * button plus an explanatory note instead of an action, so it is
  * visible but not selectable.
  *
+ * TASK 029: while the course is DRAFT, the assigned list is rendered
+ * by the AssignedContentOrderList client component — native HTML5
+ * drag-and-drop plus the accessible Naik/Turun fallback, both
+ * persisting through the bound reorderLessonContentAction (contentId
+ * + targetPosition only; CMS §26 "update the server rather than
+ * relying only on local state").
+ *
  * While the course is PUBLISHED the structure is locked in V1
- * (Decisions Log #11): the search/add surface is not rendered at
- * all — the panel degrades to the read-only assigned list — and the
- * mutation independently re-checks the course status under a lock
- * server-side. Titles render as plain text; no
- * dangerouslySetInnerHTML anywhere in the panel.
+ * (Decisions Log #11): NO ordering controls and no search/add
+ * surface are rendered at all — the panel degrades to the read-only
+ * assigned list — and the mutations independently re-check the
+ * course status under a lock server-side. Titles render as plain
+ * text; no dangerouslySetInnerHTML anywhere in the panel.
  */
 
 type ContentType = AssignedContentItem["type"];
@@ -72,6 +78,8 @@ type LessonContentPanelProps = {
   error: string | undefined;
   /** assignContentToLessonAction bound to (courseId, lessonId). */
   action: AssignAction;
+  /** reorderLessonContentAction bound to (courseId, lessonId) (TASK 029). */
+  reorderAction: AssignAction;
 };
 
 function buildSearchHref(
@@ -96,6 +104,7 @@ export function LessonContentPanel({
   searchQuery,
   error,
   action,
+  reorderAction,
 }: LessonContentPanelProps) {
   const isPublished = courseStatus === "PUBLISHED";
   const editorBase = `/admin/courses/${courseId}/lessons/${lessonId}`;
@@ -116,7 +125,7 @@ export function LessonContentPanel({
       ) : null}
 
       {assigned.length > 0 ? (
-        <>
+        isPublished ? (
           <ol className={styles.assignedList}>
             {assigned.map((item) => (
               <li key={item.contentId} className={styles.assignedItem}>
@@ -130,11 +139,15 @@ export function LessonContentPanel({
               </li>
             ))}
           </ol>
-          <p className={styles.orderNote}>
-            Urutan mengikuti posisi konten yang tersimpan; penyusunan
-            ulang urutan konten ditangani pada tugas berikutnya.
-          </p>
-        </>
+        ) : (
+          <>
+            <AssignedContentOrderList items={assigned} action={reorderAction} />
+            <p className={styles.orderNote}>
+              Susun urutan konten dengan tarik-lepas, atau gunakan tombol
+              Naik/Turun. Urutan tersimpan otomatis.
+            </p>
+          </>
+        )
       ) : (
         <Card className={styles.emptyCard}>
           <h3 className={styles.emptyTitle}>Belum ada konten.</h3>
