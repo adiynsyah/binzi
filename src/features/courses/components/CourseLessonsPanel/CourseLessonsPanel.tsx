@@ -4,6 +4,7 @@ import buttonStyles from "@/components/ui/Button/Button.module.scss";
 import { Badge } from "@/components/ui/Badge/Badge";
 import { Card } from "@/components/ui/Card/Card";
 import { LessonOrderList } from "../LessonOrderList/LessonOrderList";
+import { deleteLessonAction } from "../../mutations/deleteLesson";
 import { reorderLessonAction } from "../../mutations/reorderLesson";
 
 import type { BuilderLesson } from "../../queries/getCourseLessons";
@@ -12,7 +13,7 @@ import styles from "./CourseLessonsPanel.module.scss";
 
 /**
  * Course Builder "Lessons" panel (TASK 024, CMS Spec §7 / Blueprint
- * §23; ordering added by TASK 026).
+ * §23; ordering added by TASK 026, deletion by TASK 027).
  *
  * Server Component: renders the persisted course structure — lessons
  * in their explicit per-course sort_order (BR §3.2/§27). Lesson
@@ -20,15 +21,16 @@ import styles from "./CourseLessonsPanel.module.scss";
  * Architecture §5 route /admin/courses/[id]/lessons/new), ordering is
  * TASK 026 (drag-and-drop + accessible move up/down via
  * LessonOrderList and the bound reorderLessonAction), and deletion is
- * TASK 027.
+ * TASK 027 (draft lessons only — BR §3.4/§28 — via the bound
+ * deleteLessonAction, confirmed client-side per CMS §33).
  *
  * While the course is PUBLISHED the structure is locked in V1
  * (Decisions Log #11: no adding, deleting, OR reordering Lessons on a
- * published Course): the DRAFT-only ordering UI is not rendered at
- * all — the list stays read-only — and the mutation independently
- * re-checks the course status under a lock server-side. Lesson titles
- * render as plain text — no dangerouslySetInnerHTML anywhere in the
- * panel.
+ * published Course): the DRAFT-only ordering/deletion UI is not
+ * rendered at all — the list stays read-only — and each mutation
+ * independently re-checks the course status under a lock server-side.
+ * Lesson titles render as plain text — no dangerouslySetInnerHTML
+ * anywhere in the panel.
  */
 
 type CourseLessonsPanelProps = {
@@ -101,6 +103,7 @@ export function CourseLessonsPanel({
             <LessonOrderList
               lessons={lessons}
               action={reorderLessonAction.bind(null, courseId)}
+              deleteAction={deleteLessonAction.bind(null, courseId)}
             />
             <p className={styles.orderNote}>
               Susun urutan dengan menyeret pelajaran atau menggunakan tombol

@@ -1,4 +1,5 @@
-// Orderable lesson list styles (TASK 026, CMS Spec §7).
+// Orderable lesson list styles (TASK 026, CMS Spec §7; TASK 027 adds
+// the per-row delete button + published-lesson note).
 // Extends the TASK 024 read-only list with a drag handle, drop-target
 // feedback, and the accessible move up/down fallback buttons.
 @use '@/styles/tokens' as *;
@@ -74,4 +75,37 @@
     cursor: not-allowed;
     opacity: 0.5;
   }
+}
+
+// TASK 027: destructive action — danger variant of .moveButton with
+// the same 44px touch target. Disabled for PUBLISHED lessons
+// (BR §3.4; CMS §32 disable + explain via .publishedNote).
+.deleteButton {
+  min-height: 2.75rem; // 44px touch target (UI/UX §34)
+  padding: $spacing-1 $spacing-3;
+  border: 1px solid var(--color-danger);
+  border-radius: $radius-md;
+  background-color: var(--color-surface);
+  color: var(--color-danger);
+  font-family: inherit;
+  font-size: $font-size-small;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background-color: var(--color-danger);
+    color: var(--color-on-primary);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+}
+
+// Explains why the delete button is disabled for published lessons
+// (CMS §32 "Explain why"), shown only when such a row exists.
+.publishedNote {
+  margin: $spacing-2 0 0;
+  color: var(--color-text-muted);
+  font-size: $font-size-small;
 }

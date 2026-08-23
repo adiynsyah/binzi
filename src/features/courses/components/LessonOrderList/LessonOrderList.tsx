@@ -11,21 +11,29 @@ import styles from "./LessonOrderList.module.scss";
 /**
  * Orderable lesson list for the Course Builder (TASK 026, CMS Spec §7
  * "Lesson ordering should use drag-and-drop", Blueprint §24 "drag/drop
- * + accessible move up/down fallback").
+ * + accessible move up/down fallback"; deletion added by TASK 027).
  *
- * Two supported ways to move a lesson, both persisting through the
- * SAME server action (reorderLessonAction, bound to the course id by
- * the server panel — the course binding is never client input):
+ * Ways to act on a lesson, each persisting through its own server
+ * action (both bound to the course id by the server panel — the
+ * course binding is never client input):
  *
  * 1. Native HTML5 drag-and-drop (no library, per the zero-dependency
  *    guardrail; Blueprint §5 permits one maintained library but does
  *    not require one). Pointer-only by nature.
  * 2. "Naik"/"Turun" buttons — the accessible, keyboard-usable fallback
  *    required by the Task Plan. Each button is a plain <form> posting
- *    the minimal contract (lessonId + targetPosition), so it ALSO
- *    works without JavaScript (MPA post → redirect back to the
+ *    the minimal reorder contract (lessonId + targetPosition), so it
+ *    ALSO works without JavaScript (MPA post → redirect back to the
  *    builder); with JavaScript the submit is intercepted for an
  *    optimistic reorder before the action runs.
+ * 3. "Hapus" button (TASK 027): a sibling plain <form> posting only
+ *    lessonId to deleteLessonAction. Only DRAFT lessons offer a live
+ *    button — a PUBLISHED lesson in a DRAFT course renders the button
+ *    disabled with an explanatory note (CMS §32), because BR §3.4/§28
+ *    forbid deleting published lessons. With JavaScript the submit is
+ *    gated by a native confirmation dialog (CMS §33: "This action
+ *    cannot be undone"); without JavaScript the form posts directly
+ *    and the server-side rules remain mandatory either way.
  *
  * Drop semantics: dropping a lesson onto row T moves it to T's
  * current 1-based position (remove + insert), which the server
@@ -33,8 +41,10 @@ import styles from "./LessonOrderList.module.scss";
  * by fresh server data after the action's redirect revalidates the
  * builder page.
  *
- * Rendering stays text-only (no dangerouslySetInnerHTML). This
- * component never touches the database — it only calls the action.
+ * The three per-row forms are SIBLINGS inside the row (never nested
+ * — nested <form> is invalid HTML). Rendering stays text-only (no
+ * dangerouslySetInnerHTML). This component never touches the
+ * database — it only calls the actions.
  */
 
 const STATUS_LABELS: Record<BuilderLesson["status"], string> = {
@@ -47,11 +57,14 @@ type MoveAction = (formData: FormData) => Promise<void>;
 export function LessonOrderList({
   lessons,
   action,
+  deleteAction,
 }: {
   /** Persisted order (BR §3.2), passed by the server panel. */
   lessons: BuilderLesson[];
   /** reorderLessonAction bound to the course id. */
   action: MoveAction;
+  /** deleteLessonAction bound to the course id (TASK 027). */
+  deleteAction: MoveAction;
 }) {
   const [order, setOrder] = useState(lessons);
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -86,8 +99,19 @@ export function LessonOrderList({
     });
   }
 
+  function submitDelete(lessonId: string) {
+    // No optimistic removal: deletion is destructive, so the persisted
+    // server state after the action's redirect is the only truth.
+    const formData = new FormData();
+    formData.set("lessonId", lessonId);
+    startTransition(async () => {
+      await deleteAction(formData);
+    });
+  }
+
   return (
-    <ol className={styles.lessonList}>
+    <>
+      <ol className={styles.lessonList}>
       {order.map((lesson, index) => {
         const isFirst = index === 0;
         const isLast = index === order.length - 1;
@@ -179,10 +203,41 @@ export function LessonOrderList({
                   Turun
                 </button>
               </form>
+              {/* TASK 027: sibling form (never nested) — DRAFT-only
+                  deletion, confirmed via native dialog (CMS §33). */}
+              <form
+                action={deleteAction}
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  const confirmed = window.confirm(
+                    `Hapus pelajaran draf "${lesson.title}"? Tindakan ini tidak dapat dibatalkan.`,
+                  );
+                  if (confirmed) {
+                    submitDelete(lesson.id);
+                  }
+                }}
+              >
+                <input type="hidden" name="lessonId" value={lesson.id} />
+                <button
+                  type="submit"
+                  className={styles.deleteButton}
+                  disabled={lesson.status === "PUBLISHED" || isPending}
+                  aria-label={`Hapus pelajaran ${lesson.title}`}
+                >
+                  Hapus
+                </button>
+              </form>
             </div>
           </li>
         );
       })}
-    </ol>
+      </ol>
+      {order.some((lesson) => lesson.status === "PUBLISHED") ? (
+        <p className={styles.publishedNote}>
+          Pelajaran yang sudah terbit tidak dapat dihapus (BR §3.4);
+          tombol Hapus nonaktif untuk pelajaran terbit.
+        </p>
+      ) : null}
+    </>
   );
 }
