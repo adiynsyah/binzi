@@ -1,0 +1,81 @@
+// Course Builder "Lessons" panel styles (TASK 024, CMS Spec §7).
+// Mirrors the admin panel conventions from TASK 022 (heading row,
+// muted notes, Card empty states) — restrained and token-driven.
+@use '@/styles/tokens' as *;
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-4;
+  margin-top: $spacing-8;
+}
+
+.panelHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: $spacing-3;
+}
+
+.panelTitle {
+  margin: 0;
+  font-size: $font-size-h3;
+  line-height: $line-height-heading;
+}
+
+.addCta {
+  white-space: nowrap;
+}
+
+.lockedNote {
+  margin: 0;
+  font-size: $font-size-small;
+  line-height: $line-height-body;
+  color: var(--color-text-muted);
+}
+
+// Decimal markers make the persisted sort_order legible (BR §3.2) and
+// keep the ordering accessible without JavaScript.
+.lessonList {
+  margin: 0;
+  padding: 0 0 0 $spacing-5;
+}
+
+.lessonItem {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: $spacing-3;
+  padding: $spacing-3 0;
+  border-bottom: 1px solid var(--color-border);
+
+  &:last-child {
+    border-bottom: 0;
+  }
+}
+
+.lessonTitle {
+  font-weight: $font-weight-semibold;
+}
+
+.orderNote {
+  margin: 0;
+  font-size: $font-size-small;
+  line-height: $line-height-body;
+  color: var(--color-text-muted);
+}
+
+.emptyTitle {
+  margin: 0 0 $spacing-2;
+  font-size: $font-size-h3;
+  line-height: $line-height-heading;
+}
+
+.emptyText {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: $font-size-small;
+  line-height: $line-height-body;
+}

@@ -1,6 +1,7 @@
-// CMS Course Edit page styles (TASK 023, CMS Spec §6).
-// Mirrors the Course Create page (TASK 023) and Content Edit page
-// (TASK 019) for a consistent admin section pattern.
+// CMS Course Edit + Course Builder page styles (TASK 023 §6,
+// TASK 024 §7). Mirrors the Course Create page (TASK 023) and the
+// Content Edit page (TASK 019); builder sections follow the admin
+// panel conventions from TASK 022.
 @use '@/styles/tokens' as *;
 @use '@/styles/mixins' as *;
 
@@ -27,6 +28,14 @@
   line-height: $line-height-body;
 }
 
+// Title + publish-state Badge sit on one row (CMS §7 header).
+.introRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $spacing-2;
+}
+
 .backLink {
   color: var(--color-primary);
   font-size: $font-size-small;
@@ -37,4 +46,31 @@
   &:hover {
     text-decoration: underline;
   }
+}
+
+// --------------------------------------------------------------------------
+// Course Builder sections (TASK 024, CMS §7): Course Information keeps
+// the TASK 023 form; Lessons and Final Quiz panels follow below.
+// --------------------------------------------------------------------------
+.infoHeading {
+  margin: 0 0 $spacing-4;
+  font-size: $font-size-h3;
+  line-height: $line-height-heading;
+}
+
+.finalQuizPanel {
+  margin-top: $spacing-8;
+}
+
+.finalQuizTitle {
+  margin: 0 0 $spacing-2;
+  font-size: $font-size-h3;
+  line-height: $line-height-heading;
+}
+
+.finalQuizNote {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: $font-size-small;
+  line-height: $line-height-body;
 }
