@@ -1,0 +1,185 @@
+// Question Create/Edit form styles (TASK 031, CMS §22/§24).
+// Follows the Content Create form conventions (TASK 018): stacked
+// labeled fields within a comfortable authoring measure, inline
+// validation messages, restrained actions row. Option rows are
+// radio + text input + remove control; every interactive control
+// meets the 44px touch target rule (UI/UX §34).
+@use '@/styles/tokens' as *;
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-6;
+  max-width: $content-measure; // comfortable authoring measure
+}
+
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-6;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-2;
+}
+
+.fieldLabel {
+  margin: 0;
+  font-size: $font-size-small;
+  font-weight: $font-weight-semibold;
+  color: var(--color-text);
+}
+
+.optional {
+  font-weight: 400; // no $font-weight-normal token; override the bold label
+  color: var(--color-text-muted);
+}
+
+.hint {
+  margin: 0;
+  font-size: $font-size-small;
+  line-height: $line-height-body;
+  color: var(--color-text-muted);
+}
+
+// Mirrors the Input primitive sizing so the multiline fields match
+// the single-line option inputs in the same form.
+.textarea,
+.textareaInvalid {
+  padding: $spacing-2 $spacing-3;
+  border: 1px solid var(--color-border);
+  border-radius: $radius-md;
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: $font-size-body;
+  line-height: $line-height-body;
+  resize: vertical;
+}
+
+.textareaInvalid {
+  border-color: var(--color-danger);
+}
+
+.fieldError {
+  margin: 0;
+  font-size: $font-size-small;
+  color: var(--color-danger);
+}
+
+// --------------------------------------------------------------------------
+// Options fieldset — semantic radio group + indexed text rows.
+// --------------------------------------------------------------------------
+.optionsFieldset {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-2;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.optionRows {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-2;
+}
+
+.optionRow {
+  display: flex;
+  align-items: flex-start;
+  gap: $spacing-2;
+}
+
+// Radio stays visually compact but gets a 44px hit area via an
+// expanded pseudo-element (UI/UX §34).
+.optionRadio {
+  position: relative;
+  flex: none;
+  width: 1.25rem;
+  height: 1.25rem;
+  margin: $spacing-3 0 $spacing-3 $spacing-1;
+  accent-color: var(--color-primary);
+
+  &::before {
+    content: "";
+    position: absolute;
+    inset: -0.75rem; // 20px + 2×12px = 44px square hit area
+  }
+}
+
+.optionInput,
+.optionInputInvalid {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 2.75rem; // 44px touch target (UI/UX §34)
+  padding: $spacing-2 $spacing-3;
+  border: 1px solid var(--color-border);
+  border-radius: $radius-md;
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: $font-size-body;
+}
+
+.optionInputInvalid {
+  border-color: var(--color-danger);
+}
+
+.removeButton {
+  flex: none;
+  min-height: 2.75rem; // 44px touch target (UI/UX §34)
+  padding: $spacing-2 $spacing-3;
+  border: 1px solid var(--color-border);
+  border-radius: $radius-md;
+  background-color: transparent;
+  color: var(--color-danger);
+  font-family: inherit;
+  font-size: $font-size-small;
+  font-weight: $font-weight-medium;
+
+  &:hover:enabled {
+    border-color: var(--color-danger);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+  }
+}
+
+.addButton {
+  align-self: flex-start;
+  min-height: 2.75rem; // 44px touch target (UI/UX §34)
+  margin-top: $spacing-2;
+  padding: $spacing-2 $spacing-3;
+  border: 1px dashed var(--color-border);
+  border-radius: $radius-md;
+  background-color: transparent;
+  color: var(--color-primary);
+  font-family: inherit;
+  font-size: $font-size-small;
+  font-weight: $font-weight-medium;
+
+  &:hover:enabled {
+    border-color: var(--color-primary);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+  }
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $spacing-3;
+}
+
+.messageError {
+  margin: 0;
+  font-size: $font-size-small;
+  color: var(--color-danger);
+}

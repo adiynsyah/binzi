@@ -1,0 +1,40 @@
+// CMS Question Create page styles (TASK 031, CMS Spec §22).
+// Mirrors the Content Create page header (TASK 018) for a consistent
+// admin section pattern.
+@use '@/styles/tokens' as *;
+@use '@/styles/mixins' as *;
+
+.pageHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: $spacing-4;
+  margin-bottom: $spacing-6;
+}
+
+.title {
+  margin: 0 0 $spacing-2;
+  // CMS density: section pages use the h2 size for their h1.
+  font-size: $font-size-h2;
+  line-height: $line-height-heading;
+}
+
+.intro {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: $font-size-small;
+  line-height: $line-height-body;
+}
+
+.backLink {
+  color: var(--color-primary);
+  font-size: $font-size-small;
+  font-weight: $font-weight-medium;
+  text-decoration: none;
+  white-space: nowrap;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
