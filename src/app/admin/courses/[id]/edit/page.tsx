@@ -8,6 +8,14 @@ import { CourseLessonsPanel } from "@/features/courses/components/CourseLessonsP
 import { getCourseLessons } from "@/features/courses/queries/getCourseLessons";
 import { getCourseById } from "@/features/courses/queries/getCourse";
 import { updateCourseAction } from "@/features/courses/mutations/updateCourse";
+import { FinalQuizPanel } from "@/features/quizzes/components/FinalQuizPanel/FinalQuizPanel";
+import { addQuestionToFinalQuizAction } from "@/features/quizzes/mutations/addQuestionToFinalQuiz";
+import { removeQuestionFromFinalQuizAction } from "@/features/quizzes/mutations/removeQuestionFromFinalQuiz";
+import { reorderFinalQuizQuestionAction } from "@/features/quizzes/mutations/reorderFinalQuizQuestion";
+import { getFinalQuiz } from "@/features/quizzes/queries/getFinalQuizForEditor";
+import { getQuizQuestions } from "@/features/quizzes/queries/getLessonQuizForEditor";
+import { searchBankQuestions } from "@/features/quizzes/queries/searchBankQuestions";
+import { parseFinalQuizSearchParams } from "@/features/quizzes/schemas/final-quiz-search.schema";
 
 import styles from "./page.module.scss";
 
@@ -32,8 +40,18 @@ import styles from "./page.module.scss";
  *   - Course Information (the TASK 023 form),
  *   - Lessons (read-only ordered list; create/reorder/delete are
  *     TASK 025/026/027),
- *   - Final Quiz (placeholder panel; its builder is TASK 034).
+ *   - Final Quiz (the TASK 034 builder — select/reorder/remove
+ *     Questions with the count-vs-10–30 display-only status).
  * There is deliberately no publish button and no preview link here.
+ *
+ * TASK 034: the Final Quiz picker's search state lives in the URL
+ * under its OWN fq / fqpage params (namespaced so it can never
+ * collide with another route's or panel's filter state), and the
+ * mutations' actionable rejection feedback rides the panel-scoped
+ * ?finalQuizError=… flag. While the course is PUBLISHED the
+ * structure is locked in V1 (Decisions Log #11): the search/add and
+ * ordering surfaces are not rendered at all and the mutations would
+ * reject independently anyway (fail closed at both layers).
  */
 export const metadata: Metadata = {
   title: "Sunting Kursus",
@@ -46,10 +64,24 @@ const STATUS_LABELS: Record<CourseStatus, string> = {
   PUBLISHED: "Terbit",
 };
 
+/** Rejection flags the Final Quiz mutations may set (TASK 034). */
+const FINAL_QUIZ_ERROR_FLAGS = new Set([
+  "missing",
+  "locked",
+  "invalid",
+  "duplicate",
+]);
+
+function firstValue(value: string | string[] | undefined): unknown {
+  return Array.isArray(value) ? value[0] : value;
+}
+
 export default async function AdminCourseEditPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { id } = await params;
 
@@ -59,6 +91,37 @@ export default async function AdminCourseEditPage({
   }
 
   const lessons = await getCourseLessons(course.id);
+
+  const isPublished = course.status === "PUBLISHED";
+  const rawQuizError = firstValue((await searchParams).finalQuizError);
+  const finalQuizError =
+    typeof rawQuizError === "string" && FINAL_QUIZ_ERROR_FLAGS.has(rawQuizError)
+      ? rawQuizError
+      : undefined;
+
+  // Final Quiz builder data (TASK 034): the course's quiz row (null
+  // before the first add materializes it) and its assigned Questions
+  // in persisted order — loaded for BOTH statuses; PUBLISHED renders
+  // the read-only list.
+  const quiz = await getFinalQuiz(course.id);
+  const quizQuestions = quiz
+    ? await getQuizQuestions(quiz.id)
+    : ([] as Awaited<ReturnType<typeof getQuizQuestions>>);
+  const quizQuery = parseFinalQuizSearchParams(await searchParams);
+
+  // The search surface only exists for DRAFT courses (Decisions #11).
+  let quizSearch: Awaited<ReturnType<typeof searchBankQuestions>> | null =
+    null;
+  let quizSearchFailed = false;
+  if (!isPublished) {
+    try {
+      quizSearch = await searchBankQuestions(quizQuery, quiz?.id ?? null);
+    } catch (error) {
+      // Detailed errors belong in server logs (CMS §45).
+      console.error("[admin/course-builder] quiz search query failed:", error);
+      quizSearchFailed = true;
+    }
+  }
 
   return (
     <section aria-labelledby="admin-course-edit-heading">
@@ -95,21 +158,19 @@ export default async function AdminCourseEditPage({
         lessons={lessons}
       />
 
-      <section
-        className={styles.finalQuizPanel}
-        aria-labelledby="course-builder-final-quiz-heading"
-      >
-        <h2
-          className={styles.finalQuizTitle}
-          id="course-builder-final-quiz-heading"
-        >
-          Kuis Akhir
-        </h2>
-        <p className={styles.finalQuizNote}>
-          Kuis akhir dikonfigurasi melalui Bank Soal setelah pelajaran dan
-          kuis pelajaran selesai disusun (tugas berikutnya).
-        </p>
-      </section>
+      <FinalQuizPanel
+        courseId={course.id}
+        courseStatus={course.status}
+        quiz={quiz}
+        questions={quizQuestions}
+        search={quizSearch}
+        searchFailed={quizSearchFailed}
+        searchQuery={quizQuery}
+        error={finalQuizError}
+        addAction={addQuestionToFinalQuizAction.bind(null, course.id)}
+        removeAction={removeQuestionFromFinalQuizAction.bind(null, course.id)}
+        reorderAction={reorderFinalQuizQuestionAction.bind(null, course.id)}
+      />
     </section>
   );
 }

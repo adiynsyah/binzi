@@ -50,27 +50,11 @@
 
 // --------------------------------------------------------------------------
 // Course Builder sections (TASK 024, CMS §7): Course Information keeps
-// the TASK 023 form; Lessons and Final Quiz panels follow below.
+// the TASK 023 form; the Lessons and Final Quiz panels (TASK 034)
+// bring their own module styles.
 // --------------------------------------------------------------------------
 .infoHeading {
   margin: 0 0 $spacing-4;
   font-size: $font-size-h3;
   line-height: $line-height-heading;
-}
-
-.finalQuizPanel {
-  margin-top: $spacing-8;
-}
-
-.finalQuizTitle {
-  margin: 0 0 $spacing-2;
-  font-size: $font-size-h3;
-  line-height: $line-height-heading;
-}
-
-.finalQuizNote {
-  margin: 0;
-  color: var(--color-text-muted);
-  font-size: $font-size-small;
-  line-height: $line-height-body;
 }
