@@ -20,10 +20,10 @@ import styles from "./page.module.scss";
  * URL (q / status / type / page) so views are shareable and the
  * filter form works as a plain GET form without JavaScript.
  *
- * Columns per CMS §13: Title, Type, Status, Updated At, Used In.
- * The "Actions" column is deferred until editor routes exist
- * (TASK 018+); the Create CTA targets /admin/contents/new, which
- * TASK 018 will define (it 404s until then — documented).
+ * Columns per CMS §13: Title, Type, Status, Updated At, Used In,
+ * Actions. The Actions column carries only the Edit link to
+ * /admin/contents/[id]/edit (TASK 019) — the other CMS §16 actions
+ * (Preview/Publish) stay deferred until their own tasks.
  */
 
 type ContentType = (typeof contentType.enumValues)[number];
@@ -174,6 +174,7 @@ export default async function AdminContentsPage({
                     <th scope="col">Status</th>
                     <th scope="col">Diperbarui</th>
                     <th scope="col">Digunakan Di</th>
+                    <th scope="col">Aksi</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -203,6 +204,14 @@ export default async function AdminContentsPage({
                         {row.usedInCount > 0
                           ? `${row.usedInCount} pelajaran`
                           : "—"}
+                      </td>
+                      <td className={styles.actionsCell}>
+                        <Link
+                          className={styles.editLink}
+                          href={`/admin/contents/${row.id}/edit`}
+                        >
+                          Sunting
+                        </Link>
                       </td>
                     </tr>
                   ))}
