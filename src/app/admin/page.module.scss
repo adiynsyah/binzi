@@ -1,0 +1,21 @@
+// Admin placeholder page styles (TASK 015).
+// Shared shape for the shell-only CMS section pages.
+@use '@/styles/tokens' as *;
+
+.card {
+  max-width: $content-measure;
+}
+
+.title {
+  margin: 0 0 $spacing-2;
+  // CMS density: section pages use the h2 size for their h1.
+  font-size: $font-size-h2;
+  line-height: $line-height-heading;
+}
+
+.intro {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: $font-size-small;
+  line-height: $line-height-body;
+}

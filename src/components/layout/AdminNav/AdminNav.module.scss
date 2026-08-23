@@ -1,0 +1,53 @@
+// BINZI CMS navigation styles (TASK 015).
+// Mobile-first: horizontal scrollable rail; persistent sidebar column
+// from the "large" breakpoint (tokens: persistent sidebars).
+@use '@/styles/tokens' as *;
+@use '@/styles/mixins' as *;
+
+.nav {
+  min-width: 0;
+}
+
+.list {
+  display: flex;
+  gap: $spacing-1;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-x: auto;
+
+  @include respond-above('large') {
+    flex-direction: column;
+    gap: $spacing-1;
+    overflow-x: visible;
+  }
+}
+
+.link,
+.linkActive {
+  display: block;
+  padding: $spacing-2 $spacing-3;
+  border-radius: $radius-md;
+  font-size: $font-size-small;
+  font-weight: $font-weight-medium;
+  line-height: $line-height-heading;
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    background-color $transition-fast $transition-easing,
+    color $transition-fast $transition-easing;
+}
+
+.link {
+  color: var(--color-text-muted);
+
+  &:hover {
+    color: var(--color-primary);
+  }
+}
+
+.linkActive {
+  background-color: var(--color-primary);
+  color: var(--color-text-on-primary);
+  font-weight: $font-weight-semibold;
+}

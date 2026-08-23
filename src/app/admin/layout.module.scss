@@ -1,0 +1,51 @@
+// BINZI admin shell styles (TASK 015).
+// Mobile-first: brand + horizontal nav on top, content below.
+// From the "large" breakpoint: persistent left sidebar (tokens note:
+// 64em is the persistent-sidebar threshold), scrollable main area.
+@use '@/styles/tokens' as *;
+@use '@/styles/mixins' as *;
+
+.shell {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-height: 100dvh;
+
+  @include respond-above('large') {
+    grid-template-rows: 1fr;
+    grid-template-columns: 16rem 1fr;
+  }
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-2;
+  padding: $spacing-4 $spacing-4 $spacing-2;
+  border-bottom: 1px solid var(--color-border);
+  background-color: var(--color-surface);
+
+  @include respond-above('large') {
+    gap: $spacing-4;
+    padding: $spacing-6 $spacing-4;
+    border-bottom: 0;
+    border-right: 1px solid var(--color-border);
+  }
+}
+
+.brand {
+  margin: 0;
+  font-size: $font-size-small;
+  font-weight: $font-weight-semibold;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text);
+}
+
+.main {
+  min-width: 0;
+  padding: $spacing-6 $spacing-4;
+
+  @include respond-above('medium') {
+    padding: $spacing-8 $spacing-6;
+  }
+}
