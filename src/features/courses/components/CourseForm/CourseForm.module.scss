@@ -1,0 +1,101 @@
+// Course metadata form styles (TASK 023, CMS Spec §6).
+// Mirrors the Content Create/Edit form styles (TASK 018/019): stacked
+// labeled fields, inline validation messages, restrained actions row.
+@use '@/styles/tokens' as *;
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-6;
+  max-width: $content-measure; // comfortable authoring measure
+}
+
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-4;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-2;
+}
+
+.fieldLabel {
+  margin: 0;
+  font-size: $font-size-small;
+  font-weight: $font-weight-semibold;
+  color: var(--color-text);
+}
+
+.hint {
+  margin: 0;
+  font-size: $font-size-small;
+  line-height: $line-height-body;
+  color: var(--color-text-muted);
+}
+
+// Mirrors the Input primitive + the Content List select (TASK 016) —
+// no Select/Textarea primitives exist yet.
+.select,
+.selectInvalid,
+.textarea,
+.textareaInvalid {
+  padding: $spacing-2 $spacing-3;
+  border: 1px solid var(--color-border);
+  border-radius: $radius-md;
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: $font-size-body;
+}
+
+.select,
+.selectInvalid {
+  min-height: 2.75rem; // 44px touch target (UI/UX §34)
+}
+
+.textarea,
+.textareaInvalid {
+  min-height: 2.75rem;
+  line-height: $line-height-body;
+  resize: vertical;
+}
+
+.selectInvalid,
+.textareaInvalid {
+  border-color: var(--color-danger);
+}
+
+.fieldError {
+  margin: 0;
+  font-size: $font-size-small;
+  color: var(--color-danger);
+}
+
+.statusNote {
+  display: flex;
+  align-items: center;
+  gap: $spacing-3;
+}
+
+.statusText {
+  margin: 0;
+  font-size: $font-size-small;
+  line-height: $line-height-body;
+  color: var(--color-text-muted);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $spacing-3;
+}
+
+.messageError {
+  margin: 0;
+  font-size: $font-size-small;
+  color: var(--color-danger);
+}
