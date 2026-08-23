@@ -3,26 +3,32 @@ import Link from "next/link";
 import buttonStyles from "@/components/ui/Button/Button.module.scss";
 import { Badge } from "@/components/ui/Badge/Badge";
 import { Card } from "@/components/ui/Card/Card";
+import { LessonOrderList } from "../LessonOrderList/LessonOrderList";
+import { reorderLessonAction } from "../../mutations/reorderLesson";
 
 import type { BuilderLesson } from "../../queries/getCourseLessons";
 
 import styles from "./CourseLessonsPanel.module.scss";
 
 /**
- * Course Builder "Lessons" panel (TASK 024, CMS Spec §7 / Blueprint §23).
+ * Course Builder "Lessons" panel (TASK 024, CMS Spec §7 / Blueprint
+ * §23; ordering added by TASK 026).
  *
- * Server Component: renders the persisted course structure — lessons in
- * their explicit per-course sort_order (BR §3.2/§27). TASK 024 is the
- * builder shell, so this panel is deliberately read-only: lesson create
- * is TASK 025 (the "Tambah Pelajaran" CTA points at the Architecture §5
- * route /admin/courses/[id]/lessons/new and 404s until then — the same
- * approved CTA convention as TASK 016/022), drag-and-drop reordering is
- * TASK 026, and deletion is TASK 027. There are no per-row controls.
+ * Server Component: renders the persisted course structure — lessons
+ * in their explicit per-course sort_order (BR §3.2/§27). Lesson
+ * create is TASK 025 (the "Tambah Pelajaran" CTA targets the
+ * Architecture §5 route /admin/courses/[id]/lessons/new), ordering is
+ * TASK 026 (drag-and-drop + accessible move up/down via
+ * LessonOrderList and the bound reorderLessonAction), and deletion is
+ * TASK 027.
  *
- * While the course is PUBLISHED the structure is locked in V1 (Decisions
- * Log #11: no adding or deleting Lessons on a published Course), so the
- * CTA is hidden and a lock note is shown instead. Lesson titles render
- * as plain text — no dangerouslySetInnerHTML anywhere in the panel.
+ * While the course is PUBLISHED the structure is locked in V1
+ * (Decisions Log #11: no adding, deleting, OR reordering Lessons on a
+ * published Course): the DRAFT-only ordering UI is not rendered at
+ * all — the list stays read-only — and the mutation independently
+ * re-checks the course status under a lock server-side. Lesson titles
+ * render as plain text — no dangerouslySetInnerHTML anywhere in the
+ * panel.
  */
 
 type CourseLessonsPanelProps = {
@@ -65,31 +71,43 @@ export function CourseLessonsPanel({
       {isPublished ? (
         <p className={styles.lockedNote}>
           Kursus ini sudah terbit — struktur pelajaran terkunci dan tidak
-          dapat ditambah atau dihapus di V1.
+          dapat ditambah, dihapus, atau disusun ulang di V1.
         </p>
       ) : null}
 
       {lessons.length > 0 ? (
-        <>
-          <ol className={styles.lessonList}>
-            {lessons.map((lesson) => (
-              <li key={lesson.id} className={styles.lessonItem}>
-                <span className={styles.lessonTitle}>{lesson.title}</span>
-                <Badge
-                  tone={
-                    lesson.status === "PUBLISHED" ? "success" : "warning"
-                  }
-                >
-                  {STATUS_LABELS[lesson.status]}
-                </Badge>
-              </li>
-            ))}
-          </ol>
-          <p className={styles.orderNote}>
-            Urutan mengikuti posisi pelajaran yang tersimpan; penyusunan
-            ulang pelajaran (seret-lepas) tersedia pada tugas berikutnya.
-          </p>
-        </>
+        isPublished ? (
+          <>
+            <ol className={styles.lessonList}>
+              {lessons.map((lesson) => (
+                <li key={lesson.id} className={styles.lessonItem}>
+                  <span className={styles.lessonTitle}>{lesson.title}</span>
+                  <Badge
+                    tone={
+                      lesson.status === "PUBLISHED" ? "success" : "warning"
+                    }
+                  >
+                    {STATUS_LABELS[lesson.status]}
+                  </Badge>
+                </li>
+              ))}
+            </ol>
+            <p className={styles.orderNote}>
+              Urutan mengikuti posisi pelajaran yang tersimpan.
+            </p>
+          </>
+        ) : (
+          <>
+            <LessonOrderList
+              lessons={lessons}
+              action={reorderLessonAction.bind(null, courseId)}
+            />
+            <p className={styles.orderNote}>
+              Susun urutan dengan menyeret pelajaran atau menggunakan tombol
+              naik/turun; urutan tersimpan otomatis.
+            </p>
+          </>
+        )
       ) : (
         <Card className={styles.emptyPanel}>
           <h3 className={styles.emptyTitle}>Belum ada pelajaran.</h3>
