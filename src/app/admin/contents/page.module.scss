@@ -1,0 +1,194 @@
+// CMS Content List styles (TASK 016, CMS Spec §13).
+// Extends the TASK 015 admin page styles with the filter bar,
+// record table, empty/error panels, and pagination footer.
+@use '@/styles/tokens' as *;
+@use '@/styles/mixins' as *;
+
+.pageHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: $spacing-4;
+  margin-bottom: $spacing-6;
+}
+
+.title {
+  margin: 0 0 $spacing-2;
+  // CMS density: section pages use the h2 size for their h1.
+  font-size: $font-size-h2;
+  line-height: $line-height-heading;
+}
+
+.intro {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: $font-size-small;
+  line-height: $line-height-body;
+}
+
+.createCta {
+  white-space: nowrap;
+}
+
+// --------------------------------------------------------------------------
+// Filter bar — plain GET form, works without JavaScript.
+// --------------------------------------------------------------------------
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: $spacing-4;
+}
+
+.searchField {
+  flex: 1 1 16rem;
+  min-width: 0;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-2;
+}
+
+.fieldLabel {
+  font-size: $font-size-small;
+  font-weight: $font-weight-semibold;
+  color: var(--color-text);
+}
+
+// Mirrors the Input primitive's field styling (no Select primitive
+// exists yet; native <select> keeps semantics and no-JS behavior).
+.select {
+  min-height: 2.75rem; // 44px touch target (UI/UX §34)
+  padding: $spacing-2 $spacing-3;
+  border: 1px solid var(--color-border);
+  border-radius: $radius-md;
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: $font-size-body;
+}
+
+.resultCount {
+  margin: $spacing-6 0 $spacing-2;
+  color: var(--color-text-muted);
+  font-size: $font-size-small;
+}
+
+// --------------------------------------------------------------------------
+// Records table (CMS is desktop/tablet-first; scrolls on small screens).
+// --------------------------------------------------------------------------
+.tableWrap {
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: $radius-lg;
+  background-color: var(--color-surface);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+
+  th,
+  td {
+    padding: $spacing-3 $spacing-4;
+    border-bottom: 1px solid var(--color-border);
+    vertical-align: top;
+  }
+
+  thead th {
+    font-size: $font-size-small;
+    font-weight: $font-weight-semibold;
+    color: var(--color-text-muted);
+    white-space: nowrap;
+  }
+
+  tbody tr:last-child th,
+  tbody tr:last-child td {
+    border-bottom: 0;
+  }
+}
+
+.titleCell {
+  font-weight: $font-weight-semibold;
+}
+
+.dateCell {
+  white-space: nowrap;
+  color: var(--color-text-muted);
+  font-size: $font-size-small;
+}
+
+.usedInCell {
+  white-space: nowrap;
+  color: var(--color-text-muted);
+  font-size: $font-size-small;
+}
+
+// --------------------------------------------------------------------------
+// Empty / error panels (CMS Spec §43, UI/UX §36–§37 patterns).
+// --------------------------------------------------------------------------
+.panel {
+  margin-top: $spacing-6;
+}
+
+.panelTitle {
+  margin: 0 0 $spacing-2;
+  font-size: $font-size-h3;
+  line-height: $line-height-heading;
+}
+
+.panelText {
+  margin: 0 0 $spacing-4;
+  color: var(--color-text-muted);
+  font-size: $font-size-small;
+  line-height: $line-height-body;
+}
+
+.panelLink {
+  color: var(--color-primary);
+  font-weight: $font-weight-medium;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+// --------------------------------------------------------------------------
+// Pagination footer (only rendered when there is more than one page).
+// --------------------------------------------------------------------------
+.pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: $spacing-4;
+  margin-top: $spacing-6;
+}
+
+.pageLink {
+  color: var(--color-primary);
+  font-size: $font-size-small;
+  font-weight: $font-weight-medium;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.pageStatus {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: $font-size-small;
+}
+
+.pageDisabled {
+  color: var(--color-text-muted);
+  font-size: $font-size-small;
+  opacity: 0.6;
+}
