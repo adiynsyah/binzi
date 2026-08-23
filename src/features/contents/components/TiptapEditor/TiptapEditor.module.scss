@@ -1,0 +1,140 @@
+// TiptapEditor styles (TASK 017, CMS Spec §15, Blueprint §21–22).
+// A bordered surface with an inline toolbar; content typography mirrors
+// the approved extension set only (paragraphs, headings, lists, quotes,
+// rules, images, links). Placeholder rendering follows the Tiptap
+// Placeholder extension contract: empty first nodes carry
+// .is-empty + data-placeholder.
+@use '@/styles/tokens' as *;
+
+.root {
+  border: 1px solid var(--color-border);
+  border-radius: $radius-lg;
+  background-color: var(--color-surface);
+
+  // The editable region itself has outline: none (ProseMirror default
+  // is overridden below), so the wrapper signals editor focus.
+  &:focus-within {
+    border-color: var(--color-primary);
+  }
+}
+
+// --------------------------------------------------------------------------
+// Toolbar — flat text buttons; active tools use the Badge tint pattern.
+// Focus indication for each button comes from the global :focus-visible
+// rule (globals.scss).
+// --------------------------------------------------------------------------
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-1;
+  padding: $spacing-2;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.button,
+.buttonActive {
+  min-height: 2.25rem;
+  padding: $spacing-1 $spacing-3;
+  border: 0;
+  border-radius: $radius-sm;
+  background-color: transparent;
+  color: var(--color-text-muted);
+  font-size: $font-size-small;
+  font-weight: $font-weight-medium;
+  cursor: pointer;
+
+  &:hover {
+    color: var(--color-text);
+    background-color: color-mix(in srgb, var(--color-text-muted) 10%, transparent);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+}
+
+.buttonActive {
+  color: var(--color-primary);
+  background-color: color-mix(in srgb, var(--color-primary) 12%, transparent);
+
+  &:hover {
+    color: var(--color-primary-hover);
+    background-color: color-mix(in srgb, var(--color-primary) 18%, transparent);
+  }
+}
+
+// --------------------------------------------------------------------------
+// Editable region.
+// --------------------------------------------------------------------------
+.editable {
+  padding: $spacing-2 $spacing-4 $spacing-4;
+
+  // ProseMirror draws its own caret/selection; the wrapper border above
+  // provides the visible focus treatment.
+  :global(.ProseMirror) {
+    outline: none;
+    min-height: 10rem;
+  }
+
+  p {
+    margin: 0 0 $spacing-3;
+  }
+
+  h2,
+  h3 {
+    margin: $spacing-6 0 $spacing-2;
+    line-height: $line-height-heading;
+  }
+
+  h2 {
+    font-size: $font-size-h2;
+  }
+
+  h3 {
+    font-size: $font-size-h3;
+  }
+
+  ul,
+  ol {
+    margin: 0 0 $spacing-3;
+    padding-left: $spacing-6;
+  }
+
+  blockquote {
+    margin: 0 0 $spacing-3;
+    padding: 0 0 0 $spacing-4;
+    border-left: 3px solid var(--color-border);
+    color: var(--color-text-muted);
+  }
+
+  hr {
+    margin: $spacing-4 0;
+    border: 0;
+    border-top: 1px solid var(--color-border);
+  }
+
+  img {
+    border-radius: $radius-md;
+  }
+
+  a {
+    color: var(--color-primary);
+    text-decoration: underline;
+  }
+
+  // Collapse trailing margins so the canvas does not scroll needlessly.
+  > :last-child {
+    margin-bottom: 0;
+  }
+
+  // Placeholder (Tiptap Placeholder extension): only the empty first
+  // node of the document shows the hint copy.
+  :global(.ProseMirror) > :global(.is-empty:first-child)::before {
+    content: attr(data-placeholder);
+    color: var(--color-text-muted);
+    float: left;
+    height: 0;
+    pointer-events: none;
+  }
+}
