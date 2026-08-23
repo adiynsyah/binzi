@@ -5,7 +5,9 @@ import { notFound } from "next/navigation";
 import { Badge } from "@/components/ui/Badge/Badge";
 import { Card } from "@/components/ui/Card/Card";
 import { LessonContentPanel } from "@/features/courses/components/LessonContentPanel/LessonContentPanel";
+import { PublishForm } from "@/features/courses/components/PublishForm/PublishForm";
 import { assignContentToLessonAction } from "@/features/courses/mutations/assignContentToLesson";
+import { publishLessonAction } from "@/features/courses/mutations/publishLesson";
 import { reorderLessonContentAction } from "@/features/courses/mutations/reorderLessonContent";
 import { getCourseById } from "@/features/courses/queries/getCourse";
 import {
@@ -13,7 +15,9 @@ import {
   getLessonForEditor,
 } from "@/features/courses/queries/getLessonForEditor";
 import { searchAssignableContents } from "@/features/courses/queries/searchAssignableContents";
+import type { PublishCheck } from "@/features/courses/schemas/publish.schema";
 import { parseLessonContentSearchParams } from "@/features/courses/schemas/lesson-content-search.schema";
+import { getLessonQuizPublishChecks } from "@/features/quizzes/services/quiz.service";
 import { LessonQuizPanel } from "@/features/quizzes/components/LessonQuizPanel/LessonQuizPanel";
 import { addQuestionToLessonQuizAction } from "@/features/quizzes/mutations/addQuestionToLessonQuiz";
 import { removeQuestionFromLessonQuizAction } from "@/features/quizzes/mutations/removeQuestionFromLessonQuiz";
@@ -56,6 +60,14 @@ import styles from "./page.module.scss";
  * way (?error=… renders in the Content panel, ?quizError=… in the
  * Lesson Quiz panel) so a rejection never shows an unrelated
  * cross-panel message.
+ *
+ * TASK 035 adds the explicit Lesson Publish section (CMS §19/§30):
+ * for DRAFT lessons the page renders the shared PublishForm with a
+ * readiness checklist computed from the same loaded data plus the
+ * centralized quiz service — guidance only, the publishLesson action
+ * re-validates the persisted state under locks and is the authority
+ * (BR §32). PUBLISHED lessons show the badge and no form; the action
+ * independently rejects republishing and course-level locking.
  */
 export const metadata: Metadata = {
   title: "Editor Pelajaran",
@@ -159,6 +171,57 @@ export default async function AdminLessonEditorPage({
     }
   }
 
+  // TASK 035: readiness checklist for the Lesson Publish section
+  // (CMS §19). Computed only for DRAFT lessons; the quiz lines come
+  // from the centralized service. This is UI guidance — the action is
+  // the authority (BR §32).
+  let publishChecks: PublishCheck[] | null = null;
+  if (lesson.status === "DRAFT") {
+    const draftContents = assigned.filter(
+      (item) => item.status === "DRAFT",
+    ).length;
+    let quizChecks: PublishCheck[];
+    try {
+      quizChecks = await getLessonQuizPublishChecks(lesson.id);
+    } catch (error) {
+      console.error("[admin/lesson-editor] quiz checks query failed:", error);
+      quizChecks = [
+        {
+          id: "lesson-quiz-checks",
+          state: "fail",
+          label: "Status kuis tidak dapat diperiksa saat ini.",
+        },
+      ];
+    }
+    publishChecks = [
+      {
+        id: "metadata",
+        state: lesson.title.trim().length > 0 ? "pass" : "fail",
+        label:
+          lesson.title.trim().length > 0
+            ? "Informasi pelajaran lengkap."
+            : "Judul pelajaran wajib diisi.",
+      },
+      {
+        id: "content-count",
+        state: assigned.length > 0 ? "pass" : "fail",
+        label:
+          assigned.length > 0
+            ? `${assigned.length} konten ditugaskan.`
+            : "Belum ada konten yang ditugaskan.",
+      },
+      {
+        id: "content-published",
+        state: draftContents === 0 ? "pass" : "fail",
+        label:
+          draftContents === 0
+            ? "Semua konten sudah diterbitkan."
+            : `${draftContents} konten masih berupa draf.`,
+      },
+      ...quizChecks,
+    ];
+  }
+
   return (
     <section aria-labelledby="admin-lesson-editor-heading">
       <div className={styles.pageHeader}>
@@ -238,6 +301,16 @@ export default async function AdminLessonEditorPage({
           lesson.id,
         )}
       />
+
+      {lesson.status === "DRAFT" && publishChecks ? (
+        <PublishForm
+          headingId="lesson-publish-heading"
+          heading="Terbitkan Pelajaran"
+          note="Penerbitan bersifat eksplisit dan divalidasi dari data yang sudah tersimpan. Pelajaran hanya bisa diterbitkan dari kursus yang masih draf."
+          action={publishLessonAction.bind(null, course.id, lesson.id)}
+          checks={publishChecks}
+        />
+      ) : null}
     </section>
   );
 }

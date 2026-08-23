@@ -1,0 +1,81 @@
+// Shared publish form styles (TASK 035, CMS §19/§29/§30 + §48).
+// Follows the admin Card/panel pattern established by the TASK 020
+// PublishContentForm panel; adds the readiness checklist styling.
+@use '@/styles/tokens' as *;
+@use '@/styles/mixins' as *;
+
+.panel {
+  margin-top: $spacing-6;
+  padding: $spacing-5;
+  border: 1px solid var(--color-border);
+  border-radius: $radius-md;
+  background-color: var(--color-surface);
+}
+
+.header {
+  margin-bottom: $spacing-4;
+}
+
+.heading {
+  margin: 0 0 $spacing-2;
+  font-size: $font-size-h3;
+  line-height: $line-height-heading;
+}
+
+.note {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: $font-size-small;
+  line-height: $line-height-body;
+}
+
+.checklist {
+  margin: 0 0 $spacing-4;
+  padding: 0;
+  list-style: none;
+  font-size: $font-size-small;
+  line-height: $line-height-body;
+
+  li + li {
+    margin-top: $spacing-2;
+  }
+}
+
+.checkPass,
+.checkFail {
+  display: flex;
+  gap: $spacing-2;
+  align-items: flex-start;
+}
+
+.checkMark {
+  flex: 0 0 auto;
+  font-weight: $font-weight-semibold;
+}
+
+.checkPass .checkMark {
+  color: var(--color-success);
+}
+
+.checkFail .checkMark {
+  color: var(--color-danger);
+}
+
+.checkPass .checkLabel {
+  color: var(--color-text-muted);
+}
+
+.checkFail .checkLabel {
+  color: var(--color-danger);
+}
+
+.form {
+  margin: 0;
+}
+
+.messageError {
+  margin: $spacing-3 0 0;
+  color: var(--color-danger);
+  font-size: $font-size-small;
+  line-height: $line-height-body;
+}

@@ -5,9 +5,12 @@ import { notFound } from "next/navigation";
 import { Badge } from "@/components/ui/Badge/Badge";
 import { CourseForm } from "@/features/courses/components/CourseForm/CourseForm";
 import { CourseLessonsPanel } from "@/features/courses/components/CourseLessonsPanel/CourseLessonsPanel";
+import { PublishForm } from "@/features/courses/components/PublishForm/PublishForm";
 import { getCourseLessons } from "@/features/courses/queries/getCourseLessons";
 import { getCourseById } from "@/features/courses/queries/getCourse";
+import { publishCourseAction } from "@/features/courses/mutations/publishCourse";
 import { updateCourseAction } from "@/features/courses/mutations/updateCourse";
+import type { PublishCheck } from "@/features/courses/schemas/publish.schema";
 import { FinalQuizPanel } from "@/features/quizzes/components/FinalQuizPanel/FinalQuizPanel";
 import { addQuestionToFinalQuizAction } from "@/features/quizzes/mutations/addQuestionToFinalQuiz";
 import { removeQuestionFromFinalQuizAction } from "@/features/quizzes/mutations/removeQuestionFromFinalQuiz";
@@ -16,6 +19,10 @@ import { getFinalQuiz } from "@/features/quizzes/queries/getFinalQuizForEditor";
 import { getQuizQuestions } from "@/features/quizzes/queries/getLessonQuizForEditor";
 import { searchBankQuestions } from "@/features/quizzes/queries/searchBankQuestions";
 import { parseFinalQuizSearchParams } from "@/features/quizzes/schemas/final-quiz-search.schema";
+import {
+  getCourseLessonQuizPublishChecks,
+  getFinalQuizPublishChecks,
+} from "@/features/quizzes/services/quiz.service";
 
 import styles from "./page.module.scss";
 
@@ -41,8 +48,11 @@ import styles from "./page.module.scss";
  *   - Lessons (read-only ordered list; create/reorder/delete are
  *     TASK 025/026/027),
  *   - Final Quiz (the TASK 034 builder — select/reorder/remove
- *     Questions with the count-vs-10–30 display-only status).
- * There is deliberately no publish button and no preview link here.
+ *     Questions with the count-vs-10–30 display-only status),
+ *   - Publish (the TASK 035 explicit publish section, CMS §24's
+ *     final builder block).
+ * There is deliberately no preview link here (no V1 task defines a
+ * course preview).
  *
  * TASK 034: the Final Quiz picker's search state lives in the URL
  * under its OWN fq / fqpage params (namespaced so it can never
@@ -52,6 +62,16 @@ import styles from "./page.module.scss";
  * structure is locked in V1 (Decisions Log #11): the search/add and
  * ordering surfaces are not rendered at all and the mutations would
  * reject independently anyway (fail closed at both layers).
+ *
+ * TASK 035 completes the CMS §24 builder with its final section,
+ * Publish: DRAFT courses render the shared PublishForm with a
+ * readiness checklist (metadata, lesson count, lesson publish state,
+ * per-lesson quiz readiness via the centralized quiz service, and
+ * the Final Quiz 10–30 rule). The checklist is guidance (BR §32) —
+ * the publishCourse action re-validates everything authoritatively
+ * under locks, including the referenced-content rule whose
+ * per-lesson state the lesson editors show. PUBLISHED courses show
+ * the badge and no publish form.
  */
 export const metadata: Metadata = {
   title: "Sunting Kursus",
@@ -123,6 +143,61 @@ export default async function AdminCourseEditPage({
     }
   }
 
+  // TASK 035: readiness checklist for the Course Publish section
+  // (CMS §29). Computed only for DRAFT courses; quiz lines come from
+  // the centralized service. UI guidance — the publishCourse action
+  // is the authority (BR §32) and additionally enforces the
+  // referenced-content rule across every lesson.
+  let publishChecks: PublishCheck[] | null = null;
+  if (!isPublished) {
+    const draftLessons = lessons.filter(
+      (lesson) => lesson.status === "DRAFT",
+    ).length;
+    let quizChecks: PublishCheck[];
+    try {
+      quizChecks = [
+        ...(await getCourseLessonQuizPublishChecks(course.id)),
+        ...(await getFinalQuizPublishChecks(course.id)),
+      ];
+    } catch (error) {
+      console.error("[admin/course-builder] quiz checks query failed:", error);
+      quizChecks = [
+        {
+          id: "quiz-checks",
+          state: "fail",
+          label: "Status kuis tidak dapat diperiksa saat ini.",
+        },
+      ];
+    }
+    publishChecks = [
+      {
+        id: "metadata",
+        state: course.title.trim().length > 0 ? "pass" : "fail",
+        label:
+          course.title.trim().length > 0
+            ? "Informasi kursus lengkap."
+            : "Judul kursus wajib diisi.",
+      },
+      {
+        id: "lesson-count",
+        state: lessons.length > 0 ? "pass" : "fail",
+        label:
+          lessons.length > 0
+            ? `${lessons.length} pelajaran tersedia.`
+            : "Belum ada pelajaran — minimal satu wajib.",
+      },
+      {
+        id: "lessons-published",
+        state: draftLessons === 0 ? "pass" : "fail",
+        label:
+          draftLessons === 0
+            ? "Semua pelajaran sudah diterbitkan."
+            : `${draftLessons} pelajaran masih berupa draf — terbitkan pelajaran terlebih dahulu.`,
+      },
+      ...quizChecks,
+    ];
+  }
+
   return (
     <section aria-labelledby="admin-course-edit-heading">
       <div className={styles.pageHeader}>
@@ -171,6 +246,16 @@ export default async function AdminCourseEditPage({
         removeAction={removeQuestionFromFinalQuizAction.bind(null, course.id)}
         reorderAction={reorderFinalQuizQuestionAction.bind(null, course.id)}
       />
+
+      {!isPublished && publishChecks ? (
+        <PublishForm
+          headingId="course-publish-heading"
+          heading="Terbitkan Kursus"
+          note="Penerbitan bersifat eksplisit dan divalidasi dari data yang sudah tersimpan. Setelah diterbitkan, struktur kursus terkunci di V1 — semua pelajaran harus diterbitkan terlebih dahulu dan setiap kuis harus siap."
+          action={publishCourseAction.bind(null, course.id)}
+          checks={publishChecks}
+        />
+      ) : null}
     </section>
   );
 }
