@@ -1,0 +1,48 @@
+// Publish panel styles (TASK 020, CMS Spec §18/§30).
+// Follows the admin Card/panel pattern used across the CMS pages.
+@use '@/styles/tokens' as *;
+@use '@/styles/mixins' as *;
+
+.panel {
+  margin-top: $spacing-6;
+  padding: $spacing-5;
+  border: 1px solid var(--color-border);
+  border-radius: $radius-md;
+  background-color: var(--color-surface);
+}
+
+.header {
+  margin-bottom: $spacing-4;
+}
+
+.heading {
+  margin: 0 0 $spacing-2;
+  font-size: $font-size-h3;
+  line-height: $line-height-heading;
+}
+
+.note {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: $font-size-small;
+  line-height: $line-height-body;
+}
+
+.messageError {
+  margin: $spacing-3 0 0;
+  color: var(--color-danger);
+  font-size: $font-size-small;
+  line-height: $line-height-body;
+}
+
+.errorList {
+  margin: $spacing-2 0 0;
+  padding-left: $spacing-5;
+  color: var(--color-danger);
+  font-size: $font-size-small;
+  line-height: $line-height-body;
+
+  li + li {
+    margin-top: $spacing-1;
+  }
+}

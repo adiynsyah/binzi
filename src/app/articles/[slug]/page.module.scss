@@ -1,0 +1,135 @@
+// Public Article page styles (TASK 020, UI/UX Spec §28).
+// Minimal V1 article presentation — Related Articles and the Course
+// CTA belong to later milestones.
+@use '@/styles/tokens' as *;
+@use '@/styles/mixins' as *;
+
+.article {
+  max-width: 46rem;
+  margin: 0 auto;
+  padding: $spacing-10 $spacing-4 $spacing-16;
+}
+
+.header {
+  margin-bottom: $spacing-6;
+}
+
+.type {
+  margin: 0 0 $spacing-2;
+  color: var(--color-primary);
+  font-size: $font-size-small;
+  font-weight: $font-weight-semibold;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.title {
+  margin: 0 0 $spacing-3;
+  font-size: $font-size-h1;
+  line-height: $line-height-heading;
+}
+
+.published {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: $font-size-small;
+  line-height: $line-height-body;
+}
+
+// Rendered Tiptap body — generated safely by renderTiptapHtml.
+.body {
+  color: var(--color-text);
+  font-size: $font-size-body;
+  line-height: $line-height-body;
+
+  > :first-child {
+    margin-top: 0;
+  }
+
+  > :last-child {
+    margin-bottom: 0;
+  }
+
+  p,
+  ul,
+  ol,
+  blockquote,
+  pre,
+  img,
+  hr {
+    margin: 0 0 $spacing-4;
+  }
+
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    margin: $spacing-6 0 $spacing-3;
+    line-height: $line-height-heading;
+  }
+
+  h2 {
+    font-size: $font-size-h2;
+  }
+
+  h3 {
+    font-size: $font-size-h3;
+  }
+
+  ul,
+  ol {
+    padding-left: $spacing-6;
+  }
+
+  li + li {
+    margin-top: $spacing-1;
+  }
+
+  blockquote {
+    padding: $spacing-3 0 $spacing-3 $spacing-4;
+    border-left: 3px solid var(--color-primary);
+    color: var(--color-text-muted);
+  }
+
+  img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    border-radius: $radius-md;
+  }
+
+  hr {
+    border: 0;
+    border-top: 1px solid var(--color-border);
+  }
+
+  a {
+    color: var(--color-primary);
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  code {
+    padding: 0.125em 0.375em;
+    border-radius: $radius-sm;
+    border: 1px solid var(--color-border);
+    background-color: var(--color-border);
+    font-size: 0.9em;
+  }
+
+  pre {
+    padding: $spacing-4;
+    border-radius: $radius-md;
+    border: 1px solid var(--color-border);
+    background-color: var(--color-border);
+    overflow-x: auto;
+
+    code {
+      padding: 0;
+      background-color: transparent;
+    }
+  }
+}
