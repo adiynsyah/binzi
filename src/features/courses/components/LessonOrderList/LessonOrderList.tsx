@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 
 import { Badge } from "@/components/ui/Badge/Badge";
 
@@ -12,6 +13,10 @@ import styles from "./LessonOrderList.module.scss";
  * Orderable lesson list for the Course Builder (TASK 026, CMS Spec §7
  * "Lesson ordering should use drag-and-drop", Blueprint §24 "drag/drop
  * + accessible move up/down fallback"; deletion added by TASK 027).
+ *
+ * TASK 028: each lesson title links to the Lesson Editor
+ * (/admin/courses/[courseId]/lessons/[lessonId]) so Content can be
+ * assigned from the Builder.
  *
  * Ways to act on a lesson, each persisting through its own server
  * action (both bound to the course id by the server panel — the
@@ -56,11 +61,14 @@ type MoveAction = (formData: FormData) => Promise<void>;
 
 export function LessonOrderList({
   lessons,
+  courseId,
   action,
   deleteAction,
 }: {
   /** Persisted order (BR §3.2), passed by the server panel. */
   lessons: BuilderLesson[];
+  /** Route context for the per-lesson editor links (TASK 028). */
+  courseId: string;
   /** reorderLessonAction bound to the course id. */
   action: MoveAction;
   /** deleteLessonAction bound to the course id (TASK 027). */
@@ -160,7 +168,12 @@ export function LessonOrderList({
             <span className={styles.dragHandle} aria-hidden="true">
               ≡
             </span>
-            <span className={styles.lessonTitle}>{lesson.title}</span>
+            <Link
+              className={styles.lessonTitle}
+              href={`/admin/courses/${courseId}/lessons/${lesson.id}`}
+            >
+              {lesson.title}
+            </Link>
             <Badge
               tone={lesson.status === "PUBLISHED" ? "success" : "warning"}
             >

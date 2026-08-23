@@ -57,7 +57,21 @@
 }
 
 .lessonTitle {
+  // TASK 028 renders the title as a link to the Lesson Editor.
+  color: var(--color-text);
   font-weight: $font-weight-semibold;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+
+  &:hover {
+    color: var(--color-primary);
+    text-decoration: underline;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
 }
 
 .orderNote {

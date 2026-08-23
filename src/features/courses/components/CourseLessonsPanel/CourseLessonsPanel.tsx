@@ -29,8 +29,10 @@ import styles from "./CourseLessonsPanel.module.scss";
  * published Course): the DRAFT-only ordering/deletion UI is not
  * rendered at all — the list stays read-only — and each mutation
  * independently re-checks the course status under a lock server-side.
- * Lesson titles render as plain text — no dangerouslySetInnerHTML
- * anywhere in the panel.
+ * TASK 028: every lesson title (both the interactive and read-only
+ * lists) links to the Lesson Editor for Content assignment. Titles
+ * render as plain text nodes — no dangerouslySetInnerHTML anywhere
+ * in the panel.
  */
 
 type CourseLessonsPanelProps = {
@@ -83,7 +85,12 @@ export function CourseLessonsPanel({
             <ol className={styles.lessonList}>
               {lessons.map((lesson) => (
                 <li key={lesson.id} className={styles.lessonItem}>
-                  <span className={styles.lessonTitle}>{lesson.title}</span>
+                  <Link
+                    className={styles.lessonTitle}
+                    href={`/admin/courses/${courseId}/lessons/${lesson.id}`}
+                  >
+                    {lesson.title}
+                  </Link>
                   <Badge
                     tone={
                       lesson.status === "PUBLISHED" ? "success" : "warning"
@@ -102,6 +109,7 @@ export function CourseLessonsPanel({
           <>
             <LessonOrderList
               lessons={lessons}
+              courseId={courseId}
               action={reorderLessonAction.bind(null, courseId)}
               deleteAction={deleteLessonAction.bind(null, courseId)}
             />

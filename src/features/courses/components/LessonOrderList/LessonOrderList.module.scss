@@ -43,9 +43,24 @@
 
 .lessonTitle {
   // Let the title take the remaining row space before the badge and
-  // the move controls align to the end.
+  // the move controls align to the end. TASK 028 renders it as a
+  // link to the Lesson Editor, so it carries link affordances.
   flex: 1 1 40%;
+  color: var(--color-text);
   font-weight: $font-weight-semibold;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+
+  &:hover {
+    color: var(--color-primary);
+    text-decoration: underline;
+  }
+
+  &:focus-visible {
+    // Keep the visible focus ring (UI/UX accessibility rules).
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
 }
 
 .moveControls {

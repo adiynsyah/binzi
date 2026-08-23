@@ -1,0 +1,197 @@
+// Lesson editor "Content" panel styles (TASK 028, CMS Spec §9/§10/§11).
+// Follows the CourseLessonsPanel / LessonOrderList conventions from
+// TASK 024–027: semantic section, decimal order markers for the
+// persisted sort_order, 44px touch targets, muted explanatory notes.
+@use '@/styles/tokens' as *;
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-3;
+}
+
+.title {
+  margin: 0;
+  font-size: $font-size-h3;
+  line-height: $line-height-heading;
+}
+
+// Actionable rejection feedback (?error=… flag → role="alert").
+.errorNotice {
+  margin: 0;
+  padding: $spacing-3;
+  border: 1px solid var(--color-danger);
+  border-radius: $radius-md;
+  color: var(--color-danger);
+  font-size: $font-size-small;
+  line-height: $line-height-body;
+}
+
+// Assigned list: decimal markers make the persisted sort_order legible
+// (BR §3.2) and keep the order visible without JavaScript.
+.assignedList {
+  margin: 0;
+  padding: 0 0 0 $spacing-5;
+}
+
+.assignedItem {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $spacing-3;
+  padding: $spacing-3 0;
+  border-bottom: 1px solid var(--color-border);
+
+  &:last-child {
+    border-bottom: 0;
+  }
+}
+
+.assignedTitle {
+  flex: 1 1 40%;
+  font-weight: $font-weight-semibold;
+}
+
+.orderNote,
+.lockedNote,
+.usedInNote {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: $font-size-small;
+  line-height: $line-height-body;
+}
+
+.usedInNote {
+  flex-basis: 100%;
+}
+
+.emptyCard {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: $spacing-2;
+}
+
+.emptyTitle {
+  margin: 0;
+  font-size: $font-size-body;
+  line-height: $line-height-heading;
+}
+
+.emptyText {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: $font-size-small;
+  line-height: $line-height-body;
+}
+
+// --------------------------------------------------------------------------
+// Search / add surface (DRAFT courses only — Decisions Log #11).
+// --------------------------------------------------------------------------
+.searchHeading {
+  margin: $spacing-3 0 0;
+  font-size: $font-size-body;
+  line-height: $line-height-heading;
+}
+
+.searchForm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: $spacing-3;
+}
+
+.searchField {
+  flex: 1 1 16rem;
+}
+
+.searchButton,
+.assignButton {
+  min-height: 2.75rem; // 44px touch target (UI/UX §34)
+  padding: $spacing-1 $spacing-3;
+  border: 1px solid var(--color-primary);
+  border-radius: $radius-md;
+  background-color: var(--color-surface);
+  color: var(--color-primary);
+  font-family: inherit;
+  font-size: $font-size-small;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background-color: var(--color-primary);
+    color: var(--color-on-primary);
+  }
+
+  &:disabled {
+    border-color: var(--color-border);
+    background-color: transparent;
+    color: var(--color-text-muted);
+    cursor: not-allowed;
+    opacity: 0.7;
+  }
+}
+
+.resultCount {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: $font-size-small;
+}
+
+.candidateList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.candidateItem {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $spacing-3;
+  padding: $spacing-3 0;
+  border-bottom: 1px solid var(--color-border);
+
+  &:last-child {
+    border-bottom: 0;
+  }
+}
+
+.candidateTitle {
+  flex: 1 1 40%;
+  font-weight: $font-weight-semibold;
+}
+
+.candidateAction {
+  margin-left: auto;
+}
+
+// Pagination mirrors the TASK 016 content list conventions.
+.pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: $spacing-3;
+}
+
+.pageLink {
+  color: var(--color-primary);
+  font-size: $font-size-small;
+  font-weight: $font-weight-medium;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.pageDisabled {
+  color: var(--color-text-muted);
+  font-size: $font-size-small;
+}
+
+.pageStatus {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: $font-size-small;
+}
