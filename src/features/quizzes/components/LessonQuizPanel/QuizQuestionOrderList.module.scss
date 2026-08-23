@@ -1,0 +1,101 @@
+// Orderable assigned-Question list styles (TASK 033, CMS Spec §9/§25).
+// Mirrors the TASK 029 AssignedContentOrderList conventions: decimal
+// markers for the persisted sort_order, a decorative drag handle,
+// drop-target feedback, and the accessible move up/down fallback
+// buttons — plus the Hapus (remove membership) affordance.
+@use '@/styles/tokens' as *;
+
+// Decimal markers make the persisted sort_order legible (CMS §25) and
+// keep the ordering visible without JavaScript.
+.orderList {
+  margin: 0;
+  padding: 0 0 0 $spacing-5;
+}
+
+.item,
+.itemDragging,
+.itemDropTarget {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $spacing-3;
+  padding: $spacing-3 0;
+  border-bottom: 1px solid var(--color-border);
+
+  &:last-child {
+    border-bottom: 0;
+  }
+}
+
+// Drag affordance (decorative; keyboard users have the buttons).
+.dragHandle {
+  color: var(--color-text-muted);
+  cursor: grab;
+  user-select: none;
+}
+
+.itemDragging {
+  opacity: 0.5;
+}
+
+.itemDropTarget {
+  border-top: 2px dashed var(--color-primary);
+}
+
+.itemTitle {
+  // Takes the remaining row space before the row controls align to
+  // the end. Plain text — question text is never HTML.
+  flex: 1 1 40%;
+  font-weight: $font-weight-semibold;
+  overflow-wrap: anywhere;
+}
+
+.rowControls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $spacing-2;
+  margin-left: auto;
+}
+
+.moveControls {
+  display: flex;
+  align-items: center;
+  gap: $spacing-2;
+}
+
+.moveButton,
+.removeButton {
+  min-height: 2.75rem; // 44px touch target (UI/UX §34)
+  padding: $spacing-1 $spacing-3;
+  border: 1px solid var(--color-border);
+  border-radius: $radius-md;
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: $font-size-small;
+  cursor: pointer;
+}
+
+.moveButton {
+  &:hover:not(:disabled) {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+  }
+}
+
+// Removing a Question only deletes THIS quiz's membership (CMS §23) —
+// the danger styling signals the row-level action without implying a
+// Question Bank delete.
+.removeButton {
+  &:hover:not(:disabled) {
+    border-color: var(--color-danger);
+    color: var(--color-danger);
+  }
+}
+
+.moveButton:disabled,
+.removeButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
