@@ -1,17 +1,32 @@
-import { asc, count, eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 
 import { db } from "@/db";
-import { questionOptions, questions, quizQuestions } from "@/db/schema";
+import {
+  courses,
+  lessons,
+  questionOptions,
+  questions,
+  quizQuestions,
+  quizzes,
+} from "@/db/schema";
 
 import type { EditableQuestion } from "../schemas/question-form.schema";
 
 /**
- * Question editor query (TASK 031, CMS §22/§24).
+ * Question editor query (TASK 031, CMS §22/§24; TASK 032, CMS §23).
  *
  * Loads one bank Question with its options in the persisted
  * sort_order (the order the editor form re-submits as its row
- * order) plus the CMS §24 reuse count ("used in N quizzes") the
- * edit page renders as the editing warning.
+ * order) plus the quiz memberships the edit page renders twice:
+ * the CMS §24 reuse count ("used in N quizzes" editing warning,
+ * derived from the list length) and the CMS §23 membership view
+ * (which quizzes use this question — reuse is intentional, so the
+ * list is unbounded and read-only; selecting questions FOR a quiz
+ * is the TASK 033/034 builders' job).
+ *
+ * The membership join resolves each quiz's owning Lesson (LESSON
+ * type) or Course (FINAL type) title — the quizzes.type ownership
+ * CHECK guarantees exactly one is set, so the coalesce is total.
  *
  * Server-side only (via @/db). Read-only. Malformed ids return
  * null instead of throwing so the page can render a plain 404
@@ -52,16 +67,33 @@ export async function getQuestionForEditor(
     .where(eq(questionOptions.questionId, questionId))
     .orderBy(asc(questionOptions.sortOrder));
 
-  const [usage] = await db
-    .select({ value: count() })
+  const usageRows = await db
+    .select({
+      quizId: quizzes.id,
+      quizTitle: quizzes.title,
+      quizType: quizzes.type,
+      lessonTitle: lessons.title,
+      courseTitle: courses.title,
+    })
     .from(quizQuestions)
-    .where(eq(quizQuestions.questionId, questionId));
+    .innerJoin(quizzes, eq(quizzes.id, quizQuestions.quizId))
+    .leftJoin(lessons, eq(lessons.id, quizzes.lessonId))
+    .leftJoin(courses, eq(courses.id, quizzes.courseId))
+    .where(eq(quizQuestions.questionId, questionId))
+    .orderBy(asc(quizzes.title), asc(quizzes.id));
+
+  const usedIn = usageRows.map((row) => ({
+    quizId: row.quizId,
+    quizTitle: row.quizTitle,
+    quizType: row.quizType,
+    ownerTitle: (row.lessonTitle ?? row.courseTitle) as string,
+  }));
 
   return {
     id: question.id,
     questionText: question.questionText,
     explanation: question.explanation,
     options,
-    usedInCount: usage?.value ?? 0,
+    usedIn,
   };
 }

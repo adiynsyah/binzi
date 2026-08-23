@@ -106,12 +106,27 @@ export type QuestionFormOption = {
   isCorrect: boolean;
 };
 
+/**
+ * One quiz membership of a question (TASK 032, CMS §23). Reuse is
+ * read-only visibility here: selecting questions FOR a quiz is the
+ * TASK 033/034 builders' job. No links — admin quiz surfaces do not
+ * exist yet.
+ */
+export type QuestionQuizUsage = {
+  quizId: string;
+  quizTitle: string;
+  /** LESSON or FINAL (quizzes.type enum). */
+  quizType: "LESSON" | "FINAL";
+  /** Owning Lesson title (LESSON) or Course title (FINAL). */
+  ownerTitle: string;
+};
+
 /** Editable question shape handed to the form (editor query). */
 export type EditableQuestion = {
   id: string;
   questionText: string;
   explanation: string | null;
   options: QuestionFormOption[];
-  /** quiz_questions rows referencing this question (CMS §24 note). */
-  usedInCount: number;
+  /** quiz_questions rows referencing this question (CMS §23/§24). */
+  usedIn: QuestionQuizUsage[];
 };
