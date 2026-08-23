@@ -97,5 +97,7 @@ export type EditableContent = {
   slug: string | null;
   type: (typeof contentType.enumValues)[number];
   status: "DRAFT" | "PUBLISHED";
+  /** Read-only display field (status note, TASK 021 preview date line). */
+  publishedAt: Date | null;
   body: JSONContent;
 };

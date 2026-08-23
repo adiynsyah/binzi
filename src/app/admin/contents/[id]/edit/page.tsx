@@ -23,7 +23,8 @@ import styles from "./page.module.scss";
  * may be edited (Business Rules §4.5/§24, CMS §17); saving never
  * changes the status. The publish panel renders only for DRAFT rows
  * (publishing is explicit — Business Rules §22; the action also
- * rejects already-published rows server-side).
+ * rejects already-published rows server-side). The header links to
+ * the TASK 021 admin preview (/admin/contents/[id]/preview).
  */
 export const metadata: Metadata = {
   title: "Sunting Konten",
@@ -50,9 +51,12 @@ export default async function AdminContentEditPage({
           </h1>
           <p className={styles.intro}>{content.title}</p>
         </div>
-        <Link className={styles.backLink} href="/admin/contents">
-          ← Kembali ke Daftar Konten
-        </Link>
+        <div className={styles.headerLinks}>
+          <Link href={`/admin/contents/${content.id}/preview`}>
+            Lihat Pratinjau →
+          </Link>
+          <Link href="/admin/contents">← Kembali ke Daftar Konten</Link>
+        </div>
       </div>
       <ContentEditForm
         content={content}

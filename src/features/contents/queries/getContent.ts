@@ -10,9 +10,11 @@ import type { EditableContent } from "../schemas/content-edit.schema";
  *
  * Server-side data access through the single Drizzle client. The
  * route only needs the editable field set; status is included so the
- * form can show the current status note. body is the stored Tiptap
- * JSON document (JSONB) — it is returned as-is; any change is
- * re-validated server-side before persistence on save.
+ * form can show the current status note, and publishedAt (read-only,
+ * nullable) supports status display and the TASK 021 admin preview
+ * date line. body is the stored Tiptap JSON document (JSONB) — it is
+ * returned as-is; any change is re-validated server-side before
+ * persistence on save.
  */
 
 /** Matches uuid values produced by Postgres/gen_random_uuid(). */
@@ -34,6 +36,7 @@ export async function getContentById(
       slug: contents.slug,
       type: contents.type,
       status: contents.status,
+      publishedAt: contents.publishedAt,
       body: contents.body,
     })
     .from(contents)
