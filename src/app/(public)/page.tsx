@@ -4,9 +4,16 @@ import { Card } from "@/components/ui/Card/Card";
 import { Input } from "@/components/ui/Input/Input";
 import styles from "./page.module.scss";
 
+/**
+ * Homepage placeholder (TASK 001/003) under the TASK 036 public shell.
+ * Relocated from src/app/page.tsx into the `(public)` route group —
+ * the URL stays `/`. Only change: the outer element is now a <div>;
+ * the shell layout owns the single <main id="main-content">. The real
+ * homepage sections (UI/UX §4) arrive with TASK 037.
+ */
 export default function HomePage() {
   return (
-    <main className={styles.main}>
+    <div className={styles.main}>
       <h1>BINZI</h1>
       <p>Belajar gizi dengan cara yang lebih mudah.</p>
       <p>Segera hadir &mdash; aplikasi sedang dalam pengembangan.</p>
@@ -50,6 +57,6 @@ export default function HomePage() {
           </div>
         </Card>
       </section>
-    </main>
+    </div>
   );
 }

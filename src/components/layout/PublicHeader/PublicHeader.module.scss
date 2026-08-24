@@ -1,0 +1,143 @@
+// BINZI public header styles (TASK 036, UI/UX §3/§33/§34/§43).
+// Mobile-first per the content-based breakpoints from TASK 002:
+// "Logo + Menu" below "medium" (UI/UX §3 mobile pattern), the full
+// inline navigation row from "medium" up. Touch targets stay
+// comfortable (min-height 44px, §34); focus visibility comes from the
+// global :focus-visible ring (globals.scss).
+@use '@/styles/tokens' as *;
+@use '@/styles/mixins' as *;
+
+.header {
+  border-bottom: 1px solid var(--color-border);
+  background-color: var(--color-surface);
+}
+
+.inner {
+  @include container;
+
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: $spacing-2 $spacing-4;
+  min-height: 64px;
+}
+
+.brand {
+  color: var(--color-primary);
+  font-size: $font-size-h3;
+  font-weight: $font-weight-semibold;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+
+  &:hover {
+    color: var(--color-primary-hover);
+  }
+}
+
+// Mobile toggle — explicit "Menu" label, never icon-only (§34).
+.menuToggle {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: $spacing-2 $spacing-4;
+  border: 1px solid var(--color-border);
+  border-radius: $radius-md;
+  background-color: transparent;
+  color: var(--color-text);
+  font-size: $font-size-small;
+  font-weight: $font-weight-medium;
+
+  &:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+  }
+
+  @include respond-above('medium') {
+    display: none;
+  }
+}
+
+// Collapsed (default) and open states on mobile; both become the
+// inline row from "medium" up.
+.nav,
+.navOpen {
+  display: none;
+  flex-basis: 100%;
+
+  @include respond-above('medium') {
+    display: block;
+    flex-basis: auto;
+  }
+}
+
+.navOpen {
+  display: block;
+  padding-bottom: $spacing-4;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-1;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  @include respond-above('medium') {
+    flex-direction: row;
+    align-items: center;
+    gap: $spacing-4;
+  }
+}
+
+.link,
+.linkActive,
+.authLink {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  text-decoration: none;
+}
+
+.link,
+.linkActive {
+  padding: $spacing-2 $spacing-3;
+  border-radius: $radius-md;
+  font-size: $font-size-body;
+  transition: color $transition-fast $transition-easing;
+}
+
+.link {
+  color: var(--color-text-muted);
+
+  &:hover {
+    color: var(--color-primary);
+  }
+}
+
+.linkActive {
+  color: var(--color-primary);
+  font-weight: $font-weight-semibold;
+  text-decoration: underline;
+  text-underline-offset: $spacing-2;
+}
+
+// Auth-aware entry (Masuk/Profil) — a quiet outlined CTA pill.
+.authLink {
+  justify-content: center;
+  padding: $spacing-2 $spacing-4;
+  border: 1px solid var(--color-primary);
+  border-radius: $radius-full;
+  color: var(--color-primary);
+  font-size: $font-size-body;
+  font-weight: $font-weight-medium;
+  transition:
+    background-color $transition-fast $transition-easing,
+    color $transition-fast $transition-easing;
+
+  &:hover {
+    background-color: var(--color-primary);
+    color: var(--color-text-on-primary);
+  }
+}

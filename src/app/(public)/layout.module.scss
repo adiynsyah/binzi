@@ -1,0 +1,35 @@
+// BINZI public shell layout styles (TASK 036, UI/UX §3/§33/§43).
+// Uses the TASK 002 infrastructure built for this shell: the
+// `container` mixin, `visually-hidden`, and global :focus-visible
+// focus ring (globals.scss) — no second design system.
+@use '@/styles/tokens' as *;
+@use '@/styles/mixins' as *;
+
+// Skip link — hidden until keyboard focus (UI/UX §43), then a
+// visible in-page anchor.
+.skipLink {
+  @include visually-hidden;
+
+  &:focus {
+    position: fixed;
+    top: $spacing-2;
+    left: $spacing-2;
+    z-index: 100;
+    width: auto;
+    height: auto;
+    margin: 0;
+    padding: $spacing-2 $spacing-4;
+    overflow: visible;
+    clip: auto;
+    clip-path: none;
+    white-space: normal;
+    border-radius: $radius-md;
+    background-color: var(--color-surface);
+    color: var(--color-primary);
+    box-shadow: $shadow-md;
+  }
+}
+
+.main {
+  min-height: 60vh;
+}
