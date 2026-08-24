@@ -1,0 +1,177 @@
+// BINZI public Course Detail styles (TASK 039, UI/UX §7/§8/§9/§39).
+// Mobile-first per the content-based breakpoints (§33); composition
+// follows §39 like the TASK 037 homepage: a restrained token-derived
+// tint panel for the header/closing CTA, generous whitespace, a strong
+// primary CTA. Focus visibility comes from the global :focus-visible
+// ring (globals.scss); reduced motion is handled globally (§42–§43).
+@use '@/styles/tokens' as *;
+@use '@/styles/mixins' as *;
+
+.page {
+  @include container;
+
+  display: grid;
+  gap: $spacing-12;
+  padding-block: $spacing-12 $spacing-20;
+}
+
+// ---------------------------------------------------------------------------
+// Course Header (UI/UX §7: title, description, difficulty, duration, CTA).
+// V1 has no image assets or asset strategy, so no thumbnail is rendered —
+// the same no-imagery decision as the TASK 037 hero (FLAG).
+// ---------------------------------------------------------------------------
+.header {
+  display: grid;
+  justify-items: start;
+  gap: $spacing-4;
+  padding: $spacing-10 $spacing-6;
+  border-radius: $radius-lg;
+  background-color: color-mix(in srgb, var(--color-primary) 8%, var(--color-surface));
+}
+
+.title {
+  font-size: $font-size-h1;
+  line-height: $line-height-heading;
+}
+
+.description {
+  max-width: 40rem;
+  color: var(--color-text-muted);
+}
+
+.meta {
+  color: var(--color-text-muted);
+  font-size: $font-size-small;
+}
+
+// ---------------------------------------------------------------------------
+// Link CTA — visual parity with the Button primitive (TASK 003) while
+// remaining a real navigation link (<Link>). 44px touch target (§34).
+// ---------------------------------------------------------------------------
+.ctaPrimary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem; // 44px (§34)
+  padding: $spacing-2 $spacing-6;
+  border: 1px solid transparent;
+  border-radius: $radius-md;
+  background-color: var(--color-primary);
+  color: var(--color-text-on-primary);
+  font-weight: $font-weight-semibold;
+  line-height: 1.2;
+  text-decoration: none;
+  transition:
+    background-color $transition-base $transition-easing,
+    border-color $transition-base $transition-easing,
+    color $transition-base $transition-easing;
+
+  &:hover {
+    background-color: var(--color-primary-hover);
+  }
+}
+
+.headerActions,
+.ctaActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-4;
+  margin-top: $spacing-4;
+}
+
+// ---------------------------------------------------------------------------
+// Sections
+// ---------------------------------------------------------------------------
+.sectionTitle {
+  margin-bottom: $spacing-6;
+  font-size: $font-size-h2;
+  line-height: $line-height-heading;
+}
+
+// "What You Will Learn" (UI/UX §7) — derived from published lesson
+// descriptions, the only grounded outcome source in the V1 schema (FLAG).
+.outcomes {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.outcomeItem {
+  position: relative;
+  padding: $spacing-2 0 $spacing-2 $spacing-8;
+  color: var(--color-text);
+
+  &::before {
+    position: absolute;
+    left: 0;
+    color: var(--color-primary);
+    content: "—";
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Curriculum (UI/UX §8 guest view): lesson titles are visible; the first
+// lesson is the free preview, later lessons carry the lock affordance.
+// Rows are intentionally non-interactive — no public lesson URL exists
+// in V1; the visual lock is UX only, server-side rules stay authoritative.
+// ---------------------------------------------------------------------------
+.curriculum {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: lesson;
+}
+
+.lesson {
+  counter-increment: lesson;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $spacing-3;
+  padding: $spacing-4 0;
+  border-bottom: 1px solid var(--color-border);
+
+  &::before {
+    min-width: $spacing-8;
+    color: var(--color-text-muted);
+    font-weight: $font-weight-semibold;
+    content: counter(lesson);
+  }
+}
+
+.lessonTitle {
+  flex-grow: 1;
+}
+
+.curriculumHint {
+  margin-top: $spacing-4;
+  color: var(--color-text-muted);
+  font-size: $font-size-small;
+}
+
+.empty {
+  color: var(--color-text-muted);
+}
+
+// ---------------------------------------------------------------------------
+// Closing CTA (UI/UX §7 structure ends with a CTA)
+// ---------------------------------------------------------------------------
+.ctaBand {
+  justify-items: center;
+  display: grid;
+  gap: $spacing-2;
+  padding: $spacing-12 $spacing-6;
+  border-radius: $radius-lg;
+  background-color: color-mix(in srgb, var(--color-primary) 8%, var(--color-surface));
+  text-align: center;
+}
+
+.ctaTitle {
+  font-size: $font-size-h2;
+  line-height: $line-height-heading;
+}
+
+.ctaTagline {
+  max-width: 34rem;
+  color: var(--color-text-muted);
+}
