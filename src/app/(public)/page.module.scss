@@ -1,33 +1,198 @@
-// Homepage placeholder styles (TASK 002).
-// Demonstrates the SCSS Module pipeline consuming shared design tokens.
-// Replaced by real UI work in later tasks.
+// BINZI homepage styles (TASK 037, UI/UX §4/§5/§39).
+// Mobile-first per the content-based breakpoints (§33). Composition
+// follows §39 "Visual Design Direction": warm but trustworthy, generous
+// whitespace, rounded cards used selectively, a strong primary CTA,
+// and no excessive gradients/animation. Focus visibility comes from
+// the global :focus-visible ring (globals.scss); reduced motion is
+// handled globally (§42–§43).
 @use '@/styles/tokens' as *;
+@use '@/styles/mixins' as *;
 
-.main {
-  max-width: $content-measure;
+.page {
+  @include container;
+
+  display: grid;
+  gap: $spacing-16;
+  padding-block: $spacing-12 $spacing-20;
+}
+
+// ---------------------------------------------------------------------------
+// Hero (UI/UX §5: headline, short explanation, primary + secondary CTA,
+// visual). The "visual" is a restrained token-derived tint panel — V1 has
+// no image assets or asset strategy, so no imagery is introduced.
+// ---------------------------------------------------------------------------
+.hero {
+  padding: $spacing-12 $spacing-6;
+  border-radius: $radius-lg;
+  background-color: color-mix(in srgb, var(--color-primary) 8%, var(--color-surface));
+  text-align: center;
+}
+
+.heroTitle {
+  max-width: 34rem;
   margin-inline: auto;
-  padding: $spacing-16 $spacing-6;
+  font-size: $font-size-display;
+  line-height: $line-height-display;
 }
 
-// TEMPORARY TASK 003 showcase layout — removed with the showcase.
-.showcase {
-  margin-top: $spacing-12;
+.heroTagline {
+  max-width: 40rem;
+  margin-inline: auto;
+  color: var(--color-text-muted);
+  font-size: $font-size-h3;
+  line-height: $line-height-body;
 }
 
-.showcaseNote {
+.heroActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: $spacing-4;
+  margin-top: $spacing-8;
+}
+
+// ---------------------------------------------------------------------------
+// Link CTAs — visual parity with the Button primitive (TASK 003) while
+// remaining real navigation links (<Link>). 44px touch targets (§34).
+// ---------------------------------------------------------------------------
+.ctaPrimary,
+.ctaSecondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem; // 44px (§34)
+  padding: $spacing-2 $spacing-6;
+  border: 1px solid transparent;
+  border-radius: $radius-md;
+  font-weight: $font-weight-semibold;
+  line-height: 1.2;
+  text-decoration: none;
+  transition:
+    background-color $transition-base $transition-easing,
+    border-color $transition-base $transition-easing,
+    color $transition-base $transition-easing;
+}
+
+.ctaPrimary {
+  background-color: var(--color-primary);
+  color: var(--color-text-on-primary);
+
+  &:hover {
+    background-color: var(--color-primary-hover);
+  }
+}
+
+.ctaSecondary {
+  border-color: var(--color-border);
+  color: var(--color-text);
+
+  &:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Sections (Featured Courses, Why BINZI, Featured Articles)
+// ---------------------------------------------------------------------------
+.sectionTitle {
+  margin-bottom: $spacing-6;
+  font-size: $font-size-h2;
+  line-height: $line-height-heading;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: $spacing-6;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  // Multi-column grids become viable from "medium" (§33).
+  @include respond-above('medium') {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.empty {
   color: var(--color-text-muted);
 }
 
-.showcaseRow {
+// ---------------------------------------------------------------------------
+// Cards (compose the TASK 003 Card primitive)
+// ---------------------------------------------------------------------------
+.courseCard,
+.whyCard,
+.articleCard {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: $spacing-3;
-  margin-block: $spacing-4;
+  flex-direction: column;
+  height: 100%;
 }
 
-.showcaseForm {
-  display: grid;
-  gap: $spacing-4;
+.cardTitle {
+  margin: $spacing-3 0 $spacing-2;
+  font-size: $font-size-h3;
+  line-height: $line-height-heading;
+
+  a {
+    color: var(--color-text);
+    text-decoration: none;
+
+    &:hover {
+      color: var(--color-primary);
+    }
+  }
+}
+
+.cardDescription {
+  flex-grow: 1;
+  color: var(--color-text-muted);
+}
+
+.cardMeta {
+  margin-top: $spacing-3;
+  color: var(--color-text-muted);
+  font-size: $font-size-small;
+}
+
+// Course card CTA — a comfortable quiet link target (§34).
+.cardCta {
   margin-top: $spacing-4;
+  padding: $spacing-2 0;
+  color: var(--color-primary);
+  font-weight: $font-weight-medium;
+  text-decoration: none;
+
+  &:hover {
+    color: var(--color-primary-hover);
+  }
+}
+
+.articleType {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: $font-size-small;
+  font-weight: $font-weight-medium;
+}
+
+// ---------------------------------------------------------------------------
+// Closing Learning CTA (UI/UX §4)
+// ---------------------------------------------------------------------------
+.ctaBand {
+  padding: $spacing-12 $spacing-6;
+  border-radius: $radius-lg;
+  background-color: color-mix(in srgb, var(--color-primary) 8%, var(--color-surface));
+  text-align: center;
+}
+
+.ctaTitle {
+  font-size: $font-size-h2;
+  line-height: $line-height-heading;
+}
+
+.ctaTagline {
+  max-width: 34rem;
+  margin: $spacing-3 auto $spacing-8;
+  color: var(--color-text-muted);
 }
