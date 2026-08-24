@@ -1,0 +1,104 @@
+// BINZI public Article Catalog styles (TASK 040, UI/UX §39).
+// Mobile-first per the content-based breakpoints (§33); the grid gains
+// columns from "medium" up, the same composition as the TASK 037
+// homepage and TASK 038 course-catalog grids. Focus visibility comes
+// from the global :focus-visible ring (globals.scss); reduced motion is
+// handled globally (§42–§43).
+@use '@/styles/tokens' as *;
+@use '@/styles/mixins' as *;
+
+.page {
+  @include container;
+
+  display: grid;
+  gap: $spacing-10;
+  padding-block: $spacing-12 $spacing-20;
+}
+
+// ---------------------------------------------------------------------------
+// Page header: title + short description (TASK 038 catalog composition;
+// no search — no source requires article search)
+// ---------------------------------------------------------------------------
+.header {
+  display: grid;
+  gap: $spacing-4;
+}
+
+.title {
+  font-size: $font-size-h1;
+  line-height: $line-height-heading;
+}
+
+.description {
+  max-width: 40rem;
+  color: var(--color-text-muted);
+}
+
+// ---------------------------------------------------------------------------
+// Article grid + cards (compose the TASK 003 Card primitive; metadata
+// set per the TASK 037 featured-article card — type label, title,
+// published date; deliberately no more)
+// ---------------------------------------------------------------------------
+.grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: $spacing-6;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  // Multi-column grids become viable from "medium" (§33).
+  @include respond-above('medium') {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.articleCard {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.articleType {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: $font-size-small;
+  font-weight: $font-weight-medium;
+}
+
+.cardTitle {
+  margin: $spacing-3 0 $spacing-2;
+  font-size: $font-size-h3;
+  line-height: $line-height-heading;
+
+  a {
+    color: var(--color-text);
+    text-decoration: none;
+
+    &:hover {
+      color: var(--color-primary);
+    }
+  }
+}
+
+.cardMeta {
+  margin-top: auto;
+  padding-top: $spacing-3;
+  color: var(--color-text-muted);
+  font-size: $font-size-small;
+}
+
+// ---------------------------------------------------------------------------
+// Empty state (UI/UX §36 pattern, TASK 037 article wording)
+// ---------------------------------------------------------------------------
+.empty {
+  padding: $spacing-8 0;
+}
+
+.emptyTitle {
+  font-weight: $font-weight-semibold;
+}
+
+.emptyHint {
+  color: var(--color-text-muted);
+}
