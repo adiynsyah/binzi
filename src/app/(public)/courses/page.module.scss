@@ -1,0 +1,127 @@
+// BINZI public Course Catalog styles (TASK 038, UI/UX §6/§39).
+// Mobile-first per the content-based breakpoints (§33); the grid gains
+// columns from "medium" up, the same composition as the TASK 037
+// homepage grids. Focus visibility comes from the global :focus-visible
+// ring (globals.scss); reduced motion is handled globally (§42–§43).
+@use '@/styles/tokens' as *;
+@use '@/styles/mixins' as *;
+
+.page {
+  @include container;
+
+  display: grid;
+  gap: $spacing-10;
+  padding-block: $spacing-12 $spacing-20;
+}
+
+// ---------------------------------------------------------------------------
+// Page header: title + short description + search (UI/UX §6)
+// ---------------------------------------------------------------------------
+.header {
+  display: grid;
+  gap: $spacing-4;
+}
+
+.title {
+  font-size: $font-size-h1;
+  line-height: $line-height-heading;
+}
+
+.description {
+  max-width: 40rem;
+  color: var(--color-text-muted);
+}
+
+// Labelled input grows; the submit button keeps its 44px touch target
+// (Button primitive, §34). Stacks on mobile, sits inline from "small".
+.search {
+  display: grid;
+  gap: $spacing-3;
+  margin-top: $spacing-2;
+  max-width: 28rem;
+
+  @include respond-above('small') {
+    grid-template-columns: 1fr auto;
+    align-items: end;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Course grid + cards (compose the TASK 003 Card primitive; metadata set
+// per UI/UX §6 — difficulty, title, description, duration, lesson count,
+// CTA; deliberately no more)
+// ---------------------------------------------------------------------------
+.grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: $spacing-6;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  // Multi-column grids become viable from "medium" (§33).
+  @include respond-above('medium') {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.courseCard {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.cardTitle {
+  margin: $spacing-3 0 $spacing-2;
+  font-size: $font-size-h3;
+  line-height: $line-height-heading;
+
+  a {
+    color: var(--color-text);
+    text-decoration: none;
+
+    &:hover {
+      color: var(--color-primary);
+    }
+  }
+}
+
+.cardDescription {
+  flex-grow: 1;
+  color: var(--color-text-muted);
+}
+
+.cardMeta {
+  margin-top: $spacing-3;
+  color: var(--color-text-muted);
+  font-size: $font-size-small;
+}
+
+// Card CTA — a comfortable quiet link target (§34).
+.cardCta {
+  margin-top: $spacing-4;
+  padding: $spacing-2 0;
+  color: var(--color-primary);
+  font-weight: $font-weight-medium;
+  text-decoration: none;
+
+  &:hover {
+    color: var(--color-primary-hover);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Empty state (UI/UX §36: "No courses found. Try another search or
+// browse all courses.")
+// ---------------------------------------------------------------------------
+.empty {
+  padding: $spacing-8 0;
+}
+
+.emptyTitle {
+  font-weight: $font-weight-semibold;
+}
+
+.emptyHint {
+  color: var(--color-text-muted);
+}
