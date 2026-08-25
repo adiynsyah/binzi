@@ -1,0 +1,124 @@
+// BINZI learning lesson navigation styles (TASK 045, UI/UX §10).
+// Collapsible below the "large" breakpoint (the learning-layout
+// sidebar threshold documented in tokens.scss), persistent sidebar
+// from large up. Uses the TASK 002 infrastructure only — tokens,
+// respond-above, visually-hidden; focus visibility comes from the
+// global :focus-visible ring (globals.scss), reduced motion is
+// handled globally (§42–§43). Touch targets are 44px (§34).
+@use '@/styles/tokens' as *;
+@use '@/styles/mixins' as *;
+
+.menuToggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem; // 44px (§34)
+  padding: $spacing-2 $spacing-4;
+  border: 1px solid var(--color-border);
+  border-radius: $radius-md;
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  font-weight: $font-weight-semibold;
+  line-height: 1.2;
+}
+
+.nav {
+  display: none;
+}
+
+.navOpen {
+  display: block;
+  margin-top: $spacing-4;
+}
+
+.heading {
+  margin-bottom: $spacing-3;
+  color: var(--color-text-muted);
+  font-size: $font-size-small;
+  font-weight: $font-weight-semibold;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  & + & {
+    border-top: 1px solid var(--color-border);
+  }
+}
+
+.row,
+.rowActive,
+.rowLocked {
+  display: flex;
+  align-items: center;
+  gap: $spacing-3;
+  min-height: 2.75rem; // 44px touch target (§34)
+  padding: $spacing-2 $spacing-2 $spacing-2 0;
+}
+
+.row {
+  color: var(--color-text);
+  text-decoration: none;
+
+  &:hover {
+    color: var(--color-primary);
+  }
+}
+
+.rowActive {
+  color: var(--color-primary);
+  font-weight: $font-weight-semibold;
+  text-decoration: underline;
+}
+
+.rowLocked {
+  color: var(--color-text-muted);
+}
+
+.marker,
+.markerDone {
+  flex-shrink: 0;
+  min-width: $spacing-6;
+  text-align: center;
+}
+
+.markerDone {
+  color: var(--color-primary);
+  font-weight: $font-weight-semibold;
+}
+
+.title {
+  flex-grow: 1;
+}
+
+.statusLabel {
+  @include visually-hidden;
+}
+
+.empty {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: $font-size-small;
+}
+
+// ---------------------------------------------------------------------------
+// Desktop (UI/UX §10 "Lesson navigation | Content"): the toggle disappears
+// and the navigation becomes the persistent sidebar of the learning grid.
+// ---------------------------------------------------------------------------
+@include respond-above('large') {
+  .menuToggle {
+    display: none;
+  }
+
+  .nav,
+  .navOpen {
+    display: block;
+    margin-top: 0;
+  }
+}

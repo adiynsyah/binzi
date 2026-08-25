@@ -1,0 +1,10 @@
+// BINZI learning entry styles (TASK 045). The page itself only
+// redirects to the current lesson; this module styles its single
+// honest empty state (a published course with zero published
+// lessons) inside the learning shell.
+@use '@/styles/tokens' as *;
+
+.empty {
+  margin: 0;
+  color: var(--color-text-muted);
+}

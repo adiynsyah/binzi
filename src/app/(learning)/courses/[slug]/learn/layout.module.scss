@@ -1,0 +1,115 @@
+// BINZI learning shell styles (TASK 045, UI/UX §10).
+// Mobile-first: header → progress → collapsible navigation → content
+// (§10 mobile order); from the "large" breakpoint up the layout is the
+// §10 desktop frame "Lesson navigation | Content" with a persistent
+// sidebar (tokens.scss maps large: 64em to the learning layout).
+// Uses only the TASK 002 infrastructure (tokens, mixins, container);
+// focus visibility comes from the global :focus-visible ring and
+// reduced motion is handled globally (§42–§43).
+@use '@/styles/tokens' as *;
+@use '@/styles/mixins' as *;
+
+.shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+// Skip link — hidden until keyboard focus (UI/UX §43), mirroring the
+// public shell so both shells share one accessibility contract.
+.skipLink {
+  @include visually-hidden;
+
+  &:focus {
+    position: fixed;
+    top: $spacing-2;
+    left: $spacing-2;
+    z-index: 100;
+    width: auto;
+    height: auto;
+    margin: 0;
+    padding: $spacing-2 $spacing-4;
+    overflow: visible;
+    clip: auto;
+    clip-path: none;
+    white-space: normal;
+    border-radius: $radius-md;
+    background-color: var(--color-surface);
+    color: var(--color-primary);
+    box-shadow: $shadow-md;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Learning header (UI/UX §10: BINZI | Course Title | Progress). The
+// wordmark keeps the public header's home-link treatment so users can
+// always leave the focused learning mode.
+// ---------------------------------------------------------------------------
+.header {
+  border-bottom: 1px solid var(--color-border);
+  background-color: var(--color-surface);
+}
+
+.headerInner {
+  @include container;
+
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: $spacing-2 $spacing-6;
+  padding-block: $spacing-4;
+}
+
+.wordmark {
+  color: var(--color-primary);
+  font-size: $font-size-h3;
+  font-weight: $font-weight-semibold;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.courseTitle {
+  flex-grow: 1;
+  margin: 0;
+  font-size: $font-size-body;
+  font-weight: $font-weight-semibold;
+}
+
+.progress {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: $font-size-small;
+}
+
+// ---------------------------------------------------------------------------
+// Body — mobile stacks navigation above content (§10 mobile order);
+// desktop is the two-column learning grid.
+// ---------------------------------------------------------------------------
+.body {
+  @include container;
+
+  flex-grow: 1;
+  display: grid;
+  gap: $spacing-8;
+  padding-block: $spacing-8 $spacing-16;
+}
+
+.navigation {
+  min-width: 0;
+}
+
+.main {
+  min-width: 0;
+}
+
+@include respond-above('large') {
+  .body {
+    grid-template-columns: minmax(16rem, 20rem) 1fr;
+    gap: $spacing-10;
+    align-items: start;
+  }
+}
