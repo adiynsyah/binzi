@@ -143,7 +143,8 @@ export default async function LessonPage({ params }: PageProps) {
         ) : null}
       </header>
       <LessonContent items={contentItems} />
-      {/* TASK 048 renders the quiz area below the Content list. */}
+      {/* TASK 049 renders the quiz area below the Content list
+          (access via canAccessLessonQuiz, TASK 048). */}
     </article>
   );
 }
