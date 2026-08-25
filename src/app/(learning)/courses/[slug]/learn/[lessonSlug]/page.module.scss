@@ -1,14 +1,74 @@
-// BINZI lesson page styles (TASK 045). The lesson boundary page
-// renders the lesson title inside the learning shell's content
-// column; TASK 046 will extend this module for the rendered Content
-// list. Keeps the reading-measure discipline of UI/UX §13.
+// BINZI lesson page styles (TASK 045; extended by TASK 046 for the
+// rendered Content list and TASK 047 for the §11 lesson header).
+// Keeps the reading-measure discipline of UI/UX §13. Course name and
+// the §27 progress sentence live in the learning shell header
+// (TASK 045) — this module styles the in-content lesson header:
+// "Pelajaran X dari Y", the title, the completed badge, and the
+// course progress bar (§11/§27: simple, position-communicating,
+// never gamified). Focus visibility and reduced motion are global.
 @use '@/styles/tokens' as *;
 
 .page {
   max-width: 48rem; // $content-measure (UI/UX §13)
 }
 
+.lessonHeader {
+  display: grid;
+  gap: $spacing-3;
+  margin-bottom: $spacing-8;
+}
+
+.lessonMetaRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $spacing-3;
+}
+
+.lessonMeta {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: $font-size-small;
+  font-weight: $font-weight-semibold;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
 .lessonTitle {
+  margin: 0;
   font-size: $font-size-h1;
   line-height: $line-height-heading;
+}
+
+// §27 "Progress should be simple" — one flat track + fill and the
+// percent figure. No animation, no celebratory styling (§11 "progress
+// should communicate learning position, not gamification").
+.progress {
+  display: flex;
+  align-items: center;
+  gap: $spacing-3;
+  margin-top: $spacing-1;
+}
+
+.progressBar {
+  flex: 1;
+  height: $spacing-2;
+  border-radius: $radius-sm;
+  background-color: var(--color-border);
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  border-radius: inherit;
+  background-color: var(--color-primary);
+}
+
+.progressLabel {
+  margin: 0;
+  min-width: 3ch;
+  color: var(--color-text-muted);
+  font-size: $font-size-small;
+  line-height: $line-height-body;
+  text-align: right;
 }

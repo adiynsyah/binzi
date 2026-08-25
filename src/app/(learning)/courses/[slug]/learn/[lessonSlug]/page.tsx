@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 
+import { Badge } from "@/components/ui/Badge/Badge";
 import { LessonContent } from "@/components/learning/LessonContent/LessonContent";
 import { createClient } from "@/lib/supabase/server";
 import { canAccessLesson } from "@/features/progress/queries/canAccessLesson";
+import { getCourseForLearning } from "@/features/progress/queries/getCourseForLearning";
 import { getLessonForLearning } from "@/features/progress/queries/getLessonForLearning";
 
 import styles from "./page.module.scss";
@@ -28,9 +30,14 @@ import styles from "./page.module.scss";
  *
  * TASK 046 renders the lesson's Content in persisted order below the
  * title (LessonContent + getLessonForLearning, PUBLISHED contents
- * only); the §11 lesson header ("Lesson X of Y", progress bar)
- * belongs to TASK 047, and quiz state to TASK 048+. Viewing this
- * page never writes lesson_progress (Decisions Log #12).
+ * only). TASK 047 adds the §11 lesson header — "Lesson X of Y"
+ * position among PUBLISHED lessons, the course progress bar (§27:
+ * simple, position-communicating, never gamified), and the completed
+ * state of THIS lesson (a ✓ badge when lesson_progress says
+ * COMPLETED — quiz flow itself is TASK 048+). Course name and the
+ * §27 progress sentence live in the learning shell header above
+ * (TASK 045), so they are not repeated here. Viewing this page never
+ * writes lesson_progress (Decisions Log #12).
  */
 
 type PageProps = {
@@ -85,9 +92,56 @@ export default async function LessonPage({ params }: PageProps) {
   // construction). PUBLISHED contents only, persisted order.
   const contentItems = await getLessonForLearning(access.lesson.id);
 
+  // §11 lesson header inputs, all derived from the authoritative
+  // learning query (043 derivation through the 045 composition — no
+  // second progress computation). Position is the index among
+  // PUBLISHED lessons, NOT the raw sort_order: a DRAFT lesson holes
+  // the published sequence, and the learner only ever sees the
+  // published set (BR §38). The gate guarantees an enrollment exists,
+  // so this cannot be null for an allowed lesson.
+  const course = await getCourseForLearning(user.id, slug);
+  const lessonIndex = course?.lessons.findIndex(
+    (lesson) => lesson.slug === access.lesson.slug,
+  );
+  const hasPosition =
+    course !== null && lessonIndex !== undefined && lessonIndex >= 0;
+  const lessonStatus = hasPosition ? course.lessons[lessonIndex].status : null;
+
   return (
     <article className={styles.page}>
-      <h1 className={styles.lessonTitle}>{access.lesson.title}</h1>
+      <header className={styles.lessonHeader}>
+        <div className={styles.lessonMetaRow}>
+          {hasPosition ? (
+            <p className={styles.lessonMeta}>
+              Pelajaran {lessonIndex + 1} dari {course.totalLessonCount}
+            </p>
+          ) : null}
+          {lessonStatus === "COMPLETED" ? (
+            <Badge tone="success" className={styles.completedBadge}>
+              <span aria-hidden="true">✓</span> Selesai
+            </Badge>
+          ) : null}
+        </div>
+        <h1 className={styles.lessonTitle}>{access.lesson.title}</h1>
+        {course !== null ? (
+          <div
+            className={styles.progress}
+            role="progressbar"
+            aria-valuenow={course.percent}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label="Progres kursus"
+          >
+            <div className={styles.progressBar}>
+              <div
+                className={styles.progressFill}
+                style={{ width: `${course.percent}%` }}
+              />
+            </div>
+            <p className={styles.progressLabel}>{course.percent}%</p>
+          </div>
+        ) : null}
+      </header>
       <LessonContent items={contentItems} />
       {/* TASK 048 renders the quiz area below the Content list. */}
     </article>
