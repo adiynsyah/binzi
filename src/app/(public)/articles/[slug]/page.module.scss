@@ -1,0 +1,258 @@
+// BINZI public Article Detail styles (TASK 041, UI/UX §28/§29/§39).
+// Rebuilt from the TASK 020 standalone page into the (public) shell.
+// Reading measure: the article column is capped at 46rem (body
+// typography carried over verbatim from TASK 020); wider sections
+// (related grid) may span the full container. Mobile-first per the
+// content-based breakpoints (§33). Focus visibility comes from the
+// global :focus-visible ring (globals.scss); reduced motion is
+// handled globally (§42–§43).
+@use '@/styles/tokens' as *;
+@use '@/styles/mixins' as *;
+
+.page {
+  @include container;
+
+  display: grid;
+  gap: $spacing-12;
+  padding-block: $spacing-12 $spacing-20;
+}
+
+// ---------------------------------------------------------------------------
+// Header (UI/UX §28 "Category / metadata" + Title)
+// ---------------------------------------------------------------------------
+.header {
+  max-width: 46rem;
+}
+
+.type {
+  margin: 0 0 $spacing-2;
+  color: var(--color-primary);
+  font-size: $font-size-small;
+  font-weight: $font-weight-semibold;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.title {
+  margin: 0 0 $spacing-3;
+  font-size: $font-size-h1;
+  line-height: $line-height-heading;
+}
+
+.published {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: $font-size-small;
+  line-height: $line-height-body;
+}
+
+// ---------------------------------------------------------------------------
+// Rendered Tiptap body — generated safely by renderTiptapHtml.
+// Typographic rules carried over from the TASK 020 page.
+// ---------------------------------------------------------------------------
+.body {
+  max-width: 46rem;
+  color: var(--color-text);
+  font-size: $font-size-body;
+  line-height: $line-height-body;
+
+  > :first-child {
+    margin-top: 0;
+  }
+
+  > :last-child {
+    margin-bottom: 0;
+  }
+
+  p,
+  ul,
+  ol,
+  blockquote,
+  pre,
+  img,
+  hr {
+    margin: 0 0 $spacing-4;
+  }
+
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    margin: $spacing-6 0 $spacing-3;
+    line-height: $line-height-heading;
+  }
+
+  h2 {
+    font-size: $font-size-h2;
+  }
+
+  h3 {
+    font-size: $font-size-h3;
+  }
+
+  ul,
+  ol {
+    padding-left: $spacing-6;
+  }
+
+  li + li {
+    margin-top: $spacing-1;
+  }
+
+  blockquote {
+    padding: $spacing-3 0 $spacing-3 $spacing-4;
+    border-left: 3px solid var(--color-primary);
+    color: var(--color-text-muted);
+  }
+
+  img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    border-radius: $radius-md;
+  }
+
+  hr {
+    border: 0;
+    border-top: 1px solid var(--color-border);
+  }
+
+  a {
+    color: var(--color-primary);
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  code {
+    padding: 0.125em 0.375em;
+    border-radius: $radius-sm;
+    border: 1px solid var(--color-border);
+    background-color: var(--color-border);
+    font-size: 0.9em;
+  }
+
+  pre {
+    padding: $spacing-4;
+    border-radius: $radius-md;
+    border: 1px solid var(--color-border);
+    background-color: var(--color-border);
+    overflow-x: auto;
+
+    code {
+      padding: 0;
+      background-color: transparent;
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Related Articles (UI/UX §28). Card composition mirrors the TASK 040
+// catalog grid minus the type label — inside an article page the label
+// would repeat "Artikel" three times against a section that already
+// says it.
+// ---------------------------------------------------------------------------
+.relatedTitle {
+  margin-bottom: $spacing-6;
+  font-size: $font-size-h2;
+  line-height: $line-height-heading;
+}
+
+.relatedGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: $spacing-6;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  // Multi-column grids become viable from "medium" (§33).
+  @include respond-above('medium') {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.relatedCard {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.relatedCardTitle {
+  margin: 0 0 $spacing-2;
+  font-size: $font-size-h3;
+  line-height: $line-height-heading;
+
+  a {
+    color: var(--color-text);
+    text-decoration: none;
+
+    &:hover {
+      color: var(--color-primary);
+    }
+  }
+}
+
+.relatedCardMeta {
+  margin-top: auto;
+  padding-top: $spacing-3;
+  color: var(--color-text-muted);
+  font-size: $font-size-small;
+}
+
+// ---------------------------------------------------------------------------
+// Course CTA (UI/UX §29): contextual, not intrusive — a restrained
+// token-derived tint band, the TASK 039 ctaBand composition. 44px
+// touch target on the link (§34).
+// ---------------------------------------------------------------------------
+.courseBand {
+  display: grid;
+  justify-items: center;
+  gap: $spacing-2;
+  padding: $spacing-12 $spacing-6;
+  border-radius: $radius-lg;
+  background-color: color-mix(in srgb, var(--color-primary) 8%, var(--color-surface));
+  text-align: center;
+}
+
+.courseTitle {
+  font-size: $font-size-h2;
+  line-height: $line-height-heading;
+}
+
+.courseTagline {
+  max-width: 34rem;
+  color: var(--color-text-muted);
+}
+
+.courseActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-4;
+  margin-top: $spacing-4;
+}
+
+.courseLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem; // 44px (§34)
+  padding: $spacing-2 $spacing-6;
+  border: 1px solid transparent;
+  border-radius: $radius-md;
+  background-color: var(--color-primary);
+  color: var(--color-text-on-primary);
+  font-weight: $font-weight-semibold;
+  line-height: 1.2;
+  text-decoration: none;
+  transition:
+    background-color $transition-base $transition-easing,
+    border-color $transition-base $transition-easing,
+    color $transition-base $transition-easing;
+
+  &:hover {
+    background-color: var(--color-primary-hover);
+  }
+}
