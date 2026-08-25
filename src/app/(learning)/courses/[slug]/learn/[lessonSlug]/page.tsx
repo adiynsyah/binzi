@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 
+import { LessonContent } from "@/components/learning/LessonContent/LessonContent";
 import { createClient } from "@/lib/supabase/server";
 import { canAccessLesson } from "@/features/progress/queries/canAccessLesson";
+import { getLessonForLearning } from "@/features/progress/queries/getLessonForLearning";
 
 import styles from "./page.module.scss";
 
@@ -24,12 +26,11 @@ import styles from "./page.module.scss";
  * - NOT_FOUND / NOT_ENROLLED → 404, drafts indistinguishable
  *   (UI/UX §44; the same contract as the public course queries).
  *
- * TASK 045 scope is the shell boundary only: this page renders the
- * lesson title inside the learning frame and hands the content
- * column to TASK 046 (Content rendered in persisted order); the
- * §11 lesson header ("Lesson X of Y", progress bar) belongs to TASK
- * 047, and quiz state to TASK 048+. Viewing this page never writes
- * lesson_progress (Decisions Log #12).
+ * TASK 046 renders the lesson's Content in persisted order below the
+ * title (LessonContent + getLessonForLearning, PUBLISHED contents
+ * only); the §11 lesson header ("Lesson X of Y", progress bar)
+ * belongs to TASK 047, and quiz state to TASK 048+. Viewing this
+ * page never writes lesson_progress (Decisions Log #12).
  */
 
 type PageProps = {
@@ -79,11 +80,16 @@ export default async function LessonPage({ params }: PageProps) {
     notFound();
   }
 
+  // The gate has already resolved this lesson server-side — the id
+  // passed here never comes from client input (IDOR-safe by
+  // construction). PUBLISHED contents only, persisted order.
+  const contentItems = await getLessonForLearning(access.lesson.id);
+
   return (
     <article className={styles.page}>
       <h1 className={styles.lessonTitle}>{access.lesson.title}</h1>
-      {/* TASK 046 renders the lesson Content in persisted order below
-          this title; the quiz area arrives with TASK 048+. */}
+      <LessonContent items={contentItems} />
+      {/* TASK 048 renders the quiz area below the Content list. */}
     </article>
   );
 }

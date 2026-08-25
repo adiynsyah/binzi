@@ -1,0 +1,181 @@
+// BINZI lesson Content renderer styles (TASK 046, UI/UX §12–§16).
+// The reading-measure discipline is inherited from the lesson page
+// (48rem, §13); the .body typography is carried over verbatim from
+// the public article page (TASK 041) — the same third local copy
+// discipline as ContentPreview, so no committed file is touched.
+// Focus visibility comes from the global :focus-visible ring; reduced
+// motion is handled globally (§42–§43).
+@use '@/styles/tokens' as *;
+
+.list {
+  display: grid;
+  gap: $spacing-10;
+  margin-top: $spacing-8;
+}
+
+.block {
+  display: grid;
+  gap: $spacing-4;
+}
+
+.blockTitle {
+  margin: 0;
+  font-size: $font-size-h2;
+  line-height: $line-height-heading;
+}
+
+// ---------------------------------------------------------------------------
+// VIDEO (UI/UX §14) — embedded naturally, responsive 16:9, never wider
+// than the content column. The fallback note inherits body text.
+// ---------------------------------------------------------------------------
+.videoFrame {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: $radius-md;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-border);
+}
+
+.videoIframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.videoFallback {
+  margin: 0;
+  padding: $spacing-4;
+  border: 1px solid var(--color-border);
+  border-radius: $radius-md;
+  color: var(--color-text-muted);
+  font-size: $font-size-body;
+  line-height: $line-height-body;
+}
+
+// ---------------------------------------------------------------------------
+// TIP (UI/UX §15) — stands apart from ordinary paragraphs: one
+// restrained token-derived tint with a primary left border (the
+// blockquote affordance), no decorative card inflation.
+// ---------------------------------------------------------------------------
+.tip {
+  display: grid;
+  gap: $spacing-3;
+  padding: $spacing-5 $spacing-6;
+  border-left: 3px solid var(--color-primary);
+  border-radius: $radius-md;
+  background-color: color-mix(in srgb, var(--color-primary) 8%, var(--color-surface));
+}
+
+.tipTitle {
+  margin: 0;
+  font-size: $font-size-h3;
+  line-height: $line-height-heading;
+}
+
+// ---------------------------------------------------------------------------
+// Rendered Tiptap body — generated safely by renderTiptapHtml.
+// Typographic rules carried over from the TASK 041 article page
+// (§13: comfortable measure, strong heading hierarchy, adequate
+// spacing; §16: images responsive, aspect ratio preserved, never
+// overflowing the viewport).
+// ---------------------------------------------------------------------------
+.body {
+  color: var(--color-text);
+  font-size: $font-size-body;
+  line-height: $line-height-body;
+
+  > :first-child {
+    margin-top: 0;
+  }
+
+  > :last-child {
+    margin-bottom: 0;
+  }
+
+  p,
+  ul,
+  ol,
+  blockquote,
+  pre,
+  img,
+  hr {
+    margin: 0 0 $spacing-4;
+  }
+
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    margin: $spacing-6 0 $spacing-3;
+    line-height: $line-height-heading;
+  }
+
+  h2 {
+    font-size: $font-size-h2;
+  }
+
+  h3 {
+    font-size: $font-size-h3;
+  }
+
+  ul,
+  ol {
+    padding-left: $spacing-6;
+  }
+
+  li + li {
+    margin-top: $spacing-1;
+  }
+
+  blockquote {
+    padding: $spacing-3 0 $spacing-3 $spacing-4;
+    border-left: 3px solid var(--color-primary);
+    color: var(--color-text-muted);
+  }
+
+  img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    border-radius: $radius-md;
+  }
+
+  hr {
+    border: 0;
+    border-top: 1px solid var(--color-border);
+  }
+
+  a {
+    color: var(--color-primary);
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  code {
+    padding: 0.125em 0.375em;
+    border-radius: $radius-sm;
+    border: 1px solid var(--color-border);
+    background-color: var(--color-border);
+    font-size: 0.9em;
+  }
+
+  pre {
+    padding: $spacing-4;
+    border-radius: $radius-md;
+    border: 1px solid var(--color-border);
+    background-color: var(--color-border);
+    overflow-x: auto;
+
+    code {
+      padding: 0;
+      background-color: transparent;
+    }
+  }
+}
