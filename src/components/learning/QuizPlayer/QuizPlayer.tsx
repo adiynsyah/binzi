@@ -37,10 +37,13 @@ import styles from "./QuizPlayer.module.scss";
  * TASK 052 renders the result screen per UI/UX §21/§22 (+ §17's
  * completion note): pass/fail, score, correct count, and the next
  * action. This component never decides completion — it only renders
- * the server verdict; "Coba Lagi" is a plain reload to the quiz page
- * (unlimited attempts hold structurally; retry UX policy is not
- * owned here). The next-lesson link targets are computed server-side
- * by the page over the published lesson set.
+ * the server verdict. TASK 053 adds the §23 retry experience on the
+ * failed branch — the "review the lesson" guidance line plus BOTH
+ * §23 actions ([Review Lesson] → the lesson page, [Try Quiz Again]
+ * → a plain reload of this page). Unlimited attempts hold
+ * structurally (BR §11/§13): no limit, cooldown, or attempt count
+ * exists to display or enforce in V1. The next-lesson link targets
+ * are computed server-side by the page over the published lesson set.
  *
  * Focus visibility and reduced motion come from the global stylesheet.
  */
@@ -48,6 +51,7 @@ export function QuizPlayer({
   questions,
   action,
   quizHref,
+  lessonHref,
   nextLessonHref,
   learnHubHref,
 }: {
@@ -57,8 +61,10 @@ export function QuizPlayer({
     state: QuizSubmitState,
     formData: FormData,
   ) => Promise<QuizSubmitState>;
-  /** This quiz page — the §21 "Try Again" reload target. */
+  /** This quiz page — the §21/§23 "Try Again" reload target. */
   quizHref: string;
+  /** The lesson page — the §23 "Review Lesson" target. */
+  lessonHref: string;
   /** Next published lesson after this one, or null when this is the last. */
   nextLessonHref: string | null;
   /** The learning hub — fallback CTA when the passed lesson is the last. */
@@ -107,9 +113,21 @@ export function QuizPlayer({
             <p className={styles.resultFailed}>
               Anda memerlukan 80% untuk lulus.
             </p>
+            <p className={styles.resultHint}>
+              Pelajari kembali pelajaran ini, lalu coba lagi.
+            </p>
             <div className={styles.resultActions}>
-              {/* Plain anchor on purpose: a full reload resets the
-                  player for a fresh attempt (no retry policy here). */}
+              {/* §23 retry pair — review the lesson first, then try
+                  again. The review link goes to the lesson page; the
+                  retry is a plain anchor on purpose (a full reload
+                  resets the player for a fresh attempt — unlimited
+                  attempts, BR §11/§13, nothing to enforce). */}
+              <Link
+                className={`${styles.resultCta} ${styles.resultCtaSecondary}`}
+                href={lessonHref}
+              >
+                Baca Pelajaran
+              </Link>
               <a className={styles.resultCta} href={quizHref}>
                 Coba Lagi
               </a>

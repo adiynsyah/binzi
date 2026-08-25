@@ -153,9 +153,18 @@
   font-weight: $font-weight-semibold;
 }
 
-// §21 next actions — one primary control, 44px touch target (§34).
+// TASK 053 — §23 "Review the Lesson and try again." guidance line.
+.resultHint {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+// §21 next actions — 44px touch targets (§34); TASK 053 makes the
+// failed branch a §23 pair, so the row wraps on narrow measures.
 .resultActions {
   display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-3;
   margin-top: $spacing-2;
 }
 
@@ -172,6 +181,13 @@
   font-weight: $font-weight-semibold;
   text-decoration: none;
   cursor: pointer;
+}
+
+// §23 [Review Lesson] reads as the secondary action beside the
+// primary retry CTA — outline treatment, same 44px target.
+.resultCtaSecondary {
+  background-color: var(--color-surface);
+  color: var(--color-primary);
 }
 
 .error {

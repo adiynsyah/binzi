@@ -89,8 +89,9 @@ export default async function LessonQuizPage({ params }: PageProps) {
   // computed server-side over the PUBLISHED lesson set in persisted
   // order — the same ordering the learning shell navigates by. The
   // passed lesson's successor links onward; the last lesson falls
-  // back to the learning hub. Read-only: no progress is written by
-  // this render.
+  // back to the learning hub. TASK 053 reuses the same base for the
+  // §23 failed-branch "Review Lesson" target (this lesson's page).
+  // Read-only: no progress is written by this render.
   const course = await getCourseForLearning(user.id, slug);
   const lessonIndex = course?.lessons.findIndex((l) => l.slug === lessonSlug) ?? -1;
   const nextLessonSlug =
@@ -108,6 +109,7 @@ export default async function LessonQuizPage({ params }: PageProps) {
         action={submitLessonQuiz.bind(null, slug, lessonSlug)}
         questions={questions}
         quizHref={`${learnBase}/${lessonSlug}/quiz`}
+        lessonHref={`${learnBase}/${lessonSlug}`}
         nextLessonHref={nextLessonSlug ? `${learnBase}/${nextLessonSlug}` : null}
         learnHubHref={learnBase}
       />
