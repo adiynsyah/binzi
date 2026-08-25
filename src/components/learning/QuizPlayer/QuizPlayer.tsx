@@ -45,6 +45,13 @@ import styles from "./QuizPlayer.module.scss";
  * exists to display or enforce in V1. The next-lesson link targets
  * are computed server-side by the page over the published lesson set.
  *
+ * TASK 055 reuses this player for the Final Quiz (no second player):
+ * the optional passedNote/retryHint props swap the two lesson-specific
+ * sentences for Final-Quiz-truthful copy — a passed Final Quiz
+ * completes NO lesson (BR §17; course completion is TASK 057), and
+ * its review target is the whole course, not one lesson. Omitting
+ * the props keeps the lesson behavior byte-identical.
+ *
  * Focus visibility and reduced motion come from the global stylesheet.
  */
 export function QuizPlayer({
@@ -54,6 +61,8 @@ export function QuizPlayer({
   lessonHref,
   nextLessonHref,
   learnHubHref,
+  passedNote = "Anda lulus kuis ini. Pelajaran ini selesai.",
+  retryHint = "Pelajari kembali pelajaran ini, lalu coba lagi.",
 }: {
   questions: PlayerQuestion[];
   /** submitLessonQuiz bound to (courseSlug, lessonSlug) by the page. */
@@ -69,6 +78,10 @@ export function QuizPlayer({
   nextLessonHref: string | null;
   /** The learning hub — fallback CTA when the passed lesson is the last. */
   learnHubHref: string;
+  /** §17 pass note; the Final Quiz passes its own (completes no lesson). */
+  passedNote?: string;
+  /** §23 guidance line; the Final Quiz points at the whole course. */
+  retryHint?: string;
 }) {
   const [current, setCurrent] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -93,9 +106,7 @@ export function QuizPlayer({
         </p>
         {state.passed ? (
           <>
-            <p className={styles.resultPassed}>
-              Anda lulus kuis ini. Pelajaran ini selesai.
-            </p>
+            <p className={styles.resultPassed}>{passedNote}</p>
             <div className={styles.resultActions}>
               {nextLessonHref ? (
                 <Link className={styles.resultCta} href={nextLessonHref}>
@@ -113,9 +124,7 @@ export function QuizPlayer({
             <p className={styles.resultFailed}>
               Anda memerlukan 80% untuk lulus.
             </p>
-            <p className={styles.resultHint}>
-              Pelajari kembali pelajaran ini, lalu coba lagi.
-            </p>
+            <p className={styles.resultHint}>{retryHint}</p>
             <div className={styles.resultActions}>
               {/* §23 retry pair — review the lesson first, then try
                   again. The review link goes to the lesson page; the

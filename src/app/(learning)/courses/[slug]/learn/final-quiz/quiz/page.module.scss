@@ -1,0 +1,19 @@
+// BINZI Final Quiz page styles (TASK 055) — the lesson quiz page's
+// focused-measure treatment, verbatim: 48rem reading measure (§13/§18)
+// and the plain header; course name, progress, and lesson navigation
+// stay in the learning shell (TASK 045).
+@use '@/styles/tokens' as *;
+
+.page {
+  max-width: 48rem; // $content-measure (UI/UX §13)
+}
+
+.quizHeader {
+  margin-bottom: $spacing-8;
+}
+
+.quizTitle {
+  margin: 0;
+  font-size: $font-size-h1;
+  line-height: $line-height-heading;
+}
