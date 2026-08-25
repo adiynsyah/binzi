@@ -4,14 +4,18 @@ import { notFound } from "next/navigation";
 
 import { courseDifficulty } from "@/db/schema/enums";
 import { Badge } from "@/components/ui/Badge/Badge";
+import { Button } from "@/components/ui/Button/Button";
 import { createClient } from "@/lib/supabase/server";
 import { getPublishedCourseBySlug } from "@/features/courses/queries/getPublishedCourseBySlug";
+import { getEnrollmentForUser } from "@/features/enrollment/queries/getEnrollmentForUser";
+import { enrollCourse } from "@/features/enrollment/mutations/enrollCourse";
 
 import styles from "./page.module.scss";
 
 /**
  * Public Course Detail (TASK 039, UI/UX §7 "Course Detail", §8 "Course
- * Curriculum", §9 "Enrollment CTA"; Business Rules §5; Decisions Log #1).
+ * Curriculum", §9 "Enrollment CTA"; Business Rules §5; Decisions Log #1;
+ * CTA ladder completed by TASK 042).
  *
  * Route shape /courses/[slug] under the (public) group is fixed by UI/UX
  * §7 and the Blueprint §4 route map. Publication is enforced inside
@@ -22,14 +26,17 @@ import styles from "./page.module.scss";
  * Guests may view the full Course Detail and the lesson titles, with the
  * first lesson marked as the free preview (Decisions Log #1, UI/UX §8
  * guest view). The lock badges are a UX-only affordance: lessons render
- * as non-interactive rows because no public lesson URL exists in V1 —
- * the learning experience route belongs to later milestones.
+ * as non-interactive rows because the learning experience route belongs
+ * to TASK 045.
  *
- * CTA states follow the UI/UX §9 ladder as far as V1 progress allows:
- * guests get "Login to Start Learning" (Business Rules §5 flow: preview
- * → login required → full access); authenticated not-enrolled users get
- * "Start Course". Continue/Review states require enrollment data that
- * no earlier task produces, so they are not rendered here (FLAG).
+ * CTA states follow the full UI/UX §9 ladder (TASK 042):
+ * - guest → "Masuk untuk Mulai Belajar" → /login;
+ * - authenticated not enrolled → "Mulai Kursus", a form submitting the
+ *   enrollCourse server action (creates the enrollment, BR §8);
+ * - enrolled (ACTIVE) → "Lanjutkan Kursus" → learning route;
+ * - enrolled (COMPLETED) → "Tinjau Kursus" → learning route.
+ * The learning route /courses/[slug]/learn is owned by TASK 045 and is
+ * an honest 404 until then (the approved future-route pattern).
  */
 
 type PageProps = {
@@ -68,12 +75,17 @@ export default async function CourseDetailPage({ params }: PageProps) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  const enrollment = user
+    ? await getEnrollmentForUser(user.id, course.id)
+    : null;
+
   const outcomeLessons = course.lessons.filter(
     (lesson) => lesson.description !== null,
   );
 
-  const startHref = user ? `/courses/${course.slug}/learn` : "/login";
-  const startLabel = user ? "Mulai Kursus" : "Masuk untuk Mulai Belajar";
+  // UI/UX §9 ladder — one shared derivation for header + closing band.
+  const learnHref = `/courses/${course.slug}/learn`;
+  const enrollAction = enrollCourse.bind(null, course.slug);
 
   return (
     <article className={styles.page}>
@@ -88,9 +100,23 @@ export default async function CourseDetailPage({ params }: PageProps) {
             : ""}
         </p>
         <div className={styles.headerActions}>
-          <Link className={styles.ctaPrimary} href={startHref}>
-            {startLabel}
-          </Link>
+          {!user ? (
+            <Link className={styles.ctaPrimary} href="/login">
+              Masuk untuk Mulai Belajar
+            </Link>
+          ) : enrollment === null ? (
+            <form action={enrollAction}>
+              <Button type="submit">Mulai Kursus</Button>
+            </form>
+          ) : enrollment.status === "COMPLETED" ? (
+            <Link className={styles.ctaPrimary} href={learnHref}>
+              Tinjau Kursus
+            </Link>
+          ) : (
+            <Link className={styles.ctaPrimary} href={learnHref}>
+              Lanjutkan Kursus
+            </Link>
+          )}
         </div>
       </header>
 
@@ -147,9 +173,23 @@ export default async function CourseDetailPage({ params }: PageProps) {
           Pelajari {course.title} langkah demi langkah di BINZI.
         </p>
         <div className={styles.ctaActions}>
-          <Link className={styles.ctaPrimary} href={startHref}>
-            {startLabel}
-          </Link>
+          {!user ? (
+            <Link className={styles.ctaPrimary} href="/login">
+              Masuk untuk Mulai Belajar
+            </Link>
+          ) : enrollment === null ? (
+            <form action={enrollAction}>
+              <Button type="submit">Mulai Kursus</Button>
+            </form>
+          ) : enrollment.status === "COMPLETED" ? (
+            <Link className={styles.ctaPrimary} href={learnHref}>
+              Tinjau Kursus
+            </Link>
+          ) : (
+            <Link className={styles.ctaPrimary} href={learnHref}>
+              Lanjutkan Kursus
+            </Link>
+          )}
         </div>
       </section>
     </article>
