@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useState } from "react";
 
 import type { PlayerQuestion } from "@/features/quizzes/queries/getQuizForPlayer";
@@ -33,11 +34,22 @@ import styles from "./QuizPlayer.module.scss";
  * the server-computed verdict; no score/passed is ever computed
  * here, and per-answer correctness never reaches this component.
  *
+ * TASK 052 renders the result screen per UI/UX §21/§22 (+ §17's
+ * completion note): pass/fail, score, correct count, and the next
+ * action. This component never decides completion — it only renders
+ * the server verdict; "Coba Lagi" is a plain reload to the quiz page
+ * (unlimited attempts hold structurally; retry UX policy is not
+ * owned here). The next-lesson link targets are computed server-side
+ * by the page over the published lesson set.
+ *
  * Focus visibility and reduced motion come from the global stylesheet.
  */
 export function QuizPlayer({
   questions,
   action,
+  quizHref,
+  nextLessonHref,
+  learnHubHref,
 }: {
   questions: PlayerQuestion[];
   /** submitLessonQuiz bound to (courseSlug, lessonSlug) by the page. */
@@ -45,6 +57,12 @@ export function QuizPlayer({
     state: QuizSubmitState,
     formData: FormData,
   ) => Promise<QuizSubmitState>;
+  /** This quiz page — the §21 "Try Again" reload target. */
+  quizHref: string;
+  /** Next published lesson after this one, or null when this is the last. */
+  nextLessonHref: string | null;
+  /** The learning hub — fallback CTA when the passed lesson is the last. */
+  learnHubHref: string;
 }) {
   const [current, setCurrent] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -60,15 +78,44 @@ export function QuizPlayer({
   if (state.status === "success") {
     return (
       <div className={styles.result} role="status">
+        <p className={styles.resultHeading}>
+          {state.passed ? "🎉 Hebat!" : "Terus belajar"}
+        </p>
         <p className={styles.resultScore}>
           Skor Anda: {state.score}% ({state.correctAnswers}/
           {state.totalQuestions} soal benar)
         </p>
-        <p className={state.passed ? styles.resultPassed : styles.resultFailed}>
-          {state.passed
-            ? "Selamat! Anda lulus kuis ini."
-            : "Anda belum lulus kuis ini. Muat ulang halaman untuk mencoba lagi."}
-        </p>
+        {state.passed ? (
+          <>
+            <p className={styles.resultPassed}>
+              Anda lulus kuis ini. Pelajaran ini selesai.
+            </p>
+            <div className={styles.resultActions}>
+              {nextLessonHref ? (
+                <Link className={styles.resultCta} href={nextLessonHref}>
+                  Lanjut ke Pelajaran Berikutnya
+                </Link>
+              ) : (
+                <Link className={styles.resultCta} href={learnHubHref}>
+                  Kembali ke Daftar Pelajaran
+                </Link>
+              )}
+            </div>
+          </>
+        ) : (
+          <>
+            <p className={styles.resultFailed}>
+              Anda memerlukan 80% untuk lulus.
+            </p>
+            <div className={styles.resultActions}>
+              {/* Plain anchor on purpose: a full reload resets the
+                  player for a fresh attempt (no retry policy here). */}
+              <a className={styles.resultCta} href={quizHref}>
+                Coba Lagi
+              </a>
+            </div>
+          </>
+        )}
       </div>
     );
   }

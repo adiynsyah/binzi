@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { canAccessLessonQuiz } from "@/features/quizzes/queries/canAccessLessonQuiz";
 import { getQuizForPlayer } from "@/features/quizzes/queries/getQuizForPlayer";
 import { submitLessonQuiz } from "@/features/quizzes/mutations/submitLessonQuiz";
+import { getCourseForLearning } from "@/features/progress/queries/getCourseForLearning";
 
 import styles from "./page.module.scss";
 
@@ -84,6 +85,20 @@ export default async function LessonQuizPage({ params }: PageProps) {
   // never comes from client input (IDOR-safe by construction).
   const questions = await getQuizForPlayer(access.quiz.id);
 
+  // TASK 052 — the result screen's next-action targets (UI/UX §21),
+  // computed server-side over the PUBLISHED lesson set in persisted
+  // order — the same ordering the learning shell navigates by. The
+  // passed lesson's successor links onward; the last lesson falls
+  // back to the learning hub. Read-only: no progress is written by
+  // this render.
+  const course = await getCourseForLearning(user.id, slug);
+  const lessonIndex = course?.lessons.findIndex((l) => l.slug === lessonSlug) ?? -1;
+  const nextLessonSlug =
+    course !== null && lessonIndex >= 0
+      ? (course.lessons[lessonIndex + 1]?.slug ?? null)
+      : null;
+  const learnBase = `/courses/${slug}/learn`;
+
   return (
     <article className={styles.page}>
       <header className={styles.quizHeader}>
@@ -92,6 +107,9 @@ export default async function LessonQuizPage({ params }: PageProps) {
       <QuizPlayer
         action={submitLessonQuiz.bind(null, slug, lessonSlug)}
         questions={questions}
+        quizHref={`${learnBase}/${lessonSlug}/quiz`}
+        nextLessonHref={nextLessonSlug ? `${learnBase}/${nextLessonSlug}` : null}
+        learnHubHref={learnBase}
       />
     </article>
   );

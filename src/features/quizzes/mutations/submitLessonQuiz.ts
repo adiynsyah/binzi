@@ -31,12 +31,14 @@ import { scoreQuizSubmission } from "@/features/quizzes/services/scoreQuizSubmis
  *   not-enrolled/missing-quiz stay indistinguishable, UI/UX §44);
  * - scoring: scoreQuizSubmission (TASK 050) — never recomputed here;
  * - persistence: recordQuizAttempt (TASK 051 service) — one atomic
- *   transaction for attempt + answer snapshot.
+ *   transaction for attempt + answer snapshot, extended by TASK 052
+ *   to complete the lesson in that same transaction when — and only
+ *   when — the authoritative result is `passed` (BR §12 step 8). The
+ *   enrollment this action forwards is the one canAccessLessonQuiz
+ *   already resolved; completion is never client-triggerable.
  *
- * No completion write: lesson_progress is TASK 052 (BR §12 step 8 is
- * that task's Task Plan goal; Decisions Log #12). No retry policy:
- * unlimited attempts already hold structurally (BR §13 — every
- * accepted submission is simply a new attempt row).
+ * No retry policy: unlimited attempts already hold structurally
+ * (BR §13 — every accepted submission is simply a new attempt row).
  *
  * The success state returns ONLY the server-computed verdict
  * (score/passed/counts) — per-answer correctness and internal ids
@@ -102,7 +104,9 @@ export async function submitLessonQuiz(
     return { status: "error", message: "Kuis tidak tersedia." };
   }
 
-  await recordQuizAttempt(user.id, access.quiz.id, result.score);
+  await recordQuizAttempt(user.id, access.quiz.id, result.score, {
+    enrollmentId: access.enrollmentId,
+  });
 
   return {
     status: "success",
