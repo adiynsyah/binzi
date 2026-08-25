@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 import { Badge } from "@/components/ui/Badge/Badge";
@@ -143,8 +144,20 @@ export default async function LessonPage({ params }: PageProps) {
         ) : null}
       </header>
       <LessonContent items={contentItems} />
-      {/* TASK 049 renders the quiz area below the Content list
-          (access via canAccessLessonQuiz, TASK 048). */}
+      {/* UI/UX §17 — the completion CTA leads to the Lesson Quiz
+          (TASK 049); the quiz page re-checks access through the ONE
+          centralized quiz gate canAccessLessonQuiz (TASK 048). */}
+      <aside aria-labelledby="lesson-quiz-cta-title" className={styles.quizCta}>
+        <h2 className={styles.quizCtaTitle} id="lesson-quiz-cta-title">
+          Siap menguji pemahaman Anda?
+        </h2>
+        <Link
+          className={styles.quizCtaLink}
+          href={`/courses/${slug}/learn/${access.lesson.slug}/quiz`}
+        >
+          Kerjakan Kuis
+        </Link>
+      </aside>
     </article>
   );
 }

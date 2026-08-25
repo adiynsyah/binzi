@@ -1,0 +1,117 @@
+// BINZI quiz player styles (TASK 049, UI/UX §18–§20).
+// "Quiz should feel focused": one question per step, a quiet position
+// line, generous option rows, and one primary control. The quiz page
+// keeps the lesson reading measure (48rem, §13); focus visibility and
+// reduced motion are global (§42–§43). Option rows are 44px+ touch
+// targets (§34); the selected state is visually obvious via a token
+// tint + border (§20) driven by the native :checked input.
+@use '@/styles/tokens' as *;
+
+.player {
+  display: grid;
+  gap: $spacing-6;
+}
+
+.position {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: $font-size-small;
+  font-weight: $font-weight-semibold;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.question {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.questionText {
+  padding: 0;
+  font-size: $font-size-h3;
+  line-height: $line-height-heading;
+  font-weight: $font-weight-semibold;
+  color: var(--color-text);
+}
+
+.options {
+  display: grid;
+  gap: $spacing-3;
+  margin-top: $spacing-5;
+}
+
+// Whole row is the clickable label — a comfortable single-line-plus
+// target that clears 44px (§34) with padding alone.
+.option {
+  display: flex;
+  align-items: center;
+  gap: $spacing-3;
+  min-height: 44px;
+  padding: $spacing-3 $spacing-4;
+  border: 1px solid var(--color-border);
+  border-radius: $radius-md;
+  background-color: var(--color-surface);
+  cursor: pointer;
+
+  input {
+    flex-shrink: 0;
+    margin: 0;
+  }
+
+  // §20 selected state — obvious, token-derived, no animation.
+  &:has(input:checked) {
+    border-color: var(--color-primary);
+    background-color: color-mix(in srgb, var(--color-primary) 8%, var(--color-surface));
+  }
+}
+
+.optionText {
+  font-size: $font-size-body;
+  line-height: $line-height-body;
+  color: var(--color-text);
+}
+
+.controls {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.next,
+.submit {
+  min-height: 44px;
+  min-width: 44px;
+  padding: $spacing-3 $spacing-6;
+  border: 1px solid var(--color-primary);
+  border-radius: $radius-md;
+  font-size: $font-size-body;
+  font-weight: $font-weight-semibold;
+  cursor: pointer;
+
+  &:disabled {
+    border-color: var(--color-border);
+    color: var(--color-text-muted);
+    background-color: var(--color-surface);
+    cursor: not-allowed;
+  }
+}
+
+.submit {
+  background-color: var(--color-primary);
+  color: var(--color-text-on-primary);
+
+  &:disabled {
+    background-color: var(--color-surface);
+  }
+}
+
+.next {
+  background-color: var(--color-surface);
+  color: var(--color-primary);
+}
+
+.empty {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: $font-size-body;
+}

@@ -72,3 +72,40 @@
   line-height: $line-height-body;
   text-align: right;
 }
+
+// UI/UX §17 — completion CTA below the Content list, leading to the
+// Lesson Quiz. The tint panel mirrors the 037/039 ctaBand treatment
+// (color-mix over surface, no imagery); the link is the 44px
+// link-CTA convention (§34 touch targets).
+.quizCta {
+  display: grid;
+  gap: $spacing-4;
+  justify-items: start;
+  margin-top: $spacing-10;
+  padding: $spacing-6;
+  border-radius: $radius-md;
+  background-color: color-mix(in srgb, var(--color-primary) 8%, var(--color-surface));
+}
+
+.quizCtaTitle {
+  margin: 0;
+  font-size: $font-size-h3;
+  line-height: $line-height-heading;
+}
+
+.quizCtaLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px; // UI/UX §34 touch target
+  padding: $spacing-3 $spacing-6;
+  border-radius: $radius-md;
+  background-color: var(--color-primary);
+  color: var(--color-text-on-primary);
+  font-weight: $font-weight-semibold;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}

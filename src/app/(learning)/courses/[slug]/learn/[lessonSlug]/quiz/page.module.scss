@@ -1,0 +1,20 @@
+// BINZI lesson quiz page styles (TASK 049, UI/UX §18 "Quiz should
+// feel focused"). Keeps the reading-measure discipline of the lesson
+// page (48rem, §13). Course name, progress, and lesson navigation
+// stay in the learning shell header/sidebar (TASK 045) — the quiz
+// content itself is just the focused question flow (QuizPlayer).
+@use '@/styles/tokens' as *;
+
+.page {
+  max-width: 48rem; // $content-measure (UI/UX §13)
+}
+
+.quizHeader {
+  margin-bottom: $spacing-8;
+}
+
+.quizTitle {
+  margin: 0;
+  font-size: $font-size-h1;
+  line-height: $line-height-heading;
+}
