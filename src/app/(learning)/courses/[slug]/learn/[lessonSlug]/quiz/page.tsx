@@ -5,6 +5,7 @@ import { QuizPlayer } from "@/components/learning/QuizPlayer/QuizPlayer";
 import { createClient } from "@/lib/supabase/server";
 import { canAccessLessonQuiz } from "@/features/quizzes/queries/canAccessLessonQuiz";
 import { getQuizForPlayer } from "@/features/quizzes/queries/getQuizForPlayer";
+import { submitLessonQuiz } from "@/features/quizzes/mutations/submitLessonQuiz";
 
 import styles from "./page.module.scss";
 
@@ -88,7 +89,10 @@ export default async function LessonQuizPage({ params }: PageProps) {
       <header className={styles.quizHeader}>
         <h1 className={styles.quizTitle}>Kuis Pelajaran</h1>
       </header>
-      <QuizPlayer questions={questions} />
+      <QuizPlayer
+        action={submitLessonQuiz.bind(null, slug, lessonSlug)}
+        questions={questions}
+      />
     </article>
   );
 }

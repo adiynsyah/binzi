@@ -115,3 +115,38 @@
   color: var(--color-text-muted);
   font-size: $font-size-body;
 }
+
+// TASK 051 — minimal server-computed verdict render (the submission
+// action's "Return result" step, Architecture §18). Kept deliberately
+// plain: richer result treatment is not owned by the wiring task.
+.result {
+  display: grid;
+  gap: $spacing-3;
+  padding: $spacing-6;
+  border-radius: $radius-md;
+  background-color: color-mix(in srgb, var(--color-primary) 8%, var(--color-surface));
+}
+
+.resultScore {
+  margin: 0;
+  font-size: $font-size-h3;
+  line-height: $line-height-heading;
+}
+
+.resultPassed {
+  margin: 0;
+  color: var(--color-success);
+  font-weight: $font-weight-semibold;
+}
+
+.resultFailed {
+  margin: 0;
+  color: var(--color-danger);
+  font-weight: $font-weight-semibold;
+}
+
+.error {
+  margin: 0;
+  color: var(--color-danger);
+  font-size: $font-size-body;
+}

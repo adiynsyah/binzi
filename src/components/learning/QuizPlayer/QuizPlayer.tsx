@@ -1,15 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useActionState, useState } from "react";
 
 import type { PlayerQuestion } from "@/features/quizzes/queries/getQuizForPlayer";
+import {
+  initialQuizSubmitState,
+  type QuizSubmitState,
+} from "@/features/quizzes/schemas/quiz-submission.schema";
 
 import styles from "./QuizPlayer.module.scss";
 
 /**
  * BINZI quiz answering UI (TASK 049, Task Plan "Quiz Player" —
  * "Question X of Y / Single answer / Next / Submit"; UI/UX §18–§20;
- * Architecture §8 "Quiz answering UI" Client Component candidate).
+ * Architecture §8 "Quiz answering UI" Client Component candidate;
+ * submission wiring added by TASK 051).
  *
  * Sequential answering only (UI/UX §19 — no complex navigation in
  * V1): one question per step, native radios for single-answer
@@ -19,25 +24,53 @@ import styles from "./QuizPlayer.module.scss";
  * unanswered advancement). The last step shows Submit in place of
  * Next.
  *
- * Selection state lives in this component as questionId → optionId —
- * exactly the pair Architecture §19 names as the legitimate client
- * payload; the SUBMISSION itself (server-side scoring, attempt
- * persistence) is TASK 050/051 ownership, so the Submit control is
- * rendered and enabled per §20 but its server action is bound by the
- * later task. No score or passed state exists here — those are never
- * client-computed (Architecture §19).
+ * TASK 051 wires Submit to the page-bound server action
+ * (submitLessonQuiz bound to the course/lesson slugs server-side —
+ * the client submits only the radio groups). The radios double as
+ * the form's wire payload: each `question-{id}` group contributes
+ * exactly one (questionId, selectedOptionId) pair, the ONLY client
+ * payload Architecture §19 allows. The action's state carries just
+ * the server-computed verdict; no score/passed is ever computed
+ * here, and per-answer correctness never reaches this component.
  *
- * Props carry only renderable fields plus the ids of the submission
- * contract; correctness (is_correct) is never part of the payload
- * (getQuizForPlayer). Focus visibility and reduced motion come from
- * the global stylesheet.
+ * Focus visibility and reduced motion come from the global stylesheet.
  */
-export function QuizPlayer({ questions }: { questions: PlayerQuestion[] }) {
+export function QuizPlayer({
+  questions,
+  action,
+}: {
+  questions: PlayerQuestion[];
+  /** submitLessonQuiz bound to (courseSlug, lessonSlug) by the page. */
+  action: (
+    state: QuizSubmitState,
+    formData: FormData,
+  ) => Promise<QuizSubmitState>;
+}) {
   const [current, setCurrent] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [state, formAction, isPending] = useActionState(
+    action,
+    initialQuizSubmitState,
+  );
 
   if (questions.length === 0) {
     return <p className={styles.empty}>Kuis ini belum memiliki soal.</p>;
+  }
+
+  if (state.status === "success") {
+    return (
+      <div className={styles.result} role="status">
+        <p className={styles.resultScore}>
+          Skor Anda: {state.score}% ({state.correctAnswers}/
+          {state.totalQuestions} soal benar)
+        </p>
+        <p className={state.passed ? styles.resultPassed : styles.resultFailed}>
+          {state.passed
+            ? "Selamat! Anda lulus kuis ini."
+            : "Anda belum lulus kuis ini. Muat ulang halaman untuk mencoba lagi."}
+        </p>
+      </div>
+    );
   }
 
   const question = questions[current];
@@ -45,7 +78,7 @@ export function QuizPlayer({ questions }: { questions: PlayerQuestion[] }) {
   const answered = answers[question.id] !== undefined;
 
   return (
-    <div className={styles.player}>
+    <form action={formAction} className={styles.player}>
       <p className={styles.position}>
         Soal {current + 1} dari {questions.length}
       </p>
@@ -70,9 +103,12 @@ export function QuizPlayer({ questions }: { questions: PlayerQuestion[] }) {
       </fieldset>
       <div className={styles.controls}>
         {isLast ? (
-          /* TASK 050 binds the server-side submission action here. */
-          <button className={styles.submit} disabled={!answered} type="button">
-            Kirim Jawaban
+          <button
+            className={styles.submit}
+            disabled={!answered || isPending}
+            type="submit"
+          >
+            {isPending ? "Mengirim…" : "Kirim Jawaban"}
           </button>
         ) : (
           <button
@@ -85,6 +121,11 @@ export function QuizPlayer({ questions }: { questions: PlayerQuestion[] }) {
           </button>
         )}
       </div>
-    </div>
+      {state.status === "error" ? (
+        <p role="alert" className={styles.error}>
+          {state.message}
+        </p>
+      ) : null}
+    </form>
   );
 }
