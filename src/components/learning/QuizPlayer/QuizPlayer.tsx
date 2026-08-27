@@ -34,6 +34,15 @@ import styles from "./QuizPlayer.module.scss";
  * the server-computed verdict; no score/passed is ever computed
  * here, and per-answer correctness never reaches this component.
  *
+ * TASK 068 fixes the TASK 067 E2E finding: sequential rendering keeps
+ * only the CURRENT step's radios in the DOM, so earlier answers are
+ * re-serialized into hidden `question-{id}` inputs — the submitted
+ * FormData again carries every question exactly once, the exact wire
+ * shape parseQuizSubmissionForm expects. The current question is
+ * excluded (its radio group supplies that pair; a duplicated
+ * question key is rejected by the parser). The hidden values are
+ * option ids only; no score/passed/correctness ever lives here.
+ *
  * TASK 052 renders the result screen per UI/UX §21/§22 (+ §17's
  * completion note): pass/fail, score, correct count, and the next
  * action. This component never decides completion — it only renders
@@ -52,6 +61,17 @@ import styles from "./QuizPlayer.module.scss";
  * its review target is the whole course, not one lesson. Omitting
  * the props keeps the lesson behavior byte-identical.
  *
+ * TASK 057 renders the UI/UX §26 Course Completion screen on the pass
+ * branch when the server says the enrollment is completed: the action
+ * state's courseCompleted flag (server-determined per BR §30, set
+ * only by submitFinalQuiz from the submission transaction) plus the
+ * optional courseCompletion prop (course title + the two §26 CTAs)
+ * swap the plain pass screen for "🎉 Kursus Selesai!" with the course
+ * name, the final score, [Kembali ke Daftar Kursus] and
+ * [Tinjau Kursus]. Lesson surfaces never pass the prop, so their
+ * result rendering is unchanged; §26's no-gamification rule holds —
+ * no XP/Badge/Level/Streak/Leaderboard is added.
+ *
  * Focus visibility and reduced motion come from the global stylesheet.
  */
 export function QuizPlayer({
@@ -63,6 +83,7 @@ export function QuizPlayer({
   learnHubHref,
   passedNote = "Anda lulus kuis ini. Pelajaran ini selesai.",
   retryHint = "Pelajari kembali pelajaran ini, lalu coba lagi.",
+  courseCompletion,
 }: {
   questions: PlayerQuestion[];
   /** submitLessonQuiz bound to (courseSlug, lessonSlug) by the page. */
@@ -82,6 +103,16 @@ export function QuizPlayer({
   passedNote?: string;
   /** §23 guidance line; the Final Quiz points at the whole course. */
   retryHint?: string;
+  /**
+   * §26 Course Completion screen data — passed only by the Final Quiz
+   * page; with the server's courseCompleted flag it renders the
+   * completion verdict instead of the plain pass screen.
+   */
+  courseCompletion?: {
+    courseTitle: string;
+    coursesHref: string;
+    reviewHref: string;
+  };
 }) {
   const [current, setCurrent] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -95,6 +126,38 @@ export function QuizPlayer({
   }
 
   if (state.status === "success") {
+    // TASK 057 — UI/UX §26 Course Completion screen. Rendered only when
+    // the SERVER flagged the enrollment completed (BR §30) AND the page
+    // supplied the §26 data (Final Quiz surface only); the gate is
+    // double on purpose so a lesson surface can never show it.
+    if (state.passed && state.courseCompleted && courseCompletion) {
+      return (
+        <div className={styles.result} role="status">
+          <p className={styles.resultHeading}>🎉 Kursus Selesai!</p>
+          <p className={styles.resultPassed}>
+            Anda telah berhasil menyelesaikan:
+          </p>
+          <p className={styles.resultCourse}>
+            {courseCompletion.courseTitle}
+          </p>
+          <p className={styles.resultScore}>Skor Akhir: {state.score}%</p>
+          <div className={styles.resultActions}>
+            {/* §26 action pair — [Back to Courses] primary, [Review
+                Course] secondary, mirroring the §23 pair treatment. */}
+            <Link className={styles.resultCta} href={courseCompletion.coursesHref}>
+              Kembali ke Daftar Kursus
+            </Link>
+            <Link
+              className={`${styles.resultCta} ${styles.resultCtaSecondary}`}
+              href={courseCompletion.reviewHref}
+            >
+              Tinjau Kursus
+            </Link>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className={styles.result} role="status">
         <p className={styles.resultHeading}>
@@ -153,6 +216,23 @@ export function QuizPlayer({
 
   return (
     <form action={formAction} className={styles.player}>
+      {/* TASK 068 — earlier steps' answers as hidden inputs. Only the
+          current step's radios are in the DOM, so without these the
+          FormData would carry a single pair and the action would
+          reject the submission as incomplete (the TASK 067 finding).
+          The current question is deliberately excluded: its radio
+          group supplies that pair, and a duplicated question key is
+          rejected by the parser. Values are option ids only. */}
+      {Object.entries(answers)
+        .filter(([questionId]) => questionId !== question.id)
+        .map(([questionId, optionId]) => (
+          <input
+            key={questionId}
+            name={`question-${questionId}`}
+            type="hidden"
+            value={optionId}
+          />
+        ))}
       <p className={styles.position}>
         Soal {current + 1} dari {questions.length}
       </p>

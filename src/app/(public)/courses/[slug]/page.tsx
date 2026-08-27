@@ -57,8 +57,23 @@ export async function generateMetadata({
 }: PageProps): Promise<Metadata> {
   const { slug } = await params;
   const course = await getPublishedCourseBySlug(slug);
+  // TASK 063, UI/UX §44: course pages carry Title, Description, Canonical
+  // URL, and Open Graph metadata. A miss keeps the 404 title only — no
+  // canonical/OG for a page that renders notFound().
+  if (!course) {
+    return { title: "Kursus Tidak Ditemukan — BINZI" };
+  }
   return {
-    title: course ? `${course.title} — BINZI` : "Kursus Tidak Ditemukan — BINZI",
+    title: `${course.title} — BINZI`,
+    description: course.description,
+    alternates: {
+      canonical: `/courses/${course.slug}`,
+    },
+    openGraph: {
+      title: course.title,
+      description: course.description,
+      type: "website",
+    },
   };
 }
 

@@ -1,7 +1,13 @@
-import { eq, ne } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 
 import { db } from "@/db";
-import { lessonProgress, quizAnswers, quizAttempts, quizzes } from "@/db/schema";
+import {
+  enrollments,
+  lessonProgress,
+  quizAnswers,
+  quizAttempts,
+  quizzes,
+} from "@/db/schema";
 import type { QuizScore } from "@/features/quizzes/services/scoreQuizSubmission";
 
 /**
@@ -51,14 +57,35 @@ import type { QuizScore } from "@/features/quizzes/services/scoreQuizSubmission"
  * authenticated the caller and resolved the quiz through
  * canAccessLessonQuiz, TASK 048); the score is the TASK 050 result —
  * this service never recomputes or trusts any client-provided value.
+ *
+ * TASK 057 extends the SAME transaction with course completion
+ * (Task Plan 057 "Complete enrollment — All Lessons completed + Final
+ * Quiz passed → enrollment.status = COMPLETED, completed_at =
+ * timestamp"; BR §18; Blueprint §32 lists course completion among the
+ * quiz-transaction writes). The branch is keyed on the quiz's own row
+ * exactly like 052: a quiz WITH lesson_id completes its lesson, a
+ * quiz WITHOUT one (the FINAL quiz) completes the enrollment. The
+ * write is a guarded UPDATE — only an ACTIVE enrollment advances to
+ * COMPLETED, so a repeated pass never overwrites the original
+ * completed_at and a later failed attempt (which never reaches this
+ * branch) can never downgrade one — the same no-downgrade discipline
+ * as lesson completion. status and completed_at move together in the
+ * one statement (enrollments_status_completed_at_check). The
+ * all-lessons-completed half of BR §18 was derived by
+ * canAccessFinalQuiz earlier in the same request (Blueprint §30) over
+ * the authoritative published set — never from client input. The
+ * returned courseCompleted flag is the server-determined verdict
+ * BR §30 names; it is undefined/false for every lesson-quiz call.
  */
 export async function recordQuizAttempt(
   userId: string,
   quizId: string,
   score: QuizScore,
   completion?: { enrollmentId: string },
-): Promise<{ attemptId: string }> {
-  return db.transaction(async (tx) => {
+): Promise<{ attemptId: string; courseCompleted: boolean }> {
+  let courseCompleted = false;
+
+  const { attemptId } = await db.transaction(async (tx) => {
     const now = new Date();
 
     const attemptRows = await tx
@@ -129,9 +156,41 @@ export async function recordQuizAttempt(
             // the original completed_at is preserved).
             setWhere: ne(lessonProgress.status, "COMPLETED"),
           });
+      } else {
+        // TASK 057 — course completion for the FINAL quiz (lesson_id
+        // is NULL), still inside the one transaction (Blueprint §32).
+        // The guarded UPDATE is the whole idempotency story: only an
+        // ACTIVE row matches, so a repeat pass writes nothing and the
+        // original completed_at survives untouched.
+        const completedRows = await tx
+          .update(enrollments)
+          .set({ status: "COMPLETED", completedAt: now })
+          .where(
+            and(
+              eq(enrollments.id, completion.enrollmentId),
+              eq(enrollments.status, "ACTIVE"),
+            ),
+          )
+          .returning({ id: enrollments.id });
+
+        if (completedRows.length > 0) {
+          courseCompleted = true;
+        } else {
+          // No row advanced: either the enrollment is already
+          // COMPLETED (report true — the course IS completed) or the
+          // id is gone (treat as not completed; fail-neutral).
+          const statusRows = await tx
+            .select({ status: enrollments.status })
+            .from(enrollments)
+            .where(eq(enrollments.id, completion.enrollmentId))
+            .limit(1);
+          courseCompleted = statusRows[0]?.status === "COMPLETED";
+        }
       }
     }
 
     return { attemptId: attempt.id };
   });
+
+  return { attemptId, courseCompleted };
 }

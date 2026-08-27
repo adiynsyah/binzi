@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { SubmitButton } from "@/components/feedback/Loading/SubmitButton";
 import { Badge } from "@/components/ui/Badge/Badge";
 import { Card } from "@/components/ui/Card/Card";
 import { Input } from "@/components/ui/Input/Input";
@@ -244,13 +245,13 @@ export function LessonContentPanel({
                               name="contentId"
                               value={row.id}
                             />
-                            <button
-                              type="submit"
+                            <SubmitButton
                               className={styles.assignButton}
+                              pendingLabel="Menambahkan…"
                               aria-label={`Tambahkan konten ${row.title} ke pelajaran ini`}
                             >
                               Tambahkan
-                            </button>
+                            </SubmitButton>
                           </form>
                         )}
                       </div>

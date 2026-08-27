@@ -190,6 +190,16 @@
   color: var(--color-primary);
 }
 
+// TASK 057 — §26 "[Course Name]" line: the completed course's own
+// title, emphasized like the pass note it sits beside.
+.resultCourse {
+  margin: 0;
+  font-size: $font-size-h3;
+  line-height: $line-height-heading;
+  font-weight: $font-weight-semibold;
+  color: var(--color-text);
+}
+
 .error {
   margin: 0;
   color: var(--color-danger);

@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { SubmitButton } from "@/components/feedback/Loading/SubmitButton";
 import { Badge } from "@/components/ui/Badge/Badge";
 import { Card } from "@/components/ui/Card/Card";
 import { Input } from "@/components/ui/Input/Input";
@@ -270,13 +271,13 @@ export function LessonQuizPanel({
                             name="questionId"
                             value={row.id}
                           />
-                          <button
-                            type="submit"
+                          <SubmitButton
                             className={styles.addButton}
+                            pendingLabel="Menambahkan…"
                             aria-label="Tambahkan soal ke kuis ini"
                           >
                             Tambahkan
-                          </button>
+                          </SubmitButton>
                         </form>
                       )}
                     </div>

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import Link from "next/link";
 
 import { courseDifficulty } from "@/db/schema/enums";
@@ -6,6 +7,8 @@ import { Badge } from "@/components/ui/Badge/Badge";
 import { Button } from "@/components/ui/Button/Button";
 import { Card } from "@/components/ui/Card/Card";
 import { Input } from "@/components/ui/Input/Input";
+import { Skeleton, SkeletonCard } from "@/components/feedback/Loading/Skeleton";
+import skeletonStyles from "@/components/feedback/Loading/Skeleton.module.scss";
 import { listPublishedCourses } from "@/features/courses/queries/listPublishedCourses";
 import { parsePublicCourseSearchParams } from "@/features/courses/schemas/public-course-search.schema";
 
@@ -19,8 +22,15 @@ import styles from "./page.module.scss";
  * Structure per UI/UX §6: page title, short description, search, course
  * grid. Difficulty filtering is Task Plan "if approved" with no approval
  * recorded in the source documents, so no filter UI exists (FLAG).
- * Loading skeletons are Milestone 11 Polish scope (Blueprint Milestone
- * 11 owns loading states), not TASK 038.
+ *
+ * TASK 059: the §35/CMS §44 skeleton (TASK 058) moved from a segment
+ * loading.tsx to in-page <Suspense> around the search + grid. The
+ * catalog never calls notFound()/redirect(), so streaming it is
+ * status-safe — but the segment loading.tsx (and the (public)/ one
+ * above it) softened the honest 404 of /courses/[slug] below it
+ * (TASK 039 contract; verified live). In-page boundaries keep the
+ * skeleton scoped to this page only. The h1/description render
+ * instantly; the Suspense fallback covers the search + card grid.
  *
  * Publication safety: listPublishedCourses enforces status='PUBLISHED'
  * inside the query — DRAFT courses can never render here regardless of
@@ -34,6 +44,11 @@ import styles from "./page.module.scss";
 
 export const metadata: Metadata = {
   title: "Kursus",
+  // TASK 063 (Blueprint §44): canonical catalog URL — search variants
+  // (?q=...) resolve to the clean catalog address.
+  alternates: {
+    canonical: "/courses",
+  },
 };
 
 const DIFFICULTY_LABELS: Record<
@@ -49,28 +64,37 @@ type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-export default async function CoursesPage({ searchParams }: PageProps) {
+/** §35 "skeleton course cards" (TASK 058 composition) as the list fallback. */
+function CatalogFallback() {
+  return (
+    <div className={skeletonStyles.stack} role="status" aria-busy="true">
+      <span className={skeletonStyles.srOnly}>Memuat…</span>
+      <Skeleton variant="block" />
+      <div className={skeletonStyles.gridCards}>
+        <SkeletonCard />
+        <SkeletonCard />
+        <SkeletonCard />
+      </div>
+    </div>
+  );
+}
+
+async function CatalogContent({ searchParams }: PageProps) {
   const query = parsePublicCourseSearchParams(await searchParams);
   const courses = await listPublishedCourses(query);
 
   return (
-    <div className={styles.page}>
-      <header className={styles.header}>
-        <h1 className={styles.title}>Kursus</h1>
-        <p className={styles.description}>
-          Telusuri kursus gizi BINZI dan mulai belajar langkah demi langkah.
-        </p>
-        <form className={styles.search} action="/courses" role="search">
-          <Input
-            defaultValue={query.q}
-            label="Cari kursus"
-            name="q"
-            placeholder="Judul kursus…"
-            type="search"
-          />
-          <Button type="submit">Cari</Button>
-        </form>
-      </header>
+    <>
+      <form className={styles.search} action="/courses" role="search">
+        <Input
+          defaultValue={query.q}
+          label="Cari kursus"
+          name="q"
+          placeholder="Judul kursus…"
+          type="search"
+        />
+        <Button type="submit">Cari</Button>
+      </form>
 
       {courses.length === 0 ? (
         <div className={styles.empty}>
@@ -118,6 +142,23 @@ export default async function CoursesPage({ searchParams }: PageProps) {
           ))}
         </ul>
       )}
+    </>
+  );
+}
+
+export default function CoursesPage({ searchParams }: PageProps) {
+  return (
+    <div className={styles.page}>
+      <header className={styles.header}>
+        <h1 className={styles.title}>Kursus</h1>
+        <p className={styles.description}>
+          Telusuri kursus gizi BINZI dan mulai belajar langkah demi langkah.
+        </p>
+      </header>
+
+      <Suspense fallback={<CatalogFallback />}>
+        <CatalogContent searchParams={searchParams} />
+      </Suspense>
     </div>
   );
 }

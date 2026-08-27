@@ -28,6 +28,11 @@ const publicEnvSchema = z.object({
 const serverEnvSchema = z.object({
   DATABASE_URL: z.string().min(1),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
+  // Absolute site origin for SEO URL fields (TASK 063, UI/UX §44
+  // "Canonical URL" / Blueprint §44 "canonical URLs, sitemap, robots").
+  // Optional so existing environments keep working; consumers use
+  // getSiteUrl(), which falls back to the local development origin.
+  SITE_URL: z.url().optional(),
 });
 
 function parseGroup<S extends z.ZodType>(
@@ -63,6 +68,16 @@ let cachedPublicEnv: z.output<typeof publicEnvSchema> | undefined;
 export function getServerEnv() {
   cachedServerEnv ??= parseServerEnv();
   return cachedServerEnv;
+}
+
+/**
+ * Absolute site origin (no trailing slash) for canonical URLs, the
+ * sitemap, and robots.txt (TASK 063, Blueprint §44). Defaults to the
+ * local development origin so dev builds stay valid without config;
+ * deployments set SITE_URL to the public origin.
+ */
+export function getSiteUrl(): string {
+  return getServerEnv().SITE_URL ?? "http://localhost:3000";
 }
 
 /** Browser-safe values. Readable on the server as well. */

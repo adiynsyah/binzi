@@ -1,0 +1,153 @@
+// BINZI Loading feedback family styles (TASK 058, UI/UX §35; CMS §44;
+// Architecture §7 shared feedback/Loading tree).
+//
+// "Avoid blank screens while data is loading" (§35): these are the
+// shared skeleton primitives every route loading.tsx composes. Visuals
+// are token-derived quiet gray blocks with a slow opacity pulse; the
+// GLOBAL reduced-motion rule (globals.scss, UI/UX §42) already freezes
+// all animations for users who prefer reduced motion, so the pulse
+// needs no local override. Layout helpers (.wrap/.stack/.gridCards/
+// .row) mirror the card grids and section rhythm they substitute for,
+// keeping every route loading file presentational-only.
+@use '@/styles/mixins' as *;
+@use '@/styles/tokens' as *;
+
+// --------------------------------------------------------------------------
+// Primitive block
+// --------------------------------------------------------------------------
+.skeleton {
+  display: block;
+  border-radius: $radius-sm;
+  background-color: var(--color-border);
+  animation: skeleton-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes skeleton-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.55;
+  }
+}
+
+// Variant sizing — width pairings keep composed shapes quiet, not busy.
+.title {
+  height: $font-size-h2;
+  width: 60%;
+}
+
+.heading {
+  height: $font-size-h1;
+  width: 45%;
+}
+
+.text {
+  height: $font-size-body;
+  width: 100%;
+}
+
+.textShort {
+  height: $font-size-body;
+  width: 55%;
+}
+
+.small {
+  height: $font-size-small;
+  width: 35%;
+}
+
+.block {
+  height: 4.5rem;
+  width: 100%;
+}
+
+// Generic leading marker for row-shaped skeletons (e.g. quiz options).
+.dot {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+  border-radius: $radius-full;
+  background-color: var(--color-border);
+  animation: skeleton-pulse 1.6s ease-in-out infinite;
+}
+
+// --------------------------------------------------------------------------
+// Composed shapes
+// --------------------------------------------------------------------------
+// Card skeleton (public catalog + homepage featured cards; §35 "skeleton
+// course cards" / "skeleton article"). Mirrors the Card primitive's
+// border/radius/padding so the swap-in is not jarring.
+.card {
+  display: grid;
+  gap: $spacing-3;
+  padding: $spacing-5;
+  border: 1px solid var(--color-border);
+  border-radius: $radius-md;
+  background-color: var(--color-surface);
+}
+
+// Table skeleton (CMS lists; §35 "table skeleton"). Flex rows of equal
+// cells — deliberately column-count-generic, hosts pass the count.
+.table {
+  display: grid;
+  gap: $spacing-2;
+}
+
+.tableHeader,
+.tableRow {
+  display: flex;
+  gap: $spacing-4;
+}
+
+.tableHeader .tableCell {
+  height: $font-size-small;
+  width: 35%;
+}
+
+.tableCell {
+  flex: 1;
+  height: $font-size-body;
+  border-radius: $radius-sm;
+  background-color: var(--color-border);
+  animation: skeleton-pulse 1.6s ease-in-out infinite;
+}
+
+// --------------------------------------------------------------------------
+// Layout helpers for route loading.tsx files
+// --------------------------------------------------------------------------
+.wrap {
+  @include container;
+
+  display: grid;
+  gap: $spacing-8;
+  padding-block: $spacing-10;
+}
+
+.stack {
+  display: grid;
+  gap: $spacing-4;
+}
+
+.gridCards {
+  display: grid;
+  gap: $spacing-5;
+  grid-template-columns: 1fr;
+
+  @include respond-above('medium') {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: $spacing-3;
+}
+
+// Screen-reader loading announcement (UI/UX §43 discipline).
+.srOnly {
+  @include visually-hidden;
+}

@@ -62,6 +62,11 @@ export async function generateMetadata({
   return {
     title: `${content.title} — BINZI`,
     ...(description !== undefined ? { description } : {}),
+    // TASK 063, Blueprint §44: canonical URL for the indexable article
+    // page (UI/UX §44 "Public Article pages should be indexable").
+    alternates: {
+      canonical: `/articles/${content.slug}`,
+    },
     openGraph: {
       title: content.title,
       ...(description !== undefined ? { description } : {}),

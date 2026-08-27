@@ -1,0 +1,53 @@
+// BINZI error-state styles (TASK 059, UI/UX §37/§43; CMS §45).
+// A quiet panel: what happened, what to do next, one primary control.
+// Token-derived only; links mirror the Button secondary treatment at
+// 44px touch targets (§34) like the 037 link-CTA pattern.
+@use '@/styles/tokens' as *;
+
+.errorState {
+  display: grid;
+  justify-items: start;
+  gap: $spacing-4;
+  padding: $spacing-8;
+  border: 1px solid var(--color-border);
+  border-radius: $radius-md;
+  background-color: var(--color-surface);
+}
+
+.title {
+  margin: 0;
+  font-size: $font-size-h2;
+  line-height: $line-height-heading;
+  font-weight: $font-weight-semibold;
+  color: var(--color-text);
+}
+
+.description {
+  margin: 0;
+  max-width: $content-measure;
+  font-size: $font-size-body;
+  line-height: $line-height-body;
+  color: var(--color-text-muted);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $spacing-3;
+  margin-top: $spacing-2;
+}
+
+.link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: $spacing-3 $spacing-6;
+  border: 1px solid var(--color-primary);
+  border-radius: $radius-md;
+  background-color: var(--color-surface);
+  color: var(--color-primary);
+  font-size: $font-size-body;
+  font-weight: $font-weight-semibold;
+  text-decoration: none;
+}

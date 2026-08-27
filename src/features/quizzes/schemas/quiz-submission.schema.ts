@@ -75,6 +75,11 @@ export function parseQuizSubmissionForm(formData: FormData):
  * payload carries ONLY the server-computed verdict Architecture §18
  * names for the "Return result" step — score, passed, and the counts.
  * Per-answer correctness and every internal id stay server-side.
+ *
+ * TASK 057 adds courseCompleted (BR §30 lists it among the values the
+ * server determines): true when this submission's pass left the
+ * course enrollment COMPLETED — set only by submitFinalQuiz from the
+ * recordQuizAttempt transaction result, never read from the wire.
  */
 export type QuizSubmitState =
   | { status: "idle" }
@@ -84,6 +89,7 @@ export type QuizSubmitState =
       passed: boolean;
       correctAnswers: number;
       totalQuestions: number;
+      courseCompleted?: boolean;
     }
   | { status: "error"; message: string };
 

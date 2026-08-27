@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import Link from "next/link";
 
 import { Card } from "@/components/ui/Card/Card";
+import { SkeletonCard } from "@/components/feedback/Loading/Skeleton";
+import skeletonStyles from "@/components/feedback/Loading/Skeleton.module.scss";
 import { listPublishedArticlesForCatalog } from "@/features/contents/queries/listPublishedArticlesForCatalog";
 
 import styles from "./page.module.scss";
@@ -17,6 +20,13 @@ import styles from "./page.module.scss";
  * Search/filter/pagination are NOT implemented: no source requires them
  * for articles (UI/UX §6 search is Course-catalog-specific) — FLAG.
  *
+ * TASK 059: the §35 "skeleton article" (TASK 058) moved from a segment
+ * loading.tsx to in-page <Suspense> around the grid — same streaming
+ * vs. honest-404 conflict as the course catalog (the segment file, and
+ * the (public)/ one above it, softened TASK 041's /articles/[slug]
+ * 404). This page never calls notFound()/redirect(), so streaming it
+ * is status-safe; the skeleton stays scoped to the grid.
+ *
  * Publication safety: listPublishedArticlesForCatalog enforces
  * type='ARTICLE' + status='PUBLISHED' + slug IS NOT NULL inside the
  * query, so drafts and slug-less rows can never render here (UI/UX §44,
@@ -28,6 +38,10 @@ import styles from "./page.module.scss";
 
 export const metadata: Metadata = {
   title: "Artikel",
+  // TASK 063 (Blueprint §44): canonical catalog URL.
+  alternates: {
+    canonical: "/articles",
+  },
 };
 
 const dateFormatter = new Intl.DateTimeFormat("id-ID", {
@@ -35,9 +49,48 @@ const dateFormatter = new Intl.DateTimeFormat("id-ID", {
   timeZone: "Asia/Jakarta",
 });
 
-export default async function ArticlesPage() {
+/** §35 "skeleton article" (TASK 058 composition) as the grid fallback. */
+function ArticleGridFallback() {
+  return (
+    <div role="status" aria-busy="true">
+      <span className={skeletonStyles.srOnly}>Memuat…</span>
+      <div className={skeletonStyles.gridCards}>
+        <SkeletonCard />
+        <SkeletonCard />
+        <SkeletonCard />
+      </div>
+    </div>
+  );
+}
+
+async function ArticleGrid() {
   const articles = await listPublishedArticlesForCatalog();
 
+  return articles.length === 0 ? (
+    <div className={styles.empty}>
+      <p className={styles.emptyTitle}>Belum ada artikel yang tersedia.</p>
+      <p className={styles.emptyHint}>Silakan kembali lagi nanti.</p>
+    </div>
+  ) : (
+    <ul className={styles.grid}>
+      {articles.map((article) => (
+        <li key={article.id}>
+          <Card className={styles.articleCard}>
+            <p className={styles.articleType}>Artikel</p>
+            <h2 className={styles.cardTitle}>
+              <Link href={`/articles/${article.slug}`}>{article.title}</Link>
+            </h2>
+            <p className={styles.cardMeta}>
+              Diterbitkan {dateFormatter.format(article.publishedAt)} WIB
+            </p>
+          </Card>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+export default function ArticlesPage() {
   return (
     <div className={styles.page}>
       <header className={styles.header}>
@@ -47,30 +100,9 @@ export default async function ArticlesPage() {
         </p>
       </header>
 
-      {articles.length === 0 ? (
-        <div className={styles.empty}>
-          <p className={styles.emptyTitle}>
-            Belum ada artikel yang tersedia.
-          </p>
-          <p className={styles.emptyHint}>Silakan kembali lagi nanti.</p>
-        </div>
-      ) : (
-        <ul className={styles.grid}>
-          {articles.map((article) => (
-            <li key={article.id}>
-              <Card className={styles.articleCard}>
-                <p className={styles.articleType}>Artikel</p>
-                <h2 className={styles.cardTitle}>
-                  <Link href={`/articles/${article.slug}`}>{article.title}</Link>
-                </h2>
-                <p className={styles.cardMeta}>
-                  Diterbitkan {dateFormatter.format(article.publishedAt)} WIB
-                </p>
-              </Card>
-            </li>
-          ))}
-        </ul>
-      )}
+      <Suspense fallback={<ArticleGridFallback />}>
+        <ArticleGrid />
+      </Suspense>
     </div>
   );
 }

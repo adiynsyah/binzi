@@ -25,11 +25,18 @@ import { scoreQuizSubmission } from "@/features/quizzes/services/scoreQuizSubmis
  *   id used for scoring/persistence is the one the gate resolved —
  *   never a client-supplied quiz id.
  *
- * - persistence: recordQuizAttempt with NO completion context. A
- *   passed Final Quiz completes NO lesson (the quiz's lesson_id is
- *   null and this action forwards no enrollment for completion) —
- *   course completion is TASK 057. Unlimited attempts (BR §13/§16)
- *   hold structurally: every accepted submission is a new attempt.
+ * - persistence: recordQuizAttempt with the enrollment resolved by
+ *   the gate. A passed Final Quiz completes NO lesson (the quiz's
+ *   lesson_id is null, so the 052 branch cannot fire) — inside the
+ *   same transaction it completes the ENROLLMENT instead (TASK 057,
+ *   Task Plan "Complete enrollment"; BR §18; Blueprint §32): a
+ *   guarded ACTIVE → COMPLETED advance that is idempotent on repeat
+ *   passes and cannot be downgraded by later failures. The action's
+ *   success state carries the server-determined courseCompleted flag
+ *   (BR §30) so the result surface can render the §26 completion
+ *   screen; a failed submission completes nothing. Unlimited
+ *   attempts (BR §13/§16) hold structurally: every accepted
+ *   submission is a new attempt.
  *
  * Scoring is scoreQuizSubmission (TASK 050) — the same scorer, never
  * a second implementation; verdict fields on the wire are never read
@@ -99,9 +106,14 @@ export async function submitFinalQuiz(
     return { status: "error", message: "Kuis tidak tersedia." };
   }
 
-  // No completion context on purpose: a Final Quiz pass never writes
-  // lesson_progress (BR §17; course completion is TASK 057).
-  await recordQuizAttempt(user.id, access.quiz.id, result.score);
+  // TASK 057: the enrollment resolved by the gate enters the ONE
+  // transaction — a pass completes the enrollment there (never a
+  // lesson; the FINAL quiz's lesson_id is null), a fail completes
+  // nothing. courseCompleted is the transaction's server-determined
+  // verdict (BR §30), never a client field.
+  const attempt = await recordQuizAttempt(user.id, access.quiz.id, result.score, {
+    enrollmentId: access.enrollmentId,
+  });
 
   return {
     status: "success",
@@ -109,5 +121,6 @@ export async function submitFinalQuiz(
     passed: result.score.passed,
     correctAnswers: result.score.correctAnswers,
     totalQuestions: result.score.totalQuestions,
+    courseCompleted: attempt.courseCompleted,
   };
 }

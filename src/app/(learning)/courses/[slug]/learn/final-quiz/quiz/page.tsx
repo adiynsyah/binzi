@@ -33,11 +33,17 @@ import styles from "./page.module.scss";
  * player): submitFinalQuiz (bound to the course slug) reuses the 050
  * scorer and the 051 transactional persistence, and the two
  * lesson-specific result sentences are swapped for Final-Quiz-truthful
- * copy — a passed Final Quiz completes NO lesson (BR §17; course
- * completion is TASK 057), its §23 review target is the learning hub
- * (the whole course), and with no next lesson the pass CTA falls back
- * to the hub. Unlimited attempts (BR §13/§16); retry policy is TASK
- * 053's unchanged behavior.
+ * copy — a passed Final Quiz completes NO lesson (BR §17; TASK 057
+ * completes the ENROLLMENT instead), its §23 review target is the
+ * learning hub (the whole course), and with no next lesson the pass
+ * CTA falls back to the hub. Unlimited attempts (BR §13/§16); retry
+ * policy is TASK 053's unchanged behavior.
+ *
+ * TASK 057 passes the §26 courseCompletion data (title from the gate's
+ * server-resolved course, [Back to Courses] → the public catalog,
+ * [Review Course] → the learning hub) so the player renders the
+ * Course Completion screen when the action reports the enrollment
+ * completed — the flag and the title are both server-determined.
  */
 type PageProps = {
   params: Promise<{ slug: string }>;
@@ -105,6 +111,11 @@ export default async function FinalQuizPage({ params }: PageProps) {
         learnHubHref={learnBase}
         passedNote="Anda lulus Kuis Akhir ini."
         retryHint="Pelajari kembali pelajaran kursus ini, lalu coba lagi."
+        courseCompletion={{
+          courseTitle: access.course.title,
+          coursesHref: "/courses",
+          reviewHref: learnBase,
+        }}
       />
     </article>
   );

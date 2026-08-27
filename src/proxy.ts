@@ -56,13 +56,19 @@ function isAdminPath(pathname: string): boolean {
   return ADMIN_PATH_PATTERN.test(pathname);
 }
 
-/** Minimal inline 403 body — admin pages arrive with TASK 015+. */
+/**
+ * Inline 403 body (TASK 014; TASK 059 adds the UI/UX §37 "what to do
+ * next" line — what happened stays, a way forward is added). Rendered
+ * by the proxy outside the React tree, so it stays self-contained
+ * HTML in the app language.
+ */
 function forbiddenResponse(): NextResponse {
   return new NextResponse(
     "<!DOCTYPE html><html lang=\"id\"><head><meta charset=\"utf-8\">" +
       "<title>403 — Akses Ditolak</title></head>" +
       "<body><h1>403 — Akses Ditolak</h1>" +
       "<p>Anda tidak memiliki izin untuk mengakses halaman ini.</p>" +
+      "<p><a href=\"/\">Kembali ke Beranda</a></p>" +
       "</body></html>",
     {
       status: 403,

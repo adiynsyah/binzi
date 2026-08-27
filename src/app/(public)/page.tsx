@@ -1,8 +1,12 @@
+import type { Metadata } from "next";
+import { Suspense } from "react";
 import Link from "next/link";
 
 import { courseDifficulty } from "@/db/schema/enums";
 import { Badge } from "@/components/ui/Badge/Badge";
 import { Card } from "@/components/ui/Card/Card";
+import { SkeletonCard } from "@/components/feedback/Loading/Skeleton";
+import skeletonStyles from "@/components/feedback/Loading/Skeleton.module.scss";
 import { listPublishedArticles } from "@/features/contents/queries/listPublishedArticles";
 import { getFeaturedCourses } from "@/features/courses/queries/getFeaturedCourses";
 
@@ -30,7 +34,26 @@ import styles from "./page.module.scss";
  * CTA destinations follow the TASK 036 honest-link pattern: /courses
  * and /courses/[slug] are Blueprint §12 routes owned by TASK 038/039,
  * while /articles/[slug] is already live (TASK 020).
+ *
+ * TASK 059: the §35 skeletons (TASK 058) moved from a segment
+ * loading.tsx at (public)/ to in-page <Suspense> around each data
+ * section. The homepage itself never calls notFound()/redirect(), so
+ * streaming it is status-safe — but a segment loading.tsx at
+ * (public)/ softened the 404s of every public detail page below it
+ * (verified live: /courses/[unknown] flushed a 200 shell before the
+ * page's notFound() landed). In-page boundaries keep the §35
+ * skeletons scoped to this page only.
+ *
+ * TASK 063: canonical self-reference for the homepage (Blueprint §44
+ * "canonical URLs ... where appropriate"); title/description still
+ * inherit from the root layout's defaults.
  */
+
+export const metadata: Metadata = {
+  alternates: {
+    canonical: "/",
+  },
+};
 
 const DIFFICULTY_LABELS: Record<
   (typeof courseDifficulty.enumValues)[number],
@@ -64,12 +87,86 @@ const dateFormatter = new Intl.DateTimeFormat("id-ID", {
   timeZone: "Asia/Jakarta",
 });
 
-export default async function HomePage() {
-  const [featuredCourses, featuredArticles] = await Promise.all([
-    getFeaturedCourses(),
-    listPublishedArticles(),
-  ]);
+/** §35 card-grid skeleton (TASK 058 composition) as a section fallback. */
+function CardGridFallback() {
+  return (
+    <div role="status" aria-busy="true">
+      <span className={skeletonStyles.srOnly}>Memuat…</span>
+      <div className={skeletonStyles.gridCards}>
+        <SkeletonCard />
+        <SkeletonCard />
+        <SkeletonCard />
+      </div>
+    </div>
+  );
+}
 
+async function FeaturedCoursesSection() {
+  const featuredCourses = await getFeaturedCourses();
+
+  return featuredCourses.length === 0 ? (
+    <p className={styles.empty}>
+      Belum ada kursus yang tersedia. Silakan kembali lagi nanti.
+    </p>
+  ) : (
+    <ul className={styles.grid}>
+      {featuredCourses.map((course) => (
+        <li key={course.id}>
+          <Card className={styles.courseCard}>
+            <Badge>{DIFFICULTY_LABELS[course.difficulty]}</Badge>
+            <h3 className={styles.cardTitle}>
+              <Link href={`/courses/${course.slug}`}>{course.title}</Link>
+            </h3>
+            <p className={styles.cardDescription}>
+              {course.description}
+            </p>
+            <p className={styles.cardMeta}>
+              {course.lessonCount} pelajaran
+              {course.estimatedDuration !== null
+                ? ` · ${course.estimatedDuration} menit`
+                : ""}
+            </p>
+            <Link
+              aria-label={`Lihat kursus: ${course.title}`}
+              className={styles.cardCta}
+              href={`/courses/${course.slug}`}
+            >
+              Lihat Kursus
+            </Link>
+          </Card>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+async function FeaturedArticlesSection() {
+  const featuredArticles = await listPublishedArticles();
+
+  return featuredArticles.length === 0 ? (
+    <p className={styles.empty}>
+      Belum ada artikel yang tersedia. Silakan kembali lagi nanti.
+    </p>
+  ) : (
+    <ul className={styles.grid}>
+      {featuredArticles.map((article) => (
+        <li key={article.id}>
+          <Card className={styles.articleCard}>
+            <p className={styles.articleType}>Artikel</p>
+            <h3 className={styles.cardTitle}>
+              <Link href={`/articles/${article.slug}`}>{article.title}</Link>
+            </h3>
+            <p className={styles.cardMeta}>
+              Diterbitkan {dateFormatter.format(article.publishedAt)} WIB
+            </p>
+          </Card>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+export default function HomePage() {
   return (
     <div className={styles.page}>
       <section className={styles.hero} aria-labelledby="hero-title">
@@ -98,40 +195,9 @@ export default async function HomePage() {
         <h2 className={styles.sectionTitle} id="featured-courses-title">
           Kursus Unggulan
         </h2>
-        {featuredCourses.length === 0 ? (
-          <p className={styles.empty}>
-            Belum ada kursus yang tersedia. Silakan kembali lagi nanti.
-          </p>
-        ) : (
-          <ul className={styles.grid}>
-            {featuredCourses.map((course) => (
-              <li key={course.id}>
-                <Card className={styles.courseCard}>
-                  <Badge>{DIFFICULTY_LABELS[course.difficulty]}</Badge>
-                  <h3 className={styles.cardTitle}>
-                    <Link href={`/courses/${course.slug}`}>{course.title}</Link>
-                  </h3>
-                  <p className={styles.cardDescription}>
-                    {course.description}
-                  </p>
-                  <p className={styles.cardMeta}>
-                    {course.lessonCount} pelajaran
-                    {course.estimatedDuration !== null
-                      ? ` · ${course.estimatedDuration} menit`
-                      : ""}
-                  </p>
-                  <Link
-                    aria-label={`Lihat kursus: ${course.title}`}
-                    className={styles.cardCta}
-                    href={`/courses/${course.slug}`}
-                  >
-                    Lihat Kursus
-                  </Link>
-                </Card>
-              </li>
-            ))}
-          </ul>
-        )}
+        <Suspense fallback={<CardGridFallback />}>
+          <FeaturedCoursesSection />
+        </Suspense>
       </section>
 
       <section className={styles.section} aria-labelledby="why-binzi-title">
@@ -157,29 +223,9 @@ export default async function HomePage() {
         <h2 className={styles.sectionTitle} id="featured-articles-title">
           Artikel Pilihan
         </h2>
-        {featuredArticles.length === 0 ? (
-          <p className={styles.empty}>
-            Belum ada artikel yang tersedia. Silakan kembali lagi nanti.
-          </p>
-        ) : (
-          <ul className={styles.grid}>
-            {featuredArticles.map((article) => (
-              <li key={article.id}>
-                <Card className={styles.articleCard}>
-                  <p className={styles.articleType}>Artikel</p>
-                  <h3 className={styles.cardTitle}>
-                    <Link href={`/articles/${article.slug}`}>
-                      {article.title}
-                    </Link>
-                  </h3>
-                  <p className={styles.cardMeta}>
-                    Diterbitkan {dateFormatter.format(article.publishedAt)} WIB
-                  </p>
-                </Card>
-              </li>
-            ))}
-          </ul>
-        )}
+        <Suspense fallback={<CardGridFallback />}>
+          <FeaturedArticlesSection />
+        </Suspense>
       </section>
 
       <section className={styles.ctaBand} aria-labelledby="cta-title">
