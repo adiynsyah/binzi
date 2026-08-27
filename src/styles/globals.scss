@@ -14,20 +14,24 @@
 // Runtime design tokens — semantic names per UI/UX §40
 // --------------------------------------------------------------------------
 // Colors and font families are exposed as CSS custom properties so they can
-// be themed/read at runtime. Provisional palette pending the visual design
-// pass; text/background/base-font values carry over from TASK 001 unchanged.
+// be themed/read at runtime. Palette adopted from the approved reference
+// visual design (homepage visual pass): coral brand accent + navy ink, all
+// text/interactive pairs verified WCAG AA on white (primary #d63a24 ≈ 4.7:1
+// both directions). The brighter reference coral (#f1553f) is reserved for
+// decorative graphics/large display text where 3:1 suffices — it lives as a
+// literal in the homepage module, not as a text token.
 :root {
-  --color-primary: #2f7d5a;
-  --color-primary-hover: #256a4b;
+  --color-primary: #d63a24;
+  --color-primary-hover: #b8301d;
   // Text color used on filled primary/danger surfaces (added in TASK 003;
   // §40's token list is exemplary, not exhaustive).
   --color-text-on-primary: #ffffff;
 
   --color-background: #ffffff;
   --color-surface: #ffffff;
-  --color-text: #212121;
-  --color-text-muted: #6e675f;
-  --color-border: #e4dfd8;
+  --color-text: #1d2130;
+  --color-text-muted: #5b6472;
+  --color-border: #efefef;
 
   --color-success: #1f7a3d;
   --color-warning: #b26b00;

@@ -1,43 +1,107 @@
-// BINZI homepage styles (TASK 037, UI/UX §4/§5/§39).
+// BINZI homepage styles (TASK 037, UI/UX §4/§5/§39 + visual pass).
 // Mobile-first per the content-based breakpoints (§33). Composition
-// follows §39 "Visual Design Direction": warm but trustworthy, generous
-// whitespace, rounded cards used selectively, a strong primary CTA,
-// and no excessive gradients/animation. Focus visibility comes from
-// the global :focus-visible ring (globals.scss); reduced motion is
-// handled globally (§42–§43).
+// follows the approved reference design: warm coral/peach brand accents
+// over a white base, generous whitespace, pill CTAs, soft-shadow cards,
+// and a two-column hero with an abstract SVG visual (V1 has no image
+// assets or asset strategy, so no imagery is introduced). Focus
+// visibility comes from the global :focus-visible ring (globals.scss);
+// reduced motion is handled globally (§42–§43).
+//
+// Text colors always come from the runtime tokens (AA-verified); the
+// brighter reference coral ($accent-bright and friends) is reserved for
+// decorative graphics and large display accents where 3:1 suffices.
 @use '@/styles/tokens' as *;
 @use '@/styles/mixins' as *;
+
+// Decorative in-family literals (reference brand language).
+$accent-bright: #f1553f;
+$accent-soft: #fde8e4;
+$accent-mid: #f3a695;
 
 .page {
   @include container;
 
   display: grid;
-  gap: $spacing-16;
-  padding-block: $spacing-12 $spacing-20;
+  gap: $spacing-20;
+  padding-block: $spacing-8 $spacing-24;
+
+  @include respond-above('medium') {
+    padding-top: $spacing-12;
+  }
 }
 
 // ---------------------------------------------------------------------------
 // Hero (UI/UX §5: headline, short explanation, primary + secondary CTA,
-// visual). The "visual" is a restrained token-derived tint panel — V1 has
-// no image assets or asset strategy, so no imagery is introduced.
+// visual). Two-column from "medium": copy left, illustrated visual right.
+// The tinted gradient panel is token-derived (no image assets in V1).
 // ---------------------------------------------------------------------------
 .hero {
+  display: grid;
+  gap: $spacing-10;
   padding: $spacing-12 $spacing-6;
-  border-radius: $radius-lg;
-  background-color: color-mix(in srgb, var(--color-primary) 8%, var(--color-surface));
-  text-align: center;
+  border-radius: $radius-xl;
+  background:
+    radial-gradient(
+      circle at 88% 12%,
+      color-mix(in srgb, var(--color-primary) 10%, var(--color-surface)),
+      transparent 55%
+    ),
+    linear-gradient(
+      160deg,
+      color-mix(in srgb, var(--color-primary) 5%, var(--color-surface)),
+      color-mix(in srgb, var(--color-primary) 11%, var(--color-surface))
+    );
+  overflow: hidden;
+
+  @include respond-above('medium') {
+    grid-template-columns: 1.15fr 1fr;
+    align-items: center;
+    gap: $spacing-12;
+    padding: $spacing-16 $spacing-10;
+  }
+
+  @include respond-above('large') {
+    padding: $spacing-20 $spacing-12;
+  }
+}
+
+.heroEyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: $spacing-2;
+  margin: 0 0 $spacing-6;
+  padding: $spacing-2 $spacing-4;
+  border-radius: $radius-full;
+  background-color: color-mix(in srgb, var(--color-primary) 10%, var(--color-surface));
+  color: var(--color-text);
+  font-size: $font-size-small;
+  font-weight: $font-weight-semibold;
+  letter-spacing: 0.02em;
+
+  svg {
+    width: 1rem;
+    height: 1rem;
+    color: var(--color-primary);
+  }
 }
 
 .heroTitle {
-  max-width: 34rem;
-  margin-inline: auto;
-  font-size: $font-size-display;
-  line-height: $line-height-display;
+  margin: 0;
+  font-size: clamp(2.25rem, 1.5rem + 3vw, 3.5rem);
+  font-weight: $font-weight-extrabold;
+  letter-spacing: -0.02em;
+  line-height: 1.12;
+}
+
+// Coral accent line — display-size text, well past the 3:1 large-text
+// threshold against both the white base and the hero tint.
+.heroAccent {
+  color: var(--color-primary);
 }
 
 .heroTagline {
-  max-width: 40rem;
-  margin-inline: auto;
+  max-width: 34rem;
+  margin-top: $spacing-5;
   color: var(--color-text-muted);
   font-size: $font-size-h3;
   line-height: $line-height-body;
@@ -46,14 +110,14 @@
 .heroActions {
   display: flex;
   flex-wrap: wrap;
-  justify-content: center;
-  gap: $spacing-4;
+  gap: $spacing-3;
   margin-top: $spacing-8;
 }
 
 // ---------------------------------------------------------------------------
-// Link CTAs — visual parity with the Button primitive (TASK 003) while
-// remaining real navigation links (<Link>). 44px touch targets (§34).
+// Link CTAs — pill form per the reference, visual parity with the Button
+// primitive while remaining real navigation links (<Link>). 44px touch
+// targets (§34).
 // ---------------------------------------------------------------------------
 .ctaPrimary,
 .ctaSecondary {
@@ -61,29 +125,34 @@
   align-items: center;
   justify-content: center;
   min-height: 2.75rem; // 44px (§34)
-  padding: $spacing-2 $spacing-6;
+  padding: $spacing-3 $spacing-8;
   border: 1px solid transparent;
-  border-radius: $radius-md;
+  border-radius: $radius-full;
   font-weight: $font-weight-semibold;
   line-height: 1.2;
   text-decoration: none;
   transition:
     background-color $transition-base $transition-easing,
     border-color $transition-base $transition-easing,
-    color $transition-base $transition-easing;
+    box-shadow $transition-base $transition-easing,
+    color $transition-base $transition-easing,
+    transform $transition-base $transition-easing;
 }
 
 .ctaPrimary {
   background-color: var(--color-primary);
   color: var(--color-text-on-primary);
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--color-primary) 30%, transparent);
 
   &:hover {
     background-color: var(--color-primary-hover);
+    transform: translateY(-1px);
   }
 }
 
 .ctaSecondary {
   border-color: var(--color-border);
+  background-color: var(--color-surface);
   color: var(--color-text);
 
   &:hover {
@@ -92,13 +161,165 @@
   }
 }
 
+// Trust indicators — small icon + bold label + muted sub. Sits as a
+// full-width row along the hero panel bottom (grid child 1/-1 from
+// "medium"); wrapping stays available on narrow screens.
+.heroTrust {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-2 $spacing-8;
+  margin: $spacing-10 0 0;
+  padding: 0;
+  list-style: none;
+
+  @include respond-above('medium') {
+    grid-column: 1 / -1;
+    // The hero grid's own gap already separates this row from the columns.
+    margin-top: 0;
+  }
+}
+
+// Top-aligned so every item's title sits on one line even when the
+// descriptions wrap differently (visually verified defect fix).
+.heroTrust li {
+  display: flex;
+  align-items: flex-start;
+  gap: $spacing-3;
+}
+
+.trustIcon {
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  flex-shrink: 0;
+  // Optically center the glyph against the first title line.
+  margin-top: -0.25rem;
+  border-radius: $radius-full;
+  background-color: color-mix(in srgb, var(--color-primary) 12%, var(--color-surface));
+  color: var(--color-primary);
+
+  svg {
+    width: 0.875rem;
+    height: 0.875rem;
+  }
+}
+
+.trustText {
+  font-size: $font-size-small;
+  line-height: 1.4;
+
+  strong {
+    display: block;
+    color: var(--color-text);
+    font-weight: $font-weight-semibold;
+  }
+
+  // Description text node following <strong> in the markup.
+  color: var(--color-text-muted);
+}
+
+// ---------------------------------------------------------------------------
+// Hero visual — abstract SVG composition + floating chips (all decorative,
+// aria-hidden in the markup). Purely token-family colors; no assets.
+// ---------------------------------------------------------------------------
+.heroVisual {
+  position: relative;
+  width: 100%;
+  max-width: 30rem;
+  margin-inline: auto;
+}
+
+.heroIllustration {
+  width: 100%;
+  height: auto;
+}
+
+.heroChip {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: $spacing-3;
+  padding: $spacing-3 $spacing-4;
+  border: 1px solid var(--color-border);
+  border-radius: $radius-lg;
+  background-color: var(--color-surface);
+  box-shadow: $shadow-lg;
+}
+
+.heroChipText {
+  display: block;
+  color: var(--color-text-muted);
+  font-size: $font-size-caption;
+  line-height: 1.4;
+
+  strong {
+    display: block;
+    color: var(--color-text);
+    font-size: $font-size-small;
+    font-weight: $font-weight-semibold;
+    line-height: 1.3;
+  }
+}
+
+.heroChipOne {
+  top: 6%;
+  right: 0;
+}
+
+.heroChipTwo {
+  bottom: 8%;
+  left: 0;
+}
+
+.heroChipIcon {
+  display: grid;
+  place-items: center;
+  width: 2.125rem;
+  height: 2.125rem;
+  flex-shrink: 0;
+  border-radius: $radius-full;
+  background-color: color-mix(in srgb, var(--color-primary) 12%, var(--color-surface));
+  color: var(--color-primary);
+
+  svg {
+    width: 1.125rem;
+    height: 1.125rem;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Sections (Featured Courses, Why BINZI, Featured Articles)
 // ---------------------------------------------------------------------------
+.sectionHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: $spacing-2 $spacing-6;
+  margin-bottom: $spacing-8;
+}
+
 .sectionTitle {
-  margin-bottom: $spacing-6;
-  font-size: $font-size-h2;
+  margin: 0;
+  font-size: clamp(1.625rem, 1.2rem + 1.5vw, 2rem);
+  font-weight: $font-weight-extrabold;
+  letter-spacing: -0.01em;
   line-height: $line-height-heading;
+}
+
+// Escape hatch to the real catalogs (TASK 038/040 routes).
+.sectionLink {
+  min-height: 2.75rem; // 44px (§34)
+  display: inline-flex;
+  align-items: center;
+  color: var(--color-primary);
+  font-weight: $font-weight-semibold;
+  text-decoration: none;
+
+  &:hover {
+    color: var(--color-primary-hover);
+  }
 }
 
 .grid {
@@ -120,7 +341,9 @@
 }
 
 // ---------------------------------------------------------------------------
-// Cards (compose the TASK 003 Card primitive)
+// Cards (compose the TASK 003 Card primitive) — reference treatment:
+// soft shadow, larger radius, quiet hover lift (frozen by the global
+// reduced-motion rule).
 // ---------------------------------------------------------------------------
 .courseCard,
 .whyCard,
@@ -128,11 +351,45 @@
   display: flex;
   flex-direction: column;
   height: 100%;
+  border-radius: 1rem;
+  box-shadow: $shadow-lg;
+  transition:
+    box-shadow $transition-base $transition-easing,
+    transform $transition-base $transition-easing;
+
+  &:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 14px 36px rgb(29 33 48 / 0.12);
+  }
+}
+
+.cardTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: $spacing-3;
+}
+
+.cardIconChip {
+  display: grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  flex-shrink: 0;
+  border-radius: $radius-lg;
+  background-color: color-mix(in srgb, var(--color-primary) 10%, var(--color-surface));
+  color: var(--color-primary);
+
+  svg {
+    width: 1.375rem;
+    height: 1.375rem;
+  }
 }
 
 .cardTitle {
-  margin: $spacing-3 0 $spacing-2;
+  margin: $spacing-4 0 $spacing-2;
   font-size: $font-size-h3;
+  font-weight: $font-weight-bold;
   line-height: $line-height-heading;
 
   a {
@@ -151,6 +408,7 @@
 }
 
 .cardMeta {
+  margin: 0;
   margin-top: $spacing-3;
   color: var(--color-text-muted);
   font-size: $font-size-small;
@@ -158,10 +416,11 @@
 
 // Course card CTA — a comfortable quiet link target (§34).
 .cardCta {
+  align-self: flex-start;
   margin-top: $spacing-4;
   padding: $spacing-2 0;
   color: var(--color-primary);
-  font-weight: $font-weight-medium;
+  font-weight: $font-weight-semibold;
   text-decoration: none;
 
   &:hover {
@@ -169,30 +428,107 @@
   }
 }
 
+// Article type label as a quiet tinted chip.
 .articleType {
   margin: 0;
-  color: var(--color-text-muted);
-  font-size: $font-size-small;
-  font-weight: $font-weight-medium;
+  align-self: flex-start;
+  padding: $spacing-1 $spacing-3;
+  border-radius: $radius-full;
+  background-color: color-mix(in srgb, var(--color-primary) 8%, var(--color-surface));
+  color: var(--color-primary-hover);
+  font-size: $font-size-caption;
+  font-weight: $font-weight-semibold;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+// Decorative affordance arrow anchoring the article card's click target.
+.cardArrow {
+  margin-top: auto;
+  padding-top: $spacing-4;
+  color: var(--color-primary);
+  font-weight: $font-weight-bold;
 }
 
 // ---------------------------------------------------------------------------
-// Closing Learning CTA (UI/UX §4)
+// Closing Learning CTA (UI/UX §4) — the reference's coral conversion
+// panel: brand gradient, decorative rings, inverted white pill button.
+// No newsletter input: that would invent functionality; the honest CTA
+// stays the existing /courses destination.
 // ---------------------------------------------------------------------------
 .ctaBand {
-  padding: $spacing-12 $spacing-6;
-  border-radius: $radius-lg;
-  background-color: color-mix(in srgb, var(--color-primary) 8%, var(--color-surface));
+  position: relative;
+  padding: $spacing-16 $spacing-6;
+  border-radius: $radius-xl;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-primary) 82%, #ffffff),
+    var(--color-primary) 45%,
+    var(--color-primary-hover)
+  );
   text-align: center;
+  overflow: hidden;
+
+  // Decorative static corner rings (pure CSS, never animated).
+  &::before,
+  &::after {
+    content: "";
+    position: absolute;
+    border-radius: $radius-full;
+    pointer-events: none;
+  }
+
+  &::before {
+    top: -4.5rem;
+    left: -4.5rem;
+    width: 13rem;
+    height: 13rem;
+    border: 2px solid rgb(255 255 255 / 0.25);
+  }
+
+  &::after {
+    right: -3.5rem;
+    bottom: -5.5rem;
+    width: 11rem;
+    height: 11rem;
+    background-color: rgb(255 255 255 / 0.08);
+  }
 }
 
 .ctaTitle {
-  font-size: $font-size-h2;
+  font-size: clamp(1.75rem, 1.3rem + 1.8vw, 2.25rem);
+  font-weight: $font-weight-extrabold;
+  letter-spacing: -0.01em;
   line-height: $line-height-heading;
+  color: #ffffff;
 }
 
 .ctaTagline {
   max-width: 34rem;
-  margin: $spacing-3 auto $spacing-8;
-  color: var(--color-text-muted);
+  margin: $spacing-4 auto $spacing-8;
+  color: #ffffff;
+}
+
+.ctaBandButton {
+  position: relative; // above the decorative rings
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem; // 44px (§34)
+  padding: $spacing-3 $spacing-10;
+  border-radius: $radius-full;
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  font-weight: $font-weight-bold;
+  line-height: 1.2;
+  text-decoration: none;
+  box-shadow: 0 8px 20px rgb(29 33 48 / 0.18);
+  transition:
+    box-shadow $transition-base $transition-easing,
+    transform $transition-base $transition-easing;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 12px 26px rgb(29 33 48 / 0.24);
+  }
 }
