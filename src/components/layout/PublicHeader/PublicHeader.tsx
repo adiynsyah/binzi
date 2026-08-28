@@ -5,6 +5,7 @@ import { useState } from "react";
 import { usePathname } from "next/navigation";
 
 import styles from "./PublicHeader.module.scss";
+import Image from "next/image";
 
 /**
  * BINZI public global header (TASK 036, UI/UX §3 "Global Navigation").
@@ -49,7 +50,13 @@ export function PublicHeader({ isAuthenticated }: { isAuthenticated: boolean }) 
           href="/"
           onClick={() => setMenuOpen(false)}
         >
-          BINZI
+          <Image
+            src="/images/logo-binzi.png"
+            alt="BINZI - Bincang Gizi"
+            width={90}
+            height={-1}
+            priority
+          />
         </Link>
 
         <button
