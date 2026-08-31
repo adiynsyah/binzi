@@ -21,9 +21,11 @@ import styles from "./page.module.scss";
  * form works as a plain GET form without JavaScript.
  *
  * Columns per CMS §5: Title, Status, Difficulty, Number of
- * Lessons, Estimated Duration, Updated At. The Actions column
- * (Open/Edit/Preview/Publish-Unpublish) stays deferred until its
- * own tasks — the same deferral TASK 016 applied before TASK 019.
+ * Lessons, Estimated Duration, Updated At, plus the Actions
+ * column carrying the Edit ("Sunting") link into the Course
+ * Editor (/admin/courses/[id]/edit, TASK 024) — the same pattern
+ * as the question/content lists. The remaining §5 actions
+ * (Preview/Publish-Unpublish) stay deferred to their own tasks.
  * The "Create Course" CTA points at /admin/courses/new, the route
  * convention TASK 016/018 established; the create form itself is
  * TASK 023 and deliberately does not exist yet.
@@ -157,6 +159,7 @@ export default async function AdminCoursesPage({
                     <th scope="col">Pelajaran</th>
                     <th scope="col">Estimasi Durasi</th>
                     <th scope="col">Diperbarui</th>
+                    <th scope="col">Aksi</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -189,6 +192,14 @@ export default async function AdminCoursesPage({
                       </td>
                       <td className={styles.dateCell}>
                         {dateFormatter.format(row.updatedAt)}
+                      </td>
+                      <td className={styles.actionsCell}>
+                        <Link
+                          className={styles.editLink}
+                          href={`/admin/courses/${row.id}/edit`}
+                        >
+                          Sunting
+                        </Link>
                       </td>
                     </tr>
                   ))}

@@ -125,6 +125,24 @@
   font-size: $font-size-small;
 }
 
+// Actions column: the Edit ("Sunting") link into the Course
+// Editor (CMS §5 Actions; Preview/Publish-Unpublish stay
+// deferred) — mirrors the question/content list pattern.
+.actionsCell {
+  white-space: nowrap;
+}
+
+.editLink {
+  color: var(--color-primary);
+  font-size: $font-size-small;
+  font-weight: $font-weight-medium;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
 // --------------------------------------------------------------------------
 // Empty / error panels (CMS Spec §43, UI/UX §36–§37 patterns).
 // --------------------------------------------------------------------------
