@@ -2,6 +2,7 @@
 
 | Folder | Isi | Dibaca oleh |
 |---|---|---|
+| `STATUS.md` | Posisi pekerjaan saat ini, pekerjaan kecil yang terbuka, dan prompt untuk melanjutkan di chat baru | Kamu (dan Claude di chat baru) |
 | `prd/` | PRD v1.3 utuh + dipecah per bagian (`prd/INDEX.md`) | Anda & AI agent (per bagian) |
 | `design/handoff/` | README, TOKENS, COMPONENTS, SCREENS | AI agent di setiap tugas UI |
 | `design/screens/` | 147 layar: `<ID>.png` · `<ID>.md` · `<ID>.html` (`screens/INDEX.md`) | AI agent, per layar |
