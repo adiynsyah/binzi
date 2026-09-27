@@ -45,7 +45,6 @@ Modul berkomunikasi lewat `service.ts`; **tidak boleh** saling mengimpor `querie
 - SELALU validasi input dengan Zod, di klien dan server.
 - Editor teks menolak node video/iframe — di editor **dan** server (CRS-05).
 - Jangan menulis secret ke kode, tes, atau log. Semua konfigurasi lewat `src/config` (env tervalidasi Zod).
-- JANGAN membaca, menampilkan, atau mengubah .env, .env.local, atau .env.*.local — termasuk lewat perintah shell seperti cat/grep. Jika butuh nilai env, minta pemilik produk mengisinya sendiri.
 - Kode di kategori "berisiko tinggi" (PRD §13.4) wajib disertai daftar item checklist §12.6 yang relevan di ringkasan PR.
 
 ## Aturan quiz (PRD §6.3)
@@ -83,13 +82,3 @@ Acceptance criteria PRD §14 untuk fitur itu lulus · semua state di SCREENS.md 
 
 ## Ritme kerja
 Satu modul per sesi. Commit kecil, satu fitur satu commit. Tunjukkan kode terkait yang sudah ada sebelum mulai. Jika spesifikasi tidak jelas atau bertentangan, **berhenti dan tanyakan** — jangan mengarang.
-
-<!-- BEGIN:nextjs-agent-rules -->
-
-# This is NOT the Next.js you know
-
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
-
-This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
-
-<!-- END:nextjs-agent-rules -->
