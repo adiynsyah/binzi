@@ -14,21 +14,32 @@ Satu berkas = satu tugas = satu task di ClickUp. **Status dilacak di ClickUp**, 
 
 ## Cara menjalankan satu tugas agent
 
+Agent yang membuat branch, commit, push, dan PR (aturannya di bagian **Alur Git** di `CLAUDE.md`). Kamu cukup:
+
 1. Pastikan semua tugas di kolom **Bergantung pada** sudah selesai.
-2. Buat branch: `f0/<id>-<nama-singkat>` (mis. `f0/a-09-better-auth`).
-3. Buka sesi agent **baru**, lalu kirim prompt pembuka di bawah.
-4. Tinjau PR dengan bagian **Verifikasi oleh kamu** di kartu. CI harus hijau.
-5. Merge, lalu tandai selesai di ClickUp.
+2. Buka terminal di root repo, jalankan `claude` (sesi **baru**).
+3. Tempelkan prompt pembuka di bawah — **ganti ID kartunya saja**.
+4. Setujui rencana agent (atau minta ubah).
+5. Setelah PR dibuat, jalankan bagian **Verifikasi oleh kamu** di kartu. CI harus hijau.
+6. Merge PR di GitHub, tandai selesai di ClickUp, keluar dari sesi (`/exit`), lalu mulai lagi dari langkah 2 untuk kartu berikutnya.
 
 ### Prompt pembuka sesi
 
 ```text
-Kerjakan tugas docs/tasks/fase-0/<BERKAS>.md.
-Baca CLAUDE.md, lalu HANYA berkas di bagian "Baca dulu" pada kartu itu.
-Sebelum menulis kode: ringkas rencanamu dalam 5–10 poin, sebutkan berkas yang
-akan diubah, dan tanyakan jika ada yang ambigu. Tunggu persetujuanku.
-Jangan kerjakan apa pun di luar bagian "Kerjakan".
+Kerjakan kartu A-01.
+
+1. Cari berkas kartunya di docs/tasks/**/A-01-*.md.
+2. Siapkan Git sesuai "Alur Git" di CLAUDE.md: working tree bersih,
+   checkout main, git pull, lalu buat branch baru untuk kartu ini.
+3. Baca CLAUDE.md, lalu HANYA berkas di bagian "Baca dulu" pada kartu.
+4. Sampaikan rencana dalam 5–10 poin + daftar berkas yang akan diubah.
+   Tanyakan jika ada yang ambigu. Tunggu persetujuanku sebelum menulis kode.
+5. Setelah kusetujui, kerjakan HANYA bagian "Kerjakan".
+6. Jalankan verifikasi otomatis di kartu, commit, push, lalu buat PR ke main
+   dengan ringkasan sesuai format di docs/tasks/README.md. Jangan merge.
 ```
+
+Opsional tapi memudahkan: pasang **GitHub CLI** lalu jalankan `gh auth login` sekali (kamu sendiri yang login). Dengan itu agent bisa langsung membuat PR; tanpa itu, agent memberimu tautan untuk membuat PR dengan satu klik.
 
 ### Format ringkasan PR (wajib di akhir sesi)
 

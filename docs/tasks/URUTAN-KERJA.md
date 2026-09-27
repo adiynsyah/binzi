@@ -12,12 +12,13 @@ Ikuti dari atas ke bawah. Centang setiap langkah yang selesai (di sini atau di C
 
 ## Cara mengerjakan langkah 🤖 Agent (sama untuk semua kartu A)
 
-1. Buat branch baru, mis. `f0/a-01-scaffold`.
-2. Buka **sesi agent baru**, lalu kirim prompt pembuka dari [`README.md`](README.md#prompt-pembuka-sesi) dengan nama berkas kartunya.
-3. Agent menjelaskan rencana → kamu setujui (atau minta ubah).
-4. Agent bekerja lalu membuat PR dengan ringkasan.
-5. Kamu jalankan bagian **"Verifikasi oleh kamu"** di kartu itu. CI harus hijau.
-6. Merge → centang langkahnya → lanjut ke langkah berikutnya.
+Agent yang membuat branch, commit, dan PR. Kamu cukup:
+
+1. Buka terminal di root repo, jalankan `claude` (sesi baru).
+2. Tempelkan prompt pembuka dari [`README.md`](README.md#prompt-pembuka-sesi) — **ganti ID kartunya saja** (mis. `A-02`).
+3. Setujui rencana agent (atau minta ubah).
+4. Setelah agent membuat PR, jalankan bagian **"Verifikasi oleh kamu"** di kartu. CI harus hijau.
+5. Merge PR di GitHub → centang langkahnya → keluar (`/exit`) → ulangi dari langkah 1 untuk kartu berikutnya.
 
 Jangan menjalankan dua kartu A sekaligus dalam satu sesi.
 
