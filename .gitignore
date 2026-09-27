@@ -1,4 +1,41 @@
+# dependencies
 /node_modules
-.next/
-.env.example
+
+# next.js
+/.next/
+/out/
+next-env.d.ts
+
+# production
+/build
+
+# testing
+/coverage
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/vitest-results/
+
+# misc
 .DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files — everything except .env.example (the one env file we commit)
+.env*
+!.env.example
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+
+# local-only Claude Code settings (project settings.json and .githooks/ stay tracked)
+.claude/settings.local.json
