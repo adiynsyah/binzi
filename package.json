@@ -10,10 +10,11 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
+    "lint:hex": "node scripts/check-hex.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
     "format": "prettier --write .",
-    "check": "npm run typecheck && npm run lint && npm run test",
+    "check": "npm run typecheck && npm run lint && npm run test && npm run lint:hex",
     "prepare": "git config core.hooksPath .githooks"
   },
   "dependencies": {

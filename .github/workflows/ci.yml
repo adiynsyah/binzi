@@ -48,6 +48,11 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      # Fails on hex color literals outside src/styles/tokens.css and the
+      # hero illustration assets (card A-04).
+      - name: Lint hex
+        run: npm run lint:hex
+
       - name: Test
         run: npm run test
 

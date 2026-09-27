@@ -1,0 +1,244 @@
+/*
+ * BINZI design tokens — the single source of truth for every visual value
+ * in the app. Mirrors docs/design/handoff/TOKENS.md (card A-04).
+ *
+ * This is the ONLY file under src/ that may contain hex color literals;
+ * scripts/check-hex.mjs enforces that. Everywhere else, reference tokens
+ * by name — via utilities like `bg-surface-3` / `text-text-muted`, or the
+ * CSS variables below.
+ */
+
+/* ---------------------------------------------------------------------------
+ * 1 · Color tokens (TOKENS.md → "Warna")
+ *     Named by role, not appearance. No other colors may appear in code.
+ * ------------------------------------------------------------------------- */
+:root {
+  --surface: #ffffff; /* cards, dialogs, page content */
+  --surface-2: #fbfaf8; /* table headers, calm blocks */
+  --surface-3: #f3f1ec; /* canvas background, area behind modals */
+  --surface-disabled: #efe9e1; /* disabled controls — solid fill, no opacity */
+
+  --text: #1a1614; /* headings, main text, dark buttons */
+  --text-muted: #5b554f; /* supporting paragraphs (7.1:1) */
+  --text-body: #4d4741; /* long-form body (articles, learning material) */
+  --text-meta: #6b645c; /* metadata, placeholders, status text (5.8:1) */
+  --text-subtle: #8a8378; /* ONLY small uppercase mono labels (3.8:1) */
+  --text-nav: #3f3a35; /* CMS sidebar & secondary nav items */
+
+  --border: #e7e2db; /* card & table lines */
+  --border-strong: #dcd6ce; /* secondary buttons, idle chips, inputs */
+  --border-soft: #eeeae4; /* separators inside cards, header lines */
+  --border-dashed: #d8d1c8; /* dashed empty-state & utility lines */
+
+  --primary: #f04030; /* primary actions, running progress */
+  --primary-deep: #c42d1e; /* text on primary-tint, links, primary hover */
+  --primary-tint: #ffeae6; /* soft badge & warning backgrounds */
+
+  --success: #157f5f; /* passed, at/above threshold, video done */
+  --success-tint: #e6f3ee; /* success notification background */
+  --success-tint-text: #0f5f47; /* dark pair on success-tint */
+
+  --danger: #b3261e; /* delete, failed save, below threshold */
+  --danger-tint: #fdf1ef; /* error banner background */
+  --danger-tint-text: #7a2318; /* dark pair on danger-tint */
+  --danger-tint-line: #e9b5ad; /* border pair on danger-tint */
+
+  --warning: #e2b04a; /* quiz "flagged for review" marker */
+  --warning-tint: #fff8ea; /* warning banner background */
+  --warning-tint-text: #6b5a2a; /* dark pair on warning-tint */
+  --warning-tint-line: #f0dcae; /* border pair on warning-tint */
+
+  --pending-tint: #fff4e0; /* "awaiting approval" badge */
+  --pending-tint-text: #8a5a00; /* dark pair on pending-tint */
+
+  --cycle-tint: #ece7f5; /* "Cycle n" badge (CRS-12) */
+  --cycle-tint-text: #4a3a7a; /* dark pair on cycle-tint */
+
+  --ink-surface: #2a2320; /* dark sections: Tanya Ahli Gizi, footer, CTA */
+  --ink-surface-text: #a89f95; /* supporting text on ink-surface (titles stay white) */
+
+  --fill: #f2efe9; /* chip/number backgrounds, row hover, progress track */
+  --fill-soft: #f7f5f2; /* calm info boxes, quiz timer box */
+
+  /* Not a color: video/thumbnail placeholder. Use as
+     `background-image: var(--video-bg)` — bg-* utilities cannot hold it. */
+  --video-bg: linear-gradient(148deg, #3a2c24, #17120f);
+
+  /* Dialog overlay. rgba() is reserved for scrims, shadows, and
+     placeholder line patterns (TOKENS.md → "Pemetaan warna desain"). */
+  --scrim: rgba(18, 14, 12, 0.52);
+
+  /* Focus ring color (2px ring with 3px offset, see globals.css).
+     Dark sections (ink-surface) override this locally to var(--surface):
+     a #1a1614 ring would be invisible on #2a2320. */
+  --focus-ring: var(--text);
+}
+
+/* ---------------------------------------------------------------------------
+ * 2 · shadcn/ui variables mapped to BINZI tokens (card A-04).
+ *     Aliases only — no new color values. `--primary` and `--border`
+ *     are already defined above under the same names and roles.
+ * ------------------------------------------------------------------------- */
+:root {
+  --background: var(--surface-3); /* page canvas */
+  --foreground: var(--text);
+
+  --card: var(--surface);
+  --card-foreground: var(--text);
+  --popover: var(--surface);
+  --popover-foreground: var(--text);
+
+  /* Text on full colors is always white (TOKENS.md contrast rule). */
+  --primary-foreground: var(--surface);
+  --secondary: var(--surface); /* secondary button: surface + strong border */
+  --secondary-foreground: var(--text);
+
+  --muted: var(--fill);
+  --muted-foreground: var(--text-muted);
+  --accent: var(--fill); /* hover rows, menu highlights */
+  --accent-foreground: var(--text);
+
+  --destructive: var(--danger);
+  --input: var(--border-strong);
+  --ring: var(--focus-ring);
+
+  --sidebar: var(--surface);
+  --sidebar-foreground: var(--text-nav);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--surface);
+  --sidebar-accent: var(--fill);
+  --sidebar-accent-foreground: var(--text);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--focus-ring);
+}
+
+/* ---------------------------------------------------------------------------
+ * 3 · Tailwind v4 theme — colors & fonts.
+ *     `inline` so utilities resolve through the CSS variables at runtime.
+ * ------------------------------------------------------------------------- */
+@theme inline {
+  /* BINZI tokens → utilities like bg-surface-3, text-text-muted,
+     border-border-strong, text-danger-tint-text. */
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-surface-disabled: var(--surface-disabled);
+  --color-text: var(--text);
+  --color-text-muted: var(--text-muted);
+  --color-text-body: var(--text-body);
+  --color-text-meta: var(--text-meta);
+  --color-text-subtle: var(--text-subtle);
+  --color-text-nav: var(--text-nav);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-border-soft: var(--border-soft);
+  --color-border-dashed: var(--border-dashed);
+  --color-primary: var(--primary);
+  --color-primary-deep: var(--primary-deep);
+  --color-primary-tint: var(--primary-tint);
+  --color-success: var(--success);
+  --color-success-tint: var(--success-tint);
+  --color-success-tint-text: var(--success-tint-text);
+  --color-danger: var(--danger);
+  --color-danger-tint: var(--danger-tint);
+  --color-danger-tint-text: var(--danger-tint-text);
+  --color-danger-tint-line: var(--danger-tint-line);
+  --color-warning: var(--warning);
+  --color-warning-tint: var(--warning-tint);
+  --color-warning-tint-text: var(--warning-tint-text);
+  --color-warning-tint-line: var(--warning-tint-line);
+  --color-pending-tint: var(--pending-tint);
+  --color-pending-tint-text: var(--pending-tint-text);
+  --color-cycle-tint: var(--cycle-tint);
+  --color-cycle-tint-text: var(--cycle-tint-text);
+  --color-ink-surface: var(--ink-surface);
+  --color-ink-surface-text: var(--ink-surface-text);
+  --color-fill: var(--fill);
+  --color-fill-soft: var(--fill-soft);
+  --color-scrim: var(--scrim);
+
+  /* shadcn/ui color names → same tokens. */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Fonts are loaded with next/font in src/app/layout.tsx and exposed as
+     --font-lato / --font-plex-mono. `font-mono` utility = IBM Plex Mono;
+     --font-sans also becomes the default body font via Tailwind preflight. */
+  --font-sans: var(--font-lato), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, "SFMono-Regular", Menlo,
+    monospace;
+}
+
+/* ---------------------------------------------------------------------------
+ * 4 · Tailwind v4 theme — layout & shape tokens (static values).
+ * ------------------------------------------------------------------------- */
+@theme {
+  /* Breakpoints, explicit so they can never drift (PRD §1).
+     Thresholds in use: <640 hamburger & sheet · <768 bottom nav ·
+     ≥1024 desktop layout (TOKENS.md → "Breakpoint"). */
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+  --breakpoint-2xl: 1536px;
+
+  /* Radius (TOKENS.md → "Radius"): named roles, plus the shadcn scale
+     remapped to exact BINZI values instead of a calc off a base. */
+  --radius-pill: 999px; /* pills, avatars, chips */
+  --radius-card: 14px;
+  --radius-dialog: 16px; /* dialogs, large cards */
+  --radius-control: 10px; /* buttons & inputs (spec range 8–10) */
+  --radius-sheet: 18px; /* mobile sheet (top corners) */
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 16px;
+  --radius-2xl: 18px;
+
+  /* Shadows — menus/dropdowns and dialogs only; cards use borders. */
+  --shadow-menu: 0 18px 40px rgba(26, 22, 20, 0.16);
+  --shadow-dialog: 0 22px 50px rgba(26, 22, 20, 0.14);
+
+  /* Page content max width → `max-w-content` (TOKENS.md → "Spasi"). */
+  --container-content: 1200px;
+
+  /* Spacing base: 4px — every spacing utility is a multiple of 4. */
+  --spacing: 0.25rem;
+}
+
+/* ---------------------------------------------------------------------------
+ * 5 · Control heights & measure (TOKENS.md → "Tinggi kendali", "Spasi").
+ *     Plain variables — use like `h-(--height-input)` or
+ *     `max-w-(--width-measure)`.
+ * ------------------------------------------------------------------------- */
+:root {
+  --height-touch-min: 44px; /* minimum touch target at every width */
+  --height-button-primary: 52px; /* spec range 50–54 */
+  --height-button-secondary: 48px; /* spec range 46–48 */
+  --height-input: 52px;
+  --height-chip: 40px; /* spec range 38–40 */
+  --width-measure: 68ch; /* max line length for long-form text */
+  --radius: 14px; /* shadcn base radius read via var(--radius) */
+}
