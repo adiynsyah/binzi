@@ -1,0 +1,16 @@
+# Generated files
+package-lock.json
+next-env.d.ts
+coverage
+test-results
+playwright-report
+
+# Repo docs and design handoff (not source code)
+docs
+CLAUDE.md
+
+# Static assets
+public
+
+# Local tooling state
+.claude
