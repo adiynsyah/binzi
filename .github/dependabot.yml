@@ -1,0 +1,16 @@
+# Dependabot configuration (card A-03, PRD §12.5).
+# Weekly update PRs for JS dependencies and GitHub Actions versions.
+
+version: 2
+updates:
+  # npm dependencies (package.json / package-lock.json).
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+
+  # GitHub Actions used by .github/workflows/*.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
