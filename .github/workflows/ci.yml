@@ -1,0 +1,66 @@
+# BINZI continuous integration (card A-03).
+#
+# One job with a stable name ("ci") so branch protection can reference it as
+# a required status check (H-01). Runs on every PR and on pushes to main.
+
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Cancel superseded runs on the same branch/PR to save Actions minutes on
+# this private repo.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    name: ci
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Same Node version as local development (from A-01).
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # next-env.d.ts and .next/ are gitignored, so a clean checkout has no
+      # Next.js type definitions yet. `next typegen` is the official Next.js
+      # command (verified against the bundled docs of the installed version)
+      # that generates them before `tsc --noEmit` runs.
+      - name: Generate Next.js types
+        run: npx next typegen
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm run test
+
+      # Safe dummy values, scoped to the build step only — just enough for the
+      # Zod env validation that instrumentation.ts runs during `next build`.
+      # Never real secrets. Kept off the other steps on purpose: the env tests
+      # from A-02 assert behavior when MAIL_TRANSPORT is *absent*, so the test
+      # step must run with a clean environment.
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_APP_URL: http://localhost:3000
+          MAIL_TRANSPORT: log
+
+      - name: Audit dependencies
+        run: npm audit --audit-level=high
