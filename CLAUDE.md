@@ -45,6 +45,7 @@ Modul berkomunikasi lewat `service.ts`; **tidak boleh** saling mengimpor `querie
 - SELALU validasi input dengan Zod, di klien dan server.
 - Editor teks menolak node video/iframe — di editor **dan** server (CRS-05).
 - Jangan menulis secret ke kode, tes, atau log. Semua konfigurasi lewat `src/config` (env tervalidasi Zod).
+- JANGAN membaca, menampilkan, atau mengubah .env, .env.local, atau .env.*.local — termasuk lewat perintah shell seperti cat/grep. Jika butuh nilai env, minta pemilik produk mengisinya sendiri.
 - Kode di kategori "berisiko tinggi" (PRD §13.4) wajib disertai daftar item checklist §12.6 yang relevan di ringkasan PR.
 
 ## Aturan quiz (PRD §6.3)
