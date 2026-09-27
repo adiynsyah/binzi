@@ -1,0 +1,51 @@
+<!--
+  BINZI — layar 2b (hasil render dari "Binzi Landing Hero.dc.html")
+  REFERENSI TAMPILAN, BUKAN KODE PRODUKSI. Jangan salin hex; petakan ke token (lihat 2b.md & TOKENS.md).
+  Logika JS/demo di desain tidak ikut; perilaku mengikuti PRD.
+-->
+<div data-dc-tpl="6880" style="display: grid; grid-template-columns: repeat(2, 400px); gap: 20px;">
+      <div data-dc-tpl="6881" class="dv-card" style="width: 400px; padding: 24px;">
+        <div data-dc-tpl="6882" style="font: 700 12.5px &quot;IBM Plex Mono&quot;, monospace; color: #6b645c;">state · error validasi per field</div>
+        <label data-dc-tpl="6883" style="display: block; margin-top: 16px; font: 600 14.5px Lato, sans-serif; color: #1a1614;">Email</label>
+        <div data-dc-tpl="6884" style="margin-top: 8px; height: 52px; padding: 0px 15px; display: flex; align-items: center; border: 1.5px solid var(--accent-deep,#c42d1e); border-radius: 8px; background: #ffffff; font: 400 16px Lato, sans-serif; color: #1a1614;">rina@email</div>
+        <div data-dc-tpl="6885" style="margin-top: 7px; font: 600 13.5px Lato, sans-serif; color: var(--accent-deep,#c42d1e);">Format email belum benar — contoh: nama@email.com</div>
+        <label data-dc-tpl="6886" style="display: block; margin-top: 18px; font: 600 14.5px Lato, sans-serif; color: #1a1614;">Password</label>
+        <div data-dc-tpl="6887" style="margin-top: 8px; height: 52px; padding: 0px 15px; display: flex; align-items: center; border: 1.5px solid var(--accent-deep,#c42d1e); border-radius: 8px; background: #ffffff; font: 400 16px &quot;IBM Plex Mono&quot;, monospace; color: #1a1614;">••••••</div>
+        <div data-dc-tpl="6888" style="margin-top: 7px; font: 600 13.5px / 1.5 Lato, sans-serif; color: var(--accent-deep,#c42d1e);">Minimal 8 karakter dan mengandung huruf serta angka</div>
+      </div>
+
+      <div data-dc-tpl="6889" class="dv-card" style="width: 400px; padding: 24px;">
+        <div data-dc-tpl="6890" style="font: 700 12.5px &quot;IBM Plex Mono&quot;, monospace; color: #6b645c;">state · kredensial salah (§14.2)</div>
+        <div data-dc-tpl="6891" style="display: flex; gap: 11px; padding: 14px 16px; margin-top: 16px; border-radius: 8px; background: var(--accent-tint,#ffeae6); border: 1px solid rgba(240, 64, 48, 0.3);">
+          <span data-dc-tpl="6892" style="width: 20px; height: 20px; border-radius: 999px; background: var(--accent-deep,#c42d1e); color: #ffffff; display: grid; place-items: center; font: 700 13px Lato, sans-serif; flex: 0 0 auto;">!</span>
+          <div data-dc-tpl="6893" style="font: 600 14px / 1.5 Lato, sans-serif; color: var(--accent-deep,#c42d1e);">Email atau password salah. Periksa kembali dan coba lagi.</div>
+        </div>
+        <p data-dc-tpl="6894" style="margin: 14px 0px 0px; font: 400 13.5px / 1.6 Lato, sans-serif; color: #5b554f;">Pesan sengaja tidak menyebut apakah email terdaftar — mencegah enumerasi akun.</p>
+        <div data-dc-tpl="6895" style="margin-top: 20px; font: 700 12.5px &quot;IBM Plex Mono&quot;, monospace; color: #6b645c;">state · terkunci setelah 5 percobaan (AUTH-08)</div>
+        <div data-dc-tpl="6896" style="display: flex; gap: 11px; padding: 14px 16px; margin-top: 14px; border-radius: 8px; background: #1a1614;">
+          <span data-dc-tpl="6897" style="width: 20px; height: 20px; border-radius: 999px; background: rgba(255, 255, 255, 0.16); color: #ffffff; display: grid; place-items: center; font: 700 12px Lato, sans-serif; flex: 0 0 auto;">15</span>
+          <div data-dc-tpl="6898" style="font: 600 14px / 1.5 Lato, sans-serif; color: #ffffff;">Terlalu banyak percobaan. Coba lagi dalam 15 menit, atau <a data-dc-tpl="6899" href="#2b" style="color: #ffffff; text-decoration: underline;">reset password</a>.</div>
+        </div>
+      </div>
+
+      <div data-dc-tpl="6900" class="dv-card" style="width: 400px; padding: 24px;">
+        <div data-dc-tpl="6901" style="font: 700 12.5px &quot;IBM Plex Mono&quot;, monospace; color: #6b645c;">state · sedang mengirim</div>
+        <div data-dc-tpl="6902" style="margin-top: 16px; height: 54px; display: flex; align-items: center; justify-content: center; gap: 10px; border-radius: 8px; background: var(--accent-deep,#c42d1e); color: #ffffff; font: 700 16.5px Lato, sans-serif;">
+          <span data-dc-tpl="6903" style="width: 18px; height: 18px; border-radius: 999px; border-width: 2.5px; border-style: solid; border-color: #ffffff rgba(255, 255, 255, 0.35) rgba(255, 255, 255, 0.35); border-image: initial; display: block; animation-duration: 0.8s; animation-timing-function: linear; animation-delay: 0s; animation-iteration-count: infinite; animation-direction: normal; animation-fill-mode: none; animation-play-state: var(--aps,running); animation-name: spin; animation-timeline: auto; animation-range: normal;"></span>
+          Memeriksa…
+        </div>
+        <p data-dc-tpl="6904" style="margin: 14px 0px 0px; font: 400 13.5px / 1.6 Lato, sans-serif; color: #5b554f;">Tombol dinonaktifkan, field dikunci, tidak ada perubahan tata letak agar tidak ada pergeseran (CLS).</p>
+        <div data-dc-tpl="6905" style="margin-top: 20px; font: 700 12.5px &quot;IBM Plex Mono&quot;, monospace; color: #6b645c;">state · email belum diverifikasi (AUTH-03)</div>
+        <div data-dc-tpl="6906" style="margin-top: 14px; padding: 14px 16px; border-radius: 8px; border: 1px solid #eeeae4; background: #fbfaf8; font: 500 14px / 1.55 Lato, sans-serif; color: #3f3a35;">Email Anda belum diverifikasi. <a data-dc-tpl="6907" href="#2b" style="font-weight: 700; text-decoration: none;">Kirim ulang tautan</a> — berlaku 24 jam.</div>
+      </div>
+
+      <div data-dc-tpl="6908" class="dv-card" style="width: 400px; padding: 24px;">
+        <div data-dc-tpl="6909" style="font: 700 12.5px &quot;IBM Plex Mono&quot;, monospace; color: #6b645c;">state · berhasil</div>
+        <div data-dc-tpl="6910" style="margin-top: 16px; padding: 22px; border-radius: 14px; background: #eef7f3; text-align: center;">
+          <div data-dc-tpl="6911" style="width: 48px; height: 48px; border-radius: 999px; background: #157f5f; display: grid; place-items: center; margin: 0px auto; animation-duration: 0.5s; animation-timing-function: ease; animation-delay: 0s; animation-iteration-count: 1; animation-direction: normal; animation-fill-mode: both; animation-play-state: var(--aps,running); animation-name: pop; animation-timeline: auto; animation-range: normal;"><svg data-dc-tpl="6912" width="22" height="22" viewBox="0 0 12 12" fill="none"><path data-dc-tpl="6913" d="M2 6.4l2.6 2.6L10 3.4" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+          <div data-dc-tpl="6914" style="margin-top: 14px; font: 800 19px / 1.3 Lato, sans-serif; color: #0f5f47;">Berhasil masuk</div>
+          <div data-dc-tpl="6915" style="margin-top: 8px; font: 500 14px / 1.55 Lato, sans-serif; color: #3c6d5c;">Mengarahkan kembali ke <strong data-dc-tpl="6916">Materi 2 · Asam folat &amp; zat besi</strong> — bukan ke beranda (§14.2).</div>
+        </div>
+        <p data-dc-tpl="6917" style="margin: 14px 0px 0px; font: 400 13.5px / 1.6 Lato, sans-serif; color: #5b554f;">Jika akun Google memakai email yang sama dengan akun terverifikasi, akun <strong data-dc-tpl="6918">ditautkan</strong>, bukan diduplikasi (AUTH-05).</p>
+      </div>
+    </div>

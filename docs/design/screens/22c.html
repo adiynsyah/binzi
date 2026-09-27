@@ -1,0 +1,45 @@
+<!--
+  BINZI — layar 22c (hasil render dari "Binzi Landing Hero.dc.html")
+  REFERENSI TAMPILAN, BUKAN KODE PRODUKSI. Jangan salin hex; petakan ke token (lihat 22c.md & TOKENS.md).
+  Logika JS/demo di desain tidak ikut; perilaku mengikuti PRD.
+-->
+<div data-dc-tpl="10630" class="dv-card" data-screen-label="22c Impor CSV" style="width: 900px;">
+        <div data-dc-tpl="10631" style="background: #ffffff; padding: 26px 24px 28px;">
+          <div data-dc-tpl="10632" style="font: 500 11.5px &quot;IBM Plex Mono&quot;, monospace; letter-spacing: 0.14em; color: #8a8378;">IMPOR SOAL · QZ-15</div>
+          <h2 data-dc-tpl="10633" style="margin: 9px 0px 0px; font: 800 24px / 1.2 Lato, sans-serif; letter-spacing: -0.02em; color: #1a1614;">Unggah CSV, lalu perbaiki yang ditolak</h2>
+          <p data-dc-tpl="10634" style="margin: 8px 0px 0px; max-width: 70ch; font: 400 14px / 1.62 Lato, sans-serif; color: #5b554f; text-wrap: pretty;">Tanpa pratinjau bertahap: file diproses, baris yang sah langsung masuk, baris bermasalah dilaporkan dengan alasannya. Pola ini dipilih karena soal biasanya disiapkan massal di spreadsheet, bukan satu per satu.</p>
+          <div data-dc-tpl="10635" style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 20px 0px 0px;">
+            <div data-dc-tpl="10636" style="padding: 20px; border: 1.5px dashed #d8d1c8; border-radius: 13px; background: #fbfaf8; text-align: center;">
+              <div data-dc-tpl="10637" style="font: 700 15.5px Lato, sans-serif; color: #1a1614;">Seret file CSV ke sini</div>
+              <div data-dc-tpl="10638" style="margin-top: 6px; font: 400 12.5px / 1.6 Lato, sans-serif; color: #5b554f;">Kolom: pertanyaan · tipe · opsi_a…opsi_d · kunci · pembahasan</div>
+              <span data-dc-tpl="10639" style="display: inline-flex; align-items: center; height: 40px; margin-top: 12px; padding: 0px 16px; border-radius: 9px; background: #1a1614; color: #ffffff; font: 700 13px Lato, sans-serif;">Pilih file</span>
+            </div>
+            <div data-dc-tpl="10640" style="padding: 20px; border: 1px solid #e7e2db; border-radius: 13px;">
+              <div data-dc-tpl="10641" style="font: 700 14.5px Lato, sans-serif; color: #1a1614;">Template &amp; aturan</div>
+              <ul data-dc-tpl="10642" style="margin: 10px 0px 0px; padding-left: 17px; display: grid; gap: 6px;">
+                <li data-dc-tpl="10643" style="font: 400 12.5px / 1.6 Lato, sans-serif; color: #5b554f;">Pembahasan wajib terisi untuk setiap baris.</li>
+                <li data-dc-tpl="10644" style="font: 400 12.5px / 1.6 Lato, sans-serif; color: #5b554f;">Tipe <code data-dc-tpl="10645" style="font: 500 12px &quot;IBM Plex Mono&quot;, monospace;">pg</code> butuh 2–5 opsi; <code data-dc-tpl="10646" style="font: 500 12px &quot;IBM Plex Mono&quot;, monospace;">bs</code> mengabaikan kolom opsi.</li>
+                <li data-dc-tpl="10647" style="font: 400 12.5px / 1.6 Lato, sans-serif; color: #5b554f;">Kunci ditulis huruf opsi (a/b/c/d) atau benar/salah.</li>
+              </ul>
+              <span data-dc-tpl="10648" style="display: inline-flex; align-items: center; height: 40px; margin-top: 12px; padding: 0px 15px; border: 1px solid #e0d9d0; border-radius: 9px; font: 600 13px Lato, sans-serif; color: #1a1614;">Unduh template CSV</span>
+            </div>
+          </div>
+          <div data-dc-tpl="10649" style="margin: 20px 0px 0px; border: 1px solid #e7e2db; border-radius: 13px; overflow: hidden;">
+            <div data-dc-tpl="10650" style="display: flex; align-items: center; gap: 12px; padding: 14px 16px; background: #f4faf7; border-bottom: 1px solid #c9e4d9;">
+              <span data-dc-tpl="10651" style="width: 22px; height: 22px; border-radius: 999px; background: #157f5f; color: #ffffff; display: grid; place-items: center; font: 700 12px Lato, sans-serif;">✓</span>
+              <span data-dc-tpl="10652" style="font: 700 14.5px Lato, sans-serif; color: #1a1614;">14 soal berhasil ditambahkan</span>
+              <span data-dc-tpl="10653" style="margin-left: auto; font: 500 11.5px &quot;IBM Plex Mono&quot;, monospace; color: #0f5f47;">soal-final-t2.csv · 17 BARIS</span>
+            </div>
+            <div data-dc-tpl="10654" style="display: flex; align-items: center; gap: 12px; padding: 13px 16px; background: #fdf6f5; border-bottom: 1px solid #f0c4be;">
+              <span data-dc-tpl="10655" style="width: 22px; height: 22px; border-radius: 999px; background: #b3261e; color: #ffffff; display: grid; place-items: center; font: 700 12px Lato, sans-serif;">!</span>
+              <span data-dc-tpl="10656" style="font: 700 14px Lato, sans-serif; color: #1a1614;">3 baris ditolak — tidak ada yang masuk setengah jadi</span>
+              <span data-dc-tpl="10657" style="margin-left: auto; display: inline-flex; align-items: center; height: 36px; padding: 0px 13px; border: 1px solid #f0c4be; border-radius: 8px; background: #ffffff; font: 600 12.5px Lato, sans-serif; color: #b3261e;">Unduh baris gagal</span>
+            </div>
+            <div data-dc-tpl="10658" style="display: grid; grid-template-columns: 70px 210px minmax(0px, 1fr); gap: 14px; padding: 10px 16px; background: #fbfaf8; border-bottom: 1px solid #e7e2db; font: 700 10.5px &quot;IBM Plex Mono&quot;, monospace; letter-spacing: 0.1em; color: #8a8378;"><span data-dc-tpl="10659">BARIS</span><span data-dc-tpl="10660">ALASAN</span><span data-dc-tpl="10661">CUPLIKAN</span></div>
+              <div data-dc-tpl="10662" style="display: grid; grid-template-columns: 70px 210px minmax(0px, 1fr); gap: 14px; padding: 11px 16px; border-bottom: 1px solid #f7f4ef; align-items: baseline;"><span data-dc-tpl="10663" style="font: 500 12.5px &quot;IBM Plex Mono&quot;, monospace; color: #b3261e;">4</span><span data-dc-tpl="10664" style="font: 600 13px Lato, sans-serif; color: #1a1614;">Pembahasan kosong</span><span data-dc-tpl="10665" style="font: 400 12.5px / 1.5 Lato, sans-serif; color: #5b554f;">“Kalsium diserap paling baik bersama…”</span></div>
+              <div data-dc-tpl="10666" style="display: grid; grid-template-columns: 70px 210px minmax(0px, 1fr); gap: 14px; padding: 11px 16px; border-bottom: 1px solid #f7f4ef; align-items: baseline;"><span data-dc-tpl="10667" style="font: 500 12.5px &quot;IBM Plex Mono&quot;, monospace; color: #b3261e;">9</span><span data-dc-tpl="10668" style="font: 600 13px Lato, sans-serif; color: #1a1614;">Kunci tidak cocok opsi (kunci: e)</span><span data-dc-tpl="10669" style="font: 400 12.5px / 1.5 Lato, sans-serif; color: #5b554f;">“Camilan padat gizi berikut yang…”</span></div>
+              <div data-dc-tpl="10670" style="display: grid; grid-template-columns: 70px 210px minmax(0px, 1fr); gap: 14px; padding: 11px 16px; border-bottom: 1px solid #f7f4ef; align-items: baseline;"><span data-dc-tpl="10671" style="font: 500 12.5px &quot;IBM Plex Mono&quot;, monospace; color: #b3261e;">15</span><span data-dc-tpl="10672" style="font: 600 13px Lato, sans-serif; color: #1a1614;">Hanya 1 opsi terisi</span><span data-dc-tpl="10673" style="font: 400 12.5px / 1.5 Lato, sans-serif; color: #5b554f;">“Ibu hamil perlu menambah porsi…”</span></div>
+          </div>
+          <div data-dc-tpl="10674" style="margin: 16px 0px 0px; padding: 14px 16px; border: 1px dashed #ddd6cd; border-radius: 12px; font: 400 12.5px / 1.6 Lato, sans-serif; color: #5b554f;">Tombol “Unduh baris gagal” mengembalikan CSV berisi 3 baris itu saja plus kolom alasan — penggarap memperbaiki di spreadsheet lalu mengunggah ulang, tanpa menyaring manual dari 17 baris.</div>
+        </div>
+      </div>

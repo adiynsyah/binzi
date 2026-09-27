@@ -1,0 +1,62 @@
+<!--
+  BINZI — layar 17b (hasil render dari "Binzi Landing Hero.dc.html")
+  REFERENSI TAMPILAN, BUKAN KODE PRODUKSI. Jangan salin hex; petakan ke token (lihat 17b.md & TOKENS.md).
+  Logika JS/demo di desain tidak ikut; perilaku mengikuti PRD.
+-->
+<div data-dc-tpl="908" class="dv-card" data-screen-label="17b Komponen &amp; state" style="width: 1080px;">
+      <div data-dc-tpl="909" style="background: #ffffff; padding: 28px 26px 30px;">
+        <div data-dc-tpl="910" style="font: 500 11.5px &quot;IBM Plex Mono&quot;, monospace; letter-spacing: 0.14em; color: #8a8378;">KOMPONEN</div>
+        <h2 data-dc-tpl="911" style="margin: 10px 0px 0px; font: 800 25px / 1.2 Lato, sans-serif; letter-spacing: -0.02em; color: #1a1614;">Komponen &amp; state</h2>
+        <p data-dc-tpl="912" style="margin: 9px 0px 0px; max-width: 66ch; font: 400 14px / 1.62 Lato, sans-serif; color: #5b554f;">Lima state wajib untuk tiap kendali. Yang sering terlewat saat koding: <strong data-dc-tpl="913">focus</strong> (navigasi keyboard) dan <strong data-dc-tpl="914">loading</strong> (klik ganda saat jaringan lambat).</p>
+        <div data-dc-tpl="915" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 18px; margin: 18px 0px 0px;">
+          <div data-dc-tpl="916">
+            <div data-dc-tpl="917" style="font: 500 11px &quot;IBM Plex Mono&quot;, monospace; letter-spacing: 0.12em; color: #8a8378; padding-bottom: 10px;">DEFAULT</div>
+            <div data-dc-tpl="918" style="display: grid; gap: 10px; justify-items: start;"><span data-dc-tpl="919" style="display: inline-flex; align-items: center; justify-content: center; height: 48px; padding: 0px 20px; border-radius: 9px; font: 700 14.5px Lato, sans-serif; background: var(--accent,#f04030); color: #ffffff;">Mulai quiz</span><span data-dc-tpl="920" style="display: inline-flex; align-items: center; justify-content: center; height: 48px; padding: 0px 20px; border-radius: 9px; font: 700 14.5px Lato, sans-serif; background: #ffffff; border: 1.5px solid #dcd6ce; color: #1a1614;">Lihat nilai</span><span data-dc-tpl="921" style="display: inline-flex; align-items: center; justify-content: center; height: 48px; padding: 0px 20px; border-radius: 9px; font: 700 14.5px Lato, sans-serif; background: #ffffff; border: 1.5px solid #f0c4be; color: #b3261e;">Hapus akun</span></div>
+          </div>
+
+          <div data-dc-tpl="922">
+            <div data-dc-tpl="923" style="font: 500 11px &quot;IBM Plex Mono&quot;, monospace; letter-spacing: 0.12em; color: #8a8378; padding-bottom: 10px;">HOVER</div>
+            <div data-dc-tpl="924" style="display: grid; gap: 10px; justify-items: start;"><span data-dc-tpl="925" style="display: inline-flex; align-items: center; justify-content: center; height: 48px; padding: 0px 20px; border-radius: 9px; font: 700 14.5px Lato, sans-serif; background: var(--accent-deep,#c42d1e); color: #ffffff;">Mulai quiz</span><span data-dc-tpl="926" style="display: inline-flex; align-items: center; justify-content: center; height: 48px; padding: 0px 20px; border-radius: 9px; font: 700 14.5px Lato, sans-serif; background: #ffffff; border: 1.5px solid #1a1614; color: #1a1614;">Lihat nilai</span><span data-dc-tpl="927" style="display: inline-flex; align-items: center; justify-content: center; height: 48px; padding: 0px 20px; border-radius: 9px; font: 700 14.5px Lato, sans-serif; background: #fdf1ef; border: 1.5px solid #b3261e; color: #b3261e;">Hapus akun</span></div>
+          </div>
+
+          <div data-dc-tpl="928">
+            <div data-dc-tpl="929" style="font: 500 11px &quot;IBM Plex Mono&quot;, monospace; letter-spacing: 0.12em; color: #8a8378; padding-bottom: 10px;">FOCUS</div>
+            <div data-dc-tpl="930" style="display: grid; gap: 10px; justify-items: start;"><span data-dc-tpl="931" style="display: inline-flex; align-items: center; justify-content: center; height: 48px; padding: 0px 20px; border-radius: 9px; font: 700 14.5px Lato, sans-serif; background: var(--accent,#f04030); color: #ffffff; box-shadow: #ffffff 0px 0px 0px 3px, #1a1614 0px 0px 0px 5.5px;">Mulai quiz</span><span data-dc-tpl="932" style="display: inline-flex; align-items: center; justify-content: center; height: 48px; padding: 0px 20px; border-radius: 9px; font: 700 14.5px Lato, sans-serif; background: #ffffff; border: 1.5px solid #1a1614; color: #1a1614; box-shadow: #ffffff 0px 0px 0px 3px, #1a1614 0px 0px 0px 5.5px;">Lihat nilai</span><span data-dc-tpl="933" style="font: 400 12px / 1.5 Lato, sans-serif; color: #5b554f;">Cincin 2px #1a1614 dengan jeda 3px — sama untuk semua kendali.</span></div>
+          </div>
+
+          <div data-dc-tpl="934">
+            <div data-dc-tpl="935" style="font: 500 11px &quot;IBM Plex Mono&quot;, monospace; letter-spacing: 0.12em; color: #8a8378; padding-bottom: 10px;">DISABLED</div>
+            <div data-dc-tpl="936" style="display: grid; gap: 10px; justify-items: start;"><span data-dc-tpl="937" style="display: inline-flex; align-items: center; justify-content: center; height: 48px; padding: 0px 20px; border-radius: 9px; font: 700 14.5px Lato, sans-serif; background: #e7e2db; color: #6b645c;">Mulai quiz</span><span data-dc-tpl="938" style="display: inline-flex; align-items: center; justify-content: center; height: 48px; padding: 0px 20px; border-radius: 9px; font: 700 14.5px Lato, sans-serif; background: #fbfaf8; border: 1.5px solid #eeeae4; color: #6b645c;">Lihat nilai</span><span data-dc-tpl="939" style="font: 400 12px / 1.5 Lato, sans-serif; color: #5b554f;">Tanpa opasitas — pakai warna padat agar kontras tetap terbaca.</span></div>
+          </div>
+
+          <div data-dc-tpl="940">
+            <div data-dc-tpl="941" style="font: 500 11px &quot;IBM Plex Mono&quot;, monospace; letter-spacing: 0.12em; color: #8a8378; padding-bottom: 10px;">LOADING</div>
+            <div data-dc-tpl="942" style="display: grid; gap: 10px; justify-items: start;"><span data-dc-tpl="943" style="display: inline-flex; align-items: center; justify-content: center; height: 48px; padding: 0px 20px; border-radius: 9px; font: 700 14.5px Lato, sans-serif; background: var(--accent,#f04030); color: #ffffff; opacity: 0.9;">Menyimpan…</span><span data-dc-tpl="944" style="font: 400 12px / 1.5 Lato, sans-serif; color: #5b554f;">Label berubah jadi kata kerja berjalan; tombol terkunci sampai jawaban server tiba.</span></div>
+          </div>
+        </div>
+
+        <div data-dc-tpl="945" style="margin: 26px 0px 0px; padding-top: 20px; border-top: 1px solid #eeeae4;">
+          <div data-dc-tpl="946" style="font: 700 15px Lato, sans-serif; color: #1a1614;">Input</div>
+          <div data-dc-tpl="947" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin: 14px 0px 0px;">
+            <div data-dc-tpl="948"><div data-dc-tpl="949" style="font: 500 11px &quot;IBM Plex Mono&quot;, monospace; color: #8a8378;">DEFAULT</div><div data-dc-tpl="950" style="display: flex; align-items: center; height: 52px; margin-top: 8px; padding: 0px 15px; border: 1.5px solid #e0d9d0; border-radius: 10px; font: 400 14.5px Lato, sans-serif; color: #6b645c;">Email Anda</div></div>
+            <div data-dc-tpl="951"><div data-dc-tpl="952" style="font: 500 11px &quot;IBM Plex Mono&quot;, monospace; color: #8a8378;">TERISI / FOKUS</div><div data-dc-tpl="953" style="display: flex; align-items: center; height: 52px; margin-top: 8px; padding: 0px 15px; border: 1.5px solid #1a1614; border-radius: 10px; font: 400 14.5px Lato, sans-serif; color: #1a1614; box-shadow: #ffffff 0px 0px 0px 3px, #1a1614 0px 0px 0px 5.5px;">rina.kurnia@email.com</div></div>
+            <div data-dc-tpl="954"><div data-dc-tpl="955" style="font: 500 11px &quot;IBM Plex Mono&quot;, monospace; color: #b3261e;">ERROR</div><div data-dc-tpl="956" style="display: flex; align-items: center; height: 52px; margin-top: 8px; padding: 0px 15px; border: 1.5px solid #b3261e; border-radius: 10px; font: 400 14.5px Lato, sans-serif; color: #1a1614;">rina.kurnia@</div><div data-dc-tpl="957" style="margin-top: 6px; font: 500 12px / 1.45 Lato, sans-serif; color: #b3261e;">Format email belum lengkap</div></div>
+            <div data-dc-tpl="958"><div data-dc-tpl="959" style="font: 500 11px &quot;IBM Plex Mono&quot;, monospace; color: #8a8378;">DISABLED</div><div data-dc-tpl="960" style="display: flex; align-items: center; height: 52px; margin-top: 8px; padding: 0px 15px; border: 1.5px solid #eeeae4; border-radius: 10px; background: #fbfaf8; font: 400 14.5px Lato, sans-serif; color: #6b645c;">rina.kurnia@email.com</div></div>
+          </div>
+        </div>
+
+        <div data-dc-tpl="961" style="margin: 24px 0px 0px; padding-top: 20px; border-top: 1px solid #eeeae4;">
+          <div data-dc-tpl="962" style="font: 700 15px Lato, sans-serif; color: #1a1614;">Badge, chip, dan kartu</div>
+          <div data-dc-tpl="963" style="display: flex; flex-wrap: wrap; gap: 9px; margin: 14px 0px 0px; align-items: center;">
+            <span data-dc-tpl="964" style="padding: 4px 10px; border-radius: 999px; background: #f2efe9; color: #5b554f; font: 700 11px Lato, sans-serif;">Belum dimulai</span>
+            <span data-dc-tpl="965" style="padding: 4px 10px; border-radius: 999px; background: var(--accent-tint,#ffeae6); color: var(--accent-deep,#c42d1e); font: 700 11px Lato, sans-serif;">Sedang berjalan</span>
+            <span data-dc-tpl="966" style="padding: 4px 10px; border-radius: 999px; background: #eef1f4; color: #3c4a57; font: 700 11px Lato, sans-serif;">Selesai</span>
+            <span data-dc-tpl="967" style="padding: 4px 10px; border-radius: 999px; background: #157f5f; color: #ffffff; font: 700 11px Lato, sans-serif;">Lulus</span>
+            <span data-dc-tpl="968" style="padding: 4px 10px; border-radius: 999px; background: #ece7f5; color: #4a3a7a; font: 700 11px Lato, sans-serif;">Siklus ke-2</span>
+            <span data-dc-tpl="969" style="display: inline-flex; align-items: center; gap: 7px; height: 38px; padding: 0px 15px; border-radius: 999px; background: #1a1614; color: #ffffff; font: 700 13px Lato, sans-serif;">Chip aktif<span data-dc-tpl="970" style="font: 500 11.5px &quot;IBM Plex Mono&quot;, monospace; color: rgba(255, 255, 255, 0.72);">3</span></span>
+            <span data-dc-tpl="971" style="display: inline-flex; align-items: center; gap: 7px; height: 38px; padding: 0px 15px; border-radius: 999px; border: 1px solid #e0d9d0; color: #1a1614; font: 600 13px Lato, sans-serif;">Chip diam<span data-dc-tpl="972" style="font: 500 11.5px &quot;IBM Plex Mono&quot;, monospace; color: #6b645c;">1</span></span>
+          </div>
+          <div data-dc-tpl="973" style="margin: 14px 0px 0px; font: 400 12.5px / 1.6 Lato, sans-serif; color: #5b554f;">Kartu: garis 1px #e7e2db, sudut 14, padding 18, tanpa bayangan. Bayangan hanya untuk lapisan yang melayang (menu, dialog). Rincian badge status ada di <a data-dc-tpl="974" href="#16c" style="color: var(--accent-deep,#c42d1e);">16c</a>.</div>
+        </div>
+      </div>
+    </div>

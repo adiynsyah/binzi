@@ -1,0 +1,25 @@
+<!--
+  BINZI — layar 16c (hasil render dari "Binzi Landing Hero.dc.html")
+  REFERENSI TAMPILAN, BUKAN KODE PRODUKSI. Jangan salin hex; petakan ke token (lihat 16c.md & TOKENS.md).
+  Logika JS/demo di desain tidak ikut; perilaku mengikuti PRD.
+-->
+<div data-dc-tpl="1228" class="dv-card" data-screen-label="16c Sistem badge status" style="width: 560px;">
+      <div data-dc-tpl="1229" style="background: #ffffff; padding: 26px 24px 28px;">
+        <div data-dc-tpl="1230" style="font: 500 11.5px &quot;IBM Plex Mono&quot;, monospace; letter-spacing: 0.14em; color: #8a8378;">KOMPONEN · BADGE STATUS</div>
+        <div data-dc-tpl="1231" style="display: grid; gap: 12px; margin: 18px 0px 0px;">
+          <div data-dc-tpl="1232" style="display: flex; align-items: center; gap: 12px;"><span data-dc-tpl="1233" style="padding: 4px 10px; border-radius: 999px; background: #f2efe9; color: #5b554f; font: 700 11px Lato, sans-serif;">Belum dimulai</span><span data-dc-tpl="1234" style="font: 400 13px Lato, sans-serif; color: #5b554f;">sudah enroll, 0 materi dibuka</span></div>
+          <div data-dc-tpl="1235" style="display: flex; align-items: center; gap: 12px;"><span data-dc-tpl="1236" style="padding: 4px 10px; border-radius: 999px; background: var(--accent-tint,#ffeae6); color: var(--accent-deep,#c42d1e); font: 700 11px Lato, sans-serif;">Sedang berjalan</span><span data-dc-tpl="1237" style="font: 400 13px Lato, sans-serif; color: #5b554f;">minimal 1 materi dibuka</span></div>
+          <div data-dc-tpl="1238" style="display: flex; align-items: center; gap: 12px;"><span data-dc-tpl="1239" style="padding: 4px 10px; border-radius: 999px; background: #eef1f4; color: #3c4a57; font: 700 11px Lato, sans-serif;">Selesai</span><span data-dc-tpl="1240" style="font: 400 13px Lato, sans-serif; color: #5b554f;">semua materi + Final Quiz dikerjakan, Final &lt; 70</span></div>
+          <div data-dc-tpl="1241" style="display: flex; align-items: center; gap: 12px;"><span data-dc-tpl="1242" style="padding: 4px 10px; border-radius: 999px; background: #157f5f; color: #ffffff; font: 700 11px Lato, sans-serif;">Lulus</span><span data-dc-tpl="1243" style="font: 400 13px Lato, sans-serif; color: #5b554f;">selesai <strong data-dc-tpl="1244" style="color: #1a1614;">dan</strong> Final Quiz ≥ 70 — label, bukan gerbang</span></div>
+          <div data-dc-tpl="1245" style="display: flex; align-items: center; gap: 12px;"><span data-dc-tpl="1246" style="padding: 4px 10px; border-radius: 999px; background: #ece7f5; color: #4a3a7a; font: 700 11px Lato, sans-serif;">Siklus ke-2</span><span data-dc-tpl="1247" style="font: 400 13px Lato, sans-serif; color: #5b554f;">muncul bila <code data-dc-tpl="1248" style="font: 500 12px &quot;IBM Plex Mono&quot;, monospace;">reset_count &gt; 0</code>, selalu di samping badge status</span></div>
+        </div>
+        <div data-dc-tpl="1249" style="margin: 20px 0px 0px; padding: 15px 16px; border-radius: 12px; background: #fbfaf8; border: 1px solid #eeeae4;">
+          <div data-dc-tpl="1250" style="font: 700 13px Lato, sans-serif; color: #1a1614;">Aturan pakai</div>
+          <ul data-dc-tpl="1251" style="margin: 9px 0px 0px; padding-left: 18px; display: grid; gap: 6px;">
+            <li data-dc-tpl="1252" style="font: 400 13px / 1.6 Lato, sans-serif; color: #5b554f;">Satu kursus hanya punya <strong data-dc-tpl="1253">satu</strong> badge status; badge siklus boleh menyertainya.</li>
+            <li data-dc-tpl="1254" style="font: 400 13px / 1.6 Lato, sans-serif; color: #5b554f;">“Lulus” menggantikan “Selesai”, tidak ditumpuk.</li>
+            <li data-dc-tpl="1255" style="font: 400 13px / 1.6 Lato, sans-serif; color: #5b554f;">Nilai tidak pernah dipakai sebagai warna latar badge — angka berdiri sendiri di kolom nilai.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
