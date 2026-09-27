@@ -39,6 +39,10 @@ Kerjakan kartu A-01.
    dengan ringkasan sesuai format di docs/tasks/README.md. Jangan merge.
 ```
 
+### Commit tanpa atribusi AI
+
+Repo memakai tiga lapis agar pesan commit & PR bersih dari tulisan "Generated with …" / `Co-Authored-By` AI: pengaturan `attribution` di `.claude/settings.json`, aturan di `CLAUDE.md`, dan hook `.githooks/commit-msg`. Hook aktif setelah `git config core.hooksPath .githooks` — jalankan sekali secara manual sampai A-01 selesai; setelah itu otomatis lewat `npm install`. Hook hanya membersihkan pesan **commit**; isi PR dijaga oleh pengaturan dan aturan, jadi tetap lirik sekilas saat meninjau PR.
+
 Opsional tapi memudahkan: pasang **GitHub CLI** lalu jalankan `gh auth login` sekali (kamu sendiri yang login). Dengan itu agent bisa langsung membuat PR; tanpa itu, agent memberimu tautan untuk membuat PR dengan satu klik.
 
 ### Format ringkasan PR (wajib di akhir sesi)

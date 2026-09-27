@@ -72,6 +72,7 @@ Acceptance criteria PRD §14 untuk fitur itu lulus · semua state di SCREENS.md 
 - **Nama branch:** `<fase>/<id-huruf-kecil>-<nama-singkat>`, mis. `f0/a-02-env` (Fase 0 = `f0`, Sprint 1 = `s1`, dst.). Satu kartu = satu branch.
 - **Commit:** kecil dan sering, format Conventional Commits dengan ID kartu, mis. `feat(auth): add email/password login [A-09]`.
 - **Akhir sesi:** jalankan verifikasi otomatis di kartu → push branch → buat PR ke `main` dengan `gh pr create` bila GitHub CLI tersedia dan sudah login; jika tidak, berikan tautan pembuatan PR. Isi PR = ringkasan sesuai format di `docs/tasks/README.md`.
+- **Tanpa atribusi AI:** pesan commit dan isi PR **tidak boleh** memuat `Co-Authored-By` untuk AI, tulisan "Generated with …", tautan sesi, atau nama tool/agent apa pun. Pengaturan `attribution` di `.claude/settings.json` dan hook `.githooks/commit-msg` menegakkan ini — jangan dilewati (mis. dengan `--no-verify`).
 - **Dilarang:** commit atau push langsung ke `main`, `git push --force`, mengubah riwayat yang sudah di-push, menghapus branch lain, **me-merge PR** (merge dilakukan pemilik produk setelah verifikasi), dan meng-commit `.env*` selain `.env.example`.
 
 ## Urutan kerja per fitur (vertical slice)

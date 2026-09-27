@@ -24,6 +24,7 @@ Membuat kerangka proyek sesuai stack dan struktur folder PRD, dengan versi terku
 - `.nvmrc` berisi versi Node LTS yang memenuhi syarat minimum Next.js 16, dan `engines` di `package.json`.
 - Script npm: `dev`, `build`, `start`, `lint`, `typecheck` (`tsc --noEmit`), `test` (Vitest, boleh 0 tes dulu), `format`, `check` (typecheck + lint + test).
 - Halaman `/` sementara berisi teks "BINZI" saja.
+- Script `prepare` di `package.json`: `git config core.hooksPath .githooks` — supaya hook `commit-msg` (pembersih atribusi AI) aktif otomatis setiap `npm install`. Jangan ubah isi `.githooks/` maupun `.claude/settings.json`.
 - `.gitignore` lengkap.
 
 ## Bukan lingkup tugas ini
@@ -39,7 +40,7 @@ Jika pekerjaan menuntut menyentuh hal di luar lingkup, **berhenti dan tanyakan**
 - `src/**`
 - `components.json`
 - `.nvmrc`
-- `.gitignore`
+- `.gitignore (pastikan `.claude/settings.json` dan `.githooks/` TIDAK di-ignore)`
 
 ## Selesai jika
 - [ ] `npm run check` dan `npm run build` lulus.
@@ -56,6 +57,7 @@ Jika pekerjaan menuntut menyentuh hal di luar lingkup, **berhenti dan tanyakan**
 ## Verifikasi oleh kamu (sebelum merge)
 - [ ] Buka `package.json`: versi `next` tanpa `^`.
 - [ ] Jalankan `npm run dev`, lalu buka `localhost:3000`.
+- [ ] Jalankan `git log -3 --format=%B`: tidak ada tulisan atribusi AI di pesan commit.
 
 ## Catatan
 - Kode ditulis untuk Next.js 16 (lihat aturan versi di CLAUDE.md), bukan pola Next.js 15.
