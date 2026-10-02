@@ -22,13 +22,26 @@ describe("ChipFilter", () => {
     ).toBe("true");
   });
 
-  it("labels the removable variant as a filter remover and fires onRemove", () => {
+  it("only the ✕ zone removes the filter — the label zone never does", () => {
     const onRemove = vi.fn();
-    render(<ChipFilter label="Sedang berjalan" onRemove={onRemove} />);
-    const chip = screen.getByRole("button", {
+    const onClick = vi.fn();
+    render(
+      <ChipFilter
+        label="Sedang berjalan"
+        active
+        onClick={onClick}
+        onRemove={onRemove}
+      />,
+    );
+    // Two separate controls: label zone (toggle) and remove zone (✕).
+    const removeZone = screen.getByRole("button", {
       name: "Hapus filter Sedang berjalan",
     });
-    fireEvent.click(chip);
+    const labelZone = screen.getByRole("button", { name: "Sedang berjalan" });
+    fireEvent.click(labelZone);
+    expect(onClick).toHaveBeenCalledTimes(1);
+    expect(onRemove).not.toHaveBeenCalled();
+    fireEvent.click(removeZone);
     expect(onRemove).toHaveBeenCalledTimes(1);
   });
 

@@ -30,6 +30,7 @@ export function ChipToggleDemo() {
 
 export function RemovableChipDemo() {
   const [filters, setFilters] = useState(["Gizi ibu hamil", "MP-ASI"]);
+  const [active, setActive] = useState<string | null>("Gizi ibu hamil");
   if (filters.length === 0) {
     return <p className="text-sm text-text-meta">Semua filter sudah dihapus.</p>;
   }
@@ -39,7 +40,12 @@ export function RemovableChipDemo() {
         <ChipFilter
           key={label}
           label={label}
-          onRemove={() => setFilters(filters.filter((f) => f !== label))}
+          active={active === label}
+          onClick={() => setActive(active === label ? null : label)}
+          onRemove={() => {
+            setFilters(filters.filter((f) => f !== label));
+            if (active === label) setActive(null);
+          }}
         />
       ))}
     </div>

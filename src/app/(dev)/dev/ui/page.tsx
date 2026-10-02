@@ -303,7 +303,7 @@ export default function DevUiPage() {
           </div>
           <div>
             <p className="mb-3 font-mono text-xs uppercase tracking-wide text-text-subtle">
-              Dengan ✕ (satu tombol: Hapus filter &lt;nama&gt;)
+              Dengan ✕ (hanya zona ✕ yang menghapus; label men-toggle)
             </p>
             <RemovableChipDemo />
           </div>
