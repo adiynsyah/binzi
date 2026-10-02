@@ -35,6 +35,11 @@ export type EmptyStateProps = {
   className?: string;
 };
 
+// Equal widths (flex-1) + stretched heights keep the pair tidy when a
+// long label (filter + count, 28e) wraps: both buttons wrap symmetrically
+// instead of one ragged column. Below sm the actions stack full-width.
+const ACTION_BUTTON_CLASSES = "w-full sm:w-auto sm:flex-1";
+
 function ActionButton({
   action,
   variant,
@@ -44,13 +49,20 @@ function ActionButton({
 }) {
   if (action.href !== undefined) {
     return (
-      <a href={action.href} className={buttonVariants({ variant })}>
+      <a
+        href={action.href}
+        className={cn(buttonVariants({ variant }), ACTION_BUTTON_CLASSES)}
+      >
         {action.label}
       </a>
     );
   }
   return (
-    <Button variant={variant} onClick={action.onClick}>
+    <Button
+      variant={variant}
+      onClick={action.onClick}
+      className={ACTION_BUTTON_CLASSES}
+    >
       {action.label}
     </Button>
   );
@@ -82,7 +94,7 @@ export function EmptyState({
           {description}
         </p>
       ) : null}
-      <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+      <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-stretch">
         <ActionButton action={primaryAction} variant="primary" />
         <ActionButton action={alternativeAction} variant="secondary" />
       </div>

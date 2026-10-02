@@ -239,7 +239,7 @@ export function PaginationDemo() {
 
 export function EmptyStateDemo() {
   return (
-    <div className="grid gap-6 lg:grid-cols-3">
+    <div className="flex flex-col gap-6">
       <EmptyState
         label="BELUM ADA KURSUS"
         title="Anda belum mengikuti kursus apa pun"

@@ -13,6 +13,11 @@ import { cn } from "../../lib/utils";
  * screen 17b never hard-binds a height to a variant. Variants only pick
  * a default size (primary/dark → lg, others → md); callers may override.
  *
+ * Heights are MINIMUMS, not fixed: a long label (e.g. empty-state actions
+ * that name their filter + count, screen 28e) wraps with text-balance and
+ * GROWS the button instead of overflowing it. Single-line labels keep the
+ * exact token height.
+ *
  * Mandatory states:
  * - hover    → darker end color per variant (primary → primary-deep)
  * - focus    → global 2px ring from globals.css (:focus-visible)
@@ -23,7 +28,7 @@ import { cn } from "../../lib/utils";
  */
 
 export const buttonVariants = cva(
-  "inline-flex select-none items-center justify-center gap-2 rounded-control font-bold transition-colors duration-200 ease-out disabled:cursor-not-allowed disabled:pointer-events-none disabled:border-transparent disabled:bg-surface-disabled disabled:text-text-subtle",
+  "inline-flex select-none items-center justify-center gap-2 py-2 text-balance rounded-control font-bold transition-colors duration-200 ease-out disabled:cursor-not-allowed disabled:pointer-events-none disabled:border-transparent disabled:bg-surface-disabled disabled:text-text-subtle",
   {
     variants: {
       variant: {
@@ -35,8 +40,8 @@ export const buttonVariants = cva(
         danger: "bg-danger text-surface hover:brightness-90",
       },
       size: {
-        lg: "h-(--height-button-primary) px-6 text-base",
-        md: "h-(--height-button-secondary) px-5 text-base",
+        lg: "min-h-(--height-button-primary) px-6 text-base",
+        md: "min-h-(--height-button-secondary) px-5 text-base",
       },
     },
     defaultVariants: {
