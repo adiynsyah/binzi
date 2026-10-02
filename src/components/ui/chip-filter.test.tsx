@@ -6,18 +6,19 @@ import { describe, expect, it, vi } from "vitest";
 import { ChipFilter } from "./chip-filter";
 
 describe("ChipFilter", () => {
-  // The accessible name concatenates label and count without the CSS gap
-  // ("Semua3"), so match with a tolerant regex.
-  it("renders label and count inside the chip", () => {
+  it("renders label and count separated by · as in the 7a copy", () => {
     render(<ChipFilter label="Semua" count={3} />);
-    expect(screen.getByRole("button", { name: /Semua\s*3/ })).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Semua · 3" }),
+    ).toBeTruthy();
+    expect(screen.getByText("·")).toBeTruthy();
   });
 
   it("reports the active state via aria-pressed", () => {
     render(<ChipFilter label="Sedang berjalan" count={1} active />);
     expect(
       screen
-        .getByRole("button", { name: /Sedang berjalan\s*1/ })
+        .getByRole("button", { name: "Sedang berjalan · 1" })
         .getAttribute("aria-pressed"),
     ).toBe("true");
   });
@@ -49,7 +50,9 @@ describe("ChipFilter", () => {
     render(<ChipFilter label="Semua" count={3} disabled />);
     expect(
       (
-        screen.getByRole("button", { name: /Semua\s*3/ }) as HTMLButtonElement
+        screen.getByRole("button", {
+          name: "Semua · 3",
+        }) as HTMLButtonElement
       ).disabled,
     ).toBe(true);
   });

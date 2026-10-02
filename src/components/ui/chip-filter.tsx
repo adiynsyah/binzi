@@ -8,7 +8,8 @@ import { cn } from "../../lib/utils";
  * Chip filter (card A-05, screens 17b/13b): visual height 40 (the 38–40
  * band) with pseudo-elements extending every touch zone to ≥44px. The
  * active chip is the NEUTRAL dark pill — not primary red (screen 13b:
- * "filters stay neutral"). Counts render inside the chip ("Semua 3").
+ * "filters stay neutral"). Counts render inside the chip, separated from
+ * the label by " · " exactly as in the 7a copy ("Semua · 3").
  *
  * Removable variant (17b "dengan ✕") is a SPLIT pill: the label zone
  * toggles (or renders as plain text when no onClick is given) and only
@@ -56,6 +57,16 @@ export function ChipFilter({
     : active
       ? "text-ink-surface-text"
       : "text-text-meta";
+  // Accessible name with the exact 7a copy ("Semua · 3") — content-based
+  // naming would concatenate the spans without the spaces.
+  const chipName = typeof count === "number" ? `${label} · ${count}` : label;
+  const countPart =
+    typeof count === "number" ? (
+      <span className={cn("inline-flex items-center gap-1.5", countCls)}>
+        <span aria-hidden="true">·</span>
+        <span>{count}</span>
+      </span>
+    ) : null;
 
   if (removable) {
     return (
@@ -72,6 +83,7 @@ export function ChipFilter({
             type="button"
             disabled={disabled}
             aria-pressed={active}
+            aria-label={chipName}
             onClick={onClick}
             className={cn(
               "relative inline-flex items-center gap-1.5 rounded-s-pill px-4 transition-colors duration-200 ease-out",
@@ -82,16 +94,12 @@ export function ChipFilter({
             )}
           >
             <span>{label}</span>
-            {typeof count === "number" && (
-              <span className={countCls}>{count}</span>
-            )}
+            {countPart}
           </button>
         ) : (
           <span className="inline-flex items-center gap-1.5 rounded-s-pill px-4">
             <span>{label}</span>
-            {typeof count === "number" && (
-              <span className={countCls}>{count}</span>
-            )}
+            {countPart}
           </span>
         )}
         <button
@@ -118,6 +126,7 @@ export function ChipFilter({
       type="button"
       disabled={disabled}
       aria-pressed={active}
+      aria-label={chipName}
       onClick={onClick}
       className={cn(
         "relative inline-flex h-(--height-chip) items-center gap-1.5 rounded-pill border px-4 text-sm font-bold transition-colors duration-200 ease-out",
@@ -130,7 +139,7 @@ export function ChipFilter({
       style={style}
     >
       <span>{label}</span>
-      {typeof count === "number" && <span className={countCls}>{count}</span>}
+      {countPart}
     </button>
   );
 }
