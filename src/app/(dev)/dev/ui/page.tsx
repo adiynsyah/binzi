@@ -8,9 +8,23 @@ import { ChipFilter } from "../../../../components/ui/chip-filter";
 import { Field } from "../../../../components/ui/field";
 import { Input } from "../../../../components/ui/input";
 import { PasswordField } from "../../../../components/ui/password-field";
+import { ProgressBar } from "../../../../components/ui/progress-bar";
+import {
+  SkeletonCard,
+  SkeletonRow,
+} from "../../../../components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../../../components/ui/tabs";
 import { Toggle } from "../../../../components/ui/toggle";
-import { ChipToggleDemo, RemovableChipDemo } from "./demos";
+import {
+  BannerDemo,
+  ChipToggleDemo,
+  DialogDemo,
+  DropdownMenuDemo,
+  EmptyStateDemo,
+  PaginationDemo,
+  RemovableChipDemo,
+  SkeletonDemo,
+} from "./demos";
 
 /*
  * /dev/ui — control gallery (card A-05), mimicking screen 17b.
@@ -94,9 +108,11 @@ export default function DevUiPage() {
     <main className="mx-auto max-w-content px-4 py-10">
       <h1 className="text-2xl font-black text-text">Galeri Kendali</h1>
       <p className="mt-2 max-w-(--width-measure) text-text-muted">
-        Halaman development-only untuk memeriksa semua kendali dasar beserta
-        lima state wajibnya. Cincin fokus 2px dengan jeda 3px dan warna
-        nonaktif padat (tanpa opasitas) berlaku sama untuk semua kendali.
+        Halaman development-only untuk memeriksa semua kendali dasar
+        beserta lima state wajibnya, plus komponen overlay &amp; umpan
+        balik (dialog, menu, banner, skeleton, empty state, progress,
+        pagination). Cincin fokus 2px dengan jeda 3px dan warna nonaktif
+        padat (tanpa opasitas) berlaku sama untuk semua kendali.
       </p>
 
       <Section title="Tombol">
@@ -358,6 +374,88 @@ export default function DevUiPage() {
           </TabsContent>
           <TabsContent value="selesai">Konten tab kedua.</TabsContent>
         </Tabs>
+      </Section>
+
+      <Section title="Dialog (modal / sheet bawah)">
+        <div className="flex flex-col gap-4">
+          <DialogDemo />
+          <p className="text-xs text-text-meta">
+            Modal 560 dengan bayangan dialog di ≥ 640px; di bawahnya menjadi
+            sheet bawah (radius atas 18, menghormati safe-area, maks 90dvh
+            dengan scroll di dalam sheet). Fokus terkunci, Esc menutup dan
+            mengembalikan fokus ke pemicu, judul tertaut via
+            aria-labelledby.
+          </p>
+        </div>
+      </Section>
+
+      <Section title="Dropdown menu">
+        <div className="flex flex-col gap-4">
+          <DropdownMenuDemo />
+          <p className="text-xs text-text-meta">
+            Bayangan menu khusus lapisan melayang; item minimal 44px dan
+            warna nonaktif padat.
+          </p>
+        </div>
+      </Section>
+
+      <Section title="Banner (info · error · sukses)">
+        <div className="flex flex-col gap-4">
+          <BannerDemo />
+          <p className="text-xs text-text-meta">
+            Error = role=&quot;alert&quot; dan menetap; sukses =
+            role=&quot;status&quot; dan hilang sendiri setelah 4 detik —
+            hitungan berhenti selama banner di-hover atau difokuskan.
+          </p>
+        </div>
+      </Section>
+
+      <Section title="Skeleton (kartu & baris)">
+        <div className="flex flex-col gap-6">
+          <div>
+            <p className="mb-3 font-mono text-xs uppercase tracking-wide text-text-subtle">
+              Interaktif — skeleton baru muncul setelah 300 ms
+            </p>
+            <SkeletonDemo />
+          </div>
+          <div>
+            <p className="mb-3 font-mono text-xs uppercase tracking-wide text-text-subtle">
+              Bentuk statis (kartu & baris)
+            </p>
+            <div className="grid gap-5 lg:grid-cols-2">
+              <SkeletonCard />
+              <SkeletonRow />
+            </div>
+          </div>
+        </div>
+      </Section>
+
+      <Section title="Empty state (kosong · filter kosong · gagal memuat)">
+        <div className="flex flex-col gap-4">
+          <EmptyStateDemo />
+          <p className="text-xs text-text-meta">
+            Aksi utama dan aksi alternatif adalah prop wajib — komponen ini
+            tidak bisa dirender tanpa keduanya.
+          </p>
+        </div>
+      </Section>
+
+      <Section title="Progress bar (7–8px)">
+        <div className="grid gap-8 sm:grid-cols-3">
+          <Column title="Kursus (hijau)">
+            <ProgressBar value={62} label="Progress kursus contoh" />
+          </Column>
+          <Column title="Sedang berjalan (primary)">
+            <ProgressBar value={35} label="Aktivitas berjalan contoh" tone="primary" />
+          </Column>
+          <Column title="Selesai (100%)">
+            <ProgressBar value={100} label="Kursus selesai contoh" />
+          </Column>
+        </div>
+      </Section>
+
+      <Section title="Pagination (9 per halaman)">
+        <PaginationDemo />
       </Section>
 
       <Section title="Avatar">
