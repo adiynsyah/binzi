@@ -1,5 +1,6 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import { X } from "lucide-react";
 import { cn } from "../../lib/utils";
 
@@ -25,6 +26,7 @@ export type ChipFilterProps = {
   onClick?: () => void;
   disabled?: boolean;
   className?: string;
+  style?: CSSProperties;
 };
 
 export function ChipFilter({
@@ -35,6 +37,7 @@ export function ChipFilter({
   onClick,
   disabled = false,
   className,
+  style,
 }: ChipFilterProps) {
   const removable = typeof onRemove === "function";
   return (
@@ -44,6 +47,7 @@ export function ChipFilter({
       aria-pressed={removable ? undefined : active}
       aria-label={removable ? `Hapus filter ${label}` : undefined}
       onClick={removable ? onRemove : onClick}
+      style={style}
       className={cn(
         "relative inline-flex h-(--height-chip) items-center gap-1.5 rounded-pill px-4 text-sm font-bold transition-colors duration-200 ease-out",
         "before:absolute before:-inset-x-1 before:-inset-y-1 before:content-['']",
