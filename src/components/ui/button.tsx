@@ -22,7 +22,7 @@ import { cn } from "../../lib/utils";
  *   control is locked, aria-busy is set and a spinner precedes the label.
  */
 
-const buttonVariants = cva(
+export const buttonVariants = cva(
   "inline-flex select-none items-center justify-center gap-2 rounded-control font-bold transition-colors duration-200 ease-out disabled:cursor-not-allowed disabled:pointer-events-none disabled:border-transparent disabled:bg-surface-disabled disabled:text-text-subtle",
   {
     variants: {
