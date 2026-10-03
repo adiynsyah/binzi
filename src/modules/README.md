@@ -8,20 +8,34 @@ jadikan referensi saat membuat modul baru.
 
 | File | Tanggung jawab | Boleh diimpor dari luar? |
 |---|---|---|
-| `schema.ts` | Kontrak input Zod (payload masuk) | Tidak — lewat `service.ts` |
-| `policy.ts` | Siapa boleh apa (404 milik / 403 role) | Tidak — lewat `service.ts` |
+| `schema.ts` | Kontrak input Zod (payload masuk) | **Ya** — kontrak bersama; boleh dipakai form klien (Zod murni, tanpa impor server) |
+| `policy.ts` | Siapa boleh apa (404 milik / 403 role) | Tidak — internal modul |
 | `queries.ts` | Akses DB Drizzle; kolom dipilih **eksplisit**, tanpa `select *` | **Tidak pernah** — ditegakkan ESLint |
-| `serializer.ts` | `toXxxDTO()` — allowlist field yang keluar | Tidak — lewat `service.ts` |
-| `service.ts` | Satu-satunya pintu: validasi → policy → queries → serializer | **Ya — hanya ini** |
+| `serializer.ts` | `toXxxDTO()` — allowlist field yang keluar | Tidak — internal modul |
+| `service.ts` | Satu-satunya pintu: validasi → policy → queries → serializer | **Ya — hanya ini**, fungsi maupun tipe DTO |
+
+Konsumen luar memakai tipe DTO lewat service, mis.
+`import type { PublicUserDTO } from "@/modules/user/service"` — bukan dari
+`serializer.ts`/`policy.ts`, dan `schema.ts` boleh diimpor langsung oleh form
+klien untuk validasi awal yang sama dengan server.
 
 ## Alur satu panggilan
 
 ```
-route/action ─→ service.ts        (parse input dengan Zod → 400 jika gagal)
+route/action ─→ service.ts        (guard + parse input dengan Zod → 400 jika gagal)
                  └→ policy.ts     (kepemilikan → 404; role kurang → 403)
                      └→ queries.ts  (select eksplisit + kondisi kepemilikan)
                          └→ serializer.ts (toXxxDTO → objek baru, allowlist)
 ```
+
+**Urutan baku guard di `service.ts`:**
+
+- **Endpoint ber-role** (mis. `listUsers` khusus ADMIN): cek role **dulu**,
+  baru parse input — pemanggil tak berwenang tidak perlu tahu bentuk
+  kontrak inputnya.
+- **Endpoint berbasis kepemilikan** (mis. `getUserProfile`): parse input
+  **dulu** (ID target dibutuhkan untuk mengecek), lalu policy kepemilikan,
+  lalu query.
 
 Aturan yang dijaga pola ini (PRD §12.6, pencegah V-01 & V-05):
 
@@ -30,12 +44,18 @@ Aturan yang dijaga pola ini (PRD §12.6, pencegah V-01 & V-05):
   daftar field eksplisit — kolom yang tidak terdaftar (mis. `users.deleted_at`)
   mustahil ikut keluar meski suatu saat query-nya berubah.
 - **Satu DTO per audiens.** Bukan satu DTO "lengkap". Contoh di `user/`:
-  `toPublicUserDTO` (id, name, image — untuk byline/reviewer artikel) dan
-  `toUserPrivateDTO` (10 field — hanya untuk pemilik akun itu sendiri atau
-  ADMIN+). Menambah audiens baru = DTO baru, bukan melonggarkan yang ada.
+  `toPublicUserDTO` (id, name, image — untuk byline/reviewer artikel; hanya
+  user dengan role EDITOR ke atas, dicek di `WHERE` query lewat
+  `PUBLIC_PROFILE_ROLES` di `policy.ts`) dan `toUserPrivateDTO` (10 field —
+  hanya untuk pemilik akun itu sendiri atau ADMIN+). Menambah audiens baru =
+  DTO baru, bukan melonggarkan yang ada.
+- **DTO JSON-safe: tanggal = string ISO.** Semua `Date` dikonversi ke string
+  ISO 8601 di serializer (`toISOString()`), `null` tetap `null` — DTO tidak
+  pernah membawa objek `Date`.
 - **Anti-IDOR di dua lapis**: `policy.ts` melempar 404 saat kepemilikan gagal,
-  dan `queries.ts` tetap menyertakan kondisi kepemilikan/soft-delete di
-  `WHERE` — jangan pernah mengandalkan policy saja.
+  dan `queries.ts` tetap menyertakan kondisi kepemilikan/soft-delete (dan,
+  bila relevan, batasan role seperti profil publik) di `WHERE` — jangan
+  pernah mengandalkan policy saja.
 
 ## Kenapa `serializer.ts` file terpisah (file ke-5)
 
@@ -65,6 +85,11 @@ vitest belum mengonfigurasi alias `@/` (lihat "Belum selesai").
 `src/lib/errors.ts`: lempar `AppError` dari `policy.ts`/`service.ts`, lalu
 route menerjemahkan dengan `toErrorResponse()`.
 
+**Wajib di route/server action:** laporkan error **asli** ke Sentry (atau
+logger) **sebelum** memanggil `toErrorResponse()` — respons 500 memang
+sengaja generik, jadi detailnya harus sampai ke telemetri, kalau tidak
+hilang. (Aturan saja; integrasi Sentry bukan bagian kartu A-08.)
+
 | Situasi | Error | HTTP |
 |---|---|---|
 | Resource tak ada, **atau ada tapi bukan milik actor** (jangan bocorkan keberadaan — V-05) | `NotFoundError` | 404 |
@@ -89,10 +114,13 @@ route menerjemahkan dengan `toErrorResponse()`.
 - `src/components/ui/pagination.tsx` masih mengekspor `PAGE_SIZE` versinya
   sendiri — perlu beralih mengimpor dari `src/lib/pagination.ts` agar satu
   sumber kebenaran (di luar daftar berkas kartu A-08).
-- Usulan aturan lanjutan (karti berikutnya): larang impor `@/db` dari luar
+- Usulan aturan lanjutan (kartu berikutnya): larang impor `@/db` dari luar
   `src/modules/**` dan `src/db/**`, dengan pengecualian adapter Better Auth
   (kartu A-09).
 - `vitest.config.ts` belum mengonfigurasi alias `@/` — itulah alasannya impor
   lintas direktori dari modul memakai path relatif.
+- Integrasi Sentry/logger untuk aturan pelaporan error di atas belum
+  terpasang (di luar kartu A-08) — sampai ada, route minimal mencatat error
+  asli ke `console.error` sebelum memanggil `toErrorResponse()`.
 - `queries.ts` belum punya tes integrasi (butuh database); miliki modul fitur
   yang mengonsumsinya.
