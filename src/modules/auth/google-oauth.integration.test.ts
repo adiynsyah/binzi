@@ -314,6 +314,17 @@ describe("A-11 Google OAuth (PGlite, mocked provider)", () => {
       { providerId: "google", accountId: "google-sub-fresh" },
     ]);
 
+    // §12: the OAuth access token is stored ENCRYPTED (encryptOAuthTokens),
+    // never as the raw provider value ("fake-access-token" here). With a
+    // plain-string secret Better Auth stores bare ciphertext hex; the
+    // `$ba$<version>$` envelope only appears with a versioned secret key.
+    const stored = await db
+      .select({ accessToken: accounts.accessToken })
+      .from(accounts)
+      .where(eq(accounts.userId, user!.id));
+    expect(stored[0]?.accessToken).not.toBe("fake-access-token");
+    expect(stored[0]?.accessToken).toMatch(/^(\$ba\$\d+\$)?[0-9a-f]+$/);
+
     // Welcome email (c): Google accounts skip the A-10 verification event.
     expect(welcomeEmailsTo(email)).toHaveLength(1);
   });
@@ -339,6 +350,18 @@ describe("A-11 Google OAuth (PGlite, mocked provider)", () => {
     expect(linked.find((a) => a.providerId === "google")?.accountId).toBe(
       "google-sub-linked",
     );
+
+    // The linked row is just as encrypted as a fresh sign-up's.
+    const googleRow = await db
+      .select({ accessToken: accounts.accessToken })
+      .from(accounts)
+      .where(
+        and(
+          eq(accounts.userId, after!.id),
+          eq(accounts.providerId, "google"),
+        ),
+      );
+    expect(googleRow[0]?.accessToken).not.toBe("fake-access-token");
 
     // No welcome email: linking creates no user row — the welcome belongs to
     // the A-10 verification event this account never went through here.

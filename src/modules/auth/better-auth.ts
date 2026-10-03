@@ -44,7 +44,8 @@
 //   would otherwise short-circuit to a generic `account_not_linked` BEFORE
 //   `validateUserInfo` runs — the rule itself lives in the hook for EVERY
 //   OAuth provider (the option is global) and FAILS CLOSED: a missing local
-//   id or unknown user is refused, never linked.
+//   id or unknown user is refused, never linked. OAuth access/refresh tokens
+//   are stored encrypted (`account.encryptOAuthTokens`, §12).
 // - `binzi-redirect-guard` (A-11): every client-supplied redirect target —
 //   Google `callbackURL`s and the A-10 `callbackURL`/`redirectTo` params —
 //   must be an internal path (open-redirect, §14.2).
@@ -661,6 +662,10 @@ export function createAuthInstance(deps: AuthDeps) {
       validateUserInfo: createOAuthUserInfoGate(deps),
     },
     account: {
+      // §12: OAuth access/refresh tokens are secrets — never stored in
+      // plaintext. Better Auth encrypts them (xchacha20-poly1305, key derived
+      // from the auth secret; `$ba$…` envelope) and decrypts on read itself.
+      encryptOAuthTokens: true,
       accountLinking: {
         // The local-email-verified rule is enforced by `user.validateUserInfo`
         // (action "link-account") instead of here: Better Auth's built-in gate
