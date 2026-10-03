@@ -22,10 +22,13 @@
 // - Turnstile (AUTH-10) comes from the official captcha plugin (see
 //   `src/lib/turnstile.ts`); it runs on `onRequest`, so requests with an
 //   invalid token are rejected before the rate-limit bucket is touched.
-// - `binzi-guard` implements AUTH-08 (§12.4): 5 failed attempts per 15
-//   minutes per IP+email, counted in the `rate_limits` table. Better
-//   Auth's built-in limiter is disabled — it keys by a single identifier
-//   and counts successful attempts too.
+// - `binzi-guard` implements AUTH-08 (§12.4): at most 5 attempts per 15
+//   minutes per IP+email ever reach credential verification. Every attempt
+//   that passes Turnstile atomically RESERVES a slot in the `rate_limits`
+//   table (increment + RETURNING in one upsert), so parallel bursts cannot
+//   all slip past a separate check-then-count; a successful sign-in clears
+//   its bucket. Better Auth's built-in limiter is disabled — it keys by a
+//   single identifier, not IP+email.
 import { APIError, betterAuth } from "better-auth";
 import type { BetterAuthPlugin } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
@@ -36,11 +39,10 @@ import { users } from "../../db/schema";
 import type { Db } from "../../db/client";
 import {
   LOGIN_RATE_LIMIT,
-  checkLoginRateLimit,
   clearRateLimit,
   extractClientIp,
   loginRateLimitKey,
-  registerFailedAttempt,
+  reserveAttempt,
   signUpRateLimitKey,
 } from "../../lib/ratelimit";
 import { type TurnstileConfig, turnstilePlugin } from "../../lib/turnstile";
@@ -133,8 +135,14 @@ function binziGuardPlugin(deps: { db: Db }): BetterAuthPlugin {
         ? loginRateLimitKey(ip, email)
         : signUpRateLimitKey(ip, email);
 
-    const decision = await checkLoginRateLimit(deps.db, key, LOGIN_RATE_LIMIT.max);
-    if (decision.blocked) {
+    // Atomic reservation (AUTH-08): increment-and-read in one upsert, so
+    // concurrent requests get distinct counts and at most `max` of them
+    // ever reach credential verification — a separate check-then-count
+    // would let a parallel burst all pass the check (TOCTOU). Requests
+    // rejected here still consumed a slot; they stay counted until the
+    // window resets (or a successful sign-in clears the login bucket).
+    const reservation = await reserveAttempt(deps.db, key, LOGIN_RATE_LIMIT.max);
+    if (!reservation.allowed) {
       throw new APIError("TOO_MANY_REQUESTS", {
         code: kind === "sign-in" ? "RATE_LIMITED" : "SIGNUP_RATE_LIMITED",
         message: kind === "sign-in" ? LOGIN_FAILED_MESSAGE : SIGNUP_BLOCKED_MESSAGE,
@@ -176,18 +184,11 @@ function binziGuardPlugin(deps: { db: Db }): BetterAuthPlugin {
           matcher: (ctx) => ctx.path === SIGN_IN_EMAIL_PATH,
           handler: async (ctx) => {
             const hook = asHookContext(ctx);
-            const ip = extractClientIp(hook.headers ?? hook.request?.headers);
-            const rawEmail = await readBodyField(hook, "email");
-            const email = typeof rawEmail === "string" ? rawEmail : "";
-            const key = loginRateLimitKey(ip, email);
             const returned = hook.context?.returned;
 
             if (isApiErrorLike(returned)) {
-              await registerFailedAttempt(
-                deps.db,
-                key,
-                LOGIN_RATE_LIMIT.windowSeconds,
-              );
+              // The attempt was already counted by the before-hook
+              // reservation — nothing to increment here.
               // Rewrite the built-in English message so every credential
               // failure — and the blocked response — carries the exact
               // same Indonesian copy (§14.2).
@@ -202,27 +203,12 @@ function binziGuardPlugin(deps: { db: Db }): BetterAuthPlugin {
               return {};
             }
 
-            // Successful sign-in clears its own bucket: a legit user who
-            // typoed their password 4 times must not stay near the limit.
-            await clearRateLimit(deps.db, key);
-            return {};
-          },
-        },
-        {
-          matcher: (ctx) => ctx.path === SIGN_UP_EMAIL_PATH,
-          handler: async (ctx) => {
-            const hook = asHookContext(ctx);
-            const returned = hook.context?.returned;
-            if (!isApiErrorLike(returned)) return {};
-
             const ip = extractClientIp(hook.headers ?? hook.request?.headers);
             const rawEmail = await readBodyField(hook, "email");
             const email = typeof rawEmail === "string" ? rawEmail : "";
-            await registerFailedAttempt(
-              deps.db,
-              signUpRateLimitKey(ip, email),
-              LOGIN_RATE_LIMIT.windowSeconds,
-            );
+            // Successful sign-in clears its own bucket: a legit user who
+            // typoed their password 4 times must not stay near the limit.
+            await clearRateLimit(deps.db, loginRateLimitKey(ip, email));
             return {};
           },
         },

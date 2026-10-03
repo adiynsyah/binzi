@@ -1,17 +1,22 @@
-// Failure counting on the `rate_limits` table (card A-09, AUTH-08, PRD §12.4).
+// Attempt reservation on the `rate_limits` table (card A-09, AUTH-08, PRD §12.4).
 //
 // Better Auth's built-in rate limiter keys by a single identifier (email or
-// IP), not IP+email, and counts every attempt — so BINZI counts FAILED
-// attempts itself in per-IP+email buckets:
+// IP), not IP+email — so BINZI enforces its own buckets:
 //
-//   login:{ip}:{email}  — incremented when a sign-in attempt that passed
-//                         Turnstile still fails; cleared on successful
-//                         sign-in (a legit user must not stay locked out).
-//   signup:{ip}:{email} — incremented when a sign-up attempt fails.
+//   login:{ip}:{email}  — every sign-in attempt that passes Turnstile
+//                         RESERVES a slot before credentials are checked;
+//                         cleared on successful sign-in (a legit user must
+//                         not stay locked out).
+//   signup:{ip}:{email} — same reservation for sign-up attempts.
 //
-// Buckets expire 15 minutes after the FIRST failure in the window; the sweep
-// cron for expired rows is A-18's job (reads already treat expired rows as
-// reset, so correctness does not depend on the sweep).
+// The reservation is one atomic `INSERT ... ON CONFLICT ... RETURNING count`:
+// a separate check-then-increment would let N concurrent requests all pass
+// the check before any of them increments (TOCTOU). At most `max` attempts
+// per window ever reach credential verification; the rest get 429.
+//
+// Buckets expire 15 minutes after the FIRST reserved attempt in the window;
+// the sweep cron for expired rows is A-18's job (reservation already treats
+// an expired row as a reset, so correctness does not depend on the sweep).
 //
 // Takes the drizzle instance as a parameter so tests can pass a PGlite-backed
 // instance — importing `../db` here would throw without DATABASE_URL (CI).
@@ -22,18 +27,11 @@ import { rateLimits } from "../db/schema";
 import type { Db } from "../db/client";
 import { normalizeEmail } from "../modules/auth/schema";
 
-/** AUTH-08 / §12.4: 5 failed attempts per 15 minutes per IP+email. */
+/** AUTH-08 / §12.4: 5 attempts per 15 minutes per IP+email. */
 export const LOGIN_RATE_LIMIT = {
   max: 5,
   windowSeconds: 15 * 60,
 } as const;
-
-export type RateLimitDecision = {
-  blocked: boolean;
-  remainingAttempts: number;
-  /** Seconds until the bucket resets (0 when not blocked). */
-  retryAfterSeconds: number;
-};
 
 export function loginRateLimitKey(ip: string, email: string): string {
   return `login:${ip}:${normalizeEmail(email)}`;
@@ -43,57 +41,28 @@ export function signUpRateLimitKey(ip: string, email: string): string {
   return `signup:${ip}:${normalizeEmail(email)}`;
 }
 
-/** Current state of a bucket, treating an expired row as absent. */
-async function readBucket(
-  db: Db,
-  key: string,
-  max: number,
-): Promise<RateLimitDecision> {
-  const rows = await db
-    .select({ count: rateLimits.count, expiresAt: rateLimits.expiresAt })
-    .from(rateLimits)
-    .where(eq(rateLimits.key, key))
-    .limit(1);
-
-  const row = rows[0];
-  if (!row) return { blocked: false, remainingAttempts: max, retryAfterSeconds: 0 };
-
-  const msLeft = row.expiresAt.getTime() - Date.now();
-  if (msLeft <= 0) {
-    return { blocked: false, remainingAttempts: max, retryAfterSeconds: 0 };
-  }
-
-  const remainingAttempts = Math.max(0, max - row.count);
-  return {
-    blocked: remainingAttempts === 0,
-    remainingAttempts,
-    retryAfterSeconds: Math.ceil(msLeft / 1000),
-  };
-}
+export type AttemptReservation = {
+  /** False when this attempt is past the limit and must be rejected (429). */
+  allowed: boolean;
+  /** The attempt's number inside the current window (1-based). */
+  count: number;
+};
 
 /**
- * AUTH-08 gate: `checkLoginRateLimit` decides whether the attempt may
- * proceed. Check it BEFORE verifying credentials.
+ * AUTH-08 gate. Atomically reserves one attempt slot and returns its number:
+ * increment-and-read happen in a single upsert, so parallel requests get
+ * distinct counts and at most `max` of them are allowed. The first attempt
+ * in a window anchors `expires_at`; later attempts only bump the counter
+ * until the window lapses, after which the bucket resets to 1 with a fresh
+ * window. Call this BEFORE verifying credentials.
  */
-export function checkLoginRateLimit(
+export async function reserveAttempt(
   db: Db,
   key: string,
   max: number = LOGIN_RATE_LIMIT.max,
-): Promise<RateLimitDecision> {
-  return readBucket(db, key, max);
-}
-
-/**
- * Count a failed attempt. Atomic upsert: the first failure in a window
- * anchors `expires_at`; later failures only bump the counter until the
- * window lapses, after which the bucket resets to 1 with a fresh window.
- */
-export async function registerFailedAttempt(
-  db: Db,
-  key: string,
   windowSeconds: number = LOGIN_RATE_LIMIT.windowSeconds,
-): Promise<void> {
-  await db
+): Promise<AttemptReservation> {
+  const rows = await db
     .insert(rateLimits)
     .values({ key, count: 1, expiresAt: new Date(Date.now() + windowSeconds * 1000) })
     .onConflictDoUpdate({
@@ -102,7 +71,11 @@ export async function registerFailedAttempt(
         count: sql`CASE WHEN ${rateLimits.expiresAt} <= now() THEN 1 ELSE ${rateLimits.count} + 1 END`,
         expiresAt: sql`CASE WHEN ${rateLimits.expiresAt} <= now() THEN now() + make_interval(secs => ${windowSeconds}) ELSE ${rateLimits.expiresAt} END`,
       },
-    });
+    })
+    .returning({ count: rateLimits.count });
+
+  const count = rows[0]?.count ?? 1;
+  return { allowed: count <= max, count };
 }
 
 /** Clears a bucket — called after a SUCCESSFUL sign-in (see header). */

@@ -8,9 +8,10 @@
 //
 // Covers: registration (role locked to MEMBER), login, identical failure
 // messages (unknown email vs wrong password vs blocked), the 5-per-15-min
-// bucket on `rate_limits` (including reset on success and window expiry),
-// Turnstile rejection that never reaches the bucket, fixed session windows
-// (member 30 days / staff 8 hours), and cookie attributes.
+// bucket on `rate_limits` (atomic reservation — including under a parallel
+// burst — plus reset on success and window expiry), Turnstile rejection
+// that never reaches the bucket, fixed session windows (member 30 days /
+// staff 8 hours), and cookie attributes.
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { fileURLToPath } from "node:url";
@@ -289,6 +290,38 @@ describe("A-09 Better Auth core (PGlite)", () => {
         .limit(1)
     )[0];
     expect(bucket?.count).toBe(1);
+  });
+
+  it("reserves atomically: of 10 parallel sign-ins, only 5 reach the password check (AUTH-08)", async () => {
+    const email = "paralel@example.com";
+    const ip = "203.0.113.111";
+    expect((await signUp(authHttps, email, TEST_PASSWORD, "203.0.113.110")).status).toBe(200);
+
+    const responses = await Promise.all(
+      Array.from({ length: 10 }, () => signIn(authHttps, email, WRONG_PASSWORD, ip)),
+    );
+
+    // The reservation upsert is atomic: the 10 concurrent requests get
+    // distinct counts, so exactly five land on counts 1–5 (they reach the
+    // password check and fail with 401) and five on 6–10 (429). A split
+    // check-then-count would let all ten pass the check first.
+    const statuses = responses.map((response) => response.status);
+    expect(statuses.filter((status) => status === 401)).toHaveLength(5);
+    expect(statuses.filter((status) => status === 429)).toHaveLength(5);
+
+    for (const response of responses) {
+      expect((await errorBody(response)).message).toBe(LOGIN_FAILED_MESSAGE);
+    }
+
+    // Blocked attempts keep their reservations until the window resets.
+    const bucket = (
+      await db
+        .select({ count: rateLimits.count })
+        .from(rateLimits)
+        .where(eq(rateLimits.key, loginRateLimitKey(ip, email)))
+        .limit(1)
+    )[0];
+    expect(bucket?.count).toBe(10);
   });
 
   it("rejects an invalid Turnstile token server-side without touching the bucket (AUTH-10)", async () => {
