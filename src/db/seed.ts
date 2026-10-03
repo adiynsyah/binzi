@@ -1,6 +1,11 @@
 // System-only seed (A-07): system_settings plus clearly-dummy article
 // categories. No user data, no nutrition content, no STR/WhatsApp real
-// values. Idempotent: every row is upserted, so the script can run twice.
+// values.
+//
+// Idempotent and non-destructive: rows are only inserted when missing
+// (onConflictDoNothing) — values already present are never overwritten, so
+// changes made by an admin (e.g. the real consultation WhatsApp number)
+// survive re-running the seed at any time.
 //
 // Run with: npm run db:seed
 import { config } from "dotenv";
@@ -54,25 +59,19 @@ async function main() {
     for (const setting of SETTINGS) {
       await db
         .insert(systemSettings)
-        .values({ key: setting.key, value: setting.value })
-        .onConflictDoUpdate({
-          target: systemSettings.key,
-          set: { value: setting.value },
-        });
+        .values(setting)
+        .onConflictDoNothing({ target: systemSettings.key });
     }
 
     for (const category of CATEGORIES) {
       await db
         .insert(articleCategories)
         .values(category)
-        .onConflictDoUpdate({
-          target: articleCategories.slug,
-          set: { name: category.name, orderIndex: category.orderIndex },
-        });
+        .onConflictDoNothing({ target: articleCategories.slug });
     }
 
     console.log(
-      `Seeded ${SETTINGS.length} system settings and ${CATEGORIES.length} dummy article categories.`,
+      `Seeded ${SETTINGS.length} system settings and ${CATEGORIES.length} dummy article categories (existing rows left untouched).`,
     );
   } finally {
     await client.end();
