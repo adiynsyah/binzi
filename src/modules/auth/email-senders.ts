@@ -18,7 +18,7 @@ import { describeError, maskEmail, type MailMessage } from "../../lib/mail";
 
 export type SendMailFn = (message: MailMessage) => Promise<void>;
 
-/** The three callbacks `createAuthInstance` wires into Better Auth. */
+/** The callbacks `createAuthInstance` wires into Better Auth. */
 export type MailCallbacks = {
   sendVerificationEmail: (
     data: {
@@ -40,6 +40,12 @@ export type MailCallbacks = {
     user: { name?: string | null; email: string },
     request?: Request,
   ) => Promise<void>;
+  /**
+   * Welcome email for Google-created accounts (A-11, NTF-01): they skip the
+   * A-10 verification event, so `afterEmailVerification` never fires for
+   * them. Same template, sent right after the user row is created.
+   */
+  sendWelcome: (user: { name?: string | null; email: string }) => Promise<void>;
 };
 
 export type MailSenderOptions = {
@@ -129,18 +135,23 @@ export function createMailCallbacks(
         };
       }),
 
-    afterEmailVerification: (user) =>
-      deliver("email selamat datang", user.email, () => {
-        const rendered = welcomeEmail({
-          recipientEmail: user.email,
-          userName: user.name ?? "",
-          appUrl: options.appUrl,
-        });
-        return {
-          to: user.email,
-          subject: rendered.subject,
-          html: rendered.html,
-        };
-      }),
+    afterEmailVerification: (user) => sendWelcome(user),
+
+    sendWelcome,
   };
+
+  function sendWelcome(user: { name?: string | null; email: string }) {
+    return deliver("email selamat datang", user.email, () => {
+      const rendered = welcomeEmail({
+        recipientEmail: user.email,
+        userName: user.name ?? "",
+        appUrl: options.appUrl,
+      });
+      return {
+        to: user.email,
+        subject: rendered.subject,
+        html: rendered.html,
+      };
+    });
+  }
 }
