@@ -1,6 +1,6 @@
 # Status Proyek BINZI — catatan untuk melanjutkan di chat baru
 
-> Terakhir diperbarui: 2 Okt 2026. File ini dikelola manual (bukan oleh agent) dan hanya untuk melanjutkan percakapan dengan Claude.
+> Terakhir diperbarui: 3 Okt 2026. File ini dikelola manual (bukan oleh agent) dan hanya untuk melanjutkan percakapan dengan Claude.
 > Untuk melanjutkan: buka chat baru, unggah file ini + `docs/tasks/URUTAN-KERJA.md`, lalu pakai prompt di bagian paling bawah.
 
 ## Di mana semua keputusan tersimpan
@@ -24,7 +24,9 @@
 - Tahap 4:
   - ✅ A-05 komponen kendali + halaman /dev/ui
   - ✅ A-06 komponen overlay & umpan balik (PR #18)
-  - ⏭️ Berikutnya: **A-07** (skema Drizzle, migrasi awal & seed) — berisiko tinggi, lalu A-08
+  - ✅ A-07 skema Drizzle (22 tabel, 13 enum), migrasi awal & seed — diterapkan ke binzi-dev (PR #20)
+  - ✅ Chore: gerbang audit CI dengan pengecualian braces GHSA-vfj7-8cjw-p6xm (PR #21)
+  - ⏭️ Berikutnya: **A-08** (pola modul, serialisasi & batas impor), lalu A-09
 - ✅ Chore: Next 16.3.7 (PR #17). Dependabot: #6 & #7 (actions major) di-merge; #8–#10 (eslint 10, typescript 7, @types/node 26) di-ignore.
 
 ## Cara kerja yang sudah berjalan
@@ -50,6 +52,8 @@
 - [ ] Gambar desain yang gagal dibaca agent (7a, 28e): cek dengan `file docs/design/screens/*.png | grep -v "PNG image"`, ekspor ulang sebagai PNG asli.
 - [ ] Saat A-09: pindahkan `src/components/ui/password-rules.ts` ke modul kontrak bersama dan cocokkan dengan kebijakan password di PRD.
 - [ ] Saat query server pertama memakai paginasi: pindahkan `PAGE_SIZE` (=9) dari `src/components/ui/pagination.tsx` ke modul bersama.
+- [ ] Saat A-09: selesaikan konflik peer npm better-auth ↔ @babel/core@7 (opsi di PR #20). Pasang better-auth 1.7.7 (versi saat generate skema) atau cek ulang kecocokan skema auth bila versinya berbeda.
+- [ ] Sebelum 2 Nov 2026: cek advisory braces GHSA-vfj7-8cjw-p6xm. Bila sudah ada versi tambalan, hapus entri di .github/audit-exceptions.json dan upgrade; bila belum, perpanjang expires dengan alasan yang diperbarui.
 
 ## Keputusan & catatan dari diskusi yang belum ada di PRD
 
@@ -74,6 +78,10 @@
 - **Badge "Selesai"** memakai token netral terdekat; slate di 16c tidak ada di TOKENS.md.
 - **EmptyState:** aksi utama & alternatif berupa objek `{ label, href?, onClick? }` yang dirender sebagai Button — dijaga TypeScript.
 - **Password DB binzi-dev di-reset 2 Okt 2026** (sebelum A-07), hanya huruf & angka agar aman di connection string.
+- **Tabel auth:** nama jamak + kolom snake_case (`users`, `sessions`, `accounts`, `verifications`). Di A-09, `drizzleAdapter` perlu pemetaan `schema` atau `usePlural: true`.
+- **Seed non-destruktif** (`onConflictDoNothing`): nilai bawaan yang sudah ada diubah lewat CMS atau migrasi data, bukan dengan mengedit seed.
+- **Tafsiran skema A-07:** kolom §11.2 tanpa label = nullable; `content_status` memakai `IN_REVIEW` (CMS-05); `audit_logs.actor_id` NOT NULL (hanya aksi manusia yang diaudit). Cara mengisi `articles.search_vector` diputuskan di sprint artikel.
+- **Gerbang audit CI** (PR #21): `scripts/check-audit.mjs` menggantikan `npm audit --audit-level=high`. Pengecualian hanya per ID GHSA dengan tanggal kedaluwarsa di `.github/audit-exceptions.json`; temuan high lain tetap menggagalkan CI. Jangan menambah pengecualian tanpa alasan dan tanggal kedaluwarsa.
 
 ## Rencana setelah Fase 0
 
@@ -91,6 +99,6 @@ AI coding agent (Claude Code). Terlampir docs/STATUS.md dan
 docs/tasks/URUTAN-KERJA.md dari repo saya — baca keduanya sebagai konteks.
 Spesifikasi lengkap ada di docs/prd/PRD-v1.3.md dan aturan agent di
 CLAUDE.md; minta saya unggah bagian yang kamu butuhkan.
-Posisi terakhir saya: A-06 sudah merged, mau mulai A-07 (skema Drizzle,
-migrasi awal & seed).
+Posisi terakhir saya: A-07 sudah merged (PR #20), mau mulai A-08
+(pola modul, serialisasi & batas impor).
 ```
