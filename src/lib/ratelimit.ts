@@ -33,12 +33,33 @@ export const LOGIN_RATE_LIMIT = {
   windowSeconds: 15 * 60,
 } as const;
 
+/**
+ * §12.4 (A-10): 3 email-triggering requests per hour per email — applies to
+ * forgot-password and verification resend. Keyed by email alone (no IP):
+ * the requirement is per email, and the endpoint responses must stay
+ * identical for registered and unknown addresses either way.
+ */
+export const EMAIL_SEND_RATE_LIMIT = {
+  max: 3,
+  windowSeconds: 60 * 60,
+} as const;
+
 export function loginRateLimitKey(ip: string, email: string): string {
   return `login:${ip}:${normalizeEmail(email)}`;
 }
 
 export function signUpRateLimitKey(ip: string, email: string): string {
   return `signup:${ip}:${normalizeEmail(email)}`;
+}
+
+/** §12.4 (A-10): forgot-password bucket, per email. */
+export function passwordResetRateLimitKey(email: string): string {
+  return `pwreset:${normalizeEmail(email)}`;
+}
+
+/** §12.4 (A-10): verification resend bucket, per email. */
+export function verificationEmailRateLimitKey(email: string): string {
+  return `verify-email:${normalizeEmail(email)}`;
 }
 
 export type AttemptReservation = {
@@ -64,7 +85,11 @@ export async function reserveAttempt(
 ): Promise<AttemptReservation> {
   const rows = await db
     .insert(rateLimits)
-    .values({ key, count: 1, expiresAt: new Date(Date.now() + windowSeconds * 1000) })
+    .values({
+      key,
+      count: 1,
+      expiresAt: new Date(Date.now() + windowSeconds * 1000),
+    })
     .onConflictDoUpdate({
       target: rateLimits.key,
       set: {
@@ -128,7 +153,8 @@ function maskIpv6To64(ip: string): string {
 export function normalizeClientIp(ip: string): string {
   const collapsed = collapseMappedIpv6(ip);
   if (ipv4Schema.safeParse(collapsed).success) return collapsed;
-  if (ipv6Schema.safeParse(collapsed).success) return maskIpv6To64(collapsed.toLowerCase());
+  if (ipv6Schema.safeParse(collapsed).success)
+    return maskIpv6To64(collapsed.toLowerCase());
   return "unknown";
 }
 
@@ -145,12 +171,18 @@ export function normalizeClientIp(ip: string): string {
 export function extractClientIp(headers: Headers | undefined): string {
   const forwarded = headers?.get("x-forwarded-for");
   const first = forwarded?.split(",")[0]?.trim();
-  if (first && (ipv4Schema.safeParse(first).success || ipv6Schema.safeParse(first).success)) {
+  if (
+    first &&
+    (ipv4Schema.safeParse(first).success || ipv6Schema.safeParse(first).success)
+  ) {
     return normalizeClientIp(first);
   }
 
   const real = headers?.get("x-real-ip")?.trim();
-  if (real && (ipv4Schema.safeParse(real).success || ipv6Schema.safeParse(real).success)) {
+  if (
+    real &&
+    (ipv4Schema.safeParse(real).success || ipv6Schema.safeParse(real).success)
+  ) {
     return normalizeClientIp(real);
   }
 

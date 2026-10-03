@@ -26,6 +26,12 @@ export const MEMBER_SESSION_SECONDS = 30 * 24 * 60 * 60;
 /** AUTH-07: staff session window in seconds (8 hours, fixed from login). */
 export const STAFF_SESSION_SECONDS = 8 * 60 * 60;
 
+/** AUTH-03: verification link validity in seconds (24 hours). */
+export const EMAIL_VERIFICATION_SECONDS = 24 * 60 * 60;
+
+/** AUTH-04: reset token validity in seconds (1 hour, single use). */
+export const PASSWORD_RESET_TOKEN_SECONDS = 60 * 60;
+
 export function sessionDurationForRole(role: UserRole): number {
   return isStaffRole(role) ? STAFF_SESSION_SECONDS : MEMBER_SESSION_SECONDS;
 }

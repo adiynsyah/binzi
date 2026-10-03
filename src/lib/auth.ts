@@ -11,14 +11,21 @@
 // - BETTER_AUTH_SECRET, TURNSTILE_SECRET_KEY, BETTER_AUTH_URL
 //   → src/config/env.server.ts
 // - NEXT_PUBLIC_APP_URL → src/config/env.client.ts
-// - VERCEL_URL / VERCEL_BRANCH_URL → Vercel System Environment Variables,
-//   read from process.env with strict validation. They are platform
-//   runtime values (hostnames of the current deployment, not owner-managed
-//   secrets) and src/config is out of scope for this card; they are only
-//   ever used as trusted origins.
+// - VERCEL_ENV / VERCEL_URL / VERCEL_BRANCH_URL → Vercel System
+//   Environment Variables, read from process.env with strict validation.
+//   They are platform runtime values (hostnames of the current deployment,
+//   not owner-managed secrets) and src/config is out of scope for this
+//   card; they are only ever used as the base URL and trusted origins.
+//   On preview deployments the BASE URL follows the deployment itself so
+//   email links land on the preview the user signed up on (A-10). NOTE
+//   for A-11: Google OAuth callbacks cannot be registered for dynamic
+//   preview URLs — that flow needs its own strategy.
 import { z } from "zod";
 
-import { createAuthInstance, type AuthInstance } from "../modules/auth/better-auth";
+import {
+  createAuthInstance,
+  type AuthInstance,
+} from "../modules/auth/better-auth";
 import type { TurnstileConfig } from "./turnstile";
 
 // Cloudflare's documented integration-test secret that always passes
@@ -35,10 +42,7 @@ const vercelHostSchema = z
   .string()
   .trim()
   .toLowerCase()
-  .regex(
-    /^[a-z0-9-]+(\.[a-z0-9-]+)+$/,
-    "must be a bare hostname",
-  );
+  .regex(/^[a-z0-9-]+(\.[a-z0-9-]+)+$/, "must be a bare hostname");
 
 /**
  * Origins of the current Vercel deployment (System Environment Variables):
@@ -54,6 +58,22 @@ function vercelPreviewOrigins(): string[] {
     if (parsed.success) origins.push(`https://${parsed.data}`);
   }
   return origins;
+}
+
+/**
+ * Preview deployments send email links (and set auth cookies) for THEIR OWN
+ * URL, not the production domain (A-10): a tester registering on a preview
+ * must receive a link that opens on that same preview. Returns undefined
+ * outside Vercel previews, or when the platform host is missing/invalid —
+ * callers then fall back to the canonical URL.
+ */
+export function vercelPreviewBaseURL(): string | undefined {
+  if (process.env.VERCEL_ENV !== "preview") return undefined;
+  for (const host of [process.env.VERCEL_BRANCH_URL, process.env.VERCEL_URL]) {
+    const parsed = vercelHostSchema.safeParse(host);
+    if (parsed.success) return `https://${parsed.data}`;
+  }
+  return undefined;
 }
 
 function missingConfig(variable: string): Error {
@@ -83,8 +103,12 @@ export async function getAuth(): Promise<AuthInstance> {
     );
   }
 
+  // Preview deployments outrank the canonical URL (see vercelPreviewBaseURL)
+  // so email links point at the deployment the user is actually using.
   const baseURL =
-    serverEnv.BETTER_AUTH_URL ?? clientEnv.NEXT_PUBLIC_APP_URL;
+    vercelPreviewBaseURL() ??
+    serverEnv.BETTER_AUTH_URL ??
+    clientEnv.NEXT_PUBLIC_APP_URL;
   if (!baseURL && isProduction) throw missingConfig("BETTER_AUTH_URL");
 
   let captcha: TurnstileConfig | null = null;
@@ -101,12 +125,25 @@ export async function getAuth(): Promise<AuthInstance> {
     ...new Set([resolvedBaseURL, ...vercelPreviewOrigins()]),
   ];
 
+  // Email wiring (A-10): templates from src/emails, transport per
+  // MAIL_TRANSPORT ("log" | "resend"). The transport never throws, so mail
+  // failures degrade to a logged line without touching auth responses.
+  const [{ getMailTransport }, { createMailCallbacks }] = await Promise.all([
+    import("./mail"),
+    import("../modules/auth/email-senders"),
+  ]);
+  const transport = await getMailTransport();
+  const mail = createMailCallbacks((message) => transport.send(message), {
+    appUrl: resolvedBaseURL,
+  });
+
   cached = createAuthInstance({
     db,
     secret: serverEnv.BETTER_AUTH_SECRET ?? DEV_FALLBACK_SECRET,
     baseURL: resolvedBaseURL,
     trustedOrigins,
     captcha,
+    mail,
   });
   return cached;
 }

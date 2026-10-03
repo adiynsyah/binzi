@@ -9,6 +9,15 @@
 // Behavior implemented here:
 // - drizzleAdapter over the plural identity tables (A-07 schema).
 // - Email/password with Better Auth's default hashing (AUTH-01, §12.1).
+// - Email verification via magic link (AUTH-03, A-10): required before any
+//   session exists, the link lives 24 hours, and completing it signs the
+//   user in (`autoSignInAfterVerification`). While verification is
+//   required, Better Auth also collapses "email already registered" into
+//   the same 200 response as a fresh sign-up (timing-equalized) — the
+//   `customSyntheticUser` hook mirrors the DB defaults (role/status) so the
+//   duplicate response stays shape-identical (enumeration, §14.2).
+// - Password reset (AUTH-04, A-10): single-use token valid 1 hour; a
+//   successful reset revokes every session of that user.
 // - Session: 30 days member / 8 hours staff, FIXED windows (AUTH-07) —
 //   `disableSessionRefresh` stops Better Auth from re-extending `expiresAt`
 //   to the global 30-day window, which would silently break the staff cap.
@@ -38,16 +47,22 @@ import * as schema from "../../db/schema";
 import { users } from "../../db/schema";
 import type { Db } from "../../db/client";
 import {
+  EMAIL_SEND_RATE_LIMIT,
   LOGIN_RATE_LIMIT,
   clearRateLimit,
   extractClientIp,
   loginRateLimitKey,
+  passwordResetRateLimitKey,
   reserveAttempt,
   signUpRateLimitKey,
+  verificationEmailRateLimitKey,
 } from "../../lib/ratelimit";
 import { type TurnstileConfig, turnstilePlugin } from "../../lib/turnstile";
+import type { MailCallbacks } from "./email-senders";
 import {
+  EMAIL_VERIFICATION_SECONDS,
   MEMBER_SESSION_SECONDS,
+  PASSWORD_RESET_TOKEN_SECONDS,
   STAFF_SESSION_SECONDS,
   isStaffRole,
 } from "./policy";
@@ -65,6 +80,12 @@ const SIGNUP_BLOCKED_MESSAGE =
 
 const SIGN_IN_EMAIL_PATH = "/sign-in/email";
 const SIGN_UP_EMAIL_PATH = "/sign-up/email";
+const REQUEST_PASSWORD_RESET_PATH = "/request-password-reset";
+const SEND_VERIFICATION_EMAIL_PATH = "/send-verification-email";
+
+/** §12.4 (A-10): generic copy — never reveals whether the email exists. */
+const EMAIL_SEND_BLOCKED_MESSAGE =
+  "Terlalu banyak permintaan. Coba lagi dalam satu jam.";
 
 export type AuthDeps = {
   db: Db;
@@ -73,6 +94,8 @@ export type AuthDeps = {
   trustedOrigins: string[];
   /** Null disables Turnstile (local development without keys). */
   captcha: TurnstileConfig | null;
+  /** Email callbacks (verification / reset / welcome); injected for tests. */
+  mail: MailCallbacks;
 };
 
 // Better Auth hook contexts are loosely typed at the edge (better-call
@@ -90,7 +113,10 @@ function asHookContext(ctx: unknown): HookContext {
 }
 
 /** Reads a top-level field from the (raw, pre-validation) request body. */
-async function readBodyField(ctx: HookContext, field: string): Promise<unknown> {
+async function readBodyField(
+  ctx: HookContext,
+  field: string,
+): Promise<unknown> {
   const fromBody =
     ctx.body && typeof ctx.body === "object" && field in ctx.body
       ? (ctx.body as Record<string, unknown>)[field]
@@ -102,7 +128,10 @@ async function readBodyField(ctx: HookContext, field: string): Promise<unknown> 
   // sends JSON; form posts fall back to an empty bucket email.
   if (ctx.request && typeof ctx.request.clone === "function") {
     try {
-      const parsed = (await ctx.request.clone().json()) as Record<string, unknown>;
+      const parsed = (await ctx.request.clone().json()) as Record<
+        string,
+        unknown
+      >;
       return parsed[field];
     } catch {
       return undefined;
@@ -125,6 +154,33 @@ function isApiErrorLike(
 // dispatcher reads `result.headers` without a null check, so an after-hook
 // MUST return an object (empty is fine); `undefined` crashes the request.
 function binziGuardPlugin(deps: { db: Db }): BetterAuthPlugin {
+  // §12.4 (A-10): 3 email-triggering requests per hour per email, reserved
+  // BEFORE the endpoint runs so the bucket is identical for registered and
+  // unknown addresses (the endpoint's own response already is).
+  const emailSendGuard = async (ctx: unknown, kind: "reset" | "resend") => {
+    const hook = asHookContext(ctx);
+    const rawEmail = await readBodyField(hook, "email");
+    const email = typeof rawEmail === "string" ? rawEmail : "";
+    const key =
+      kind === "reset"
+        ? passwordResetRateLimitKey(email)
+        : verificationEmailRateLimitKey(email);
+
+    const reservation = await reserveAttempt(
+      deps.db,
+      key,
+      EMAIL_SEND_RATE_LIMIT.max,
+      EMAIL_SEND_RATE_LIMIT.windowSeconds,
+    );
+    if (!reservation.allowed) {
+      throw new APIError("TOO_MANY_REQUESTS", {
+        code: "RATE_LIMITED",
+        message: EMAIL_SEND_BLOCKED_MESSAGE,
+      });
+    }
+    return undefined;
+  };
+
   const beforeHandler = async (ctx: unknown, kind: "sign-in" | "sign-up") => {
     const hook = asHookContext(ctx);
     const ip = extractClientIp(hook.headers ?? hook.request?.headers);
@@ -141,11 +197,16 @@ function binziGuardPlugin(deps: { db: Db }): BetterAuthPlugin {
     // would let a parallel burst all pass the check (TOCTOU). Requests
     // rejected here still consumed a slot; they stay counted until the
     // window resets (or a successful sign-in clears the login bucket).
-    const reservation = await reserveAttempt(deps.db, key, LOGIN_RATE_LIMIT.max);
+    const reservation = await reserveAttempt(
+      deps.db,
+      key,
+      LOGIN_RATE_LIMIT.max,
+    );
     if (!reservation.allowed) {
       throw new APIError("TOO_MANY_REQUESTS", {
         code: kind === "sign-in" ? "RATE_LIMITED" : "SIGNUP_RATE_LIMITED",
-        message: kind === "sign-in" ? LOGIN_FAILED_MESSAGE : SIGNUP_BLOCKED_MESSAGE,
+        message:
+          kind === "sign-in" ? LOGIN_FAILED_MESSAGE : SIGNUP_BLOCKED_MESSAGE,
       });
     }
 
@@ -177,6 +238,14 @@ function binziGuardPlugin(deps: { db: Db }): BetterAuthPlugin {
         {
           matcher: (ctx) => ctx.path === SIGN_UP_EMAIL_PATH,
           handler: (ctx) => beforeHandler(ctx, "sign-up"),
+        },
+        {
+          matcher: (ctx) => ctx.path === REQUEST_PASSWORD_RESET_PATH,
+          handler: (ctx) => emailSendGuard(ctx, "reset"),
+        },
+        {
+          matcher: (ctx) => ctx.path === SEND_VERIFICATION_EMAIL_PATH,
+          handler: (ctx) => emailSendGuard(ctx, "resend"),
         },
       ],
       after: [
@@ -230,9 +299,34 @@ export function createAuthInstance(deps: AuthDeps) {
     emailAndPassword: {
       enabled: true,
       minPasswordLength: PASSWORD_MIN_LENGTH,
-      // A-10 flips this once email delivery (magic-link verification) lands.
-      requireEmailVerification: false,
+      // AUTH-03 (A-10): no session until the email is verified. While this
+      // is on, Better Auth force-skips the sign-up auto-session and answers
+      // a duplicate-email sign-up with the same 200 shape as a fresh one.
+      requireEmailVerification: true,
       autoSignIn: true,
+      // AUTH-04: single-use reset token, 1 hour.
+      resetPasswordTokenExpiresIn: PASSWORD_RESET_TOKEN_SECONDS,
+      // A reset that succeeded must close every other device's session.
+      revokeSessionsOnPasswordReset: true,
+      sendResetPassword: deps.mail.sendResetPassword,
+      // Mirror the DB defaults so the duplicate sign-up response carries
+      // the same role/status as a real insert (enumeration, §14.2).
+      customSyntheticUser: ({ coreFields, additionalFields, id }) => ({
+        ...coreFields,
+        ...additionalFields,
+        role: "MEMBER",
+        status: "ACTIVE",
+        id,
+      }),
+    },
+    emailVerification: {
+      // AUTH-03: magic link valid 24 hours; completing it signs the user in.
+      sendOnSignUp: true,
+      autoSignInAfterVerification: true,
+      expiresIn: EMAIL_VERIFICATION_SECONDS,
+      sendVerificationEmail: deps.mail.sendVerificationEmail,
+      // Welcome email (NTF-01) fires once, right after verification.
+      afterEmailVerification: deps.mail.afterEmailVerification,
     },
     session: {
       expiresIn: MEMBER_SESSION_SECONDS,
@@ -243,7 +337,12 @@ export function createAuthInstance(deps: AuthDeps) {
     user: {
       additionalFields: {
         role: { type: "string", required: false, input: false, returned: true },
-        status: { type: "string", required: false, input: false, returned: true },
+        status: {
+          type: "string",
+          required: false,
+          input: false,
+          returned: true,
+        },
       },
     },
     // AUTH-08 is enforced by binzi-guard against the `rate_limits` table.
@@ -267,7 +366,9 @@ export function createAuthInstance(deps: AuthDeps) {
             if (role && isStaffRole(role)) {
               return {
                 data: {
-                  expiresAt: new Date(Date.now() + STAFF_SESSION_SECONDS * 1000),
+                  expiresAt: new Date(
+                    Date.now() + STAFF_SESSION_SECONDS * 1000,
+                  ),
                 },
               };
             }
