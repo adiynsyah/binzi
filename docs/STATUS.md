@@ -29,7 +29,8 @@
   - ✅ A-08 pola modul (5 file), serializer per audiens, error domain → HTTP, batas impor ESLint (PR #23)
   - ✅ A-09 Better Auth inti: email/password, sesi 30 hari/8 jam, rate limit IP+email, Turnstile (PR #25)
   - ✅ A-10 email transaksional, verifikasi (magic link) & reset password (PR #27)
-  - ⏭️ Berikutnya: **A-11** (login Google & penautan akun)
+  - ✅ A-11 login Google & penautan akun, anti pra-pembajakan, anti open-redirect (PR #29)
+  - ⏭️ Berikutnya: **A-12** (RBAC & proteksi route)
 - ✅ Chore: Next 16.3.7 (PR #17). Dependabot: #6 & #7 (actions major) di-merge; #8–#10 (eslint 10, typescript 7, @types/node 26) di-ignore.
 
 ## Cara kerja yang sudah berjalan
@@ -68,6 +69,8 @@
 - [ ] Sebelum pengguna nyata: H-07 Resend + `MAIL_TRANSPORT=resend` di Vercel Production. Dengan transport `log`, tautan bertoken tercetak di log Vercel.
 - [ ] `users.last_login_at` belum diisi saat login (opsional, catatan PR #25).
 - [ ] Sebelum 2 Nov 2026: cek advisory braces GHSA-vfj7-8cjw-p6xm. Bila sudah ada versi tambalan, hapus entri di .github/audit-exceptions.json dan upgrade; bila belum, perpanjang expires dengan alasan yang diperbarui.
+- [ ] `id_token` Google masih tersimpan plaintext (`encryptOAuthTokens` hanya mencakup access/refresh token). BINZI tidak memakainya setelah login → kosongkan lewat `databaseHooks.account` create/update.before.
+- [ ] Saat A-13: copy untuk kode `account_not_verified` (usulan di PR #29) dan `email_not_verified`; tombol Google disembunyikan di Preview (provider nonaktif di sana).
 
 ## Keputusan & catatan dari diskusi yang belum ada di PRD
 
@@ -102,6 +105,9 @@
 - **Overrides `@babel/plugin-transform-runtime: ^7.29.0`** (PR #25): menyelesaikan konflik peer opsional better-auth → @tanstack/react-start → @babel/core@8-rc. Hapus bila better-auth melepas peer itu atau shadcn pindah ke @babel/core@8.
 - **Email (A-10):** template = fungsi TS → HTML string (tanpa React Email), Resend via `fetch` REST dengan timeout 10 detik. Pengiriman tidak pernah melempar error ke alur HTTP; kegagalan dicatat di log dengan alamat disamarkan. Semua nilai di-escape, URL hanya http/https. Warna dari `src/emails/tokens.ts` — satu-satunya pengecualian `lint:hex`, dijaga tes paritas dengan `tokens.css`.
 - **Verifikasi & reset (A-10):** `requireEmailVerification` aktif; tautan verifikasi 24 jam = magic link (otomatis masuk) + email selamat datang. Token reset 1 jam, sekali pakai, mencabut semua sesi. Rate limit 3/jam/email untuk lupa password dan kirim ulang verifikasi; respons identik untuk email terdaftar/tidak.
+- **Google OAuth (A-11):** provider nonaktif di Preview; production tanpa `GOOGLE_CLIENT_ID`/`SECRET` = fail-fast (seluruh auth mati, jadi env wajib ada); development tanpa env = nonaktif + peringatan. Profil Google wajib `email_verified=true`. Token OAuth disimpan terenkripsi (`encryptOAuthTokens`). Akun baru dari Google menerima email selamat datang.
+- **Penautan akun (A-11):** `requireLocalEmailVerified` bawaan better-auth DIMATIKAN; aturannya dipindah ke hook `validateUserInfo` yang fail-closed dan berlaku untuk SEMUA provider OAuth. Login Google yang bertemu akun lokal belum terverifikasi → ditolak `account_not_verified`, password akun itu dihapus, sesinya dicabut, dan tautan verifikasi baru dikirim (3/jam/email). Jangan aktifkan kembali `trustedProviders`.
+- **Redirect (A-11):** semua parameter redirect auth (`callbackURL`, `errorCallbackURL`, `newUserCallbackURL`, `redirectTo`) hanya menerima path internal (`safeInternalRedirectPath` di `src/modules/auth/schema.ts`). Pakai fungsi yang sama untuk `?next=`.
 
 ## Rencana setelah Fase 0
 
@@ -119,5 +125,5 @@ AI coding agent (Claude Code). Terlampir docs/STATUS.md dan
 docs/tasks/URUTAN-KERJA.md dari repo saya — baca keduanya sebagai konteks.
 Spesifikasi lengkap ada di docs/prd/PRD-v1.3.md dan aturan agent di
 CLAUDE.md; minta saya unggah bagian yang kamu butuhkan.
-Posisi terakhir saya: A-10 sudah merged (PR #27), mau mulai A-11 (login Google & penautan akun).
+Posisi terakhir saya: A-11 sudah merged (PR #29), mau mulai A-12 (RBAC & proteksi route).
 ```
