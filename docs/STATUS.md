@@ -26,7 +26,8 @@
   - ✅ A-06 komponen overlay & umpan balik (PR #18)
   - ✅ A-07 skema Drizzle (22 tabel, 13 enum), migrasi awal & seed — diterapkan ke binzi-dev (PR #20)
   - ✅ Chore: gerbang audit CI dengan pengecualian braces GHSA-vfj7-8cjw-p6xm (PR #21)
-  - ⏭️ Berikutnya: **A-08** (pola modul, serialisasi & batas impor), lalu A-09
+  - ✅ A-08 pola modul (5 file), serializer per audiens, error domain → HTTP, batas impor ESLint (PR #23)
+  - ⏭️ Berikutnya: **A-09** (Better Auth inti) — awal irisan uji coba A-09 → A-13
 - ✅ Chore: Next 16.3.7 (PR #17). Dependabot: #6 & #7 (actions major) di-merge; #8–#10 (eslint 10, typescript 7, @types/node 26) di-ignore.
 
 ## Cara kerja yang sudah berjalan
@@ -51,7 +52,10 @@
 - [ ] Kartu "pembaruan token": tambah `success-tint-line` (garis banner sukses sementara `border-success`, usulan A-06) + temuan desain lain.
 - [ ] Gambar desain yang gagal dibaca agent (7a, 28e): cek dengan `file docs/design/screens/*.png | grep -v "PNG image"`, ekspor ulang sebagai PNG asli.
 - [ ] Saat A-09: pindahkan `src/components/ui/password-rules.ts` ke modul kontrak bersama dan cocokkan dengan kebijakan password di PRD.
-- [ ] Saat query server pertama memakai paginasi: pindahkan `PAGE_SIZE` (=9) dari `src/components/ui/pagination.tsx` ke modul bersama.
+- [ ] Chore: `src/components/ui/pagination.tsx` mengimpor `PAGE_SIZE` dari `src/lib/pagination.ts` (sumber tunggal sejak A-08).
+- [ ] Chore: alias `@/` di `vitest.config.ts`, lalu ganti impor relatif (`../../db/schema`, `../../lib/...`) di `src/modules/**` menjadi `@/`.
+- [ ] Setelah A-09: aturan ESLint yang melarang impor `@/db` dari luar `src/modules/**` dan `src/db/**` (pengecualian: adapter Better Auth di `src/lib/auth.ts`).
+- [ ] Integrasi pelaporan error asli ke Sentry di route/server action sebelum `toErrorResponse()` (aturan di `src/modules/README.md`) — sebelum route API fitur pertama.
 - [ ] Saat A-09: selesaikan konflik peer npm better-auth ↔ @babel/core@7 (opsi di PR #20). Pasang better-auth 1.7.7 (versi saat generate skema) atau cek ulang kecocokan skema auth bila versinya berbeda.
 - [ ] Sebelum 2 Nov 2026: cek advisory braces GHSA-vfj7-8cjw-p6xm. Bila sudah ada versi tambalan, hapus entri di .github/audit-exceptions.json dan upgrade; bila belum, perpanjang expires dengan alasan yang diperbarui.
 
@@ -82,6 +86,7 @@
 - **Seed non-destruktif** (`onConflictDoNothing`): nilai bawaan yang sudah ada diubah lewat CMS atau migrasi data, bukan dengan mengedit seed.
 - **Tafsiran skema A-07:** kolom §11.2 tanpa label = nullable; `content_status` memakai `IN_REVIEW` (CMS-05); `audit_logs.actor_id` NOT NULL (hanya aksi manusia yang diaudit). Cara mengisi `articles.search_vector` diputuskan di sprint artikel.
 - **Gerbang audit CI** (PR #21): `scripts/check-audit.mjs` menggantikan `npm audit --audit-level=high`. Pengecualian hanya per ID GHSA dengan tanggal kedaluwarsa di `.github/audit-exceptions.json`; temuan high lain tetap menggagalkan CI. Jangan menambah pengecualian tanpa alasan dan tanggal kedaluwarsa.
+- **Pola modul (A-08, lihat `src/modules/README.md`):** 5 file (`schema`, `policy`, `queries`, `serializer`, `service`). Dari luar modul: `service.ts` dan `schema.ts` (boleh dipakai form klien); tipe DTO via `import type` dari `service.ts`; `queries.ts` tidak pernah (ESLint). Satu DTO per audiens, DTO JSON-safe (tanggal = string ISO). 404 untuk kepemilikan, 403 untuk role; endpoint ber-role cek role sebelum parse input.
 
 ## Rencana setelah Fase 0
 
@@ -99,6 +104,6 @@ AI coding agent (Claude Code). Terlampir docs/STATUS.md dan
 docs/tasks/URUTAN-KERJA.md dari repo saya — baca keduanya sebagai konteks.
 Spesifikasi lengkap ada di docs/prd/PRD-v1.3.md dan aturan agent di
 CLAUDE.md; minta saya unggah bagian yang kamu butuhkan.
-Posisi terakhir saya: A-07 sudah merged (PR #20), mau mulai A-08
-(pola modul, serialisasi & batas impor).
+Posisi terakhir saya: A-08 sudah merged (PR #23), mau mulai A-09
+(Better Auth inti: email/password, sesi, rate limit, Turnstile).
 ```
