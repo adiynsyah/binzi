@@ -13,6 +13,10 @@
     "lint:hex": "node scripts/check-hex.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:seed": "tsx src/db/seed.ts",
+    "db:studio": "drizzle-kit studio",
     "format": "prettier --write .",
     "check": "npm run typecheck && npm run lint && npm run test && npm run lint:hex",
     "prepare": "git config core.hooksPath .githooks"
@@ -20,8 +24,10 @@
   "dependencies": {
     "class-variance-authority": "0.7.1",
     "cn": "0.4.0",
+    "drizzle-orm": "0.45.3",
     "lucide-react": "1.48.0",
     "next": "16.3.7",
+    "postgres": "3.4.9",
     "radix-ui": "1.6.7",
     "react": "19.3.0",
     "react-dom": "19.3.0",
@@ -37,12 +43,15 @@
     "@types/node": "24.19.0",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
+    "dotenv": "18.0.5",
+    "drizzle-kit": "0.31.11",
     "eslint": "9.39.5",
     "eslint-config-next": "16.3.7",
     "eslint-config-prettier": "10.1.8",
     "jsdom": "29.1.1",
     "prettier": "3.9.9",
     "tailwindcss": "4.3.3",
+    "tsx": "4.23.15",
     "typescript": "5.9.3",
     "vitest": "5.0.2"
   }
