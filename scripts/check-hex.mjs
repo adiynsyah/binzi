@@ -17,8 +17,22 @@ import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const srcDir = join(root, "src");
-const exemptFile = join(root, "src", "styles", "tokens.css");
-const exemptDir = join(root, "src", "components", "public", "hero-illustration");
+// tokens.css is the web source of truth. src/emails/tokens.ts is its
+// email-side counterpart (card A-10): email clients load no stylesheets
+// and support no CSS variables, so inline hex values are unavoidable —
+// every entry there is pinned to the token of the same name in tokens.css
+// by src/emails/tokens.test.ts. Exemption is for this exact file only.
+const exemptFiles = new Set([
+  join(root, "src", "styles", "tokens.css"),
+  join(root, "src", "emails", "tokens.ts"),
+]);
+const exemptDir = join(
+  root,
+  "src",
+  "components",
+  "public",
+  "hero-illustration",
+);
 
 const scannedExtensions = new Set([
   ".css",
@@ -51,7 +65,7 @@ function walk(dir) {
 const offenders = [];
 
 for (const file of walk(srcDir)) {
-  if (file === exemptFile || file.startsWith(exemptDir + sep)) continue;
+  if (exemptFiles.has(file) || file.startsWith(exemptDir + sep)) continue;
   if (!scannedExtensions.has(extname(file))) continue;
 
   const lines = readFileSync(file, "utf8").split("\n");
