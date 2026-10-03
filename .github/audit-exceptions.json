@@ -1,0 +1,8 @@
+[
+  {
+    "id": "GHSA-vfj7-8cjw-p6xm",
+    "package": "braces",
+    "reason": "Belum ada versi tambalan; hanya lewat alat lint/CLI (eslint-config-next, shadcn), pola dari konfigurasi repo, bukan input pengguna.",
+    "expires": "2026-11-02"
+  }
+]
