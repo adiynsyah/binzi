@@ -67,5 +67,7 @@ jobs:
           NEXT_PUBLIC_APP_URL: http://localhost:3000
           MAIL_TRANSPORT: log
 
+      # npm audit with documented, expiring exceptions for advisories that
+      # only reach dev-time tooling (scripts/check-audit.mjs).
       - name: Audit dependencies
-        run: npm audit --audit-level=high
+        run: node scripts/check-audit.mjs

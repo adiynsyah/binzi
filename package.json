@@ -11,6 +11,7 @@
     "start": "next start",
     "lint": "eslint .",
     "lint:hex": "node scripts/check-hex.mjs",
+    "audit:check": "node scripts/check-audit.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
     "db:generate": "drizzle-kit generate",
