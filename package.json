@@ -22,7 +22,11 @@
     "check": "npm run typecheck && npm run lint && npm run test && npm run lint:hex",
     "prepare": "git config core.hooksPath .githooks"
   },
+  "overrides": {
+    "@babel/plugin-transform-runtime": "^7.29.0"
+  },
   "dependencies": {
+    "better-auth": "1.7.7",
     "class-variance-authority": "0.7.1",
     "cn": "0.4.0",
     "drizzle-orm": "0.45.3",
@@ -38,6 +42,7 @@
     "zod": "4.6.5"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.5.8",
     "@tailwindcss/postcss": "4.3.3",
     "@testing-library/dom": "10.4.2",
     "@testing-library/react": "16.3.3",
