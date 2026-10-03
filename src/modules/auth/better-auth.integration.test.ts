@@ -12,6 +12,11 @@
 // burst — plus reset on success and window expiry), Turnstile rejection
 // that never reaches the bucket, fixed session windows (member 30 days /
 // staff 8 hours), and cookie attributes.
+//
+// Since A-10 (`requireEmailVerification: true`) a sign-up creates no
+// session — tests that sign in flip `emailVerified` straight in the DB via
+// `signUpVerified`, standing in for a completed verification link. The
+// verification/reset flows themselves live in email.integration.test.ts.
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { fileURLToPath } from "node:url";
@@ -26,11 +31,13 @@ import * as schema from "../../db/schema";
 import { rateLimits, sessions, users } from "../../db/schema";
 import type { Db } from "../../db/client";
 import { loginRateLimitKey } from "../../lib/ratelimit";
+import type { MailMessage } from "../../lib/mail";
 import {
   LOGIN_FAILED_MESSAGE,
   createAuthInstance,
   type AuthInstance,
 } from "./better-auth";
+import { createMailCallbacks } from "./email-senders";
 
 vi.setConfig({ testTimeout: 120_000, hookTimeout: 120_000 });
 
@@ -63,7 +70,9 @@ const siteVerify = await new Promise<{ server: Server; url: string }>(
         res.setHeader("content-type", "application/json");
         res.end(
           JSON.stringify(
-            ok ? { success: true } : { success: false, "error-codes": ["invalid-input-response"] },
+            ok
+              ? { success: true }
+              : { success: false, "error-codes": ["invalid-input-response"] },
           ),
         );
       });
@@ -82,21 +91,36 @@ let db: Db;
 let authHttps: AuthInstance;
 let authHttp: AuthInstance;
 
+// In-memory mail capture — the A-09 flows only need the callbacks to exist.
+const sent: MailMessage[] = [];
+
 beforeAll(async () => {
   pglite = new PGlite();
   const pgliteDb = drizzle(pglite, { schema });
   await migrate(pgliteDb, {
-    migrationsFolder: fileURLToPath(new URL("../../db/migrations", import.meta.url)),
+    migrationsFolder: fileURLToPath(
+      new URL("../../db/migrations", import.meta.url),
+    ),
   });
   db = pgliteDb as unknown as Db;
 
-  const captcha = { secretKey: "test-key", siteVerifyURLOverride: siteVerify.url };
+  const captcha = {
+    secretKey: "test-key",
+    siteVerifyURLOverride: siteVerify.url,
+  };
+  const mail = createMailCallbacks(
+    async (message) => {
+      sent.push(message);
+    },
+    { appUrl: BASE_HTTPS },
+  );
   authHttps = createAuthInstance({
     db,
     secret: "integration-test-secret-0123456789abcdef",
     baseURL: BASE_HTTPS,
     trustedOrigins: [BASE_HTTPS],
     captcha,
+    mail,
   });
   authHttp = createAuthInstance({
     db,
@@ -104,6 +128,7 @@ beforeAll(async () => {
     baseURL: BASE_HTTP,
     trustedOrigins: [BASE_HTTP],
     captcha,
+    mail,
   });
 });
 
@@ -145,7 +170,12 @@ const signIn = (
   password: string,
   ip: string,
   captcha?: string,
-) => callAuth(auth, BASE_HTTPS, "/sign-in/email", { body: { email, password }, ip, captcha });
+) =>
+  callAuth(auth, BASE_HTTPS, "/sign-in/email", {
+    body: { email, password },
+    ip,
+    captcha,
+  });
 
 const signUp = (
   auth: AuthInstance,
@@ -159,7 +189,29 @@ const signUp = (
     ip,
   });
 
-async function errorBody(response: Response): Promise<{ code?: string; message?: string }> {
+/**
+ * Sign-up + straight-DB verification flip: stands in for a completed
+ * verification link so login-flow tests stay about login (the flows
+ * themselves are covered by email.integration.test.ts).
+ */
+async function signUpVerified(
+  auth: AuthInstance,
+  email: string,
+  password: string,
+  ip: string,
+  extra: Record<string, unknown> = {},
+) {
+  const response = await signUp(auth, email, password, ip, extra);
+  await db
+    .update(users)
+    .set({ emailVerified: true })
+    .where(eq(users.email, email));
+  return response;
+}
+
+async function errorBody(
+  response: Response,
+): Promise<{ code?: string; message?: string }> {
   return (await response.json()) as { code?: string; message?: string };
 }
 
@@ -177,12 +229,20 @@ async function latestSessionByToken(token: string) {
 }
 
 describe("A-09 Better Auth core (PGlite)", () => {
-  it("registers a user with role MEMBER / status ACTIVE and an autoSignIn session", async () => {
+  it("registers a user with role MEMBER / status ACTIVE — and, since A-10, no session", async () => {
     const email = "member1@example.com";
-    const response = await signUp(authHttps, email, TEST_PASSWORD, "198.51.100.1");
+    const response = await signUp(
+      authHttps,
+      email,
+      TEST_PASSWORD,
+      "198.51.100.1",
+    );
 
     expect(response.status).toBe(200);
-    const json = (await response.json()) as { token?: string; user?: { email?: string } };
+    const json = (await response.json()) as {
+      token?: string;
+      user?: { email?: string };
+    };
     expect(json.user?.email).toBe(email);
 
     const row = (
@@ -195,15 +255,28 @@ describe("A-09 Better Auth core (PGlite)", () => {
     expect(row?.role).toBe("MEMBER");
     expect(row?.status).toBe("ACTIVE");
 
-    // autoSignIn: a session row exists and its token matches the response.
-    expect(await latestSessionByToken(json.token ?? "")).toBeDefined();
+    // requireEmailVerification: no session is issued at sign-up.
+    expect(json.token).toBeNull();
+    expect(
+      await db
+        .select({ id: sessions.id })
+        .from(sessions)
+        .innerJoin(users, eq(sessions.userId, users.id))
+        .where(eq(users.email, email)),
+    ).toHaveLength(0);
   });
 
   it("rejects a smuggled role at registration and creates nothing", async () => {
     const email = "smuggle@example.com";
-    const response = await signUp(authHttps, email, TEST_PASSWORD, "198.51.100.2", {
-      role: "ADMIN",
-    });
+    const response = await signUp(
+      authHttps,
+      email,
+      TEST_PASSWORD,
+      "198.51.100.2",
+      {
+        role: "ADMIN",
+      },
+    );
 
     expect(response.status).toBe(400);
     expect((await errorBody(response)).message).toMatch(/not allowed/i);
@@ -221,14 +294,26 @@ describe("A-09 Better Auth core (PGlite)", () => {
     );
 
     expect(response.status).toBe(400);
-    expect((await errorBody(response)).message).toBe("Kata sandi harus mengandung angka");
+    expect((await errorBody(response)).message).toBe(
+      "Kata sandi harus mengandung angka",
+    );
   });
 
   it("returns the identical message for unknown email and wrong password (§14.2)", async () => {
     const ip = "198.51.100.10";
 
-    const wrongPassword = await signIn(authHttps, "member1@example.com", WRONG_PASSWORD, ip);
-    const unknownEmail = await signIn(authHttps, "tidakada@example.com", "Apapun123", ip);
+    const wrongPassword = await signIn(
+      authHttps,
+      "member1@example.com",
+      WRONG_PASSWORD,
+      ip,
+    );
+    const unknownEmail = await signIn(
+      authHttps,
+      "tidakada@example.com",
+      "Apapun123",
+      ip,
+    );
 
     expect(wrongPassword.status).toBe(401);
     expect(unknownEmail.status).toBe(401);
@@ -243,7 +328,12 @@ describe("A-09 Better Auth core (PGlite)", () => {
     const email = "victim@example.com";
     const ip = "203.0.113.50";
 
-    const registered = await signUp(authHttps, email, TEST_PASSWORD, "203.0.113.51");
+    const registered = await signUp(
+      authHttps,
+      email,
+      TEST_PASSWORD,
+      "203.0.113.51",
+    );
     expect(registered.status).toBe(200);
 
     for (let attempt = 1; attempt <= 5; attempt++) {
@@ -270,10 +360,15 @@ describe("A-09 Better Auth core (PGlite)", () => {
     const email = "reset@example.com";
     const ip = "203.0.113.60";
 
-    expect((await signUp(authHttps, email, TEST_PASSWORD, "203.0.113.61")).status).toBe(200);
+    expect(
+      (await signUpVerified(authHttps, email, TEST_PASSWORD, "203.0.113.61"))
+        .status,
+    ).toBe(200);
 
     for (let attempt = 1; attempt <= 4; attempt++) {
-      expect((await signIn(authHttps, email, WRONG_PASSWORD, ip)).status).toBe(401);
+      expect((await signIn(authHttps, email, WRONG_PASSWORD, ip)).status).toBe(
+        401,
+      );
     }
 
     const success = await signIn(authHttps, email, TEST_PASSWORD, ip);
@@ -295,10 +390,14 @@ describe("A-09 Better Auth core (PGlite)", () => {
   it("reserves atomically: of 10 parallel sign-ins, only 5 reach the password check (AUTH-08)", async () => {
     const email = "paralel@example.com";
     const ip = "203.0.113.111";
-    expect((await signUp(authHttps, email, TEST_PASSWORD, "203.0.113.110")).status).toBe(200);
+    expect(
+      (await signUp(authHttps, email, TEST_PASSWORD, "203.0.113.110")).status,
+    ).toBe(200);
 
     const responses = await Promise.all(
-      Array.from({ length: 10 }, () => signIn(authHttps, email, WRONG_PASSWORD, ip)),
+      Array.from({ length: 10 }, () =>
+        signIn(authHttps, email, WRONG_PASSWORD, ip),
+      ),
     );
 
     // The reservation upsert is atomic: the 10 concurrent requests get
@@ -328,9 +427,17 @@ describe("A-09 Better Auth core (PGlite)", () => {
     const email = "captcha@example.com";
     const ip = "203.0.113.70";
 
-    expect((await signUp(authHttps, email, TEST_PASSWORD, "203.0.113.71")).status).toBe(200);
+    expect(
+      (await signUp(authHttps, email, TEST_PASSWORD, "203.0.113.71")).status,
+    ).toBe(200);
 
-    const invalid = await signIn(authHttps, email, TEST_PASSWORD, ip, "bad-token");
+    const invalid = await signIn(
+      authHttps,
+      email,
+      TEST_PASSWORD,
+      ip,
+      "bad-token",
+    );
     expect(invalid.status).toBe(403);
     expect((await errorBody(invalid)).code).toBe("VERIFICATION_FAILED");
 
@@ -341,22 +448,38 @@ describe("A-09 Better Auth core (PGlite)", () => {
     // Five captcha-invalid attempts are NOT failures in the login bucket:
     // the next credential attempt is still evaluated normally.
     for (let attempt = 1; attempt <= 5; attempt++) {
-      const response = await signIn(authHttps, email, WRONG_PASSWORD, ip, "bad-token");
+      const response = await signIn(
+        authHttps,
+        email,
+        WRONG_PASSWORD,
+        ip,
+        "bad-token",
+      );
       expect(response.status).toBe(403);
     }
-    const credentialAttempt = await signIn(authHttps, email, WRONG_PASSWORD, ip);
+    const credentialAttempt = await signIn(
+      authHttps,
+      email,
+      WRONG_PASSWORD,
+      ip,
+    );
     expect(credentialAttempt.status).toBe(401);
   });
 
-  it("blocks the 6th failed sign-up with a generic message", async () => {
+  it("blocks the 6th sign-up attempt; duplicates now answer 200 (generic, A-10)", async () => {
     const email = "dupe@example.com";
     const ip = "203.0.113.80";
 
-    expect((await signUp(authHttps, email, TEST_PASSWORD, "203.0.113.81")).status).toBe(200);
+    expect(
+      (await signUp(authHttps, email, TEST_PASSWORD, "203.0.113.81")).status,
+    ).toBe(200);
 
+    // Since A-10 the duplicate-email response is shape-identical to a fresh
+    // sign-up (200, no session) — but each attempt still reserves a slot.
     for (let attempt = 1; attempt <= 5; attempt++) {
       const response = await signUp(authHttps, email, TEST_PASSWORD, ip);
-      expect(response.status).toBeGreaterThanOrEqual(400);
+      expect(response.status).toBe(200);
+      expect((await response.json()).token).toBeNull();
     }
 
     const sixth = await signUp(authHttps, email, TEST_PASSWORD, ip);
@@ -366,9 +489,14 @@ describe("A-09 Better Auth core (PGlite)", () => {
 
   it("gives member sessions a fixed 30-day window and staff sessions 8 hours (AUTH-07)", async () => {
     const email = "durasi@example.com";
-    await signUp(authHttps, email, TEST_PASSWORD, "203.0.113.91");
+    await signUpVerified(authHttps, email, TEST_PASSWORD, "203.0.113.91");
 
-    const memberResponse = await signIn(authHttps, email, TEST_PASSWORD, "203.0.113.92");
+    const memberResponse = await signIn(
+      authHttps,
+      email,
+      TEST_PASSWORD,
+      "203.0.113.92",
+    );
     const memberJson = (await memberResponse.json()) as { token?: string };
     const memberSession = await latestSessionByToken(memberJson.token ?? "");
     expect(memberSession).toBeDefined();
@@ -382,28 +510,41 @@ describe("A-09 Better Auth core (PGlite)", () => {
 
     await db.update(users).set({ role: "ADMIN" }).where(eq(users.email, email));
 
-    const staffResponse = await signIn(authHttps, email, TEST_PASSWORD, "203.0.113.93");
+    const staffResponse = await signIn(
+      authHttps,
+      email,
+      TEST_PASSWORD,
+      "203.0.113.93",
+    );
     const staffJson = (await staffResponse.json()) as { token?: string };
     const staffSession = await latestSessionByToken(staffJson.token ?? "");
     expect(staffSession).toBeDefined();
 
-    const staffSpan = staffSession!.expiresAt.getTime() - staffSession!.createdAt.getTime();
+    const staffSpan =
+      staffSession!.expiresAt.getTime() - staffSession!.createdAt.getTime();
     expect(staffSpan).toBeGreaterThan(8 * HOUR_MS - 5 * 60 * 1000);
     expect(staffSpan).toBeLessThanOrEqual(8 * HOUR_MS + 60_000);
   });
 
   it("sets HttpOnly + SameSite=Lax cookies, with Secure only on https (§12.1)", async () => {
     const email = "cookie@example.com";
-    await signUp(authHttps, email, TEST_PASSWORD, "203.0.113.95");
+    await signUpVerified(authHttps, email, TEST_PASSWORD, "203.0.113.95");
 
-    const httpsResponse = await signIn(authHttps, email, TEST_PASSWORD, "203.0.113.96");
+    const httpsResponse = await signIn(
+      authHttps,
+      email,
+      TEST_PASSWORD,
+      "203.0.113.96",
+    );
     expect(httpsResponse.status).toBe(200);
     // `useSecureCookies: true` makes Better Auth prefix the cookie with
     // `__Secure-` (browsers then reject it unless it is Secure AND sent over
     // https) — the name itself enforces the transport, on top of the attribute.
     const httpsCookie = httpsResponse.headers
       .getSetCookie()
-      .find((cookie) => cookie.startsWith("__Secure-better-auth.session_token="));
+      .find((cookie) =>
+        cookie.startsWith("__Secure-better-auth.session_token="),
+      );
     expect(httpsCookie).toBeDefined();
     expect(httpsCookie).toMatch(/HttpOnly/i);
     expect(httpsCookie).toMatch(/SameSite=Lax/i);
@@ -411,11 +552,21 @@ describe("A-09 Better Auth core (PGlite)", () => {
 
     const emailHttp = "cookie-http@example.com";
     expect(
-      (await callAuth(authHttp, BASE_HTTP, "/sign-up/email", {
-        body: { name: "Rina Tester", email: emailHttp, password: TEST_PASSWORD },
-        ip: "203.0.113.97",
-      })).status,
+      (
+        await callAuth(authHttp, BASE_HTTP, "/sign-up/email", {
+          body: {
+            name: "Rina Tester",
+            email: emailHttp,
+            password: TEST_PASSWORD,
+          },
+          ip: "203.0.113.97",
+        })
+      ).status,
     ).toBe(200);
+    await db
+      .update(users)
+      .set({ emailVerified: true })
+      .where(eq(users.email, emailHttp));
     const httpResponse = await callAuth(authHttp, BASE_HTTP, "/sign-in/email", {
       body: { email: emailHttp, password: TEST_PASSWORD },
       ip: "203.0.113.98",
