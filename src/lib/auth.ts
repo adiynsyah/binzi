@@ -17,9 +17,9 @@
 //   not owner-managed secrets) and src/config is out of scope for this
 //   card; they are only ever used as the base URL and trusted origins.
 //   On preview deployments the BASE URL follows the deployment itself so
-//   email links land on the preview the user signed up on (A-10). NOTE
-//   for A-11: Google OAuth callbacks cannot be registered for dynamic
-//   preview URLs — that flow needs its own strategy.
+//   email links land on the preview the user signed up on (A-10). Google
+//   OAuth (A-11) stays DISABLED on previews for the same reason: its
+//   callback URI cannot be registered for dynamic preview URLs (H-06).
 import { z } from "zod";
 
 import {
@@ -120,6 +120,37 @@ export async function getAuth(): Promise<AuthInstance> {
     captcha = { secretKey: TURNSTILE_ALWAYS_PASS_TEST_SECRET };
   }
 
+  // Google OAuth (A-11, AUTH-02, H-06). Google needs one registered redirect
+  // URI per host, which dynamic Vercel preview URLs cannot provide (H-06
+  // note) — so the provider is disabled on previews regardless of config.
+  // Production fails fast on missing values (the A-09 pattern); development
+  // and test run without the provider until H-06 fills real keys.
+  const isVercelPreview = process.env.VERCEL_ENV === "preview";
+  let socialProviders:
+    | { google: { clientId: string; clientSecret: string } }
+    | undefined;
+  if (isVercelPreview) {
+    console.warn(
+      "[auth] Google OAuth dinonaktifkan di deployment preview — URI redirect dinamis tidak bisa didaftarkan di Google (H-06).",
+    );
+  } else if (!serverEnv.GOOGLE_CLIENT_ID || !serverEnv.GOOGLE_CLIENT_SECRET) {
+    if (isProduction) {
+      throw missingConfig(
+        serverEnv.GOOGLE_CLIENT_ID ? "GOOGLE_CLIENT_SECRET" : "GOOGLE_CLIENT_ID",
+      );
+    }
+    console.warn(
+      "[auth] Google OAuth nonaktif — GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET belum diisi (H-06).",
+    );
+  } else {
+    socialProviders = {
+      google: {
+        clientId: serverEnv.GOOGLE_CLIENT_ID,
+        clientSecret: serverEnv.GOOGLE_CLIENT_SECRET,
+      },
+    };
+  }
+
   const resolvedBaseURL = baseURL ?? DEV_FALLBACK_BASE_URL;
   const trustedOrigins = [
     ...new Set([resolvedBaseURL, ...vercelPreviewOrigins()]),
@@ -144,6 +175,7 @@ export async function getAuth(): Promise<AuthInstance> {
     trustedOrigins,
     captcha,
     mail,
+    socialProviders,
   });
   return cached;
 }
