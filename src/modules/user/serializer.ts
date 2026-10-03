@@ -1,9 +1,13 @@
 // Explicit serialization for the user domain (PRD §12.6, V-01/V-05 note).
 //
+// Module-internal: consumers outside the module get DTO types re-exported
+// from service.ts (`import type { PublicUserDTO } from "@/modules/user/service"`).
+//
 // Rules:
 // - One DTO per audience — never a single "complete" DTO:
 //     toPublicUserDTO  → unconstrained contexts (article byline, reviewer).
 //     toUserPrivateDTO → the owner's own profile, or ADMIN+ views.
+// - JSON-safe: dates are serialized to ISO 8601 strings (null stays null).
 // - Both functions build a fresh object from an explicit allowlist, so any
 //   column not listed (deletedAt, updatedAt, ...) can never leave the module
 //   even if a future query starts selecting it.
@@ -28,6 +32,11 @@ export type UserRow = Pick<
   | "createdAt"
 >;
 
+/** Columns the public query selects — exactly what the public DTO needs. */
+export type PublicUserRow = Pick<UserRow, "id" | "name" | "image">;
+
+// DTOs are JSON-safe by rule: dates leave the module as ISO 8601 strings
+// (null stays null), never as Date objects.
 export type PublicUserDTO = {
   id: string;
   name: string;
@@ -43,11 +52,11 @@ export type UserPrivateDTO = {
   phone: string | null;
   role: UserRow["role"];
   status: UserRow["status"];
-  lastLoginAt: Date | null;
-  createdAt: Date;
+  lastLoginAt: string | null;
+  createdAt: string;
 };
 
-export function toPublicUserDTO(row: UserRow): PublicUserDTO {
+export function toPublicUserDTO(row: PublicUserRow): PublicUserDTO {
   return {
     id: row.id,
     name: row.name,
@@ -65,7 +74,7 @@ export function toUserPrivateDTO(row: UserRow): UserPrivateDTO {
     phone: row.phone,
     role: row.role,
     status: row.status,
-    lastLoginAt: row.lastLoginAt,
-    createdAt: row.createdAt,
+    lastLoginAt: row.lastLoginAt?.toISOString() ?? null,
+    createdAt: row.createdAt.toISOString(),
   };
 }

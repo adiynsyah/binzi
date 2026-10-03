@@ -8,13 +8,14 @@
 // hides soft-deleted rows (deletedAt IS NULL — PRD §10.5 purge semantics).
 import "server-only";
 
-import { and, count, desc, eq, isNull } from "drizzle-orm";
+import { and, count, desc, eq, inArray, isNull } from "drizzle-orm";
 
 import { db } from "../../db";
 import { users } from "../../db/schema";
 import { PAGE_SIZE, offsetForPage } from "../../lib/pagination";
 
-import type { UserRow } from "./serializer";
+import { PUBLIC_PROFILE_ROLES } from "./policy";
+import type { PublicUserRow, UserRow } from "./serializer";
 
 // The only columns this module ever reads. deletedAt/updatedAt are
 // intentionally absent — they never even reach the serializers.
@@ -40,6 +41,26 @@ export async function findUserById(
     .select(userColumns)
     .from(users)
     .where(and(eq(users.id, userId), notDeleted))
+    .limit(1);
+  return rows[0];
+}
+
+/** Public byline lookup: EDITOR+ only, enforced in the WHERE clause (the
+ *  role list comes from policy.ts) — non-public users are simply not found.
+ *  Selects exactly the three columns the public DTO serializes. */
+export async function findPublicUserById(
+  userId: string,
+): Promise<PublicUserRow | undefined> {
+  const rows = await db
+    .select({ id: users.id, name: users.name, image: users.image })
+    .from(users)
+    .where(
+      and(
+        eq(users.id, userId),
+        notDeleted,
+        inArray(users.role, [...PUBLIC_PROFILE_ROLES]),
+      ),
+    )
     .limit(1);
   return rows[0];
 }

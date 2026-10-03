@@ -29,6 +29,19 @@ export function hasMinRole(role: UserRole, min: UserRole): boolean {
   return ROLE_RANK[role] >= ROLE_RANK[min];
 }
 
+/** Roles allowed to appear in public contexts (article author/reviewer).
+ *  Consumed by queries.ts as an inArray() filter so the gate is enforced in
+ *  the WHERE clause, not just in service code. */
+export const PUBLIC_PROFILE_ROLES: readonly UserRole[] = [
+  "EDITOR",
+  "ADMIN",
+  "SUPER_ADMIN",
+];
+
+export function isPublicProfileRole(role: UserRole): boolean {
+  return PUBLIC_PROFILE_ROLES.includes(role);
+}
+
 /** Self only — a mismatch is reported as 404, never 403 (hide existence). */
 export function assertSelf(actor: Actor, userId: string): void {
   if (actor.id !== userId) {

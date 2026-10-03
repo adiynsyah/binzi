@@ -1,6 +1,8 @@
 // Zod input contracts for the user module (A-08).
-// Services validate every input with these on the server; client forms may
-// reuse the same schemas for immediate feedback.
+//
+// This file MAY be imported from outside the module — including client
+// forms: it is the shared input contract. Keep it pure Zod with no server
+// imports (no "server-only", no db) so it stays safe in a client bundle.
 //
 // strictObject everywhere: payloads carrying keys the contract does not know
 // (role, status, email, ...) are rejected instead of silently stripped.

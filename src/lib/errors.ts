@@ -2,8 +2,11 @@
 //
 // Services throw these; route handlers / server actions translate them with
 // toErrorResponse() and return `NextResponse.json(body, { status })`.
-// Anything that is not an AppError or ZodError collapses to a generic 500 so
-// internal details never leak to the client (PRD §12.6, V-01/V-05 mindset).
+//
+// REQUIRED at the call site (not installed in this card): report the
+// ORIGINAL error to Sentry (or the logger) BEFORE calling toErrorResponse().
+// The 500 response body is deliberately generic, so the detailed error must
+// reach telemetry elsewhere — otherwise it is lost forever.
 //
 // Status semantics — keep them distinct:
 // - 404 NotFoundError: resource missing, OR present but not owned by the

@@ -1,10 +1,13 @@
 // The ONLY public door of the user module (A-08). Routes, server actions,
-// and other modules import functions from here — never queries.ts or
-// serializer.ts directly (ESLint-enforced for queries).
+// and other modules import functions — and DTO types via `import type` —
+// from here; never queries.ts (ESLint-enforced), serializer.ts, or policy.ts.
 //
-// Flow per call: validate input (Zod, throws ZodError → 400) → enforce
-// policy (404 ownership / 403 role) → query → serialize to a DTO.
-// Raw rows never cross this boundary.
+// Canonical guard order (see src/modules/README.md):
+// - Role-gated endpoints (e.g. listUsers): check the role FIRST, then parse
+//   input — unauthorized callers must not learn the input contract.
+// - Ownership-based endpoints: parse input first (the target id is needed),
+//   then the ownership policy, then the query.
+// Raw rows never cross this boundary; every return value is a JSON-safe DTO.
 import { NotFoundError } from "../../lib/errors";
 import { PAGE_SIZE } from "../../lib/pagination";
 
@@ -14,6 +17,9 @@ import * as userQueries from "./queries";
 import { getUserInput, listUsersInput, updateProfileInput } from "./schema";
 import type { PublicUserDTO, UserPrivateDTO } from "./serializer";
 import { toPublicUserDTO, toUserPrivateDTO } from "./serializer";
+
+// DTO types for consumers: import these from service, not from serializer.
+export type { PublicUserDTO, UserPrivateDTO };
 
 /** Owner's own profile, or any profile for ADMIN+. Everyone else gets 404. */
 export async function getUserProfile(
@@ -53,11 +59,15 @@ export type UserListDTO = {
   totalPages: number;
 };
 
-/** CMS user management — ADMIN+. Insufficient roles get 403, not 404: the
- *  endpoint's existence is not a secret, only the right is missing. */
-export async function listUsers(actor: Actor, input: unknown): Promise<UserListDTO> {
-  const { page } = listUsersInput.parse(input);
+/** CMS user management — ADMIN+. Role is checked BEFORE input parsing:
+ *  the endpoint's existence is not a secret, but its input contract is not
+ *  for unauthorized eyes. Insufficient roles get 403. */
+export async function listUsers(
+  actor: Actor,
+  input: unknown,
+): Promise<UserListDTO> {
   assertMinRole(actor, "ADMIN");
+  const { page } = listUsersInput.parse(input);
 
   const { rows, total } = await userQueries.listUsers(page);
   return {
@@ -69,14 +79,16 @@ export async function listUsers(actor: Actor, input: unknown): Promise<UserListD
   };
 }
 
-/** Public byline/reviewer data — no actor required, exposes id/name/image
- *  only. Other modules (e.g. article) consume this via service.ts. */
+/** Public byline/reviewer data — no actor required. The EDITOR+ role gate
+ *  lives in the query's WHERE clause (PUBLIC_PROFILE_ROLES), so non-public
+ *  users are simply not found (404). Other modules (e.g. article) consume
+ *  this via service.ts. */
 export async function getPublicUserProfile(
   input: unknown,
 ): Promise<PublicUserDTO> {
   const { userId } = getUserInput.parse(input);
 
-  const row = await userQueries.findUserById(userId);
+  const row = await userQueries.findPublicUserById(userId);
   if (!row) throw new NotFoundError("Pengguna tidak ditemukan");
   return toPublicUserDTO(row);
 }

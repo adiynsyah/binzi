@@ -60,6 +60,24 @@ describe("toUserPrivateDTO", () => {
     });
   });
 
+  it("is JSON-safe: dates leave as ISO strings, null stays null", () => {
+    const dto = toUserPrivateDTO(fullRow);
+    expect(dto.createdAt).toBe("2026-09-01T08:00:00.000Z");
+    expect(dto.lastLoginAt).toBe("2026-10-01T08:00:00.000Z");
+
+    const neverLoggedIn = toUserPrivateDTO({
+      ...baseRow,
+      lastLoginAt: null,
+    });
+    expect(neverLoggedIn.lastLoginAt).toBeNull();
+
+    // No Date instance may survive serialization (runtime proof on top of
+    // the DTO type, which no longer admits Date at all).
+    for (const value of Object.values(dto) as unknown[]) {
+      expect(value instanceof Date).toBe(false);
+    }
+  });
+
   it("never serializes deletedAt or unknown keys", () => {
     const dto = toUserPrivateDTO(fullRow);
     expect(fullRow.deletedAt).toBeInstanceOf(Date); // sanity: input has it

@@ -6,7 +6,14 @@ import { describe, expect, it } from "vitest";
 
 import { ForbiddenError, NotFoundError } from "../../lib/errors";
 import type { Actor } from "./policy";
-import { assertMinRole, assertSelf, assertSelfOrAdmin, hasMinRole } from "./policy";
+import {
+  PUBLIC_PROFILE_ROLES,
+  assertMinRole,
+  assertSelf,
+  assertSelfOrAdmin,
+  hasMinRole,
+  isPublicProfileRole,
+} from "./policy";
 
 const member: Actor = { id: "usr_member", role: "MEMBER" };
 const editor: Actor = { id: "usr_editor", role: "EDITOR" };
@@ -51,6 +58,19 @@ describe("assertSelfOrAdmin", () => {
     } catch (error) {
       expect((error as NotFoundError).status).toBe(404);
     }
+  });
+});
+
+describe("isPublicProfileRole", () => {
+  it("allows EDITOR and above — the byline/reviewer audience", () => {
+    expect(isPublicProfileRole("EDITOR")).toBe(true);
+    expect(isPublicProfileRole("ADMIN")).toBe(true);
+    expect(isPublicProfileRole("SUPER_ADMIN")).toBe(true);
+    expect(PUBLIC_PROFILE_ROLES).not.toContain("MEMBER");
+  });
+
+  it("keeps MEMBER out of public contexts", () => {
+    expect(isPublicProfileRole("MEMBER")).toBe(false);
   });
 });
 
