@@ -14,9 +14,11 @@
 // email/password account (one user, credential + google rows), the
 // pre-hijack refusal on an UNVERIFIED local account (no link, credential
 // deleted, sessions revoked, fresh verification email offered, old password
-// dead), recovery through verification + a later password reset, rejection
-// of email_verified=false profiles, the 3/hour resend cap on the refusal
-// path, and the internal-path redirect guard on all five entry points.
+// dead), recovery through the verification link EXACTLY as emailed (base
+// path included) + a later password reset, rejection of email_verified=false
+// profiles, the 3/hour resend cap on the refusal path, the same refusal via
+// a NON-google provider plus the fail-closed unit branches (missing/unknown
+// local id), and the internal-path redirect guard on all five entry points.
 import { fileURLToPath } from "node:url";
 
 import { PGlite } from "@electric-sql/pglite";
@@ -30,7 +32,12 @@ import * as schema from "../../db/schema";
 import { accounts, sessions, users } from "../../db/schema";
 import type { Db } from "../../db/client";
 import type { MailMessage } from "../../lib/mail";
-import { createAuthInstance, type AuthInstance } from "./better-auth";
+import {
+  createAuthInstance,
+  createOAuthUserInfoGate,
+  type AuthDeps,
+  type AuthInstance,
+} from "./better-auth";
 import { createMailCallbacks } from "./email-senders";
 
 vi.setConfig({ testTimeout: 120_000, hookTimeout: 120_000 });
@@ -43,7 +50,9 @@ const GOOGLE_CLIENT_SECRET = "test-google-client-secret";
 const WELCOME_SUBJECT_PREFIX = "Selamat datang di BINZI";
 
 // The fake Google profile served by the patched provider; tests reassign
-// fields before driving the flow.
+// fields before driving the flow. `facebookProfile` belongs to a second,
+// patched provider that stands in for "any non-google OAuth provider" in
+// the provider-agnostic fail-closed tests.
 const googleProfile = {
   sub: "google-sub-1",
   email: "fresh.google@example.com",
@@ -51,48 +60,69 @@ const googleProfile = {
   name: "Gita Google",
   picture: "https://photos.example/g.jpg",
 };
+const facebookProfile = {
+  sub: "facebook-sub-1",
+  email: "fresh.facebook@example.com",
+  email_verified: true,
+  name: "Fani Facebook",
+  picture: "https://photos.example/f.jpg",
+};
 
-// Replace the `google` entry in the provider FACTORY TABLE Better Auth
-// consults when normalizing `socialProviders` options
+// Replace the `google`/`facebook` entries in the provider FACTORY TABLE
+// Better Auth consults when normalizing `socialProviders` options
 // (dist/context/create-context.mjs). A vi.mock of this module would NOT
 // reach that code: better-auth is externalized by Vitest, so its imports
 // resolve natively and bypass the mock registry. Mutating the shared table
 // object does reach it (same module instance in Node's registry), while
 // every other layer exercised here stays real: state handling, the
-// /callback/google route, implicit account linking, and the Better Auth
+// /callback/:provider route, implicit account linking, and the Better Auth
 // defaults behind AUTH-05.
+function fakeOAuthFactory(providerId: string, profile: typeof googleProfile) {
+  return (config: unknown) => ({
+    id: providerId,
+    name: providerId,
+    // Real Google resolves the account key from the profile `sub`.
+    accountSubject: ({ profile: p }: { profile: { sub: string } }) => p.sub,
+    createAuthorizationURL: async ({ state }: { state: string }) =>
+      new URL(`https://fake.${providerId}.example/auth?state=${state}`),
+    validateAuthorizationCode: async () => ({
+      accessToken: "fake-access-token",
+      idToken: "fake-id-token",
+    }),
+    getUserInfo: async () => ({
+      user: {
+        name: profile.name,
+        email: profile.email,
+        image: profile.picture,
+        emailVerified: profile.email_verified,
+      },
+      data: { ...profile },
+    }),
+    options: config,
+  });
+}
+
 const realGoogleFactory = coreSocialProviders.socialProviders.google;
-coreSocialProviders.socialProviders.google = ((
-  config: Parameters<typeof realGoogleFactory>[0],
-) => ({
-  id: "google",
-  name: "Google",
-  // Real Google resolves the account key from the profile `sub`.
-  accountSubject: ({ profile }: { profile: { sub: string } }) => profile.sub,
-  createAuthorizationURL: async ({ state }: { state: string }) =>
-    new URL(`https://fake.google.example/auth?state=${state}`),
-  validateAuthorizationCode: async () => ({
-    accessToken: "fake-access-token",
-    idToken: "fake-id-token",
-  }),
-  getUserInfo: async () => ({
-    user: {
-      name: googleProfile.name,
-      email: googleProfile.email,
-      image: googleProfile.picture,
-      emailVerified: googleProfile.email_verified,
-    },
-    data: { ...googleProfile },
-  }),
-  options: config,
-})) as unknown as typeof realGoogleFactory;
+const realFacebookFactory = coreSocialProviders.socialProviders.facebook;
+coreSocialProviders.socialProviders.google = fakeOAuthFactory(
+  "google",
+  googleProfile,
+) as unknown as typeof realGoogleFactory;
+coreSocialProviders.socialProviders.facebook = fakeOAuthFactory(
+  "facebook",
+  facebookProfile,
+) as unknown as typeof realFacebookFactory;
 afterAll(() => {
   coreSocialProviders.socialProviders.google = realGoogleFactory;
+  coreSocialProviders.socialProviders.facebook = realFacebookFactory;
 });
 
 let pglite: PGlite;
 let db: Db;
+let deps: AuthDeps;
 let auth: AuthInstance;
+/** The same gate `createAuthInstance` wires — driven directly for the unit tests. */
+let gate: ReturnType<typeof createOAuthUserInfoGate>;
 const sent: MailMessage[] = [];
 
 beforeAll(async () => {
@@ -111,7 +141,7 @@ beforeAll(async () => {
     },
     { appUrl: BASE },
   );
-  auth = createAuthInstance({
+  deps = {
     db,
     secret: "integration-test-secret-0123456789abcdef",
     baseURL: BASE,
@@ -123,8 +153,14 @@ beforeAll(async () => {
         clientId: GOOGLE_CLIENT_ID,
         clientSecret: GOOGLE_CLIENT_SECRET,
       },
+      facebook: {
+        clientId: "test-facebook-client-id",
+        clientSecret: "test-facebook-client-secret",
+      },
     },
-  });
+  };
+  auth = createAuthInstance(deps);
+  gate = createOAuthUserInfoGate(deps);
 });
 
 afterAll(async () => {
@@ -142,8 +178,13 @@ function post(path: string, body: Record<string, unknown>): Promise<Response> {
 }
 
 function get(path: string): Promise<Response> {
+  return getRaw(`${BASE}/api/auth${path}`);
+}
+
+/** GETs an absolute URL (e.g. an email link) against the handler, as-is. */
+function getRaw(url: string | URL): Promise<Response> {
   return auth.handler(
-    new Request(`${BASE}/api/auth${path}`, {
+    new Request(url, {
       method: "GET",
       headers: { origin: BASE },
     }),
@@ -163,14 +204,17 @@ function cookieHeaderFrom(response: Response): string {
 }
 
 /**
- * Drives the full redirect flow: initiation → Google → callback. The callback
- * must replay the initiation's cookies — Better Auth pairs the `state` query
- * param with a signed state cookie (CSRF double submit), so without them the
- * callback answers `state_mismatch`.
+ * Drives the full redirect flow for a provider: initiation → provider →
+ * callback. The callback must replay the initiation's cookies — Better Auth
+ * pairs the `state` query param with a signed state cookie (CSRF double
+ * submit), so without them the callback answers `state_mismatch`.
  */
-async function googleLogin(callbackURL = "/materi/2"): Promise<Response> {
+async function oauthLogin(
+  provider: string,
+  callbackURL = "/materi/2",
+): Promise<Response> {
   const initiation = await post("/sign-in/social", {
-    provider: "google",
+    provider,
     callbackURL,
   });
   if (initiation.status !== 200) return initiation;
@@ -179,13 +223,18 @@ async function googleLogin(callbackURL = "/materi/2"): Promise<Response> {
   const state = new URL(url ?? "").searchParams.get("state");
   return auth.handler(
     new Request(
-      `${BASE}/api/auth/callback/google?code=fake-code&state=${encodeURIComponent(state ?? "")}`,
+      `${BASE}/api/auth/callback/${provider}?code=fake-code&state=${encodeURIComponent(state ?? "")}`,
       {
         method: "GET",
         headers: { origin: BASE, ...(cookie ? { cookie } : {}) },
       },
     ),
   );
+}
+
+/** Google-specific convenience over `oauthLogin`. */
+function googleLogin(callbackURL = "/materi/2"): Promise<Response> {
+  return oauthLogin("google", callbackURL);
 }
 
 async function signUp(
@@ -350,12 +399,13 @@ describe("A-11 Google OAuth (PGlite, mocked provider)", () => {
       "error=account_not_verified",
     );
 
-    // The owner clicks the verification link the refusal offered.
-    const token = latestVerificationToken(email);
-    expect(token).not.toBe("");
-    const verified = await get(
-      `/verify-email?token=${encodeURIComponent(token)}&callbackURL=${encodeURIComponent("/")}`,
-    );
+    // The owner clicks the verification link EXACTLY as delivered: the URL
+    // from the captured email must carry the Better Auth base path and
+    // resolve against the handler as-is (a link to the bare app root 404s).
+    const link = verificationEmailsTo(email).at(-1)?.link;
+    expect(link).toBeTruthy();
+    expect(link).toContain(`${BASE}/api/auth/verify-email?`);
+    const verified = await getRaw(link!);
     expect(verified.status).toBeLessThan(400);
     expect(await userByEmail(email)).toMatchObject({ emailVerified: true });
 
@@ -442,6 +492,32 @@ describe("A-11 Google OAuth (PGlite, mocked provider)", () => {
     expect(verificationEmailsTo(email)).toHaveLength(4);
   });
 
+  it("applies the same pre-hijack refusal to a NON-google provider (fail-closed, provider-agnostic)", async () => {
+    // `requireLocalEmailVerified: false` is global — so the hook must carry
+    // the local-verified rule for every OAuth provider, not just google.
+    const email = "pre.hijack.facebook@example.com";
+    await signUp(email);
+    const user = await userByEmail(email);
+    expect(user?.emailVerified).toBe(false);
+
+    Object.assign(facebookProfile, { sub: "facebook-sub-hijack", email });
+    const response = await oauthLogin("facebook");
+    expect(response.status).toBe(302);
+    const location = response.headers.get("location") ?? "";
+    expect(location).toContain("error=account_not_verified");
+
+    // Not linked, no duplicate user — and the zombie credential is dead.
+    expect(await userByEmail(email)).toMatchObject({ id: user!.id });
+    expect(await accountRows(user!.id)).toEqual([]);
+    const passwordSignIn = await post("/sign-in/email", {
+      email,
+      password: TEST_PASSWORD,
+    });
+    expect(passwordSignIn.status).toBe(401);
+    // Signup email + the refusal's fresh verification offer.
+    expect(verificationEmailsTo(email)).toHaveLength(2);
+  });
+
   it("rejects external redirect targets on every entry point (open redirect)", async () => {
     const variants = [
       "https://evil.com/x",
@@ -492,6 +568,45 @@ describe("A-11 Google OAuth (PGlite, mocked provider)", () => {
     expect(response.status).toBe(403);
     const body = (await response.json()) as { code?: string };
     expect(body.code).toBe("INVALID_CALLBACK_URL");
+  });
+});
+
+describe("createOAuthUserInfoGate — fail-closed branches (unit, same deps)", () => {
+  it("refuses link-account when the local id is missing or unknown", async () => {
+    const sentBefore = sent.length;
+
+    // Missing local id → refused (never allowed through).
+    const missing = await gate({
+      user: { emailVerified: true },
+      source: {
+        method: "oauth",
+        action: "link-account",
+        oauth: { providerId: "google" },
+      },
+    });
+    expect(missing).toEqual({ error: "account_not_verified" });
+
+    // Unknown local id → refused the same way.
+    const unknown = await gate({
+      user: { id: "no-such-user-id", emailVerified: true },
+      source: {
+        method: "oauth",
+        action: "link-account",
+        oauth: { providerId: "google" },
+      },
+    });
+    expect(unknown).toEqual({ error: "account_not_verified" });
+
+    // Nothing to neutralize in either case — no mail side effects.
+    expect(sent.length).toBe(sentBefore);
+  });
+
+  it("lets non-OAuth sources through untouched", async () => {
+    const result = await gate({
+      user: { id: "whatever", emailVerified: false },
+      source: { method: "email-password" },
+    });
+    expect(result).toBeUndefined();
   });
 });
 

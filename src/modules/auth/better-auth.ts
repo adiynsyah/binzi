@@ -42,8 +42,9 @@
 //   provider-email-verified requirement applies to Google as well;
 //   `requireLocalEmailVerified` is turned OFF because Better Auth's own gate
 //   would otherwise short-circuit to a generic `account_not_linked` BEFORE
-//   `validateUserInfo` runs — the rule itself lives in the hook (same check,
-//   plus neutralization and the stable code).
+//   `validateUserInfo` runs — the rule itself lives in the hook for EVERY
+//   OAuth provider (the option is global) and FAILS CLOSED: a missing local
+//   id or unknown user is refused, never linked.
 // - `binzi-redirect-guard` (A-11): every client-supplied redirect target —
 //   Google `callbackURL`s and the A-10 `callbackURL`/`redirectTo` params —
 //   must be an internal path (open-redirect, §14.2).
@@ -63,6 +64,7 @@ import { and, eq } from "drizzle-orm";
 import * as schema from "../../db/schema";
 import { accounts, sessions, users } from "../../db/schema";
 import type { Db } from "../../db/client";
+import { maskEmail } from "../../lib/mail";
 import {
   EMAIL_SEND_RATE_LIMIT,
   LOGIN_RATE_LIMIT,
@@ -138,12 +140,15 @@ export type AuthDeps = {
   /** Email callbacks (verification / reset / welcome); injected for tests. */
   mail: MailCallbacks;
   /**
-   * Google OAuth configuration (A-11, AUTH-02). Undefined disables the
+   * OAuth provider configs (A-11, AUTH-02). Undefined disables every
    * provider (missing config outside production, Vercel previews — wiring
-   * in `src/lib/auth.ts`). The Better Auth `google` factory's default scopes
-   * already are exactly `openid email profile`; nothing is added here.
+   * in `src/lib/auth.ts`, which today passes `google` only; its factory's
+   * default scopes already are exactly `openid email profile`). The map is
+   * open on purpose: the linking rules in `validateUserInfo` are
+   * provider-agnostic, and integration tests prove that with a second,
+   * mocked provider.
    */
-  socialProviders?: { google: { clientId: string; clientSecret: string } };
+  socialProviders?: Record<string, { clientId: string; clientSecret: string }>;
 };
 
 // Better Auth hook contexts are loosely typed at the edge (better-call
@@ -437,7 +442,7 @@ function binziRedirectGuardPlugin(): BetterAuthPlugin {
 
 /**
  * Pre-hijack kill switch (A-11, decided with the product owner): when a
- * verified Google identity meets an UNVERIFIED same-email local account, the
+ * verified OAuth identity meets an UNVERIFIED same-email local account, the
  * link is refused with the stable `account_not_verified` code — and the zombie
  * account is neutralized in the same hook:
  * 1. its credential row is deleted, so a password an attacker set by
@@ -446,13 +451,17 @@ function binziRedirectGuardPlugin(): BetterAuthPlugin {
  *    accounts normally hold no session);
  * 3. a fresh verification email is offered through the same 3/hour/email
  *    bucket as the resend endpoint, so the real owner can activate the
- *    account; the NEXT Google login then links normally (AUTH-05).
- * Failures inside are logged and swallowed: the refusal itself must never
- * depend on the side effects succeeding.
+ *    account; the NEXT OAuth login then links normally (AUTH-05).
+ * `authBaseURL` is Better Auth's CONTEXT base URL (`ctx.context.baseURL`),
+ * which includes the base path (`/api/auth`) — the verification route lives
+ * there, not at the app root. Failures inside are logged (masked email,
+ * §14.2) and swallowed: the refusal itself must never depend on the side
+ * effects succeeding.
  */
 async function invalidateUnverifiedAccount(
   deps: AuthDeps,
   row: { id: string; email: string; name: string | null },
+  authBaseURL: string,
 ): Promise<void> {
   try {
     await deps.db
@@ -479,7 +488,9 @@ async function invalidateUnverifiedAccount(
       undefined,
       EMAIL_VERIFICATION_SECONDS,
     );
-    const url = `${deps.baseURL}/verify-email?token=${token}&callbackURL=${encodeURIComponent("/")}`;
+    // Same shape Better Auth itself sends (email-verification route):
+    // `${ctx.context.baseURL}/verify-email?token=…&callbackURL=…`.
+    const url = `${authBaseURL}/verify-email?token=${token}&callbackURL=${encodeURIComponent("/")}`;
     await deps.mail.sendVerificationEmail({
       user: { name: row.name, email: row.email },
       url,
@@ -487,13 +498,102 @@ async function invalidateUnverifiedAccount(
     });
   } catch (error) {
     console.error(
-      `[auth] gagal menetralkan akun belum terverifikasi ${row.email}: ${describeFailure(error)}`,
+      `[auth] gagal menetralkan akun belum terverifikasi ${maskEmail(row.email)}: ${describeFailure(error)}`,
     );
   }
 }
 
 function describeFailure(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+/** Input shape Better Auth hands `user.validateUserInfo` (loosely typed). */
+export type OAuthUserInfoInput = {
+  user?: { id?: unknown; emailVerified?: unknown };
+  source?: {
+    method?: string;
+    action?: string;
+    oauth?: { providerId?: string };
+  };
+};
+
+/**
+ * Resolves Better Auth's CONTEXT base URL (includes the `/api/auth` base
+ * path) from the hook context — the value Better Auth itself prefixes email
+ * links with. The fallback mirrors Better Auth's default base path, used
+ * only when the context value is unreadable.
+ */
+function authBaseURLFromContext(
+  ctx: unknown,
+  deps: AuthDeps,
+): string {
+  const baseURL = asHookContext(ctx).context?.baseURL;
+  return typeof baseURL === "string" && baseURL.startsWith("http")
+    ? baseURL
+    : `${deps.baseURL}/api/auth`;
+}
+
+/**
+ * A-11 OAuth profile + linking gate (AUTH-02), provider-agnostic and
+ * FAIL-CLOSED. Better Auth calls `validateUserInfo` for every user it is
+ * about to create, link, or sign in from an OAuth identity:
+ *
+ * - Profile gate, per provider: Google identities must carry
+ *   `email_verified = true` — for new accounts AND linking alike — else the
+ *   stable `email_not_verified` refusal. (Other providers keep Better
+ *   Auth's own untrusted-provider rule: an unverified profile is never
+ *   linked.)
+ * - Local-email-verified rule, EVERY provider (`requireLocalEmailVerified`
+ *   is off in the options precisely so THIS hook is the gate): on
+ *   `link-account`, the local account must exist and be verified. An
+ *   unverified account is refused with `account_not_verified` and
+ *   neutralized; a missing/unreadable local id or an unknown user is
+ *   refused the same way — never allowed through (fail closed).
+ * - Non-OAuth sources (the email/password sign-up passes
+ *   `{ method: "email-password" }`) pass through untouched.
+ */
+export function createOAuthUserInfoGate(deps: AuthDeps) {
+  return async (
+    data: OAuthUserInfoInput,
+    ctx?: unknown,
+  ): Promise<{ error: string } | undefined> => {
+    const source = data.source;
+    if (source?.method !== "oauth") return;
+
+    const providerId = source.oauth?.providerId;
+    if (providerId === GOOGLE_PROVIDER_ID && data.user?.emailVerified !== true) {
+      return { error: GOOGLE_EMAIL_NOT_VERIFIED_CODE };
+    }
+
+    if (source.action !== "link-account") return;
+
+    // `id` is the local user's id on this path (link-account.mjs sets it).
+    const localId = typeof data.user?.id === "string" ? data.user.id : "";
+    if (localId) {
+      const rows = await deps.db
+        .select({
+          id: users.id,
+          email: users.email,
+          name: users.name,
+          emailVerified: users.emailVerified,
+        })
+        .from(users)
+        .where(eq(users.id, localId))
+        .limit(1);
+      const local = rows[0];
+      if (local?.emailVerified) return; // verified local account: link away
+      if (local) {
+        await invalidateUnverifiedAccount(
+          deps,
+          local,
+          authBaseURLFromContext(ctx, deps),
+        );
+        return { error: ACCOUNT_NOT_VERIFIED_CODE };
+      }
+    }
+    // No readable local id, or no such user: refuse rather than link blind.
+    return { error: ACCOUNT_NOT_VERIFIED_CODE };
+  };
 }
 
 export function createAuthInstance(deps: AuthDeps) {
@@ -555,57 +655,10 @@ export function createAuthInstance(deps: AuthDeps) {
         },
       },
       /**
-       * A-11 Google profile gate (AUTH-02): Better Auth calls this hook for
-       * every user it is about to create, link, or sign in from an OAuth
-       * identity. Only Google identities with `email_verified = true` are
-       * accepted — for new accounts AND linking alike; anything else is
-       * refused with the stable `email_not_verified` redirect code. On the
-       * implicit-link path (action "link-account") it enforces the
-       * local-email-verified rule (`requireLocalEmailVerified` is off in the
-       * options above precisely so THIS hook is the gate): an unverified
-       * same-email local account is refused with `account_not_verified` and
-       * neutralized even though the link never happens. Non-Google sources
-       * (the email/password sign-up passes `{ method: "email-password" }`)
-       * pass through untouched.
+       * A-11 profile + linking gate — see `createOAuthUserInfoGate` (exported
+       * for unit tests of the fail-closed branches).
        */
-      validateUserInfo: async (data: {
-        user?: { id?: unknown; email?: unknown; emailVerified?: unknown };
-        source?: {
-          method?: string;
-          action?: string;
-          oauth?: { providerId?: string };
-        };
-      }) => {
-        const source = data.source;
-        if (
-          source?.method !== "oauth" ||
-          source.oauth?.providerId !== GOOGLE_PROVIDER_ID
-        ) {
-          return;
-        }
-        if (data.user?.emailVerified !== true) {
-          return { error: GOOGLE_EMAIL_NOT_VERIFIED_CODE };
-        }
-        if (source.action !== "link-account") return;
-
-        // `id` is the local user's id on this path (link-account.mjs sets it).
-        const localId = typeof data.user.id === "string" ? data.user.id : "";
-        if (!localId) return;
-        const rows = await deps.db
-          .select({
-            id: users.id,
-            email: users.email,
-            name: users.name,
-            emailVerified: users.emailVerified,
-          })
-          .from(users)
-          .where(eq(users.id, localId))
-          .limit(1);
-        const local = rows[0];
-        if (!local || local.emailVerified) return;
-        await invalidateUnverifiedAccount(deps, local);
-        return { error: ACCOUNT_NOT_VERIFIED_CODE };
-      },
+      validateUserInfo: createOAuthUserInfoGate(deps),
     },
     account: {
       accountLinking: {
@@ -614,8 +667,11 @@ export function createAuthInstance(deps: AuthDeps) {
         // runs BEFORE the hook and would answer a pre-hijack attempt with a
         // generic `account_not_linked`, skipping the neutralization and the
         // stable `account_not_verified` code A-13 maps to copy. The
-        // provider-side rule stays with Better Auth: `trustedProviders` is
-        // empty, so a Google profile must itself be email-verified to link.
+        // replacement gate in `createOAuthUserInfoGate` covers EVERY OAuth
+        // provider (this option is global) and fails closed — a missing local
+        // id or an unknown user is refused, never linked. The provider-side
+        // rule stays with Better Auth: `trustedProviders` is empty, so an
+        // untrusted provider's profile must itself be email-verified to link.
         requireLocalEmailVerified: false,
       },
     },
