@@ -28,7 +28,8 @@
   - ✅ Chore: gerbang audit CI dengan pengecualian braces GHSA-vfj7-8cjw-p6xm (PR #21)
   - ✅ A-08 pola modul (5 file), serializer per audiens, error domain → HTTP, batas impor ESLint (PR #23)
   - ✅ A-09 Better Auth inti: email/password, sesi 30 hari/8 jam, rate limit IP+email, Turnstile (PR #25)
-  - ⏭️ Berikutnya: **A-10** (email transaksional, verifikasi & reset password)
+  - ✅ A-10 email transaksional, verifikasi (magic link) & reset password (PR #27)
+  - ⏭️ Berikutnya: **A-11** (login Google & penautan akun)
 - ✅ Chore: Next 16.3.7 (PR #17). Dependabot: #6 & #7 (actions major) di-merge; #8–#10 (eslint 10, typescript 7, @types/node 26) di-ignore.
 
 ## Cara kerja yang sudah berjalan
@@ -60,8 +61,11 @@
 - [x] Konflik peer npm better-auth ↔ @babel/core@7 diselesaikan dengan overrides (PR #25) — lihat catatan keputusan.
 - [ ] Chore: `src/db/index.ts` dibuat lazy (`getDb()`) agar route tidak perlu impor dinamis seperti `src/lib/auth.ts` (A-09).
 - [ ] Kartu manajemen user (ubah role): WAJIB mencabut semua sesi user tersebut — masa sesi (30 hari/8 jam) ditetapkan saat sesi dibuat.
-- [ ] Saat A-10: sign-up dengan email terdaftar masih mengembalikan error "user sudah ada" (enumerasi lewat registrasi) — tinjau saat `requireEmailVerification` diaktifkan.
-- [ ] Saat A-10/A-11: baseURL Better Auth di Preview masih domain produksi; tautan email & callback OAuth perlu mengikuti URL deploy preview.
+- [x] Enumerasi lewat sign-up ditutup di A-10 (`requireEmailVerification` + `customSyntheticUser`, respons identik).
+- [x] baseURL Preview mengikuti `VERCEL_BRANCH_URL` (A-10). Callback Google OAuth untuk Preview diputuskan di A-11.
+- [ ] Chore: rapikan format Prettier `schema.test.ts` (drift di main, dicatat saat A-10).
+- [ ] Saat A-13: halaman tujuan tautan verifikasi & reset (`callbackURL`/`redirectTo`), tampilan kode error `TOKEN_EXPIRED`/`INVALID_TOKEN`, dan form mengirim token Turnstile lewat header `x-captcha-response`.
+- [ ] Sebelum pengguna nyata: H-07 Resend + `MAIL_TRANSPORT=resend` di Vercel Production. Dengan transport `log`, tautan bertoken tercetak di log Vercel.
 - [ ] `users.last_login_at` belum diisi saat login (opsional, catatan PR #25).
 - [ ] Sebelum 2 Nov 2026: cek advisory braces GHSA-vfj7-8cjw-p6xm. Bila sudah ada versi tambalan, hapus entri di .github/audit-exceptions.json dan upgrade; bila belum, perpanjang expires dengan alasan yang diperbarui.
 
@@ -77,7 +81,7 @@
 - **CSP:** keputusan menunggu proposal dari kartu A-16 (nonce vs ISR).
 - **`STATUS.md`:** isinya ditentukan pemilik repo; agent hanya boleh menerapkan teks yang sudah ditentukan apa adanya (lewat PR), tidak menulis isinya sendiri.
 - **Turnstile per lingkungan:** `.env.local`, CI, dan Vercel Preview memakai kunci uji; kunci asli hanya di Vercel Production (URL preview tidak cocok dengan hostname widget).
-- **URL di Preview:** `trustedOrigins` Better Auth mencakup `VERCEL_URL`/`VERCEL_BRANCH_URL` (A-09). baseURL Preview masih `https://binzi.vercel.app` — disesuaikan saat A-10/A-11.
+- **URL di Preview:** baseURL Better Auth = `https://VERCEL_BRANCH_URL` (fallback `VERCEL_URL`) bila `VERCEL_ENV=preview` (A-10); `trustedOrigins` mencakup semua origin deploy. Production/lokal memakai `BETTER_AUTH_URL` ?? `NEXT_PUBLIC_APP_URL`.
 - **Vercel Production memakai nilai dev** (DB binzi-dev) sampai menjelang rilis.
 - **GitHub Secrets:** saat ini hanya `CRON_SECRET`; secret lain ditambahkan saat kartu membutuhkannya.
 - **`MIGRATION_DATABASE_URL`** hanya di `.env.local` (dipakai drizzle-kit lokal), tidak di Vercel.
@@ -96,6 +100,8 @@
 - **Auth (A-09):** sesi jendela tetap dari login — member 30 hari, staf (EDITOR/ADMIN/SUPER_ADMIN) 8 jam, `disableSessionRefresh`. Rate limit = reservasi atomik per IP+email di `rate_limits` sebelum password dicek; login sukses menghapus bucket; IPv6 dipotong ke /64. Turnstile lewat plugin captcha resmi, token di header `x-captcha-response`. Cookie `__Secure-better-auth.session_token` di https. `role`/`status` `input: false`.
 - **Tes integrasi auth:** PGlite + migrator Drizzle (`src/db/migrations`), tanpa database di CI, tanpa jaringan.
 - **Overrides `@babel/plugin-transform-runtime: ^7.29.0`** (PR #25): menyelesaikan konflik peer opsional better-auth → @tanstack/react-start → @babel/core@8-rc. Hapus bila better-auth melepas peer itu atau shadcn pindah ke @babel/core@8.
+- **Email (A-10):** template = fungsi TS → HTML string (tanpa React Email), Resend via `fetch` REST dengan timeout 10 detik. Pengiriman tidak pernah melempar error ke alur HTTP; kegagalan dicatat di log dengan alamat disamarkan. Semua nilai di-escape, URL hanya http/https. Warna dari `src/emails/tokens.ts` — satu-satunya pengecualian `lint:hex`, dijaga tes paritas dengan `tokens.css`.
+- **Verifikasi & reset (A-10):** `requireEmailVerification` aktif; tautan verifikasi 24 jam = magic link (otomatis masuk) + email selamat datang. Token reset 1 jam, sekali pakai, mencabut semua sesi. Rate limit 3/jam/email untuk lupa password dan kirim ulang verifikasi; respons identik untuk email terdaftar/tidak.
 
 ## Rencana setelah Fase 0
 
@@ -113,6 +119,5 @@ AI coding agent (Claude Code). Terlampir docs/STATUS.md dan
 docs/tasks/URUTAN-KERJA.md dari repo saya — baca keduanya sebagai konteks.
 Spesifikasi lengkap ada di docs/prd/PRD-v1.3.md dan aturan agent di
 CLAUDE.md; minta saya unggah bagian yang kamu butuhkan.
-Posisi terakhir saya: A-09 sudah merged (PR #25), mau mulai A-10
-(email transaksional, verifikasi & reset password).
+Posisi terakhir saya: A-10 sudah merged (PR #27), mau mulai A-11 (login Google & penautan akun).
 ```
