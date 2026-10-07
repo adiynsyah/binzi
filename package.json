@@ -18,6 +18,7 @@
     "db:migrate": "drizzle-kit migrate",
     "db:seed": "tsx src/db/seed.ts",
     "db:studio": "drizzle-kit studio",
+    "user:role": "tsx --env-file-if-exists=.env --env-file-if-exists=.env.local scripts/set-role.ts",
     "format": "prettier --write .",
     "check": "npm run typecheck && npm run lint && npm run test && npm run lint:hex",
     "prepare": "git config core.hooksPath .githooks"
