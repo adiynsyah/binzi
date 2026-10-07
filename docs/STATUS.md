@@ -1,6 +1,6 @@
 # Status Proyek BINZI — catatan untuk melanjutkan di chat baru
 
-> Terakhir diperbarui: 3 Okt 2026. File ini dikelola manual (bukan oleh agent) dan hanya untuk melanjutkan percakapan dengan Claude.
+> Terakhir diperbarui: 7 Okt 2026. File ini dikelola manual (bukan oleh agent) dan hanya untuk melanjutkan percakapan dengan Claude.
 > Untuk melanjutkan: buka chat baru, unggah file ini + `docs/tasks/URUTAN-KERJA.md`, lalu pakai prompt di bagian paling bawah.
 
 ## Di mana semua keputusan tersimpan
@@ -30,7 +30,9 @@
   - ✅ A-09 Better Auth inti: email/password, sesi 30 hari/8 jam, rate limit IP+email, Turnstile (PR #25)
   - ✅ A-10 email transaksional, verifikasi (magic link) & reset password (PR #27)
   - ✅ A-11 login Google & penautan akun, anti pra-pembajakan, anti open-redirect (PR #29)
-  - ⏭️ Berikutnya: **A-12** (RBAC & proteksi route)
+  - ✅ A-12 RBAC & proteksi route: matriks rute tunggal, guard halaman & API, proxy cookie, `npm run user:role` (PR #36)
+  - ✅ Chore: kunci ulang sharp 0.35.5, source-map-js 1.2.2, @modelcontextprotocol/sdk ≥ 1.31 (advisory 6–7 Okt 2026; tanpa pengecualian audit baru)
+  - ⏭️ Berikutnya: **A-13** (layar autentikasi)
 - ✅ Chore: Next 16.3.7 (PR #17). Dependabot: #6 & #7 (actions major) di-merge; #8–#10 (eslint 10, typescript 7, @types/node 26) di-ignore.
 
 ## Cara kerja yang sudah berjalan
@@ -50,7 +52,7 @@
 - [x] Setelah 30 Sep 2026: naikkan `next` ke **16.3.7** (rilis keamanan) — kemungkinan datang lewat PR Dependabot; merge bila CI hijau.
 - [x] Saat H-08/H-10: set **`MAIL_TRANSPORT=log`** dan **`NEXT_PUBLIC_APP_URL=https://<project>.vercel.app`** di Vercel (Preview & Production) — keduanya wajib di luar development, tanpa itu deploy gagal start.
 - [ ] H-04 R2 (bucket dev & prod, token dev) sebelum mulai A-17; lalu isi `R2_*` di `.env.local` dan Vercel.
-- [ ] Kunci versi Node: `.nvmrc` + `engines.node` di package.json, sama dengan CI & Vercel. Node lokal sudah dinaikkan ke 24 (sebelumnya v20.19, sudah EOL → peringatan EBADENGINE dari vitest).
+- [ ] Kunci versi Node: `.nvmrc` + `engines.node` di package.json, sama dengan CI & Vercel. Node lokal sudah dinaikkan ke 24 (sebelumnya v20.19, sudah EOL → peringatan EBADENGINE dari vitest). `npm run user:role` butuh Node ≥ 22.9 (`--env-file-if-exists`) — alasan tambahan mengisi `engines.node`.
 - [ ] Kartu "pembaruan toolchain" setelah Fase 0: TypeScript 7, ESLint 10, `@types/node` (major yang di-ignore Dependabot) + penguncian versi Node.
 - [ ] Kartu "pembaruan token": tambah `success-tint-line` (garis banner sukses sementara `border-success`, usulan A-06) + temuan desain lain.
 - [ ] Gambar desain yang gagal dibaca agent (7a, 28e): cek dengan `file docs/design/screens/*.png | grep -v "PNG image"`, ekspor ulang sebagai PNG asli.
@@ -59,9 +61,10 @@
 - [ ] Chore: alias `@/` di `vitest.config.ts`, lalu ganti impor relatif (`../../db/schema`, `../../lib/...`) di `src/modules/**` menjadi `@/`.
 - [ ] Setelah A-09: aturan ESLint yang melarang impor `@/db` dari luar `src/modules/**` dan `src/db/**` (pengecualian: adapter Better Auth di `src/lib/auth.ts`).
 - [ ] Integrasi pelaporan error asli ke Sentry di route/server action sebelum `toErrorResponse()` (aturan di `src/modules/README.md`) — sebelum route API fitur pertama.
+  Saat integrasi: hanya error tak terduga (5xx) yang dilaporkan ke Sentry; error domain 4xx (401/403/404/409/422) tidak dilaporkan dan di log cukup satu baris tanpa stack trace.
 - [x] Konflik peer npm better-auth ↔ @babel/core@7 diselesaikan dengan overrides (PR #25) — lihat catatan keputusan.
 - [ ] Chore: `src/db/index.ts` dibuat lazy (`getDb()`) agar route tidak perlu impor dinamis seperti `src/lib/auth.ts` (A-09).
-- [ ] Kartu manajemen user (ubah role): WAJIB mencabut semua sesi user tersebut — masa sesi (30 hari/8 jam) ditetapkan saat sesi dibuat.
+- [ ] Kartu manajemen user (ubah role): WAJIB mencabut semua sesi user tersebut — masa sesi (30 hari/8 jam) ditetapkan saat sesi dibuat. CLI `user:role` (A-12) sudah melakukannya dalam satu transaksi — pakai ulang logikanya.
 - [x] Enumerasi lewat sign-up ditutup di A-10 (`requireEmailVerification` + `customSyntheticUser`, respons identik).
 - [x] baseURL Preview mengikuti `VERCEL_BRANCH_URL` (A-10). Callback Google OAuth untuk Preview diputuskan di A-11.
 - [ ] Chore: rapikan format Prettier `schema.test.ts` (drift di main, dicatat saat A-10).
@@ -71,6 +74,9 @@
 - [ ] Sebelum 2 Nov 2026: cek advisory braces GHSA-vfj7-8cjw-p6xm. Bila sudah ada versi tambalan, hapus entri di .github/audit-exceptions.json dan upgrade; bila belum, perpanjang expires dengan alasan yang diperbarui.
 - [ ] `id_token` Google masih tersimpan plaintext (`encryptOAuthTokens` hanya mencakup access/refresh token). BINZI tidak memakainya setelah login → kosongkan lewat `databaseHooks.account` create/update.before.
 - [ ] Saat A-13: copy untuk kode `account_not_verified` (usulan di PR #29) dan `email_not_verified`; tombol Google disembunyikan di Preview (provider nonaktif di sana).
+- [ ] Cek aturan branch `main`: tombol Squash and merge aktif walau CI merah (PR #36). Pastikan "Require status checks to pass" aktif dengan check `ci` terdaftar, dan bypass admin dimatikan.
+- [ ] Chore kosmetik: hapus `--env-file-if-exists=.env` dari script `user:role` (repo tidak punya `.env`; pesan "not found" muncul dua kali).
+- [ ] Saat A-14: guard layout `(learn)` baru bisa diuji setelah `/belajar/page.tsx` ada (URL tanpa halaman langsung 404 tanpa melewati layout grup). Uji: cabut sesi lewat `user:role`, refresh `/belajar` → harus ke `/masuk?next=%2Fbelajar`.
 
 ## Keputusan & catatan dari diskusi yang belum ada di PRD
 
@@ -108,6 +114,8 @@
 - **Google OAuth (A-11):** provider nonaktif di Preview; production tanpa `GOOGLE_CLIENT_ID`/`SECRET` = fail-fast (seluruh auth mati, jadi env wajib ada); development tanpa env = nonaktif + peringatan. Profil Google wajib `email_verified=true`. Token OAuth disimpan terenkripsi (`encryptOAuthTokens`). Akun baru dari Google menerima email selamat datang.
 - **Penautan akun (A-11):** `requireLocalEmailVerified` bawaan better-auth DIMATIKAN; aturannya dipindah ke hook `validateUserInfo` yang fail-closed dan berlaku untuk SEMUA provider OAuth. Login Google yang bertemu akun lokal belum terverifikasi → ditolak `account_not_verified`, password akun itu dihapus, sesinya dicabut, dan tautan verifikasi baru dikirim (3/jam/email). Jangan aktifkan kembali `trustedProviders`.
 - **Redirect (A-11):** semua parameter redirect auth (`callbackURL`, `errorCallbackURL`, `newUserCallbackURL`, `redirectTo`) hanya menerima path internal (`safeInternalRedirectPath` di `src/modules/auth/schema.ts`). Pakai fungsi yang sama untuk `?next=`.
+- **RBAC (A-12):** matriks rute di `src/lib/rbac.ts` sebagai sumber tunggal — MEMBER+: /belajar/**, /profil · EDITOR+: /cms, /cms/konten, /cms/artikel, /cms/kursus/**, /cms/media · ADMIN+: /cms/kategori, /cms/pengguna, /cms/reset-attempt · SUPER_ADMIN: /cms/pengaturan, /cms/audit-log. Sub-path /cms/* yang tidak terdaftar = SUPER_ADMIN (fail-closed). API CMS di /api/cms/* (tanpa v1; PRD V-04 perlu dirapikan). Halaman belum login → redirect /masuk?next= (lewat safeInternalRedirectPath); API belum login → 401 JSON tanpa redirect; role kurang → 403 (`forbidden()`, butuh `experimental.authInterrupts`). Role & status dibaca dari DB per request; status non-ACTIVE = belum login. Proxy hanya cek cookie (`getSessionCookie`), tanpa DB. Perubahan role selalu mencabut semua sesi user. Guard berlapis: layout + setiap page, route handler, dan server action.
+- **Advisory baru di tengah PR:** CI bisa merah tanpa perubahan kode karena advisory baru. Perbaiki lewat PR chore dari `main` (kunci ulang lockfile, tanpa pengecualian bila tambalan tersedia), lalu perbarui branch kartu lewat terminal (`git merge origin/main`). Tombol "Update branch" tidak tampil di repo ini.
 
 ## Rencana setelah Fase 0
 
@@ -125,5 +133,5 @@ AI coding agent (Claude Code). Terlampir docs/STATUS.md dan
 docs/tasks/URUTAN-KERJA.md dari repo saya — baca keduanya sebagai konteks.
 Spesifikasi lengkap ada di docs/prd/PRD-v1.3.md dan aturan agent di
 CLAUDE.md; minta saya unggah bagian yang kamu butuhkan.
-Posisi terakhir saya: A-11 sudah merged (PR #29), mau mulai A-12 (RBAC & proteksi route).
+Posisi terakhir saya: A-12 sudah merged (PR #36), mau mulai A-13 (layar autentikasi).
 ```

@@ -58,5 +58,8 @@ Jika pekerjaan menuntut menyentuh hal di luar lingkup, **berhenti dan tanyakan**
 ## Verifikasi oleh kamu (sebelum merge)
 - [ ] Uji di HP nyata: drawer, menu akun, bottom nav.
 
+## Catatan
+- Layout ini sudah berisi guard RBAC dari A-12. Ganti tampilannya saja; panggilan requireUser/requireRole wajib tetap ada. Menu CMS mengikuti matriks di src/lib/rbac.ts.
+
 ---
 Akhiri sesi dengan **ringkasan PR** sesuai format di `docs/tasks/README.md`.
