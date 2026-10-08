@@ -3,10 +3,16 @@
  * PasswordField pills and, later, by server-side validation (A-09).
  *
  * Labels are the final copy from screen 3a — do not paraphrase.
- * NOTE (A-05): this file lives in src/components/ui for now; when A-09
- * lands it moves to the shared contract location and the rules must be
- * matched against the password policy in the PRD.
+ * A-13: the length threshold now imports PASSWORD_MIN_LENGTH from the
+ * shared contract (src/modules/auth/schema.ts, single source since A-09)
+ * so the pills and the server schema can never drift. The letter/digit
+ * predicates below mirror passwordSchema's regexes; the schema file is
+ * outside this card's scope, so they stay local until a follow-up moves
+ * the per-rule predicates into the contract too.
  */
+// Relative import: this module is reached from Vitest tests (via
+// PasswordField), and vitest.config.ts has no "@/" alias resolution.
+import { PASSWORD_MIN_LENGTH } from "../../modules/auth/schema";
 
 export type PasswordRule = {
   id: string;
@@ -17,7 +23,11 @@ export type PasswordRule = {
 };
 
 export const passwordRules: readonly PasswordRule[] = [
-  { id: "length", label: "8 karakter", test: (value) => value.length >= 8 },
+  {
+    id: "length",
+    label: `${PASSWORD_MIN_LENGTH} karakter`,
+    test: (value) => value.length >= PASSWORD_MIN_LENGTH,
+  },
   { id: "letter", label: "ada huruf", test: (value) => /[a-z]/i.test(value) },
   { id: "digit", label: "ada angka", test: (value) => /\d/.test(value) },
 ];
