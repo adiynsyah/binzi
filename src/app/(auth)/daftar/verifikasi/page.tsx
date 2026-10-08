@@ -44,7 +44,7 @@ export default async function VerifikasiPage({
           >
             <Check aria-hidden="true" className="size-6" strokeWidth={3} />
           </span>
-          <h2 className="mt-4 text-center text-xl font-black tracking-tight">
+          <h2 className="mt-4 text-center text-[24px] leading-[1.24] font-black tracking-[-0.02em]">
             Akun aktif
           </h2>
           <p className="mt-3 text-center text-sm">

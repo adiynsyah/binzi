@@ -11,7 +11,7 @@ import { cn } from "../../../lib/utils";
 export function ExpiredResetPanel() {
   return (
     <div role="status" className="rounded-card bg-text p-6 text-surface">
-      <h2 className="text-xl font-black tracking-tight">Tautan ini sudah tidak berlaku</h2>
+      <h2 className="text-[24px] leading-[1.24] font-black tracking-[-0.02em]">Tautan ini sudah tidak berlaku</h2>
       <p className="mt-3 text-sm">
         Tautan reset berlaku 1 jam dan hanya bisa dipakai sekali. Minta tautan
         baru — password lama Anda masih aktif sampai diganti.

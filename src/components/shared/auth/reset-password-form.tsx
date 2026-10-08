@@ -79,7 +79,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
         role="status"
         className="rounded-card border border-success bg-success-tint p-6 text-success-tint-text"
       >
-        <h2 className="text-xl font-black tracking-tight">
+        <h2 className="text-[24px] leading-[1.24] font-black tracking-[-0.02em]">
           Password baru disimpan.
         </h2>
         <p className="mt-3 text-sm">

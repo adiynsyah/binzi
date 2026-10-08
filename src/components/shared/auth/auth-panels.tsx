@@ -148,7 +148,7 @@ export function AuthShell({
         </div>
         <div className="w-full rounded-card border border-border-soft bg-surface p-5 sm:p-6 lg:max-w-[410px] lg:rounded-none lg:border-0 lg:p-0">
           {eyebrow ? (
-            <p className="mb-3 hidden font-mono text-xs font-medium uppercase tracking-[0.2em] text-text-subtle md:block lg:hidden">
+            <p className="mb-3 hidden font-mono text-[11.5px] font-medium uppercase tracking-[0.14em] text-text-subtle md:block lg:hidden">
               {eyebrow}
             </p>
           ) : null}

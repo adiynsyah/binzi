@@ -59,7 +59,7 @@ export function ForgotPasswordForm({ googleEnabled }: { googleEnabled: boolean }
         role="status"
         className="rounded-card border border-border-soft bg-surface-2 p-6"
       >
-        <h2 className="text-xl font-black tracking-tight text-text">
+        <h2 className="text-[24px] leading-[1.24] font-black tracking-[-0.02em] text-text">
           Periksa email Anda.
         </h2>
         <p className="mt-3 text-sm text-text-muted">

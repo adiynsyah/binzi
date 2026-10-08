@@ -54,7 +54,7 @@ export function ResendVerificationForm() {
 
   return (
     <div className="rounded-card border border-border-soft bg-surface-2 p-6">
-      <h2 className="text-lg font-black tracking-tight text-text">
+      <h2 className="text-[24px] leading-[1.24] font-black tracking-[-0.02em] text-text">
         Akun Anda belum aktif.
       </h2>
       <p className="mt-2 text-sm text-text-muted">
