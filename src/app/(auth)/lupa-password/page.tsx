@@ -17,7 +17,7 @@ export const dynamic = "force-dynamic";
 
 export default async function LupaPasswordPage() {
   // No Turnstile on this page — the sitekey path must not be evaluated here.
-  const googleEnabled = getGoogleEnabled();
+  const googleEnabled = await getGoogleEnabled();
 
   return (
     <AuthShell

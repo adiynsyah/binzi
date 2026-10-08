@@ -28,8 +28,8 @@ export default async function DaftarPage({ searchParams }: DaftarPageProps) {
   const { error } = await searchParams;
   // Both read at request time (redirectIfSignedIn below already makes this
   // page dynamic — headers() opts it out of static rendering).
-  const googleEnabled = getGoogleEnabled();
-  const turnstileSiteKey = getTurnstileSiteKey();
+  const googleEnabled = await getGoogleEnabled();
+  const turnstileSiteKey = await getTurnstileSiteKey();
   await redirectIfSignedIn(POST_LOGIN_DEFAULT_PATH);
 
   return (

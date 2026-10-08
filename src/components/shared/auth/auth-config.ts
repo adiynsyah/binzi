@@ -3,8 +3,6 @@ import "server-only";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { clientEnv } from "../../../config/env.client";
-import { serverEnv } from "../../../config/env.server";
 import { toSessionUser } from "../../../lib/rbac";
 
 // Server-side UI configuration for the (auth) pages (card A-13).
@@ -13,12 +11,15 @@ import { toSessionUser } from "../../../lib/rbac";
 // process.env themselves: whether Google is offered and which Turnstile
 // sitekey to render are decided here and passed down as props.
 //
-// Both functions are read PER REQUEST on dynamically rendered pages — never
-// at build time. A statically prerendered page would freeze the values into
-// HTML built elsewhere (and evaluating the sitekey check during a build
-// without the variable fails the deploy, as PR #39's first preview showed).
-// Pages that do not render the Turnstile widget must call getGoogleEnabled()
-// only and never touch the sitekey path.
+// The env modules are imported LAZILY inside the functions (the
+// src/lib/auth.ts pattern): "Collecting page data" imports this module at
+// build time, and evaluating env.client there fails the BUILD on any
+// deployment without required variables (PR #39's previews failed on
+// NEXT_PUBLIC_APP_URL, not on the sitekey). Values are therefore read per
+// REQUEST on dynamically rendered pages, never frozen into a build, and a
+// misconfigured deployment fails the request — clearly — instead of the
+// deploy. Pages that do not render the Turnstile widget must call
+// getGoogleEnabled() only and never touch the sitekey path.
 
 // Cloudflare's documented always-pass TEST sitekey — the client-side pair of
 // the always-pass test SECRET src/lib/auth.ts falls back to in development.
@@ -33,7 +34,8 @@ const TURNSTILE_TEST_SITEKEY = "1x0000000000000000000000000000000AA";
  * Keep the two rules in sync — the A-13 PR notes a follow-up chore to
  * export this from src/lib/auth.ts as the single source. Never throws.
  */
-export function getGoogleEnabled(): boolean {
+export async function getGoogleEnabled(): Promise<boolean> {
+  const { serverEnv } = await import("../../../config/env.server");
   const isVercelPreview = process.env.VERCEL_ENV === "preview";
   return (
     !isVercelPreview &&
@@ -48,7 +50,11 @@ export function getGoogleEnabled(): boolean {
  * the key — the request-time twin of src/lib/auth.ts's TURNSTILE_SECRET_KEY
  * check, so a misconfigured deployment fails clearly, never silently.
  */
-export function getTurnstileSiteKey(): string | null {
+export async function getTurnstileSiteKey(): Promise<string | null> {
+  const [{ clientEnv }, { serverEnv }] = await Promise.all([
+    import("../../../config/env.client"),
+    import("../../../config/env.server"),
+  ]);
   if (clientEnv.NEXT_PUBLIC_TURNSTILE_SITE_KEY) {
     return clientEnv.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
   }

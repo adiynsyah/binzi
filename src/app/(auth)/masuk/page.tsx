@@ -31,8 +31,8 @@ export default async function MasukPage({ searchParams }: MasukPageProps) {
   const nextPath = safeInternalRedirectPath(next ?? null);
   // Both read at request time (redirectIfSignedIn below already makes this
   // page dynamic — headers() opts it out of static rendering).
-  const googleEnabled = getGoogleEnabled();
-  const turnstileSiteKey = getTurnstileSiteKey();
+  const googleEnabled = await getGoogleEnabled();
+  const turnstileSiteKey = await getTurnstileSiteKey();
   // Already signed in? Straight to the destination (product-owner decision).
   await redirectIfSignedIn(nextPath ?? POST_LOGIN_DEFAULT_PATH);
 
