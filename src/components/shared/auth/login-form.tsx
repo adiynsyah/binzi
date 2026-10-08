@@ -255,7 +255,7 @@ export function LoginForm({
             id="login-password"
             type={passwordVisible ? "text" : "password"}
             autoComplete="current-password"
-            placeholder="Password Anda"
+            placeholder="Minimal 8 karakter"
             className="pr-14"
             aria-invalid={errors.password ? true : undefined}
             aria-describedby={errors.password ? "login-password-error" : "login-password-hint"}

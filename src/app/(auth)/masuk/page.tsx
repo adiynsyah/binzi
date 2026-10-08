@@ -36,18 +36,24 @@ export default async function MasukPage({ searchParams }: MasukPageProps) {
   // Already signed in? Straight to the destination (product-owner decision).
   await redirectIfSignedIn(nextPath ?? POST_LOGIN_DEFAULT_PATH);
 
+  // One cross-link, two placements (2a vs 2d): under the heading at ≥1024,
+  // at the bottom of the card below it.
+  const crossLink = (
+    <>
+      Belum punya akun?{" "}
+      <AuthInlineLink href="/daftar">Daftar gratis</AuthInlineLink>
+    </>
+  );
+
   return (
     <AuthShell
+      tone="ink"
       eyebrow="MASUK"
       heading="Masuk"
-      sub="Lanjutkan dari materi terakhir Anda."
+      sub={crossLink}
+      subFromLg
       marketing={<LoginMarketing />}
-      footer={
-        <>
-          Belum punya akun?{" "}
-          <AuthInlineLink href="/daftar">Daftar gratis</AuthInlineLink>
-        </>
-      }
+      footer={crossLink}
       note="Sesi bertahan 30 hari di perangkat ini."
       closable
     >
