@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 import { AuthShell } from "@/components/shared/auth/auth-panels";
-import { getAuthUiConfig } from "@/components/shared/auth/auth-config";
+import { getGoogleEnabled } from "@/components/shared/auth/auth-config";
 import { ForgotPasswordForm } from "@/components/shared/auth/forgot-password-form";
 
 // /lupa-password (card A-13; screen 3b left, AUTH-04). The request is not
@@ -10,8 +10,14 @@ import { ForgotPasswordForm } from "@/components/shared/auth/forgot-password-for
 
 export const metadata: Metadata = { title: "Lupa password · BINZI" };
 
+// googleEnabled is environment state, not page content: force request-time
+// rendering so the value is read per request instead of being frozen into
+// prerendered HTML by a build whose env differs (the PR #39 preview lesson).
+export const dynamic = "force-dynamic";
+
 export default async function LupaPasswordPage() {
-  const { googleEnabled } = await getAuthUiConfig();
+  // No Turnstile on this page — the sitekey path must not be evaluated here.
+  const googleEnabled = getGoogleEnabled();
 
   return (
     <AuthShell

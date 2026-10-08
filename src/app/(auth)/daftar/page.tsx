@@ -6,7 +6,8 @@ import {
   RegisterMarketing,
 } from "@/components/shared/auth/auth-panels";
 import {
-  getAuthUiConfig,
+  getGoogleEnabled,
+  getTurnstileSiteKey,
   redirectIfSignedIn,
 } from "@/components/shared/auth/auth-config";
 import { mapCallbackError } from "@/components/shared/auth/auth-errors";
@@ -25,7 +26,10 @@ type DaftarPageProps = {
 
 export default async function DaftarPage({ searchParams }: DaftarPageProps) {
   const { error } = await searchParams;
-  const { googleEnabled, turnstileSiteKey } = await getAuthUiConfig();
+  // Both read at request time (redirectIfSignedIn below already makes this
+  // page dynamic — headers() opts it out of static rendering).
+  const googleEnabled = getGoogleEnabled();
+  const turnstileSiteKey = getTurnstileSiteKey();
   await redirectIfSignedIn(POST_LOGIN_DEFAULT_PATH);
 
   return (

@@ -6,7 +6,8 @@ import {
   LoginMarketing,
 } from "@/components/shared/auth/auth-panels";
 import {
-  getAuthUiConfig,
+  getGoogleEnabled,
+  getTurnstileSiteKey,
   redirectIfSignedIn,
 } from "@/components/shared/auth/auth-config";
 import { mapCallbackError } from "@/components/shared/auth/auth-errors";
@@ -28,7 +29,10 @@ type MasukPageProps = {
 export default async function MasukPage({ searchParams }: MasukPageProps) {
   const { next, error } = await searchParams;
   const nextPath = safeInternalRedirectPath(next ?? null);
-  const { googleEnabled, turnstileSiteKey } = await getAuthUiConfig();
+  // Both read at request time (redirectIfSignedIn below already makes this
+  // page dynamic — headers() opts it out of static rendering).
+  const googleEnabled = getGoogleEnabled();
+  const turnstileSiteKey = getTurnstileSiteKey();
   // Already signed in? Straight to the destination (product-owner decision).
   await redirectIfSignedIn(nextPath ?? POST_LOGIN_DEFAULT_PATH);
 
