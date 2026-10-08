@@ -1,6 +1,6 @@
 # Status Proyek BINZI — catatan untuk melanjutkan di chat baru
 
-> Terakhir diperbarui: 7 Okt 2026. File ini dikelola manual (bukan oleh agent) dan hanya untuk melanjutkan percakapan dengan Claude.
+> Terakhir diperbarui: 9 Okt 2026. File ini dikelola manual (bukan oleh agent) dan hanya untuk melanjutkan percakapan dengan Claude.
 > Untuk melanjutkan: buka chat baru, unggah file ini + `docs/tasks/URUTAN-KERJA.md`, lalu pakai prompt di bagian paling bawah.
 
 ## Di mana semua keputusan tersimpan
@@ -32,7 +32,9 @@
   - ✅ A-11 login Google & penautan akun, anti pra-pembajakan, anti open-redirect (PR #29)
   - ✅ A-12 RBAC & proteksi route: matriks rute tunggal, guard halaman & API, proxy cookie, `npm run user:role` (PR #36)
   - ✅ Chore: kunci ulang sharp 0.35.5, source-map-js 1.2.2, @modelcontextprotocol/sdk ≥ 1.31 (advisory 6–7 Okt 2026; tanpa pengecualian audit baru)
-  - ⏭️ Berikutnya: **A-13** (layar autentikasi)
+  - ✅ A-13 layar autentikasi: /masuk, /daftar, /daftar/verifikasi, /lupa-password, /reset-password + LoginModal 2c (PR #39). **Di-merge tanpa verifikasi manual** — lihat item pertama di "Pekerjaan kecil yang masih terbuka".
+  - ✅ Chore: next 16.3.8 (6 advisory high) — ikut di PR #39 sebagai pengecualian (lihat catatan keputusan).
+  - ⏭️ Berikutnya: (1) **verifikasi A-13** + cek env Vercel, (2) chore callbackURL hook A-11, (3) **A-14** (kerangka layout publik & member)
 - ✅ Chore: Next 16.3.7 (PR #17). Dependabot: #6 & #7 (actions major) di-merge; #8–#10 (eslint 10, typescript 7, @types/node 26) di-ignore.
 
 ## Cara kerja yang sudah berjalan
@@ -46,19 +48,21 @@
 
 ## Pekerjaan kecil yang masih terbuka
 
+- [ ] **Verifikasi A-13 (PR #39 sudah di-merge tanpa uji manual).** Di lokal (`npm run dev`): jalankan 8 langkah "Cara memverifikasi manual" di badan PR #39 — terutama anti-enumerasi (daftar ulang email terdaftar → panel identik, tanpa email baru di log), salah password 5× → pesan 15 menit, tautan reset dipakai dua kali → panel "Tautan ini sudah tidak berlaku". Tambah: satu alur penuh dengan keyboard saja, dan bandingkan layar dengan `.png` di 360/768/1280 (+1440 `/masuk`). Temuan → PR fix dari `main`.
+- [ ] **Env Vercel (temuan PR #39):** log build Preview menunjukkan `NEXT_PUBLIC_APP_URL` kosong di Preview. Di Vercel → Settings → Environment Variables, pastikan semua env yang dibutuhkan dicentang untuk **Preview dan Production** tanpa batasan branch (`NEXT_PUBLIC_APP_URL`, `MAIL_TRANSPORT=log`, `NEXT_PUBLIC_TURNSTILE_SITE_KEY` + `TURNSTILE_SECRET_KEY` (kunci uji di Preview), `BETTER_AUTH_SECRET`, `DATABASE_URL`, dst.). Lalu **redeploy** (nilai `NEXT_PUBLIC_*` ditanam saat build) dan buka `/masuk` & `/daftar` di URL Preview dan di `https://binzi.vercel.app`.
 - [ ] Tes env A-02 dibuat tidak bergantung pada env mesin (temuan A-03): beri objek env eksplisit atau bersihkan variabel relevan sebelum tiap tes.
 - [x] Bila `.env.local` sudah berisi password DB Supabase saat A-02: reset password DB di Supabase.
 - [ ] Pastikan `git ls-files .githooks` menampilkan `.githooks/commit-msg` dengan mode `100755` (hook pembersih atribusi AI).
 - [x] Setelah 30 Sep 2026: naikkan `next` ke **16.3.7** (rilis keamanan) — kemungkinan datang lewat PR Dependabot; merge bila CI hijau.
-- [x] Saat H-08/H-10: set **`MAIL_TRANSPORT=log`** dan **`NEXT_PUBLIC_APP_URL=https://<project>.vercel.app`** di Vercel (Preview & Production) — keduanya wajib di luar development, tanpa itu deploy gagal start.
+- [x] Saat H-08/H-10: set **`MAIL_TRANSPORT=log`** dan **`NEXT_PUBLIC_APP_URL=https://<project>.vercel.app`** di Vercel (Preview & Production) — keduanya wajib di luar development, tanpa itu deploy gagal start. ⚠️ PR #39 menunjukkan `NEXT_PUBLIC_APP_URL` belum ada di Preview — lihat item env Vercel di atas.
 - [ ] H-04 R2 (bucket dev & prod, token dev) sebelum mulai A-17; lalu isi `R2_*` di `.env.local` dan Vercel.
 - [ ] Kunci versi Node: `.nvmrc` + `engines.node` di package.json, sama dengan CI & Vercel. Node lokal sudah dinaikkan ke 24 (sebelumnya v20.19, sudah EOL → peringatan EBADENGINE dari vitest). `npm run user:role` butuh Node ≥ 22.9 (`--env-file-if-exists`) — alasan tambahan mengisi `engines.node`.
 - [ ] Kartu "pembaruan toolchain" setelah Fase 0: TypeScript 7, ESLint 10, `@types/node` (major yang di-ignore Dependabot) + penguncian versi Node.
 - [ ] Kartu "pembaruan token": tambah `success-tint-line` (garis banner sukses sementara `border-success`, usulan A-06) + temuan desain lain.
 - [ ] Gambar desain yang gagal dibaca agent (7a, 28e): cek dengan `file docs/design/screens/*.png | grep -v "PNG image"`, ekspor ulang sebagai PNG asli.
-- [ ] Saat A-13: `src/components/ui/password-rules.ts` mengimpor `passwordSchema`/`PASSWORD_MIN_LENGTH` dari `src/modules/auth/schema.ts` (sumber tunggal sejak A-09).
+- [x] Saat A-13: `src/components/ui/password-rules.ts` mengimpor `passwordSchema`/`PASSWORD_MIN_LENGTH` dari `src/modules/auth/schema.ts` (sumber tunggal sejak A-09). (PR #39)
 - [ ] Chore: `src/components/ui/pagination.tsx` mengimpor `PAGE_SIZE` dari `src/lib/pagination.ts` (sumber tunggal sejak A-08).
-- [ ] Chore: alias `@/` di `vitest.config.ts`, lalu ganti impor relatif (`../../db/schema`, `../../lib/...`) di `src/modules/**` menjadi `@/`.
+- [ ] Chore: alias `@/` di `vitest.config.ts`, lalu ganti impor relatif (`../../db/schema`, `../../lib/...`) di `src/modules/**` menjadi `@/`. Sejak A-13 juga berlaku untuk `src/components/shared/auth/**` dan `src/components/ui/password-rules.ts` (impor relatif karena alias belum ada di Vitest).
 - [ ] Setelah A-09: aturan ESLint yang melarang impor `@/db` dari luar `src/modules/**` dan `src/db/**` (pengecualian: adapter Better Auth di `src/lib/auth.ts`).
 - [ ] Integrasi pelaporan error asli ke Sentry di route/server action sebelum `toErrorResponse()` (aturan di `src/modules/README.md`) — sebelum route API fitur pertama.
   Saat integrasi: hanya error tak terduga (5xx) yang dilaporkan ke Sentry; error domain 4xx (401/403/404/409/422) tidak dilaporkan dan di log cukup satu baris tanpa stack trace.
@@ -68,15 +72,21 @@
 - [x] Enumerasi lewat sign-up ditutup di A-10 (`requireEmailVerification` + `customSyntheticUser`, respons identik).
 - [x] baseURL Preview mengikuti `VERCEL_BRANCH_URL` (A-10). Callback Google OAuth untuk Preview diputuskan di A-11.
 - [ ] Chore: rapikan format Prettier `schema.test.ts` (drift di main, dicatat saat A-10).
-- [ ] Saat A-13: halaman tujuan tautan verifikasi & reset (`callbackURL`/`redirectTo`), tampilan kode error `TOKEN_EXPIRED`/`INVALID_TOKEN`, dan form mengirim token Turnstile lewat header `x-captcha-response`.
+- [x] Saat A-13: halaman tujuan tautan verifikasi & reset (`callbackURL`/`redirectTo`), tampilan kode error `TOKEN_EXPIRED`/`INVALID_TOKEN`, dan form mengirim token Turnstile lewat header `x-captcha-response`. (PR #39)
 - [ ] Sebelum pengguna nyata: H-07 Resend + `MAIL_TRANSPORT=resend` di Vercel Production. Dengan transport `log`, tautan bertoken tercetak di log Vercel.
 - [ ] `users.last_login_at` belum diisi saat login (opsional, catatan PR #25).
 - [ ] Sebelum 2 Nov 2026: cek advisory braces GHSA-vfj7-8cjw-p6xm. Bila sudah ada versi tambalan, hapus entri di .github/audit-exceptions.json dan upgrade; bila belum, perpanjang expires dengan alasan yang diperbarui.
 - [ ] `id_token` Google masih tersimpan plaintext (`encryptOAuthTokens` hanya mencakup access/refresh token). BINZI tidak memakainya setelah login → kosongkan lewat `databaseHooks.account` create/update.before.
-- [ ] Saat A-13: copy untuk kode `account_not_verified` (usulan di PR #29) dan `email_not_verified`; tombol Google disembunyikan di Preview (provider nonaktif di sana).
+- [x] Saat A-13: copy untuk kode `account_not_verified` (usulan di PR #29) dan `email_not_verified`; tombol Google disembunyikan di Preview (provider nonaktif di sana). (PR #39)
 - [ ] Cek aturan branch `main`: tombol Squash and merge aktif walau CI merah (PR #36). Pastikan "Require status checks to pass" aktif dengan check `ci` terdaftar, dan bypass admin dimatikan.
 - [ ] Chore kosmetik: hapus `--env-file-if-exists=.env` dari script `user:role` (repo tidak punya `.env`; pesan "not found" muncul dua kali).
 - [ ] Saat A-14: guard layout `(learn)` baru bisa diuji setelah `/belajar/page.tsx` ada (URL tanpa halaman langsung 404 tanpa melewati layout grup). Uji: cabut sesi lewat `user:role`, refresh `/belajar` → harus ke `/masuk?next=%2Fbelajar`.
+- [ ] **Chore (temuan A-13): callbackURL hook A-11** untuk email verifikasi yang dikirim server saat `account_not_verified` masih `"/"` → ganti ke `/daftar/verifikasi` (konstanta di `src/components/shared/auth/constants.ts`). Sekarang pengguna yang membuka tautan itu mendarat di beranda tanpa pesan. Catatan: `sendOnSignIn` tidak aktif — kirim ulang saat login lewat tombol di banner `/masuk`.
+- [ ] Chore: satukan sumber `googleEnabled` — ekspor dari `src/lib/auth.ts`, lalu `src/components/shared/auth/auth-config.ts` mengimpornya (sekarang aturannya digandakan dengan komentar penunjuk).
+- [ ] Setelah A-14: `POST_LOGIN_DEFAULT_PATH` (`src/components/shared/auth/constants.ts`) dari `"/"` ke `/belajar`.
+- [ ] Ditunda dari A-13: state "akun Google ditautkan" (3c) — callback OAuth tidak membawa sinyal linked/baru; butuh perubahan di luar layar auth.
+- [ ] Sebelum rilis, bersama halaman S&K & Kebijakan Privasi: persetujuan saat daftar hanya dicek di klien dan **tidak tercatat di server** (PRD §11 tidak punya kolomnya). Putuskan apakah bukti persetujuan disimpan (mis. versi S&K + waktu) — PRD R-11 meminta persetujuan eksplisit (UU PDP). Jalur daftar lewat Google hanya memakai kalimat pasif "Dengan masuk, Anda menyetujui…". Tautan S&K/Kebijakan Privasi di layar auth masih `<span>`.
+- [ ] Cek jumlah PR terbuka: per 8 Okt ada 6 PR terbuka. Bila 5 di antaranya Dependabot, batasnya penuh (lihat catatan "Batas 5 PR Dependabot").
 
 ## Keputusan & catatan dari diskusi yang belum ada di PRD
 
@@ -116,10 +126,22 @@
 - **Redirect (A-11):** semua parameter redirect auth (`callbackURL`, `errorCallbackURL`, `newUserCallbackURL`, `redirectTo`) hanya menerima path internal (`safeInternalRedirectPath` di `src/modules/auth/schema.ts`). Pakai fungsi yang sama untuk `?next=`.
 - **RBAC (A-12):** matriks rute di `src/lib/rbac.ts` sebagai sumber tunggal — MEMBER+: /belajar/**, /profil · EDITOR+: /cms, /cms/konten, /cms/artikel, /cms/kursus/**, /cms/media · ADMIN+: /cms/kategori, /cms/pengguna, /cms/reset-attempt · SUPER_ADMIN: /cms/pengaturan, /cms/audit-log. Sub-path /cms/* yang tidak terdaftar = SUPER_ADMIN (fail-closed). API CMS di /api/cms/* (tanpa v1; PRD V-04 perlu dirapikan). Halaman belum login → redirect /masuk?next= (lewat safeInternalRedirectPath); API belum login → 401 JSON tanpa redirect; role kurang → 403 (`forbidden()`, butuh `experimental.authInterrupts`). Role & status dibaca dari DB per request; status non-ACTIVE = belum login. Proxy hanya cek cookie (`getSessionCookie`), tanpa DB. Perubahan role selalu mencabut semua sesi user. Guard berlapis: layout + setiap page, route handler, dan server action.
 - **Advisory baru di tengah PR:** CI bisa merah tanpa perubahan kode karena advisory baru. Perbaiki lewat PR chore dari `main` (kunci ulang lockfile, tanpa pengecualian bila tambalan tersedia), lalu perbarui branch kartu lewat terminal (`git merge origin/main`). Tombol "Update branch" tidak tampil di repo ini.
+- **Layar auth (A-13):** komponen di `src/components/shared/auth/` — `AuthShell` dengan prop `tone` (`ink` = panel gelap `/masuk` 2a, `cream` = `/daftar` 3a; prop ini juga membawa rasio kolom 0.86fr/0.82fr : 1fr), `LoginModal` (2c, siap dipakai S2, copy generik + prop konteks opsional), `auth-errors.ts` (pemetaan error + copy), `auth-config.ts`, `constants.ts`. Form: React Hook Form + skema Zod dari `src/modules/auth/schema.ts`; `PasswordField` terkontrol → pakai `Controller`, bukan `register()`.
+- **Konfigurasi auth UI dibaca per request** (env dimuat lazy di dalam fungsi, pola `src/lib/auth.ts`). Akibatnya build tetap hijau walau env kurang — **build/Vercel hijau ≠ env lengkap**; selalu buka halaman di Preview setelah deploy. Sitekey uji Turnstile hanya fallback di development; production tanpa key gagal jelas saat request.
+- **Error auth di UI (A-13):** `?error=` di-whitelist, teks parameter mentah tidak pernah dirender; kode tak dikenal → pesan generik. 429 dipetakan per endpoint: login & daftar "15 menit" (5/15 mnt per IP+email), kirim email (verifikasi & lupa password) "satu jam" (3/jam/email). `EMAIL_NOT_VERIFIED` hanya muncul setelah password benar (diverifikasi di better-auth), jadi banner-nya aman. Daftar ulang email terdaftar = 200 sintetis **tanpa email** → copy pasca-daftar "Jika alamat ini belum terdaftar, kami mengirim tautan…".
+- **Redirect auth (A-13):** `?next=` lewat `safeInternalRedirectPath`, default `POST_LOGIN_DEFAULT_PATH = "/"`. Pengguna yang sudah masuk membuka `/masuk`/`/daftar` langsung diarahkan; halaman verifikasi & reset tidak. `/reset-password` memakai metadata `referrer: "no-referrer"` (token di URL) dan pil statis "Tautan valid" (tanpa hitung mundur — sisa umur token tidak tersedia).
+- **Copy auth (A-13):** satu judul per halaman di semua lebar ("Masuk", "Daftar gratis"); consent memakai versi 3a ("…termasuk penyimpanan progres belajar saya."); pil "huruf besar" dihapus (bertentangan dengan AUTH-01); validasi nama mengikuti kontrak A-09 (min 1, "Nama wajib diisi"), bukan min 2 di desain; teks yang bergantung enrollment memakai versi generik sampai S2.
+- **Logo:** lockup dua gambar `logo-binzi-mark.png` (alt="") + `logo-binzi-wordmark.png` (alt="BINZI"), tinggi 26/15px (≥1024) dan 22/13px; ukuran tampil diatur lewat tinggi saja. `logo-binzi.png` (logo bertumpuk) tidak dipakai di layar auth.
+- **Tipografi:** bobot mengikuti `TOKENS.md` (desain 800 → 900, 500 → 400), **ukuran mengikuti tabel Tipografi `TOKENS.md`, bukan skala bawaan Tailwind** — pakai nilai arbitrer (mis. `text-[32px]`). Pengecualian sadar: badan/sub 16px (minimum persona 45+) dan tombol 16px.
+- **Panel gelap memakai token `ink-surface`** walaupun mock 2a ber-hex `#1a1614` (dipetakan otomatis ke `text` di 2a.md).
+- **Dependensi baru (A-13):** `react-hook-form@7.89.0`, `@hookform/resolvers@5.9.1` (pin eksak).
+- **Pengecualian aturan advisory:** bump next 16.3.8 ikut PR #39 (tercatat di pesan squash). Aturannya tetap: advisory di tengah PR → PR chore terpisah dari `main`.
+- **Tes komponen (Vitest + jsdom):** checkbox Radix di dalam `<form>` butuh stub `ResizeObserver` di file tes.
 
 ## Rencana setelah Fase 0
 
 1. Setelah A-13 (irisan uji coba login): evaluasi apakah ukuran kartu per sesi sudah pas.
+   Catatan dari A-13 (draf, putuskan saat menulis kartu S1): satu sesi + 4 putaran perbaikan (build Vercel gagal, visual, tipografi ×2). Penyebab utama: kartu ditulis sebelum keputusan A-09–A-12 (catatan tambahan harus ditempel di prompt), dan tampilan baru dibandingkan dengan `.png` setelah PR dibuat. Usulan untuk kartu UI S1: (a) perbarui kartu dengan keputusan terbaru sebelum sesi dimulai; (b) agent membandingkan screenshot (Playwright, 360/768/1280) dengan `.png` dan mencocokkan ukuran huruf dengan tabel TOKENS **sebelum** membuka PR; (c) agent mengecek status deploy Preview, bukan hanya `npm run build` lokal; (d) layar sebanyak A-13 (5 rute + modal) dipecah jadi dua kartu.
 2. Tulis kartu Sprint S1 (CMS kursus & materi) dengan `docs/tasks/_TEMPLATE-agent.md`; sumber: tabel fase di `docs/design/handoff/README.md` + `docs/prd/INDEX.md`.
 3. Tahap 8 kapan saja sebelum pengguna nyata: beli domain → Vercel DNS (H-03), Resend (H-07). Saat itu juga: tambah redirect URI domain di Google OAuth, unggah logo & publish consent screen (sekarang Testing, redirect localhost saja), dan tambah hostname domain di widget Turnstile.
 4. Jalur konten paralel: K-01 s/d K-06 (K-07 selesai).
@@ -133,5 +155,6 @@ AI coding agent (Claude Code). Terlampir docs/STATUS.md dan
 docs/tasks/URUTAN-KERJA.md dari repo saya — baca keduanya sebagai konteks.
 Spesifikasi lengkap ada di docs/prd/PRD-v1.3.md dan aturan agent di
 CLAUDE.md; minta saya unggah bagian yang kamu butuhkan.
-Posisi terakhir saya: A-12 sudah merged (PR #36), mau mulai A-13 (layar autentikasi).
+Posisi terakhir saya: A-13 sudah merged (PR #39) tapi verifikasi manualnya
+belum dijalankan. Mau mulai dari verifikasi A-13 + cek env Vercel, lalu A-14.
 ```
