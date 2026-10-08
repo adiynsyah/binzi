@@ -16,6 +16,12 @@ import type { ReactNode } from "react";
 // overridden per docs/STATUS.md), /daftar keeps 3a's cream panel. The tone
 // also carries the ≥1024 column ratio from the designs (2a 0.86fr : 1fr,
 // 3a 0.82fr : 1fr) — one prop, no shell duplication.
+//
+// Heading/label sizes follow the TOKENS.md Tipografi table, not the mock's
+// raw values: auth h1 = "Judul halaman" 32/1.14 (mock's 28px mobile, 1.2
+// leading and -0.022em tracking sit outside the table), panel h2 = 38/1.14,
+// checklist items = "Badan antarmuka" 15/1.6. tracking-tight (-0.025em) is
+// inside the table's -0.024..-0.028em band.
 
 // Brand lockup (2a/2d/3a/3d): black mark + red wordmark side by side, 9px
 // gap, 26px/15px at ≥1024 and 22px/13px below. next/image gets each file's
@@ -146,7 +152,7 @@ export function AuthShell({
               {eyebrow}
             </p>
           ) : null}
-          <h1 className="text-2xl font-black tracking-tight text-text lg:text-3xl">
+          <h1 className="text-[32px] leading-[1.14] font-black tracking-tight text-balance text-text">
             {heading}
           </h1>
           {sub ? (
@@ -215,7 +221,7 @@ function MarketingCheckItem({
       >
         <Check className="size-3.5" strokeWidth={3} />
       </span>
-      <span className={`text-sm ${label}`}>{children}</span>
+      <span className={`text-[15px] leading-[1.6] ${label}`}>{children}</span>
     </li>
   );
 }
@@ -227,7 +233,7 @@ export function LoginMarketing() {
     <>
       <AuthBrandLogo size="lg" bright />
       <div className="mt-auto max-w-md">
-        <h2 className="text-3xl font-black tracking-tight text-surface">
+        <h2 className="text-[38px] leading-[1.14] font-black tracking-tight text-balance text-surface">
           Lanjutkan dari materi terakhir Anda.
         </h2>
         <p className="mt-4 text-base text-ink-surface-text">
@@ -262,7 +268,7 @@ export function RegisterMarketing() {
           <span aria-hidden="true" className="size-2 rounded-pill bg-primary" />
           Tanpa biaya sama sekali
         </p>
-        <h2 className="mt-4 text-3xl font-black tracking-tight text-text">
+        <h2 className="mt-4 text-[38px] leading-[1.14] font-black tracking-tight text-balance text-text">
           Satu akun untuk semua kursus.
         </h2>
         <p className="mt-4 text-base text-text-muted">
