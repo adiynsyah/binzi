@@ -2,6 +2,7 @@
 
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
@@ -15,14 +16,16 @@ import { passwordSchema } from "../../../modules/auth/schema";
 
 import { authClient } from "./auth-client";
 import { isInvalidTokenError, unknownNotice, type AuthNotice } from "./auth-errors";
-import { ExpiredResetPanel } from "./expired-link-panel";
 
 // Reset-password form (card A-13; screen 3b right). The token arrives via
 // `?token=` from Better Auth's redirect callback, which validated it moments
 // earlier — the static "Tautan valid" pill reflects that (product-owner
 // decision: no countdown; the remaining validity is not exposed to the
 // client and any number we invented could be wrong). Submitting a token that
-// expired in between switches to the 3c expired panel.
+// expired in between redirects back to /reset-password with
+// `?error=INVALID_TOKEN`, so the SERVER renders the 3c expired panel — its
+// card title is then the page's only h1 (a client-side panel swap would
+// leave the shell's "Buat password baru" h1 stacked above it).
 
 const PASSWORD_ERROR_COPY = "Minimal 8 karakter dan mengandung huruf serta angka";
 const MATCH_ERROR_COPY = "Kedua password belum sama";
@@ -40,6 +43,7 @@ const formSchema = z
 type ResetPasswordValues = z.infer<typeof formSchema>;
 
 export function ResetPasswordForm({ token }: { token: string }) {
+  const router = useRouter();
   const {
     register,
     handleSubmit,
@@ -50,7 +54,6 @@ export function ResetPasswordForm({ token }: { token: string }) {
     defaultValues: { password: "", confirm: "" },
   });
   const [notice, setNotice] = useState<AuthNotice | null>(null);
-  const [expired, setExpired] = useState(false);
   const [saved, setSaved] = useState(false);
 
   const onSubmit = handleSubmit(async (values) => {
@@ -60,7 +63,10 @@ export function ResetPasswordForm({ token }: { token: string }) {
     });
     if (error) {
       if (isInvalidTokenError(error)) {
-        setExpired(true); // consumed or lapsed between open and submit
+        // Consumed or lapsed between open and submit — hand the decision
+        // back to the page: it re-renders in the expired state (no shell
+        // h1; the 3c panel's card title becomes the main heading).
+        router.replace("/reset-password?error=INVALID_TOKEN");
         return;
       }
       setNotice(unknownNotice());
@@ -68,8 +74,6 @@ export function ResetPasswordForm({ token }: { token: string }) {
     }
     setSaved(true);
   });
-
-  if (expired) return <ExpiredResetPanel />;
 
   if (saved) {
     // AUTH-06: every other session was revoked by the reset, so the next

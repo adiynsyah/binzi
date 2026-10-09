@@ -26,6 +26,13 @@ export const buttonVariants = cva(
     },
     defaultVariants: {
       variant: "primary",
+      // Safety net for RAW buttonVariants() callers styling anchors: without
+      // a size default, a call like buttonVariants({ variant: "secondary" })
+      // silently produced a control with NO height/padding (the size default
+      // otherwise lives in the Button component, A-13 visual finding). The
+      // Button itself always passes an explicit size, so this default never
+      // applies inside it — primary/dark keep their lg band there.
+      size: "md",
     },
   },
 );

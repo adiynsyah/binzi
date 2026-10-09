@@ -87,8 +87,11 @@ export type AuthShellProps = {
   tone?: keyof typeof SHELL_COLUMNS;
   /** Mono eyebrow shown in the tablet band only (2t "MASUK", 3t "DAFTAR"). */
   eyebrow?: string;
-  /** Page heading — the same copy at every width. */
-  heading: string;
+  /** Page heading — the same copy at every width. OMIT when the panel
+      itself carries the page's main heading (e.g. the 3c expired-link
+      state): no h1 is rendered, so the panel's title becomes the only
+      h1 on the page instead of an h2 under a stale shell heading. */
+  heading?: string;
   /** Supporting line under the heading (2a/3a: 16px muted). */
   sub?: ReactNode;
   /** Render `sub` at ≥1024 only — 2a uses the sub slot for the cross-link
@@ -152,9 +155,11 @@ export function AuthShell({
               {eyebrow}
             </p>
           ) : null}
-          <h1 className="text-[32px] leading-[1.14] font-black tracking-tight text-balance text-text">
-            {heading}
-          </h1>
+          {heading ? (
+            <h1 className="text-[32px] leading-[1.14] font-black tracking-tight text-balance text-text">
+              {heading}
+            </h1>
+          ) : null}
           {sub ? (
             <p
               className={`mt-2.5 text-base text-text-muted${
@@ -164,7 +169,9 @@ export function AuthShell({
               {sub}
             </p>
           ) : null}
-          <div className="mt-6">{children}</div>
+          {/* No heading/sub (heading-less shells): drop the top margin too,
+              so the panel starts flush at the top of the card. */}
+          <div className={heading || sub ? "mt-6" : undefined}>{children}</div>
           {footer ? (
             <div className="mt-6 text-center text-sm text-text-muted lg:hidden">
               {footer}

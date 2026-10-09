@@ -46,7 +46,11 @@ export default async function ResetPasswordPage({
   return (
     <AuthShell
       tone="ink"
-      heading="Buat password baru"
+      // Heading only while a form is actually offered. In the expired
+      // state the shell renders no h1 — the 3c panel's card title is the
+      // page's main heading (A-13 visual finding: never stack "Buat
+      // password baru" above an expired-link card).
+      heading={expired ? undefined : "Buat password baru"}
       marketing={<ResetFlowMarketing />}
       footer={backToLogin}
     >
