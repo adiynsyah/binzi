@@ -1,6 +1,7 @@
 "use client";
 
-import { Button, buttonVariants } from "./button";
+import { Button } from "./button";
+import { buttonVariants } from "./button-variants";
 import { cn } from "../../lib/utils";
 
 /*
@@ -51,7 +52,16 @@ function ActionButton({
     return (
       <a
         href={action.href}
-        className={cn(buttonVariants({ variant }), ACTION_BUTTON_CLASSES)}
+        className={cn(
+          // Same variant→size rule as the Button component (primary/dark
+          // tall band, others secondary band), so an anchor twin never
+          // renders shorter than its Button twin next to it.
+          buttonVariants({
+            variant,
+            size: variant === "primary" ? "lg" : "md",
+          }),
+          ACTION_BUTTON_CLASSES,
+        )}
       >
         {action.label}
       </a>

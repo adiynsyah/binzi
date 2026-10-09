@@ -87,8 +87,11 @@ export type AuthShellProps = {
   tone?: keyof typeof SHELL_COLUMNS;
   /** Mono eyebrow shown in the tablet band only (2t "MASUK", 3t "DAFTAR"). */
   eyebrow?: string;
-  /** Page heading — the same copy at every width. */
-  heading: string;
+  /** Page heading — the same copy at every width. OMIT when the panel
+      itself carries the page's main heading (e.g. the 3c expired-link
+      state): no h1 is rendered, so the panel's title becomes the only
+      h1 on the page instead of an h2 under a stale shell heading. */
+  heading?: string;
   /** Supporting line under the heading (2a/3a: 16px muted). */
   sub?: ReactNode;
   /** Render `sub` at ≥1024 only — 2a uses the sub slot for the cross-link
@@ -152,9 +155,11 @@ export function AuthShell({
               {eyebrow}
             </p>
           ) : null}
-          <h1 className="text-[32px] leading-[1.14] font-black tracking-tight text-balance text-text">
-            {heading}
-          </h1>
+          {heading ? (
+            <h1 className="text-[32px] leading-[1.14] font-black tracking-tight text-balance text-text">
+              {heading}
+            </h1>
+          ) : null}
           {sub ? (
             <p
               className={`mt-2.5 text-base text-text-muted${
@@ -164,7 +169,9 @@ export function AuthShell({
               {sub}
             </p>
           ) : null}
-          <div className="mt-6">{children}</div>
+          {/* No heading/sub (heading-less shells): drop the top margin too,
+              so the panel starts flush at the top of the card. */}
+          <div className={heading || sub ? "mt-6" : undefined}>{children}</div>
           {footer ? (
             <div className="mt-6 text-center text-sm text-text-muted lg:hidden">
               {footer}
@@ -289,6 +296,55 @@ export function RegisterMarketing() {
         <p className="mt-10 text-sm text-text-muted">
           Sudah punya akun?{" "}
           <AuthInlineLink href="/masuk">Masuk di sini.</AuthInlineLink>
+        </p>
+      </div>
+    </>
+  );
+}
+
+/**
+ * Marketing panel for the reset flow — /lupa-password and /reset-password
+ * (A-13 verification fix; renders at ≥1024 only). Screen 3b is a MOBILE
+ * design (420px, no desktop art); its note "melanjutkan pola halaman Masuk
+ * (2a)" decides the desktop treatment, so both screens of the one flow
+ * share 2a's ink panel. The copy is new (defined in no screen .md) and
+ * approved by the product owner in this PR. The bottom link doubles as the
+ * ≥1024 "Kembali ke Masuk" escape hatch (the mobile copy lives in the
+ * AuthShell footer); on the ink panel it follows the dark-toast link
+ * pattern (white bold underline) instead of AuthInlineLink's red, which
+ * 2a's panel never uses for text links.
+ */
+export function ResetFlowMarketing() {
+  return (
+    <>
+      <AuthBrandLogo size="lg" bright />
+      <div className="mt-auto max-w-md">
+        <h2 className="text-[38px] leading-[1.14] font-black tracking-tight text-balance text-surface">
+          Password baru dalam dua langkah.
+        </h2>
+        <p className="mt-4 text-base text-ink-surface-text">
+          Masukkan email Anda, buka tautan yang kami kirim, lalu buat password
+          baru.
+        </p>
+        <ul className="mt-8 space-y-3">
+          <MarketingCheckItem tone="ink">
+            Tautan reset berlaku 1 jam dan hanya bisa dipakai sekali
+          </MarketingCheckItem>
+          <MarketingCheckItem tone="ink">
+            Password lama tetap aktif sampai diganti
+          </MarketingCheckItem>
+          <MarketingCheckItem tone="ink">
+            Semua perangkat lain keluar otomatis setelah reset
+          </MarketingCheckItem>
+        </ul>
+        <p className="mt-10 text-sm text-ink-surface-text">
+          Kembali ke{" "}
+          <Link
+            href="/masuk"
+            className="font-bold text-surface underline underline-offset-2"
+          >
+            Masuk
+          </Link>
         </p>
       </div>
     </>

@@ -8,11 +8,18 @@ import { ResetPasswordForm } from "./reset-password-form";
 import { authClient } from "./auth-client";
 
 // Card A-13: reset form (3b right) — the static validity pill, the
-// match check, and the switch to the 3c expired panel when the token was
-// consumed or lapsed between opening the link and submitting.
+// match check, and the redirect to /reset-password?error=INVALID_TOKEN
+// when the token was consumed or lapsed between opening the link and
+// submitting (the server then renders the 3c expired panel as the page's
+// only h1 — see expired-link-panel.test.tsx for that panel).
 
 vi.mock("./auth-client", () => ({
   authClient: { resetPassword: vi.fn() },
+}));
+
+const mockRouter = { push: vi.fn(), replace: vi.fn(), refresh: vi.fn() };
+vi.mock("next/navigation", () => ({
+  useRouter: () => mockRouter,
 }));
 
 const resetPassword = vi.mocked(authClient.resetPassword);
@@ -63,7 +70,7 @@ describe("ResetPasswordForm", () => {
     expect(await screen.findByText("Password baru disimpan.")).toBeTruthy();
   });
 
-  it("switches to the 3c expired panel on INVALID_TOKEN", async () => {
+  it("redirects back with ?error=INVALID_TOKEN so the server renders the 3c panel", async () => {
     resetPassword.mockResolvedValue({
       data: null,
       error: { status: 400, code: "INVALID_TOKEN" } as never,
@@ -71,11 +78,13 @@ describe("ResetPasswordForm", () => {
     render(<ResetPasswordForm token="tok_used" />);
     fillMatchingPasswords();
     fireEvent.click(screen.getByRole("button", { name: "Simpan password baru" }));
-    expect(
-      await screen.findByText("Tautan ini sudah tidak berlaku"),
-    ).toBeTruthy();
-    expect(
-      screen.getByRole("link", { name: "Minta tautan baru" }),
-    ).toBeTruthy();
+    await waitFor(() => {
+      expect(mockRouter.replace).toHaveBeenCalledWith(
+        "/reset-password?error=INVALID_TOKEN",
+      );
+    });
+    // The form itself stays mounted — the expired swap is the PAGE's job.
+    expect(screen.getByText("Tautan valid")).toBeTruthy();
+    expect(mockRouter.push).not.toHaveBeenCalled();
   });
 });

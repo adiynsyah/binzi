@@ -30,6 +30,24 @@ describe("mapLoginError", () => {
     });
   });
 
+  it("never echoes the server's message — the UI copy comes from the status alone (A-13 fix)", () => {
+    // Regression for the audit finding: the 429 body used to carry the
+    // credential-failure text. Whatever the server says, the mapping keys
+    // on status/code and returns its OWN final copy.
+    const serverMessages = [
+      "Email atau kata sandi salah",
+      "Terlalu banyak percobaan. Coba lagi dalam 15 menit.",
+      "attacker-controlled string <script>",
+    ];
+    for (const message of serverMessages) {
+      const notice = mapLoginError({ status: 429, code: "RATE_LIMITED", message });
+      expect(notice.kind).toBe("login_locked");
+      expect(notice.message).toBe(
+        "Terlalu banyak percobaan. Coba lagi dalam 15 menit, atau reset password.",
+      );
+    }
+  });
+
   it("maps EMAIL_NOT_VERIFIED only through its stable code", () => {
     expect(
       mapLoginError({ status: 403, code: "EMAIL_NOT_VERIFIED" }),
