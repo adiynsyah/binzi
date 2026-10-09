@@ -1,9 +1,9 @@
 "use client";
 
 import type { ButtonHTMLAttributes } from "react";
-import { cva, type VariantProps } from "class-variance-authority";
 import { Loader2 } from "lucide-react";
 import { cn } from "../../lib/utils";
+import { buttonVariants, type ButtonVariantProps } from "./button-variants";
 
 /*
  * Button (card A-05, COMPONENTS.md → "Dasar").
@@ -27,31 +27,8 @@ import { cn } from "../../lib/utils";
  *   control is locked, aria-busy is set and a spinner precedes the label.
  */
 
-export const buttonVariants = cva(
-  "inline-flex select-none items-center justify-center gap-2 py-2 text-balance rounded-control font-bold transition-colors duration-200 ease-out disabled:cursor-not-allowed disabled:pointer-events-none disabled:border-transparent disabled:bg-surface-disabled disabled:text-text-subtle",
-  {
-    variants: {
-      variant: {
-        primary: "bg-primary text-surface hover:bg-primary-deep",
-        secondary:
-          "border border-border-strong bg-surface text-text hover:bg-fill",
-        dark: "bg-text text-surface hover:bg-ink-surface",
-        ghost: "text-text hover:bg-fill",
-        danger: "bg-danger text-surface hover:brightness-90",
-      },
-      size: {
-        lg: "min-h-(--height-button-primary) px-6 text-base",
-        md: "min-h-(--height-button-secondary) px-5 text-base",
-      },
-    },
-    defaultVariants: {
-      variant: "primary",
-    },
-  },
-);
-
 export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> &
-  VariantProps<typeof buttonVariants> & {
+  ButtonVariantProps & {
     /** While true the control is locked and marked aria-busy. */
     loading?: boolean;
     /** Running-verb label shown while loading, e.g. "Menyimpan…". */

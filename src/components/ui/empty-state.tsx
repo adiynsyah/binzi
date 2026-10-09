@@ -1,6 +1,7 @@
 "use client";
 
-import { Button, buttonVariants } from "./button";
+import { Button } from "./button";
+import { buttonVariants } from "./button-variants";
 import { cn } from "../../lib/utils";
 
 /*
