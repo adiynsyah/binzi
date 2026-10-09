@@ -294,3 +294,52 @@ export function RegisterMarketing() {
     </>
   );
 }
+
+/**
+ * Marketing panel for the reset flow — /lupa-password and /reset-password
+ * (A-13 verification fix; renders at ≥1024 only). Screen 3b is a MOBILE
+ * design (420px, no desktop art); its note "melanjutkan pola halaman Masuk
+ * (2a)" decides the desktop treatment, so both screens of the one flow
+ * share 2a's ink panel. The copy is new (defined in no screen .md) and
+ * approved by the product owner in this PR. The bottom link doubles as the
+ * ≥1024 "Kembali ke Masuk" escape hatch (the mobile copy lives in the
+ * AuthShell footer); on the ink panel it follows the dark-toast link
+ * pattern (white bold underline) instead of AuthInlineLink's red, which
+ * 2a's panel never uses for text links.
+ */
+export function ResetFlowMarketing() {
+  return (
+    <>
+      <AuthBrandLogo size="lg" bright />
+      <div className="mt-auto max-w-md">
+        <h2 className="text-[38px] leading-[1.14] font-black tracking-tight text-balance text-surface">
+          Password baru dalam dua langkah.
+        </h2>
+        <p className="mt-4 text-base text-ink-surface-text">
+          Masukkan email Anda, buka tautan yang kami kirim, lalu buat password
+          baru.
+        </p>
+        <ul className="mt-8 space-y-3">
+          <MarketingCheckItem tone="ink">
+            Tautan reset berlaku 1 jam dan hanya bisa dipakai sekali
+          </MarketingCheckItem>
+          <MarketingCheckItem tone="ink">
+            Password lama tetap aktif sampai diganti
+          </MarketingCheckItem>
+          <MarketingCheckItem tone="ink">
+            Semua perangkat lain keluar otomatis setelah reset
+          </MarketingCheckItem>
+        </ul>
+        <p className="mt-10 text-sm text-ink-surface-text">
+          Kembali ke{" "}
+          <Link
+            href="/masuk"
+            className="font-bold text-surface underline underline-offset-2"
+          >
+            Masuk
+          </Link>
+        </p>
+      </div>
+    </>
+  );
+}
