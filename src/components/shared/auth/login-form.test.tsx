@@ -20,7 +20,15 @@ vi.mock("./auth-client", () => ({
 }));
 
 vi.mock("./turnstile-widget", () => ({
-  TurnstileWidget: () => <div data-testid="turnstile-widget" />,
+  TurnstileWidget: ({ onVerify }: { onVerify: (token: string) => void }) => (
+    <button
+      type="button"
+      data-testid="turnstile-widget"
+      onClick={() => onVerify("tok-123")}
+    >
+      turnstile
+    </button>
+  ),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -110,6 +118,12 @@ describe("LoginForm", () => {
     expect(
       screen.getByRole("link", { name: "reset password" }),
     ).toBeTruthy();
+    // 2b (A-13 fix): the left badge is a CLOCK icon, not the "15" count —
+    // matching the icon pattern of the wrong-credentials banner.
+    expect(alert.querySelector("svg")).toBeTruthy();
+    expect(alert.querySelector("svg.lucide-clock")).toBeTruthy();
+    const badge = alert.querySelector("span");
+    expect(badge?.textContent ?? "").toBe("");
   });
 
   it("shows the resend action for EMAIL_NOT_VERIFIED and sends to the verification destination", async () => {
@@ -127,11 +141,51 @@ describe("LoginForm", () => {
     });
     fireEvent.click(resend);
     await waitFor(() => {
-      expect(sendVerificationEmail).toHaveBeenCalledWith({
-        email: "rina@email.com",
-        callbackURL: "/daftar/verifikasi",
-      });
+      expect(sendVerificationEmail).toHaveBeenCalledWith(
+        {
+          email: "rina@email.com",
+          callbackURL: "/daftar/verifikasi",
+        },
+        { headers: { "x-captcha-response": "" } },
+      );
     });
+    expect(
+      screen.getByText(/Tautan verifikasi baru sudah dikirim/),
+    ).toBeTruthy();
+  });
+
+  it("resend waits for a FRESH token: the sign-in consumed the old one (AUTH-10)", async () => {
+    signInEmail.mockResolvedValue({
+      data: null,
+      error: { status: 403, code: "EMAIL_NOT_VERIFIED" } as never,
+    });
+    sendVerificationEmail.mockResolvedValue({ data: null, error: null });
+    renderForm({ turnstileSiteKey: "site-key" });
+
+    // Pass the challenge, sign in, and land on EMAIL_NOT_VERIFIED.
+    fireEvent.click(screen.getByTestId("turnstile-widget"));
+    fillValidCredentials();
+    fireEvent.click(screen.getByRole("button", { name: "Masuk" }));
+
+    // The submit consumed the single-use token and resetCaptcha() dropped
+    // it: the resend must be DISABLED until the remounted widget produces
+    // a fresh one — reusing the old token would be rejected 403.
+    const resend = await screen.findByRole("button", {
+      name: "Kirim ulang tautan",
+    });
+    expect((resend as HTMLButtonElement).disabled).toBe(true);
+
+    // Fresh challenge passes — only now may the resend leave.
+    fireEvent.click(screen.getByTestId("turnstile-widget"));
+    expect((resend as HTMLButtonElement).disabled).toBe(false);
+    fireEvent.click(resend);
+    await waitFor(() => {
+      expect(sendVerificationEmail).toHaveBeenCalledTimes(1);
+    });
+    expect(sendVerificationEmail).toHaveBeenCalledWith(
+      { email: "rina@email.com", callbackURL: "/daftar/verifikasi" },
+      { headers: { "x-captcha-response": "tok-123" } },
+    );
     expect(
       screen.getByText(/Tautan verifikasi baru sudah dikirim/),
     ).toBeTruthy();

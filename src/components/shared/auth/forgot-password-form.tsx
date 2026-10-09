@@ -15,20 +15,28 @@ import { authClient } from "./auth-client";
 import { mapEmailSendError, type AuthNotice } from "./auth-errors";
 import { PASSWORD_RESET_REDIRECT_PATH } from "./constants";
 import { startGoogleSignIn } from "./google-button";
+import { TurnstileWidget } from "./turnstile-widget";
 
 // Forgot-password form (card A-13; screen 3b left). The endpoint answers
 // the SAME generic shape for registered and unknown addresses (§14.2,
 // A-10), so the success panel is shown unconditionally — copy approved by
 // the product owner (not present in the screen .md, noted in the PR).
-// No Turnstile here: AUTH-10 protects sign-in and sign-up only
-// (TURNSTILE_PROTECTED_ENDPOINTS).
+// Turnstile protects this endpoint like sign-in/sign-up (AUTH-10,
+// TURNSTILE_PROTECTED_ENDPOINTS): the single-use token travels in the
+// x-captcha-response header and the widget remounts after every submit.
 
 const EMAIL_ERROR_COPY = "Format email belum benar — contoh: nama@email.com";
 
 const formSchema = z.object({ email: signInSchema.shape.email });
 type ForgotPasswordValues = z.infer<typeof formSchema>;
 
-export function ForgotPasswordForm({ googleEnabled }: { googleEnabled: boolean }) {
+export function ForgotPasswordForm({
+  googleEnabled,
+  turnstileSiteKey,
+}: {
+  googleEnabled: boolean;
+  turnstileSiteKey: string | null;
+}) {
   const {
     register,
     handleSubmit,
@@ -39,12 +47,30 @@ export function ForgotPasswordForm({ googleEnabled }: { googleEnabled: boolean }
   });
   const [notice, setNotice] = useState<AuthNotice | null>(null);
   const [sent, setSent] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  // Single-use tokens: remount the widget after every submit so the next
+  // attempt gets a fresh challenge (the shared TurnstileWidget contract).
+  const [captchaKey, setCaptchaKey] = useState(0);
+
+  const needsCaptcha = turnstileSiteKey !== null;
+
+  const resetCaptcha = () => {
+    if (!needsCaptcha) return;
+    setCaptchaToken(null);
+    setCaptchaKey((key) => key + 1);
+  };
 
   const onSubmit = handleSubmit(async (values) => {
-    const { error } = await authClient.requestPasswordReset({
-      email: values.email,
-      redirectTo: PASSWORD_RESET_REDIRECT_PATH,
-    });
+    const { error } = await authClient.requestPasswordReset(
+      {
+        email: values.email,
+        redirectTo: PASSWORD_RESET_REDIRECT_PATH,
+      },
+      {
+        headers: { "x-captcha-response": captchaToken ?? "" },
+      },
+    );
+    resetCaptcha();
     if (error) {
       setNotice(mapEmailSendError(error));
       return;
@@ -92,11 +118,21 @@ export function ForgotPasswordForm({ googleEnabled }: { googleEnabled: boolean }
         />
       </Field>
 
+      {needsCaptcha ? (
+        <TurnstileWidget
+          key={captchaKey}
+          siteKey={turnstileSiteKey as string}
+          onVerify={setCaptchaToken}
+          onExpire={() => setCaptchaToken(null)}
+        />
+      ) : null}
+
       <Button
         type="submit"
         className="w-full"
         loading={isSubmitting}
         loadingLabel="Mengirim…"
+        disabled={needsCaptcha && !captchaToken}
       >
         Kirim tautan reset
       </Button>

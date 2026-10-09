@@ -30,9 +30,14 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import * as schema from "../../db/schema";
 import { rateLimits, sessions, users } from "../../db/schema";
 import type { Db } from "../../db/client";
-import { loginRateLimitKey } from "../../lib/ratelimit";
+import {
+  loginRateLimitKey,
+  passwordResetRateLimitKey,
+  verificationEmailRateLimitKey,
+} from "../../lib/ratelimit";
 import type { MailMessage } from "../../lib/mail";
 import {
+  LOGIN_BLOCKED_MESSAGE,
   LOGIN_FAILED_MESSAGE,
   createAuthInstance,
   type AuthInstance,
@@ -140,7 +145,8 @@ afterAll(async () => {
 type CallOptions = {
   body?: Record<string, unknown>;
   ip?: string;
-  captcha?: string;
+  /** null sends the request WITHOUT x-captcha-response (AUTH-10 case). */
+  captcha?: string | null;
 };
 
 function callAuth(
@@ -152,8 +158,13 @@ function callAuth(
   const headers: Record<string, string> = {
     "content-type": "application/json",
     origin: baseURL,
-    "x-captcha-response": captcha,
   };
+  // `captcha: null` sends NO header at all — the "request without
+  // x-captcha-response" case (AUTH-10). (Explicit `undefined` would just
+  // re-trigger the default parameter.)
+  if (captcha !== null && captcha !== undefined) {
+    headers["x-captcha-response"] = captcha;
+  }
   if (ip) headers["x-forwarded-for"] = ip;
   return auth.handler(
     new Request(`${baseURL}/api/auth${path}`, {
@@ -324,7 +335,7 @@ describe("A-09 Better Auth core (PGlite)", () => {
     expect(unknownBody.message).toBe(wrongBody.message);
   });
 
-  it("blocks the 6th failed sign-in (429) with the same message, then re-allows after the window (AUTH-08 / V-10)", async () => {
+  it("blocks the 6th failed sign-in (429) with the rate-limit message, then re-allows after the window (AUTH-08 / V-10)", async () => {
     const email = "victim@example.com";
     const ip = "203.0.113.50";
 
@@ -336,6 +347,8 @@ describe("A-09 Better Auth core (PGlite)", () => {
     );
     expect(registered.status).toBe(200);
 
+    // AUTH-08: locked AFTER 5 attempts — five credential failures still
+    // answer 401 (with the §14.2 no-leak copy); only the SIXTH is 429.
     for (let attempt = 1; attempt <= 5; attempt++) {
       const response = await signIn(authHttps, email, WRONG_PASSWORD, ip);
       expect(response.status).toBe(401);
@@ -344,7 +357,11 @@ describe("A-09 Better Auth core (PGlite)", () => {
 
     const sixth = await signIn(authHttps, email, WRONG_PASSWORD, ip);
     expect(sixth.status).toBe(429);
-    expect((await errorBody(sixth)).message).toBe(LOGIN_FAILED_MESSAGE);
+    // A-13 fix: the 429 message matches its RATE_LIMITED code (and its
+    // window) instead of repeating the credential-failure copy.
+    const sixthBody = await errorBody(sixth);
+    expect(sixthBody.code).toBe("RATE_LIMITED");
+    expect(sixthBody.message).toBe(LOGIN_BLOCKED_MESSAGE);
 
     // Expire the bucket directly — the window has lapsed, trying is allowed again.
     await db
@@ -408,8 +425,12 @@ describe("A-09 Better Auth core (PGlite)", () => {
     expect(statuses.filter((status) => status === 401)).toHaveLength(5);
     expect(statuses.filter((status) => status === 429)).toHaveLength(5);
 
+    // Per-status copy (A-13 fix): 401 keeps the §14.2 no-leak message,
+    // 429 carries the rate-limit message that matches its code.
     for (const response of responses) {
-      expect((await errorBody(response)).message).toBe(LOGIN_FAILED_MESSAGE);
+      expect((await errorBody(response)).message).toBe(
+        response.status === 429 ? LOGIN_BLOCKED_MESSAGE : LOGIN_FAILED_MESSAGE,
+      );
     }
 
     // Blocked attempts keep their reservations until the window resets.
@@ -464,6 +485,85 @@ describe("A-09 Better Auth core (PGlite)", () => {
       ip,
     );
     expect(credentialAttempt.status).toBe(401);
+  });
+
+  it("requires Turnstile on /request-password-reset before the email bucket is touched (AUTH-10)", async () => {
+    const email = "reset-captcha@example.com";
+
+    // No x-captcha-response header at all → rejected, no email sent.
+    const missing = await callAuth(
+      authHttps,
+      BASE_HTTPS,
+      "/request-password-reset",
+      { body: { email, redirectTo: "/reset-password" }, captcha: null },
+    );
+    expect(missing.status).toBe(400);
+    expect((await errorBody(missing)).code).toBe("MISSING_RESPONSE");
+
+    const invalid = await callAuth(
+      authHttps,
+      BASE_HTTPS,
+      "/request-password-reset",
+      { body: { email, redirectTo: "/reset-password" }, captcha: "bad-token" },
+    );
+    expect(invalid.status).toBe(403);
+    expect((await errorBody(invalid)).code).toBe("VERIFICATION_FAILED");
+
+    // Both rejections happen in captcha onRequest — BEFORE binzi-guard
+    // reserves a 3/hour slot (the A-09 ordering guarantee).
+    const rejectedBucket = await db
+      .select()
+      .from(rateLimits)
+      .where(eq(rateLimits.key, passwordResetRateLimitKey(email)))
+      .limit(1);
+    expect(rejectedBucket).toHaveLength(0);
+
+    // A valid token reaches the endpoint: generic 200 (§14.2 — unknown
+    // address answers exactly like a registered one).
+    const ok = await callAuth(
+      authHttps,
+      BASE_HTTPS,
+      "/request-password-reset",
+      { body: { email, redirectTo: "/reset-password" } },
+    );
+    expect(ok.status).toBe(200);
+  });
+
+  it("requires Turnstile on /send-verification-email before the email bucket is touched (AUTH-10)", async () => {
+    const email = "resend-captcha@example.com";
+
+    const missing = await callAuth(
+      authHttps,
+      BASE_HTTPS,
+      "/send-verification-email",
+      { body: { email, callbackURL: "/daftar/verifikasi" }, captcha: null },
+    );
+    expect(missing.status).toBe(400);
+    expect((await errorBody(missing)).code).toBe("MISSING_RESPONSE");
+
+    const invalid = await callAuth(
+      authHttps,
+      BASE_HTTPS,
+      "/send-verification-email",
+      { body: { email, callbackURL: "/daftar/verifikasi" }, captcha: "bad-token" },
+    );
+    expect(invalid.status).toBe(403);
+    expect((await errorBody(invalid)).code).toBe("VERIFICATION_FAILED");
+
+    const rejectedBucket = await db
+      .select()
+      .from(rateLimits)
+      .where(eq(rateLimits.key, verificationEmailRateLimitKey(email)))
+      .limit(1);
+    expect(rejectedBucket).toHaveLength(0);
+
+    const ok = await callAuth(
+      authHttps,
+      BASE_HTTPS,
+      "/send-verification-email",
+      { body: { email, callbackURL: "/daftar/verifikasi" } },
+    );
+    expect(ok.status).toBe(200);
   });
 
   it("blocks the 6th sign-up attempt; duplicates now answer 200 (generic, A-10)", async () => {

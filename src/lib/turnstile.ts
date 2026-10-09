@@ -14,10 +14,20 @@
 // Cloudflare; production never sets it.
 import { captcha } from "better-auth/plugins";
 
-/** AUTH-10: Turnstile protects the public registration and login forms. */
+/**
+ * AUTH-10: Turnstile protects every credential and email-triggering form.
+ * NOTE: better-auth 1.7.7's captcha plugin DEFAULTS already include
+ * "/request-password-reset" — this override must keep it (the A-13 audit
+ * found an earlier override that dropped it, leaving the endpoint
+ * unprotected). "/send-verification-email" is BINZI-added on top of the
+ * defaults: the plugin matches endpoint paths generically
+ * (plugins/captcha/index.mjs), so the resend endpoint is covered too.
+ */
 export const TURNSTILE_PROTECTED_ENDPOINTS = [
   "/sign-up/email",
   "/sign-in/email",
+  "/request-password-reset",
+  "/send-verification-email",
 ] as const;
 
 export type TurnstileConfig = {

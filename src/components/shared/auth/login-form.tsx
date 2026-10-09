@@ -1,7 +1,7 @@
 "use client";
 
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
-import { Check, Eye, EyeOff } from "lucide-react";
+import { Check, Clock, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -91,10 +91,20 @@ export function LoginForm({
       return;
     }
     setResendState("sending");
-    const { error } = await authClient.sendVerificationEmail({
-      email,
-      callbackURL: VERIFICATION_CALLBACK_PATH,
-    });
+    // AUTH-10: the resend endpoint is captcha-protected too. The token that
+    // admitted the sign-in attempt was CONSUMED by it (and resetCaptcha()
+    // already dropped it), so this can only fire once the remounted widget
+    // produced a fresh one — the button stays disabled until then.
+    const { error } = await authClient.sendVerificationEmail(
+      {
+        email,
+        callbackURL: VERIFICATION_CALLBACK_PATH,
+      },
+      {
+        headers: { "x-captcha-response": captchaToken ?? "" },
+      },
+    );
+    resetCaptcha();
     if (error) {
       setNotice(mapEmailSendError(error));
       setResendState("blocked");
@@ -171,7 +181,8 @@ export function LoginForm({
       ) : null}
 
       {notice && notice.kind === "login_locked" ? (
-        // 2b locked state: dark toast with the attempt-count badge and a
+        // 2b locked state: dark toast with a clock badge (the icon pattern
+        // of the wrong-credentials banner — the wait, not a count) and a
         // reset escape hatch (AUTH-08: 5 attempts / 15 minutes).
         <div
           role="alert"
@@ -179,9 +190,9 @@ export function LoginForm({
         >
           <span
             aria-hidden="true"
-            className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-pill bg-surface font-mono text-sm font-medium text-text"
+            className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-pill bg-surface text-text"
           >
-            15
+            <Clock className="size-4" strokeWidth={2.5} />
           </span>
           <p className="text-sm">
             Terlalu banyak percobaan. Coba lagi dalam 15 menit, atau{" "}
@@ -214,7 +225,8 @@ export function LoginForm({
                     <button
                       type="button"
                       onClick={() => void resendVerification()}
-                      className="font-bold underline underline-offset-2"
+                      disabled={needsCaptcha && !captchaToken}
+                      className="font-bold underline underline-offset-2 disabled:cursor-not-allowed disabled:text-text-subtle disabled:no-underline"
                     >
                       Kirim ulang tautan
                     </button>
