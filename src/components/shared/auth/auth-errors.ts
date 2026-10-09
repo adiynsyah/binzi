@@ -13,10 +13,13 @@
 //   and carry their own one-hour copy; the forgot-password UI must stay
 //   identical for registered and unknown addresses (§14.2).
 
-/** Better Auth error object as the client SDK surfaces it (loose on purpose). */
+/** Better Auth error object as the client SDK surfaces it (loose on purpose).
+ * `message` is the SERVER's copy — present on the wire, but NEVER rendered:
+ * every mapping below keys on status/code and returns its own final copy. */
 export type AuthErrorLike = {
   status?: number;
   code?: string;
+  message?: string;
 };
 
 export type AuthNoticeKind =

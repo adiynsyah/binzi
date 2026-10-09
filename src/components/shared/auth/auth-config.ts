@@ -44,11 +44,13 @@ export async function getGoogleEnabled(): Promise<boolean> {
 }
 
 /**
- * Turnstile sitekey for the widget on /masuk and /daftar (AUTH-10 protects
- * sign-in/sign-up only); null disables the widget (test environment — the
- * server also skips verification there). May THROW in production without
- * the key — the request-time twin of src/lib/auth.ts's TURNSTILE_SECRET_KEY
- * check, so a misconfigured deployment fails clearly, never silently.
+ * Turnstile sitekey for the widget on /masuk, /daftar, /lupa-password and
+ * the /daftar/verifikasi resend form (AUTH-10 — TURNSTILE_PROTECTED_ENDPOINTS
+ * covers sign-in, sign-up, request-password-reset and send-verification-
+ * email); null disables the widget (test environment — the server also
+ * skips verification there). May THROW in production without the key — the
+ * request-time twin of src/lib/auth.ts's TURNSTILE_SECRET_KEY check, so a
+ * misconfigured deployment fails clearly, never silently.
  */
 export async function getTurnstileSiteKey(): Promise<string | null> {
   const [{ clientEnv }, { serverEnv }] = await Promise.all([

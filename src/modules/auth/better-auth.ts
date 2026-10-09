@@ -94,11 +94,23 @@ import {
 } from "./schema";
 
 /**
- * Identical for unknown email, wrong password, AND a blocked bucket —
- * never reveals whether the account exists (§14.2). The blocked response
- * differs only in status (429 vs 401) so the limit stays observable (V-10).
+ * Identical for unknown email and wrong password — never reveals whether
+ * the account exists (§14.2). A blocked bucket does NOT reuse this copy:
+ * its 429 carries LOGIN_BLOCKED_MESSAGE so the response message matches
+ * the RATE_LIMITED code (A-13 verification finding; it still never
+ * depends on whether the account exists).
  */
 export const LOGIN_FAILED_MESSAGE = "Email atau kata sandi salah";
+
+/**
+ * AUTH-08 429 copy: per-endpoint rate-limit messages match their codes —
+ * login this 15-minute window, sign-up SIGNUP_BLOCKED_MESSAGE (same
+ * window), the email-send endpoints the one-hour window
+ * (EMAIL_SEND_BLOCKED_MESSAGE). The UI maps its own copy per status/code
+ * (auth-errors.ts) and never renders these.
+ */
+export const LOGIN_BLOCKED_MESSAGE =
+  "Terlalu banyak percobaan. Coba lagi dalam 15 menit.";
 
 const SIGNUP_BLOCKED_MESSAGE =
   "Terlalu banyak percobaan pendaftaran. Coba lagi dalam 15 menit.";
@@ -279,7 +291,7 @@ function binziGuardPlugin(deps: { db: Db }): BetterAuthPlugin {
       throw new APIError("TOO_MANY_REQUESTS", {
         code: kind === "sign-in" ? "RATE_LIMITED" : "SIGNUP_RATE_LIMITED",
         message:
-          kind === "sign-in" ? LOGIN_FAILED_MESSAGE : SIGNUP_BLOCKED_MESSAGE,
+          kind === "sign-in" ? LOGIN_BLOCKED_MESSAGE : SIGNUP_BLOCKED_MESSAGE,
       });
     }
 
