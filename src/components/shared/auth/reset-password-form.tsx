@@ -150,7 +150,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
 
       <p className="text-sm text-text-meta">
         Menyimpan password baru akan mengeluarkan akun Anda dari semua perangkat
-        lain (AUTH-06).
+        lain.
       </p>
     </form>
   );
