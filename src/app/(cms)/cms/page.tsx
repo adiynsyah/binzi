@@ -9,7 +9,7 @@ export default async function CmsHomePage() {
     <main className="mx-auto max-w-2xl px-6 py-10">
       <h1 className="text-2xl font-black">CMS BINZI</h1>
       <p className="mt-2 text-text-muted">
-        Ringkasan CMS — tata letak menyusul (A-15).
+        Ringkasan CMS — tata letak menyusul.
       </p>
     </main>
   );

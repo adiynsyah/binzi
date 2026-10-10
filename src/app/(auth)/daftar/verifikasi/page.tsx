@@ -69,7 +69,7 @@ export default async function VerifikasiPage({
           </Link>
           <p className="mt-5 flex items-center justify-center gap-2 border-t border-success pt-4 text-center text-sm">
             <Check aria-hidden="true" className="size-4" strokeWidth={3} />
-            Sesi bertahan 30 hari di perangkat ini (AUTH-07)
+            Sesi bertahan 30 hari di perangkat ini.
           </p>
         </div>
       )}

@@ -14,6 +14,10 @@
 4. Pakai komponen dari `docs/design/handoff/COMPONENTS.md`. **Periksa `src/components/` dulu** — jangan membuat versi kedua dari komponen yang sudah ada.
 5. Nilai visual hanya dari `docs/design/handoff/TOKENS.md`. **Jangan menyalin hex dari desain** — pakai kolom "Token" di `<ID>.md`.
 6. Baca bagian PRD yang relevan lewat `docs/prd/INDEX.md` (tabel "Bagian yang dibaca per fase").
+7. Copy dari docs/design/screens/*.md: ID dalam kurung seperti (AUTH-07),
+   (QZ-08), (A-15), atau rujukan §x.y adalah anotasi desainer, bukan teks
+   antarmuka. Buang dari copy. Sebelum membuka PR, grep perubahanmu untuk
+   pola "\([A-Z]{1,4}-[0-9]+\)" dan "§" di teks yang dirender.
 
 ## Stack (PRD §9.2)
 **Next.js 16.3.x** App Router · TypeScript strict · Tailwind CSS v4 + shadcn/ui · Drizzle ORM · Supabase PostgreSQL · Better Auth · Cloudflare R2 + Turnstile · TipTap · Resend · React Hook Form + Zod · TanStack Query · Vitest + Playwright.
