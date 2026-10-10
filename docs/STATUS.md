@@ -1,6 +1,6 @@
 # Status Proyek BINZI — catatan untuk melanjutkan di chat baru
 
-> Terakhir diperbarui: 9 Okt 2026. File ini dikelola manual (bukan oleh agent) dan hanya untuk melanjutkan percakapan dengan Claude.
+> Terakhir diperbarui: 10 Okt 2026. File ini dikelola manual (bukan oleh agent) dan hanya untuk melanjutkan percakapan dengan Claude.
 > Untuk melanjutkan: buka chat baru, unggah file ini + `docs/tasks/URUTAN-KERJA.md`, lalu pakai prompt di bagian paling bawah.
 
 ## Di mana semua keputusan tersimpan
@@ -36,7 +36,9 @@
   - ✅ Fix temuan verifikasi A-13 (PR #40): crash /reset-password, tata letak /lupa-password & /reset-password, Turnstile di endpoint kirim email, tautan "Kembali ke Masuk", ikon jam di banner terkunci, pesan 429, plus perapian panel kedaluwarsa. Sisa langkah verifikasi → "Pekerjaan kecil yang masih terbuka".
   - ✅ Env Vercel diperbaiki (9 Okt): `NEXT_PUBLIC_APP_URL` & `MAIL_TRANSPORT` di Production + Preview, redeploy tanpa cache. /masuk, /daftar, /lupa-password tayang di `https://binzi.vercel.app` dengan Turnstile kunci asli.
   - ✅ Chore: next 16.3.8 (6 advisory high) — ikut di PR #39 sebagai pengecualian (lihat catatan keputusan).
-  - ⏭️ Berikutnya: (1) sisa verifikasi A-13 + uji masuk di Production, (2) chore callbackURL hook A-11, (3) **A-14** (kerangka layout publik & member)
+  - ✅ Chore: callbackURL email verifikasi dari hook A-11 → `/daftar/verifikasi` lewat sumber tunggal `VERIFICATION_CALLBACK_PATH` (PR #41). Diverifikasi manual 10 Okt: tautan hook berisi `callbackURL=%2Fdaftar%2Fverifikasi`, token rusak → state "belum aktif" (`?error=INVALID_TOKEN`), tautan asli → "Akun aktif" sudah masuk, login Google berikutnya tertaut normal.
+  - ✅ Chore: hapus anotasi ID dari teks UI — `(AUTH-07)` di /daftar/verifikasi, `(AUTH-06)` di /reset-password, `(A-15)` di placeholder /cms — plus aturan anotasi desain di `CLAUDE.md` (PR #42).
+  - ⏭️ Berikutnya: (1) sisa verifikasi A-13 + uji masuk di Production, (2) **A-14** (kerangka layout publik & member)
 - ✅ Chore: Next 16.3.7 (PR #17). Dependabot: #6 & #7 (actions major) di-merge; #8–#10 (eslint 10, typescript 7, @types/node 26) di-ignore.
 
 ## Cara kerja yang sudah berjalan
@@ -94,7 +96,7 @@
 - [ ] Cek aturan branch `main`: tombol Squash and merge aktif walau CI merah (PR #36). Pastikan "Require status checks to pass" aktif dengan check `ci` terdaftar, dan bypass admin dimatikan.
 - [ ] Chore kosmetik: hapus `--env-file-if-exists=.env` dari script `user:role` (repo tidak punya `.env`; pesan "not found" muncul dua kali).
 - [ ] Saat A-14: guard layout `(learn)` baru bisa diuji setelah `/belajar/page.tsx` ada (URL tanpa halaman langsung 404 tanpa melewati layout grup). Uji: cabut sesi lewat `user:role`, refresh `/belajar` → harus ke `/masuk?next=%2Fbelajar`.
-- [ ] **Chore (temuan A-13): callbackURL hook A-11** untuk email verifikasi yang dikirim server saat `account_not_verified` masih `"/"` → ganti ke `/daftar/verifikasi` (konstanta di `src/components/shared/auth/constants.ts`). Sekarang pengguna yang membuka tautan itu mendarat di beranda tanpa pesan. Catatan: `sendOnSignIn` tidak aktif — kirim ulang saat login lewat tombol di banner `/masuk`.
+- [x] **Chore (temuan A-13): callbackURL hook A-11** untuk email verifikasi yang dikirim server saat `account_not_verified` masih `"/"` → ganti ke `/daftar/verifikasi` (konstanta di `src/components/shared/auth/constants.ts`). Sekarang pengguna yang membuka tautan itu mendarat di beranda tanpa pesan. Catatan: `sendOnSignIn` tidak aktif — kirim ulang saat login lewat tombol di banner `/masuk`. (PR #41)
 - [ ] Chore: `extendTailwindMerge` dengan token tema BINZI (`rounded-control`, warna & ukuran kustom). Tanpa itu, override kelas lewat `cn()` pada utility kustom bisa kalah diam-diam oleh urutan stylesheet (ditemukan di PR #40: `rounded-[8px]` kalah dari `rounded-control`). Kerjakan sebelum atau bersama A-14.
 - [ ] Opsional: hapus override `[--radius-control:8px]` di `expired-link-panel.tsx` (PR #40). TOKENS menetapkan radius tombol 8–10, jadi `rounded-control` (10px) sudah sah; pengecualian lokal demi selisih 2px dari mock tidak sepadan.
 - [ ] A-19 (E2E): wajib mencakup `/reset-password` tanpa token, `?token=palsu` + submit, dan alur reset penuh dengan tautan asli — rute dinamis ini tidak dirender saat build, jadi CI tidak menangkap crash-nya (kasus PR #39).
@@ -159,6 +161,9 @@
 - **Banner terkunci 5× (PR #40):** badge angka "15" diganti ikon jam (lucide) — penyimpangan sadar dari 2b (angka statis mengulang teks dan terbaca seperti hitung mundur).
 - **Pesan 429 (PR #40):** login `LOGIN_BLOCKED_MESSAGE` "Terlalu banyak percobaan. Coba lagi dalam 15 menit."; daftar "…percobaan pendaftaran…" (`SIGNUP_RATE_LIMITED`); kirim email "…dalam satu jam." UI selalu memakai copy sendiri per status/kode — `message` server tidak pernah dirender (dijaga tes regresi).
 - **Copy tautan "lanjutkan dengan Google."** di /lupa-password (titik & cakupan tautan beda dari 3b) — sengaja dibiarkan.
+- **`VERIFICATION_CALLBACK_PATH` (PR #41):** sumber tunggal di `src/modules/auth/schema.ts` (tetangga `safeInternalRedirectPath`); `src/components/shared/auth/constants.ts` me-re-export secara relatif (Vitest belum punya alias `@/`). Dipakai semua pengirim email verifikasi: daftar, kirim ulang di banner /masuk, kirim ulang di /daftar/verifikasi, dan hook A-11. Arah dependensi selalu UI → modul, tidak pernah modul → `src/components`. Token gagal di-redirect Better Auth ke callbackURL yang sama + `?error=<CODE>`, jadi alur verifikasi tidak memakai `errorCallbackURL`. Alur change-email bawaan Better Auth masih default `"/"` — tidak dipakai BINZI.
+- **Anotasi desain (PR #42):** ID dalam kurung di `docs/design/screens/*.md` — `(AUTH-07)`, `(A-15)`, `§x.y` — adalah anotasi desainer, bukan copy, **termasuk bila muncul di baris copy** (contoh: 3b.md:64, 3c.md:94). Aturan + pola grep ada di `CLAUDE.md`. Komentar kode, judul tes, dan log developer boleh memuat ID.
+- **Aturan agent hanya resmi bila ada di `CLAUDE.md`.** Auto-memory Claude Code (`MEMORY.md` di `~/.claude/projects/…`) di luar repo: tidak ter-versi, tidak bisa ditinjau lewat PR, tidak ikut ke mesin lain.
 - **Nilai env case-sensitive:** `MAIL_TRANSPORT` harus `log`/`resend` huruf kecil. Nilai salah tidak menggagalkan build (env dibaca per request) — halaman baru crash saat dibuka.
 
 ## Rencana setelah Fase 0
@@ -179,7 +184,8 @@ AI coding agent (Claude Code). Terlampir docs/STATUS.md dan
 docs/tasks/URUTAN-KERJA.md dari repo saya — baca keduanya sebagai konteks.
 Spesifikasi lengkap ada di docs/prd/PRD-v1.3.md dan aturan agent di
 CLAUDE.md; minta saya unggah bagian yang kamu butuhkan.
-Posisi terakhir saya: A-13 sudah diverifikasi, temuannya diperbaiki di PR #40
-(merged), dan env Vercel sudah benar. Sisa: beberapa langkah verifikasi A-13
-yang belum dilaporkan, chore callbackURL hook A-11, lalu A-14.
+Posisi terakhir saya: A-13 sudah diverifikasi, temuannya diperbaiki di PR #40,
+chore callbackURL hook A-11 (PR #41) dan pembersihan anotasi di teks UI
+(PR #42) sudah merged, dan env Vercel sudah benar. Sisa: beberapa langkah
+verifikasi A-13 yang belum dilaporkan, lalu A-14.
 ```
