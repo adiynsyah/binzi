@@ -54,6 +54,9 @@ export function ResendVerificationForm({
   const needsCaptcha = turnstileSiteKey !== null;
 
   const onSubmit = handleSubmit(async (values) => {
+    // Fresh attempt: drop the old banner so a new failure remounts
+    // role="alert" (re-announced) instead of mutating the old one.
+    setNotice(null);
     const { error } = await authClient.sendVerificationEmail(
       {
         email: values.email,

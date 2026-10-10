@@ -191,6 +191,75 @@ describe("LoginForm", () => {
     ).toBeTruthy();
   });
 
+  it("remounts the error banner on each new submit", async () => {
+    // Deferred promises: an instantly-resolving mock lets React coalesce
+    // setNotice(null) and the next error into ONE render (no unmount). A
+    // pending request mirrors real wire latency, where the clear commits
+    // first and the banner truly remounts.
+    let resolveSignIn!: (error: unknown) => void;
+    signInEmail.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveSignIn = (error) => resolve({ data: null, error } as never);
+        }),
+    );
+    renderForm();
+    fillValidCredentials();
+
+    fireEvent.click(screen.getByRole("button", { name: "Masuk" }));
+    await waitFor(() => {
+      expect(signInEmail).toHaveBeenCalledTimes(1);
+    });
+    resolveSignIn({ status: 403, code: "EMAIL_NOT_VERIFIED" });
+    const first = await screen.findByRole("alert");
+    expect(first.textContent).toContain("Email Anda belum diverifikasi.");
+
+    // The in-flight attempt first clears the old banner...
+    fireEvent.click(screen.getByRole("button", { name: "Masuk" }));
+    await waitFor(() => {
+      expect(signInEmail).toHaveBeenCalledTimes(2);
+    });
+    await waitFor(() => {
+      expect(screen.queryByRole("alert")).toBeNull();
+    });
+    // ...then the failure mounts a FRESH banner (new node — role="alert"
+    // is announced again), never a mutation of the previous instance.
+    resolveSignIn({ status: 403, code: "EMAIL_NOT_VERIFIED" });
+    const second = await screen.findByRole("alert");
+    expect(second).not.toBe(first);
+    expect(second.textContent).toContain("Email Anda belum diverifikasi.");
+  });
+
+  it("restores the resend action after a new submit", async () => {
+    signInEmail.mockResolvedValue({
+      data: null,
+      error: { status: 403, code: "EMAIL_NOT_VERIFIED" } as never,
+    });
+    sendVerificationEmail.mockResolvedValue({ data: null, error: null });
+    renderForm();
+    fillValidCredentials();
+
+    // Land on the unverified banner and use the resend action once.
+    fireEvent.click(screen.getByRole("button", { name: "Masuk" }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Kirim ulang tautan" }),
+    );
+    expect(
+      await screen.findByText(/Tautan verifikasi baru sudah dikirim/),
+    ).toBeTruthy();
+    expect(
+      screen.queryByRole("button", { name: "Kirim ulang tautan" }),
+    ).toBeNull();
+
+    // The next sign-in attempt resets resendState: the action must return
+    // instead of sticking on the "sudah dikirim" description.
+    fireEvent.click(screen.getByRole("button", { name: "Masuk" }));
+    expect(
+      await screen.findByRole("button", { name: "Kirim ulang tautan" }),
+    ).toBeTruthy();
+    expect(screen.queryByText(/sudah dikirim/)).toBeNull();
+  });
+
   it("switches to the success state on a valid sign-in", async () => {
     signInEmail.mockResolvedValue({
       data: { user: { id: "u1" } },

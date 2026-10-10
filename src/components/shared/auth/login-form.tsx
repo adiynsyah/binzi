@@ -114,6 +114,11 @@ export function LoginForm({
   };
 
   const onSubmit = handleSubmit(async (values) => {
+    // Every attempt starts clean: the previous banner unmounts (a new error
+    // then remounts role="alert" so it is re-announced) and the resend
+    // action returns even after a previous "sent".
+    setNotice(null);
+    setResendState("idle");
     const { error } = await authClient.signIn.email(
       { email: values.email, password: values.password },
       {

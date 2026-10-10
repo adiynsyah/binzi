@@ -57,6 +57,9 @@ export function ResetPasswordForm({ token }: { token: string }) {
   const [saved, setSaved] = useState(false);
 
   const onSubmit = handleSubmit(async (values) => {
+    // Fresh attempt: drop the old banner so a new failure remounts
+    // role="alert" (re-announced) instead of mutating the old one.
+    setNotice(null);
     const { error } = await authClient.resetPassword({
       token,
       newPassword: values.password,

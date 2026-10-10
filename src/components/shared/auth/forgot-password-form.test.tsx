@@ -117,6 +117,44 @@ describe("ForgotPasswordForm", () => {
     ).toBeTruthy();
   });
 
+  it("remounts the rate-limit banner on a repeated submit", async () => {
+    // Deferred promise so React commits the notice-clear first (an instant
+    // mock would coalesce both renders — see the login-form twin test).
+    let resolveRequest!: (error: unknown) => void;
+    requestPasswordReset.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveRequest = (error) => resolve({ data: null, error } as never);
+        }),
+    );
+    render(<ForgotPasswordForm googleEnabled={false} turnstileSiteKey={null} />);
+    fillEmail("rina@email.com");
+
+    fireEvent.click(screen.getByRole("button", { name: "Kirim tautan reset" }));
+    await waitFor(() => {
+      expect(requestPasswordReset).toHaveBeenCalledTimes(1);
+    });
+    resolveRequest({ status: 429, code: "RATE_LIMITED" });
+    const first = await screen.findByRole("alert");
+    expect(first.textContent).toContain("Terlalu banyak permintaan");
+
+    // This form is retried often against the 3/hour bucket: the in-flight
+    // attempt clears the old banner, then the failure must mount a FRESH
+    // one (new node — role="alert" re-announced), never a mutation of the
+    // previous instance.
+    fireEvent.click(screen.getByRole("button", { name: "Kirim tautan reset" }));
+    await waitFor(() => {
+      expect(requestPasswordReset).toHaveBeenCalledTimes(2);
+    });
+    await waitFor(() => {
+      expect(screen.queryByRole("alert")).toBeNull();
+    });
+    resolveRequest({ status: 429, code: "RATE_LIMITED" });
+    const second = await screen.findByRole("alert");
+    expect(second).not.toBe(first);
+    expect(second.textContent).toContain("Terlalu banyak permintaan");
+  });
+
   it("offers the Google escape hatch only when the provider is active", () => {
     render(
       <ForgotPasswordForm googleEnabled={true} turnstileSiteKey={null} />,
