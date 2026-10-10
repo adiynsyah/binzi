@@ -15,10 +15,13 @@
 // pre-hijack refusal on an UNVERIFIED local account (no link, credential
 // deleted, sessions revoked, fresh verification email offered, old password
 // dead), recovery through the verification link EXACTLY as emailed (base
-// path included) + a later password reset, rejection of email_verified=false
+// path included) + a later password reset, the refusal email's callbackURL
+// pointing at /daftar/verifikasi with dead tokens landing on that page's
+// error state, rejection of email_verified=false
 // profiles, the 3/hour resend cap on the refusal path, the same refusal via
 // a NON-google provider plus the fail-closed unit branches (missing/unknown
 // local id), and the internal-path redirect guard on all five entry points.
+import { createHmac } from "node:crypto";
 import { fileURLToPath } from "node:url";
 
 import { PGlite } from "@electric-sql/pglite";
@@ -291,6 +294,23 @@ function latestVerificationToken(email: string): string {
   return url.searchParams.get("token") ?? "";
 }
 
+/**
+ * Forges an already-expired verification JWT (HS256, Better Auth's shape) —
+ * same forging pattern as email.integration.test.ts, signed with the
+ * instance's own test secret.
+ */
+function expiredVerificationToken(email: string): string {
+  const now = Math.floor(Date.now() / 1000);
+  const encode = (value: object) =>
+    Buffer.from(JSON.stringify(value)).toString("base64url");
+  const header = encode({ alg: "HS256", typ: "JWT" });
+  const payload = encode({ email, iat: now - 7200, exp: now - 3600 });
+  const signature = createHmac("sha256", deps.secret)
+    .update(`${header}.${payload}`)
+    .digest("base64url");
+  return `${header}.${payload}.${signature}`;
+}
+
 describe("A-11 Google OAuth (PGlite, mocked provider)", () => {
   it("creates a MEMBER account, welcomes, and returns to the origin page (§14.2)", async () => {
     const email = "fresh.google@example.com";
@@ -467,6 +487,41 @@ describe("A-11 Google OAuth (PGlite, mocked provider)", () => {
       password: NEW_PASSWORD,
     });
     expect(signIn.status).toBe(200);
+  });
+
+  it("addresses the refusal's verification link at /daftar/verifikasi, dead tokens included", async () => {
+    const email = "hook.callback@example.com";
+    await signUp(email); // unverified local account
+    Object.assign(googleProfile, { sub: "google-sub-hook-callback", email });
+    const refused = await googleLogin();
+    expect(refused.headers.get("location")).toContain(
+      "error=account_not_verified",
+    );
+
+    // The hook-emailed link carries the SAME callbackURL the client flows
+    // send (VERIFICATION_CALLBACK_PATH) — not Better Auth's "/" default.
+    const link = verificationEmailsTo(email).at(-1)?.link;
+    expect(link).toBeTruthy();
+    expect(new URL(link!).searchParams.get("callbackURL")).toBe(
+      "/daftar/verifikasi",
+    );
+
+    // A dead token from a hook-built link therefore ends in the SAME error
+    // state as the sign-up flow's links: 302 to /daftar/verifikasi?error=…
+    // (the page collapses these codes into its "link no longer valid"
+    // state). The URL is the emailed one with only the token swapped.
+    for (const [token, code] of [
+      [expiredVerificationToken(email), "TOKEN_EXPIRED"],
+      ["bukan-token", "INVALID_TOKEN"],
+    ] as const) {
+      const dead = new URL(link!);
+      dead.searchParams.set("token", token);
+      const response = await getRaw(dead);
+      expect(response.status).toBe(302);
+      const location = response.headers.get("location") ?? "";
+      expect(location).toContain("/daftar/verifikasi");
+      expect(location).toContain(`error=${code}`);
+    }
   });
 
   it("rejects a Google profile with email_verified=false and creates nothing", async () => {

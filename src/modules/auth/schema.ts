@@ -71,6 +71,17 @@ export function safeInternalRedirectPath(value: unknown): string | null {
   return candidate;
 }
 
+/**
+ * `callbackURL` for EVERY verification link BINZI creates — the client sends
+ * (sign-up body, resend buttons) and the A-11 pre-hijack hook alike. Better
+ * Auth redirects here after GET /api/auth/verify-email: success lands clean,
+ * failures land with `?error=<CODE>`, which /daftar/verifikasi collapses into
+ * its single "link no longer valid" state. Lives in the module contract
+ * (client-importable, like the schemas above) so the server hook and the
+ * auth screens share one source instead of duplicating the string.
+ */
+export const VERIFICATION_CALLBACK_PATH = "/daftar/verifikasi";
+
 export const signInSchema = z.object({
   email: z.email({ message: "Format email tidak valid" }),
   password: z.string().min(1, { message: "Kata sandi wajib diisi" }),

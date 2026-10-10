@@ -88,6 +88,7 @@ import {
 } from "./policy";
 import {
   PASSWORD_MIN_LENGTH,
+  VERIFICATION_CALLBACK_PATH,
   normalizeEmail,
   passwordSchema,
   safeInternalRedirectPath,
@@ -502,8 +503,12 @@ async function invalidateUnverifiedAccount(
       EMAIL_VERIFICATION_SECONDS,
     );
     // Same shape Better Auth itself sends (email-verification route):
-    // `${ctx.context.baseURL}/verify-email?token=…&callbackURL=…`.
-    const url = `${authBaseURL}/verify-email?token=${token}&callbackURL=${encodeURIComponent("/")}`;
+    // `${ctx.context.baseURL}/verify-email?token=…&callbackURL=…`. The
+    // callback is the SAME /daftar/verifikasi page the client flows use
+    // (single source: VERIFICATION_CALLBACK_PATH), so this magic link
+    // behaves identically to the sign-up one — success lands signed in, a
+    // dead token lands on the page's error state.
+    const url = `${authBaseURL}/verify-email?token=${token}&callbackURL=${encodeURIComponent(VERIFICATION_CALLBACK_PATH)}`;
     await deps.mail.sendVerificationEmail({
       user: { name: row.name, email: row.email },
       url,

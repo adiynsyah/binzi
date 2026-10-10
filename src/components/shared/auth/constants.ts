@@ -10,13 +10,12 @@
 export const POST_LOGIN_DEFAULT_PATH = "/";
 
 /**
- * `callbackURL` for verification links created by the CLIENT (sign-up body,
- * resend button). Better Auth redirects here after GET /api/auth/verify-email:
- * success lands clean, failures land with `?error=<CODE>` (card note c).
- * Server-initiated sends (the A-11 pre-hijack hook) still point at "/" —
- * out of A-13's file scope, noted in the PR.
+ * `callbackURL` for verification links — sign-up body, resend buttons, AND
+ * the A-11 pre-hijack hook. Single source lives in the auth module contract
+ * so client and server sends can never drift apart. Relative import because
+ * vitest has no `@/` alias and the component tests reach this file.
  */
-export const VERIFICATION_CALLBACK_PATH = "/daftar/verifikasi";
+export { VERIFICATION_CALLBACK_PATH } from "../../../modules/auth/schema";
 
 /**
  * `redirectTo` for the reset link: Better Auth's token callback endpoint
