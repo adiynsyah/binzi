@@ -38,7 +38,9 @@
   - ✅ Chore: next 16.3.8 (6 advisory high) — ikut di PR #39 sebagai pengecualian (lihat catatan keputusan).
   - ✅ Chore: callbackURL email verifikasi dari hook A-11 → `/daftar/verifikasi` lewat sumber tunggal `VERIFICATION_CALLBACK_PATH` (PR #41). Diverifikasi manual 10 Okt: tautan hook berisi `callbackURL=%2Fdaftar%2Fverifikasi`, token rusak → state "belum aktif" (`?error=INVALID_TOKEN`), tautan asli → "Akun aktif" sudah masuk, login Google berikutnya tertaut normal.
   - ✅ Chore: hapus anotasi ID dari teks UI — `(AUTH-07)` di /daftar/verifikasi, `(AUTH-06)` di /reset-password, `(A-15)` di placeholder /cms — plus aturan anotasi desain di `CLAUDE.md` (PR #42).
-  - ⏭️ Berikutnya: (1) sisa verifikasi A-13 + uji masuk di Production, (2) **A-14** (kerangka layout publik & member)
+  - ✅ Verifikasi A-13 selesai (10 Okt): semua langkah sisa lolos di localhost, Production (`https://binzi.vercel.app`, Turnstile kunci asli, tautan reset di Vercel Logs mengarah ke domain Production, email tersamarkan), dan Preview (Turnstile uji, tombol Google tersembunyi). Satu temuan → PR #43.
+  - ✅ Fix temuan verifikasi A-13 (PR #43): banner error/info tidak lagi hilang sendiri (timer `Banner` hanya untuk tone `success`); semua form auth mengosongkan banner di awal submit, dan /masuk mengembalikan tombol "Kirim ulang tautan" di setiap percobaan. Diverifikasi manual 10 Okt.
+  - ⏭️ Berikutnya: **A-14** (kerangka layout publik & member). Sebelum sesi agent: tinjau kartu A-14 bersama Claude dan perbarui dengan keputusan terbaru (pelajaran (a)).
 - ✅ Chore: Next 16.3.7 (PR #17). Dependabot: #6 & #7 (actions major) di-merge; #8–#10 (eslint 10, typescript 7, @types/node 26) di-ignore.
 
 ## Cara kerja yang sudah berjalan
@@ -54,22 +56,15 @@
 
 ## Pekerjaan kecil yang masih terbuka
 
-- [ ] **Sisa verifikasi A-13 (setelah PR #40).** Sudah lolos 9 Okt: daftar + verifikasi magic link, anti-enumerasi daftar ulang (tanpa email baru, satu baris `users`, password lama tidak tertimpa), error per field, kunci 5× (UI 429), `/reset-password` tanpa token & `?token=palsu` → panel kedaluwarsa. Belum dilaporkan:
-  - reset dengan tautan asli → sesi di browser lain tercabut; tautan yang sama dibuka lagi → panel kedaluwarsa;
-  - akun belum terverifikasi + password benar → banner + "Kirim ulang tautan" (menunggu token Turnstile baru);
-  - lupa password 4×/jam → pesan "satu jam";
-  - `?next=https://evil.com` / `//evil.com` → `/`; `?error=<teks>` → pesan generik; sudah masuk → `/masuk` & `/daftar` dialihkan;
-  - curl tanpa `x-captcha-response` ke `/api/auth/request-password-reset` & `/api/auth/send-verification-email` → 400;
-  - kunci 5× dengan Keep log dan email baru → 5× 401 lalu 429 (tes integrasi sudah membuktikan; pengamatan 9 Okt 429 di percobaan ke-5 kemungkinan karena satu percobaan sebelumnya di jendela yang sama);
-  - satu alur penuh dengan keyboard saja; visual 360/768/1280 (+1440 `/masuk`) termasuk margin tepi di 360.
-  Temuan → PR fix dari `main`.
+- [x] **Sisa verifikasi A-13 (setelah PR #40).** Selesai 10 Okt: reset dengan tautan asli mencabut sesi lain dan token sekali pakai; banner akun belum terverifikasi + kirim ulang; lupa password 4× → "satu jam"; `?next=` eksternal → `/`; `?error=` tak dikenal → satu pesan Google tetap; pengalihan saat sudah masuk; curl tanpa captcha → 400 `MISSING_RESPONSE`; kunci 5× (5× 401 lalu 429, email baru); alur keyboard saja; visual 360/768/1280/1440. Temuan: banner error hilang sendiri → PR #43.
 - [x] **Env Vercel (temuan PR #39):** selesai 9 Okt (Production terverifikasi; penyebab error setelah perbaikan pertama: `MAIL_TRANSPORT` diisi `LOG` huruf besar). Catatan aslinya: log build Preview menunjukkan `NEXT_PUBLIC_APP_URL` kosong di Preview. Di Vercel → Settings → Environment Variables, pastikan semua env yang dibutuhkan dicentang untuk **Preview dan Production** tanpa batasan branch (`NEXT_PUBLIC_APP_URL`, `MAIL_TRANSPORT=log`, `NEXT_PUBLIC_TURNSTILE_SITE_KEY` + `TURNSTILE_SECRET_KEY` (kunci uji di Preview), `BETTER_AUTH_SECRET`, `DATABASE_URL`, dst.). Lalu **redeploy** (nilai `NEXT_PUBLIC_*` ditanam saat build) dan buka `/masuk` & `/daftar` di URL Preview dan di `https://binzi.vercel.app`.
 - [ ] Tes env A-02 dibuat tidak bergantung pada env mesin (temuan A-03): beri objek env eksplisit atau bersihkan variabel relevan sebelum tiap tes.
 - [x] Bila `.env.local` sudah berisi password DB Supabase saat A-02: reset password DB di Supabase.
 - [ ] Pastikan `git ls-files .githooks` menampilkan `.githooks/commit-msg` dengan mode `100755` (hook pembersih atribusi AI).
 - [x] Setelah 30 Sep 2026: naikkan `next` ke **16.3.7** (rilis keamanan) — kemungkinan datang lewat PR Dependabot; merge bila CI hijau.
 - [x] Saat H-08/H-10: set **`MAIL_TRANSPORT=log`** dan **`NEXT_PUBLIC_APP_URL=https://<project>.vercel.app`** di Vercel (Preview & Production) — keduanya wajib di luar development, tanpa itu deploy gagal start. ⚠️ PR #39 menunjukkan `NEXT_PUBLIC_APP_URL` belum ada di Preview — lihat item env Vercel di atas.
-- [ ] Uji Production setelah env: masuk dengan akunmu di `https://binzi.vercel.app/masuk` (membuktikan pasangan site key & `TURNSTILE_SECRET_KEY` asli), lalu lupa password → tautan di Vercel Logs harus mengarah ke `https://binzi.vercel.app`. Buka juga URL Preview: Turnstile berlabel "For testing only", tombol Google tersembunyi.
+- [x] Uji Production setelah env (selesai 10 Okt): masuk dengan akunmu di `https://binzi.vercel.app/masuk` (membuktikan pasangan site key & `TURNSTILE_SECRET_KEY` asli), lalu lupa password → tautan di Vercel Logs harus mengarah ke `https://binzi.vercel.app`. Buka juga URL Preview: Turnstile berlabel "For testing only", tombol Google tersembunyi.
+- [ ] Copy /lupa-password "Masuk dengan Google sebelumnya? Akun itu tidak punya password — lanjutkan dengan Google" tidak akurat: verifikasi 10 Okt membuktikan reset bisa membuatkan password untuk akun yang hanya memakai Google. Putuskan copy baru (atau biarkan) — tidak mendesak, bisa digabung dengan perubahan copy lain.
 - [ ] H-04 R2 (bucket dev & prod, token dev) sebelum mulai A-17; lalu isi `R2_*` di `.env.local` dan Vercel.
 - [ ] Kunci versi Node: `.nvmrc` + `engines.node` di package.json, sama dengan CI & Vercel. Node lokal sudah dinaikkan ke 24 (sebelumnya v20.19, sudah EOL → peringatan EBADENGINE dari vitest). `npm run user:role` butuh Node ≥ 22.9 (`--env-file-if-exists`) — alasan tambahan mengisi `engines.node`.
 - [ ] Kartu "pembaruan toolchain" setelah Fase 0: TypeScript 7, ESLint 10, `@types/node` (major yang di-ignore Dependabot) + penguncian versi Node.
@@ -164,6 +159,11 @@
 - **`VERIFICATION_CALLBACK_PATH` (PR #41):** sumber tunggal di `src/modules/auth/schema.ts` (tetangga `safeInternalRedirectPath`); `src/components/shared/auth/constants.ts` me-re-export secara relatif (Vitest belum punya alias `@/`). Dipakai semua pengirim email verifikasi: daftar, kirim ulang di banner /masuk, kirim ulang di /daftar/verifikasi, dan hook A-11. Arah dependensi selalu UI → modul, tidak pernah modul → `src/components`. Token gagal di-redirect Better Auth ke callbackURL yang sama + `?error=<CODE>`, jadi alur verifikasi tidak memakai `errorCallbackURL`. Alur change-email bawaan Better Auth masih default `"/"` — tidak dipakai BINZI.
 - **Anotasi desain (PR #42):** ID dalam kurung di `docs/design/screens/*.md` — `(AUTH-07)`, `(A-15)`, `§x.y` — adalah anotasi desainer, bukan copy, **termasuk bila muncul di baris copy** (contoh: 3b.md:64, 3c.md:94). Aturan + pola grep ada di `CLAUDE.md`. Komentar kode, judul tes, dan log developer boleh memuat ID.
 - **Aturan agent hanya resmi bila ada di `CLAUDE.md`.** Auto-memory Claude Code (`MEMORY.md` di `~/.claude/projects/…`) di luar repo: tidak ter-versi, tidak bisa ditinjau lewat PR, tidak ikut ke mesin lain.
+- **Banner (PR #43):** hanya tone `success` yang boleh hilang sendiri (timer 4 detik, berhenti saat hover/fokus). Info dan error tidak pernah memasang timer dari jalur mana pun — hilang hanya saat pemanggil meng-unmount. Pola form auth: `setNotice(null)` di awal setiap submit supaya banner baru di-mount dan `role="alert"` diumumkan ulang. Tes remount memakai promise yang diselesaikan manual (mock yang langsung selesai membuat React menggabungkan dua render).
+- **Visual auth (verifikasi A-13, 10 Okt):** diterima apa adanya — label "MASUK" di atas judul "Masuk" pada 768, "Minimal 8 karakter" sebagai placeholder sekaligus teks bantuan, dan tanpa subjudul di bawah judul (beda dari 2d/2t).
+- **Perilaku auth yang diterima (verifikasi A-13, 10 Okt):** `/lupa-password` tetap bisa dibuka saat sudah masuk (hanya /masuk & /daftar yang mengalihkan; jalur rapi nanti ubah password di /profil, AUTH-09). `/reset-password?token=` tidak mengecek token saat render — pil "Tautan valid" statis, token diperiksa saat submit. `?error=` tak dikenal di /masuk & /daftar → satu pesan "Tidak bisa melanjutkan dengan Google…" (di sana `?error=` hanya datang dari callback OAuth).
+- **Reset password untuk akun Google-only:** berhasil membuatkan password (terbukti di Production 10 Okt). Hook A-11 juga menghapus password akun lokal yang belum terverifikasi saat login Google bertemu email yang sama — akun itu lalu masuk lewat Google atau lupa password.
+- **Lokal & Production berbagi DB binzi-dev**, termasuk bucket rate limit. Saat menguji batas lokal, pakai email karangan (`MAIL_TRANSPORT=log` tidak mengirim email); simpan email asli untuk tes Production.
 - **Nilai env case-sensitive:** `MAIL_TRANSPORT` harus `log`/`resend` huruf kecil. Nilai salah tidak menggagalkan build (env dibaca per request) — halaman baru crash saat dibuka.
 
 ## Rencana setelah Fase 0
@@ -184,8 +184,9 @@ AI coding agent (Claude Code). Terlampir docs/STATUS.md dan
 docs/tasks/URUTAN-KERJA.md dari repo saya — baca keduanya sebagai konteks.
 Spesifikasi lengkap ada di docs/prd/PRD-v1.3.md dan aturan agent di
 CLAUDE.md; minta saya unggah bagian yang kamu butuhkan.
-Posisi terakhir saya: A-13 sudah diverifikasi, temuannya diperbaiki di PR #40,
-chore callbackURL hook A-11 (PR #41) dan pembersihan anotasi di teks UI
-(PR #42) sudah merged, dan env Vercel sudah benar. Sisa: beberapa langkah
-verifikasi A-13 yang belum dilaporkan, lalu A-14.
+Posisi terakhir saya: A-13 selesai dan terverifikasi penuh (lokal,
+Production, Preview); temuannya diperbaiki di PR #40 dan #43, ditambah chore
+PR #41 dan #42 — semuanya merged. Berikutnya A-14 (kerangka layout publik &
+member): sebelum sesi agent, saya ingin meninjau kartu A-14 bersamamu dan
+memperbaruinya dengan keputusan terbaru. Akan saya unggah kartunya.
 ```
