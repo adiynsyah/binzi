@@ -47,6 +47,60 @@ describe("Banner", () => {
     expect(screen.getByRole("status")).toBeTruthy();
   });
 
+  it("never self-dismisses an error banner from the hover or focus paths", () => {
+    vi.useFakeTimers();
+    render(
+      <Banner
+        tone="error"
+        title="2 jawaban belum tersimpan di server"
+        action={<button type="button">Coba kirim sekarang</button>}
+      />,
+    );
+    const banner = screen.getByRole("alert");
+    const action = screen.getByRole("button", { name: "Coba kirim sekarang" });
+
+    // Leaving a hover and losing focus must not arm the 4s timer (the
+    // verification-A-13 bug: resume() ignored the tone).
+    fireEvent.mouseEnter(banner);
+    fireEvent.mouseLeave(banner);
+    act(() => {
+      action.focus();
+    });
+    act(() => {
+      action.blur();
+    });
+    act(() => {
+      vi.advanceTimersByTime(5_000);
+    });
+    expect(screen.getByRole("alert")).toBeTruthy();
+  });
+
+  it("never self-dismisses an info banner from the hover or focus paths", () => {
+    vi.useFakeTimers();
+    render(
+      <Banner
+        tone="info"
+        title="Draf disimpan otomatis"
+        action={<button type="button">Coba kirim sekarang</button>}
+      />,
+    );
+    const banner = screen.getByRole("status");
+    const action = screen.getByRole("button", { name: "Coba kirim sekarang" });
+
+    fireEvent.mouseEnter(banner);
+    fireEvent.mouseLeave(banner);
+    act(() => {
+      action.focus();
+    });
+    act(() => {
+      action.blur();
+    });
+    act(() => {
+      vi.advanceTimersByTime(5_000);
+    });
+    expect(screen.getByRole("status")).toBeTruthy();
+  });
+
   it("pauses the countdown while hovered, then resumes the remainder", () => {
     vi.useFakeTimers();
     render(<Banner tone="success" title="Tersimpan" />);

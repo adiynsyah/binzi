@@ -16,7 +16,8 @@ import { cn } from "../../lib/utils";
  * success banners are polite (role="status") and dismiss THEMSELVES after
  * 4 seconds. The countdown pauses while the banner is hovered or focused
  * (e.g. its action button) and resumes with the REMAINING time, so a
- * slower reader never loses the message.
+ * slower reader never loses the message. Info and error banners never arm
+ * a timer on any path — they stay until the caller unmounts them.
  *
  * Token pairs: text on a *-tint always uses its dark pair; the success
  * border reuses `border-success` because TOKENS.md defines no soft line
@@ -74,6 +75,9 @@ export function Banner({
 }: BannerProps) {
   const { container, dot, Icon } = TONES[tone];
   const [dismissed, setDismissed] = useState(false);
+  // Success-only: info/error banners must never arm a timer from any path
+  // (mount, mouse leave, blur) — 28c keeps them until the caller unmounts.
+  const autoDismiss = tone === "success" && autoDismissMs > 0;
 
   // Refs keep the timer stable across renders without re-arming on every
   // callback change.
@@ -99,7 +103,7 @@ export function Banner({
   };
 
   const resume = () => {
-    if (dismissed || timer.current !== null) return;
+    if (!autoDismiss || dismissed || timer.current !== null) return;
     startedAt.current = Date.now();
     timer.current = setTimeout(() => {
       clear();
@@ -109,7 +113,7 @@ export function Banner({
   };
 
   useEffect(() => {
-    if (tone === "success" && autoDismissMs > 0) {
+    if (autoDismiss) {
       remaining.current = autoDismissMs;
       resume();
     }
