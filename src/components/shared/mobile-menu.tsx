@@ -129,8 +129,10 @@ export function MobileMenu() {
             </Link>
           </div>
 
-          {/* 1d panel: full-width rows, 48 tall, radius 8–10. Masuk and
-              Daftar Gratis are required by PRD §7.1 but not drawn in 1d —
+          {/* 1d panel: full-width rows, 48 tall, radius 8–10. The active
+              row reuses getActiveNavItem — bold 700 in `text`, the rest in
+              `text-muted`, mirroring the header nav. Masuk and Daftar
+              Gratis are required by PRD §7.1 but not drawn in 1d —
               composed from tokens. */}
           <nav aria-label="Utama" className="flex flex-col gap-1 p-4">
             {NAV_ITEMS.map((item) => (
@@ -139,9 +141,16 @@ export function MobileMenu() {
                 href={item.href}
                 onClick={close}
                 aria-current={active?.key === item.key ? "page" : undefined}
-                className="flex min-h-12 flex-col justify-center rounded-control px-3 py-2 text-[15px] font-bold text-text transition-colors duration-200 ease-out hover:bg-fill"
+                className={cn(
+                  "flex min-h-12 flex-col justify-center rounded-control px-3 py-2 text-[15px] font-bold transition-colors duration-200 ease-out hover:bg-fill",
+                  active?.key === item.key ? "text-text" : "text-text-muted",
+                )}
               >
                 {item.label}
+                {/* Explicit space: keeps the accessible name readable
+                    ("Konsultasi di beranda ↓") — JSX drops whitespace-only
+                    lines between expressions. */}
+                {" "}
                 {item.key === "konsultasi" ? (
                   <span className="mt-0.5 font-mono text-[11px] font-medium text-text-subtle">
                     di beranda ↓
