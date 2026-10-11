@@ -148,12 +148,12 @@ export function MobileMenu() {
               >
                 {item.label}
                 {/* Explicit space: keeps the accessible name readable
-                    ("Konsultasi di beranda ↓") — JSX drops whitespace-only
-                    lines between expressions. */}
+                    ("Konsultasi di beranda"; the arrow is aria-hidden) —
+                    JSX drops whitespace-only lines between expressions. */}
                 {" "}
                 {item.key === "konsultasi" ? (
                   <span className="mt-0.5 font-mono text-[11px] font-medium text-text-subtle">
-                    di beranda ↓
+                    di beranda <span aria-hidden="true">↓</span>
                   </span>
                 ) : null}
               </Link>

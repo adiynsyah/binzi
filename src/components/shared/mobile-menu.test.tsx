@@ -99,7 +99,7 @@ describe("MobileMenu", () => {
     openMenu();
 
     const konsultasi = screen.getByRole("link", {
-      name: "Konsultasi di beranda ↓",
+      name: "Konsultasi di beranda",
     });
     expect(konsultasi.getAttribute("aria-current")).toBeNull();
     expect(
