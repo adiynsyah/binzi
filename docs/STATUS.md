@@ -42,7 +42,8 @@
   - ✅ Fix temuan verifikasi A-13 (PR #43): banner error/info tidak lagi hilang sendiri (timer `Banner` hanya untuk tone `success`); semua form auth mengosongkan banner di awal submit, dan /masuk mengembalikan tombol "Kirim ulang tautan" di setiap percobaan. Diverifikasi manual 10 Okt.
   - ✅ Tinjauan kartu A-14 (11 Okt): dipecah jadi **A-14a** (layout publik: header tamu, menu ponsel, footer) dan **A-14b** (header member, menu akun, bottom nav, layout `(learn)`, `/belajar` sementara). Keputusan desain dicatat di `docs/design/OPEN-ISSUES.md` (D-07 terbuka, D-08 & D-09 diputuskan). Langkah kerja dinomori ulang 1–31.
   - ✅ Chore: `cn()` mengenali token BINZI lewat `createCn` (`cn/config`) — radius, warna, `content`, `shadow-menu/dialog` — dengan tes paritas terhadap `tokens.css` (PR #44).
-  - ⏭️ Berikutnya: **A-14a**, lalu **A-14b**.
+  - ✅ A-14a kerangka layout publik (PR #46): header tamu sticky (≥ 1024 / 640–1023 / < 640), menu ponsel di atas dialog A-06 dengan ✕ di posisi ☰, footer `ink-surface` menempel di bawah, `<main>` latar `surface`, anchor `#tanya-ahli-gizi`. `/` tetap statis (○).
+  - ⏭️ Berikutnya: **A-14b** (header member, menu akun, bottom nav, layout `(learn)`).
 - ✅ Chore: Next 16.3.7 (PR #17). Dependabot: #6 & #7 (actions major) di-merge; #8–#10 (eslint 10, typescript 7, @types/node 26) di-ignore.
 
 ## Cara kerja yang sudah berjalan
@@ -70,7 +71,7 @@
 - [ ] H-04 R2 (bucket dev & prod, token dev) sebelum mulai A-17; lalu isi `R2_*` di `.env.local` dan Vercel.
 - [ ] Kunci versi Node: `.nvmrc` + `engines.node` di package.json, sama dengan CI & Vercel. Node lokal sudah dinaikkan ke 24 (sebelumnya v20.19, sudah EOL → peringatan EBADENGINE dari vitest). `npm run user:role` butuh Node ≥ 22.9 (`--env-file-if-exists`) — alasan tambahan mengisi `engines.node`.
 - [ ] Kartu "pembaruan toolchain" setelah Fase 0: TypeScript 7, ESLint 10, `@types/node` (major yang di-ignore Dependabot) + penguncian versi Node.
-- [ ] Kartu "pembaruan token": tambah `success-tint-line` (garis banner sukses sementara `border-success`, usulan A-06) + temuan desain lain.
+- [ ] Kartu "pembaruan token": tambah `success-tint-line` (garis banner sukses sementara `border-success`, usulan A-06) + warna garis di atas `ink-surface` (pil "Ditinjau ahli gizi ber-STR aktif" dan pemisah footer tidak terlihat karena garis & latar sama-sama dipetakan ke `ink-surface`; ditemukan di A-14a, PR #46) + temuan desain lain.
 - [ ] Gambar desain yang gagal dibaca agent (7a, 28e): cek dengan `file docs/design/screens/*.png | grep -v "PNG image"`, ekspor ulang sebagai PNG asli.
 - [x] Saat A-13: `src/components/ui/password-rules.ts` mengimpor `passwordSchema`/`PASSWORD_MIN_LENGTH` dari `src/modules/auth/schema.ts` (sumber tunggal sejak A-09). (PR #39)
 - [ ] Chore: `src/components/ui/pagination.tsx` mengimpor `PAGE_SIZE` dari `src/lib/pagination.ts` (sumber tunggal sejak A-08).
@@ -173,6 +174,7 @@
 - **Lokal & Production berbagi DB binzi-dev**, termasuk bucket rate limit. Saat menguji batas lokal, pakai email karangan (`MAIL_TRANSPORT=log` tidak mengirim email); simpan email asli untuk tes Production.
 - **`cn()` & token (PR #44):** `src/lib/utils.ts` memakai `createCn` dari `cn/config` dengan daftar token BINZI (radius, warna, `content`, shadow). Token baru di `tokens.css` wajib didaftarkan di sana — tes paritas di `src/lib/utils.test.ts` gagal bila lupa.
 - **Layout publik & ISR (tinjauan A-14):** layout `(public)` dan komponen header/footer tidak pernah memanggil `cookies()`, `headers()`, atau mengambil sesi di server, karena itu membuat semua halaman publik dinamis. Header member di halaman publik memakai sesi sisi klien (`useSession`); di `(learn)` memakai data dari guard server. Bukti: `/` bertanda ○ di output build.
+- **Kerangka publik (A-14a, PR #46):** konstanta tautan, fungsi state aktif, dan tinggi header per breakpoint ada di satu file di `src/components/shared/` — sumber tunggal untuk A-14b dan S6 (`scroll-margin-top`). Menu ponsel memakai dialog A-06 dengan baris atas sendiri (✕ di posisi ☰), karena ☰ tidak bisa diketuk saat dialog modal terbuka. Layout: `min-h-dvh` + `<main>` `flex-1` berlatar `surface`. Tablet 640–1023 sengaja tanpa Daftar Gratis (1t, D-08) — ditinjau ulang 11 Okt, tetap.
 - **Tautan ke halaman yang belum ada** (header, footer, menu akun) memakai URL final dan boleh 404 sampai sprint-nya; tidak ada halaman sementara di area publik/member.
 - **Nilai env case-sensitive:** `MAIL_TRANSPORT` harus `log`/`resend` huruf kecil. Nilai salah tidak menggagalkan build (env dibaca per request) — halaman baru crash saat dibuka.
 
@@ -181,6 +183,7 @@
 1. Setelah A-13 (irisan uji coba login): evaluasi apakah ukuran kartu per sesi sudah pas.
    Catatan dari A-13 (draf, putuskan saat menulis kartu S1): satu sesi + 4 putaran perbaikan (build Vercel gagal, visual, tipografi ×2). Penyebab utama: kartu ditulis sebelum keputusan A-09–A-12 (catatan tambahan harus ditempel di prompt), dan tampilan baru dibandingkan dengan `.png` setelah PR dibuat. Usulan untuk kartu UI S1: (a) perbarui kartu dengan keputusan terbaru sebelum sesi dimulai; (b) agent membandingkan screenshot (Playwright, 360/768/1280) dengan `.png` dan mencocokkan ukuran huruf dengan tabel TOKENS **sebelum** membuka PR; (c) agent mengecek status deploy Preview, bukan hanya `npm run build` lokal; (d) layar sebanyak A-13 (5 rute + modal) dipecah jadi dua kartu.
    Tambahan dari verifikasi A-13 (9 Okt): (e) sebelum membuka PR, agent wajib `npm run build && npm run start` lalu curl/buka **setiap rute**, termasuk varian query (tanpa token, token palsu, `?error=`) — Vitest dan build tidak menangkap pelanggaran batas Server/Client Component pada rute dinamis; (f) kartu tidak boleh di-merge sebelum "Verifikasi oleh kamu" dijalankan — PR #39 meloloskan 1 blocker dan 1 celah captcha.
+   Tambahan dari A-14a (11 Okt): (g) bila agent tidak bisa melihat screenshot sendiri (mis. setelah compaction), ia wajib memberi tahu sebelum membuka PR — audit angka/computed-style tidak menggantikan perbandingan visual. Temuan A-14a (footer melayang, latar krem, item aktif menu ponsel) hanya terlihat dari screenshot.
 2. Tulis kartu Sprint S1 (CMS kursus & materi) dengan `docs/tasks/_TEMPLATE-agent.md`; sumber: tabel fase di `docs/design/handoff/README.md` + `docs/prd/INDEX.md`.
 3. Tahap 8 kapan saja sebelum pengguna nyata: beli domain → Vercel DNS (H-03), Resend (H-07). Saat itu juga: tambah redirect URI domain di Google OAuth, unggah logo & publish consent screen (sekarang Testing, redirect localhost saja), dan tambah hostname domain di widget Turnstile.
 4. Jalur konten paralel: K-01 s/d K-06 (K-07 selesai).
@@ -197,5 +200,6 @@ CLAUDE.md; minta saya unggah bagian yang kamu butuhkan.
 Posisi terakhir saya: A-13 selesai dan terverifikasi penuh. Kartu A-14 sudah
 ditinjau dan dipecah jadi A-14a (layout publik) dan A-14b (header member &
 menu akun); keputusan desainnya di docs/design/OPEN-ISSUES.md (D-07–D-09).
-Chore extendTailwindMerge selesai (PR #44). Berikutnya: sesi agent A-14a.
+Chore extendTailwindMerge (PR #44) dan A-14a (PR #46) selesai. Berikutnya:
+sesi agent A-14b.
 ```
