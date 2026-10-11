@@ -83,7 +83,11 @@ export function SiteFooter() {
               Kursus dan artikel gizi berbahasa Indonesia — ringkas, gratis, dan
               ditinjau ahli gizi sebelum tayang.
             </p>
-            <p className="mt-[18px] inline-flex items-center gap-2 rounded-pill px-3 py-2">
+            {/* No left padding: the dot aligns with the copy above it. The
+                1a pill border maps to ink-surface (same token as the
+                background) and is therefore omitted — see the token-gap
+                note in the PR. */}
+            <p className="mt-[18px] inline-flex items-center gap-2 rounded-pill py-2 pr-3">
               <span
                 aria-hidden="true"
                 className="size-1.5 rounded-pill bg-success"
