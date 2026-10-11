@@ -6,6 +6,11 @@ import { SiteHeader } from "../../components/shared/site-header";
  * footer. Server-rendered and free of cookies()/headers()/session reads, so
  * every (public) page keeps its static/ISR output (PRD §10.4). Auth screens
  * live in the (auth) group with their own layout and stay chrome-less.
+ *
+ * The wrapper is a min-h-dvh flex column with <main> as flex-1, so the
+ * footer sits on the viewport bottom edge on short pages. <main> carries
+ * the page surface: TOKENS assigns `surface` to page content and leaves
+ * `surface-3` (the canvas behind modals) as the body default.
  */
 export default function PublicLayout({
   children,
@@ -13,7 +18,7 @@ export default function PublicLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <>
+    <div className="flex min-h-dvh flex-col">
       {/* Fixed + transform (not sr-only): the link must appear at the
           viewport top even when the page is scrolled, and land above the
           sticky header while focused. */}
@@ -24,8 +29,10 @@ export default function PublicLayout({
         Lewati ke konten utama
       </a>
       <SiteHeader />
-      <main id="konten-utama">{children}</main>
+      <main id="konten-utama" className="flex-1 bg-surface">
+        {children}
+      </main>
       <SiteFooter />
-    </>
+    </div>
   );
 }
