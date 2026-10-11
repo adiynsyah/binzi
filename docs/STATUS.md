@@ -1,6 +1,6 @@
 # Status Proyek BINZI — catatan untuk melanjutkan di chat baru
 
-> Terakhir diperbarui: 10 Okt 2026. File ini dikelola manual (bukan oleh agent) dan hanya untuk melanjutkan percakapan dengan Claude.
+> Terakhir diperbarui: 11 Okt 2026. File ini dikelola manual (bukan oleh agent) dan hanya untuk melanjutkan percakapan dengan Claude.
 > Untuk melanjutkan: buka chat baru, unggah file ini + `docs/tasks/URUTAN-KERJA.md`, lalu pakai prompt di bagian paling bawah.
 
 ## Di mana semua keputusan tersimpan
@@ -40,7 +40,8 @@
   - ✅ Chore: hapus anotasi ID dari teks UI — `(AUTH-07)` di /daftar/verifikasi, `(AUTH-06)` di /reset-password, `(A-15)` di placeholder /cms — plus aturan anotasi desain di `CLAUDE.md` (PR #42).
   - ✅ Verifikasi A-13 selesai (10 Okt): semua langkah sisa lolos di localhost, Production (`https://binzi.vercel.app`, Turnstile kunci asli, tautan reset di Vercel Logs mengarah ke domain Production, email tersamarkan), dan Preview (Turnstile uji, tombol Google tersembunyi). Satu temuan → PR #43.
   - ✅ Fix temuan verifikasi A-13 (PR #43): banner error/info tidak lagi hilang sendiri (timer `Banner` hanya untuk tone `success`); semua form auth mengosongkan banner di awal submit, dan /masuk mengembalikan tombol "Kirim ulang tautan" di setiap percobaan. Diverifikasi manual 10 Okt.
-  - ⏭️ Berikutnya: **A-14** (kerangka layout publik & member). Sebelum sesi agent: tinjau kartu A-14 bersama Claude dan perbarui dengan keputusan terbaru (pelajaran (a)).
+  - ✅ Tinjauan kartu A-14 (11 Okt): dipecah jadi **A-14a** (layout publik: header tamu, menu ponsel, footer) dan **A-14b** (header member, menu akun, bottom nav, layout `(learn)`, `/belajar` sementara). Keputusan desain dicatat di `docs/design/OPEN-ISSUES.md` (D-07 terbuka, D-08 & D-09 diputuskan). Langkah kerja dinomori ulang 1–31.
+  - ⏭️ Berikutnya: chore `extendTailwindMerge` (lihat pekerjaan terbuka), lalu **A-14a**, lalu **A-14b**.
 - ✅ Chore: Next 16.3.7 (PR #17). Dependabot: #6 & #7 (actions major) di-merge; #8–#10 (eslint 10, typescript 7, @types/node 26) di-ignore.
 
 ## Cara kerja yang sudah berjalan
@@ -90,15 +91,20 @@
 - [x] Saat A-13: copy untuk kode `account_not_verified` (usulan di PR #29) dan `email_not_verified`; tombol Google disembunyikan di Preview (provider nonaktif di sana). (PR #39)
 - [ ] Cek aturan branch `main`: tombol Squash and merge aktif walau CI merah (PR #36). Pastikan "Require status checks to pass" aktif dengan check `ci` terdaftar, dan bypass admin dimatikan.
 - [ ] Chore kosmetik: hapus `--env-file-if-exists=.env` dari script `user:role` (repo tidak punya `.env`; pesan "not found" muncul dua kali).
-- [ ] Saat A-14: guard layout `(learn)` baru bisa diuji setelah `/belajar/page.tsx` ada (URL tanpa halaman langsung 404 tanpa melewati layout grup). Uji: cabut sesi lewat `user:role`, refresh `/belajar` → harus ke `/masuk?next=%2Fbelajar`.
+- [ ] Saat A-14b: guard layout `(learn)` baru bisa diuji setelah `/belajar/page.tsx` ada (URL tanpa halaman langsung 404 tanpa melewati layout grup). Uji: cabut sesi lewat `user:role`, refresh `/belajar` → harus ke `/masuk?next=%2Fbelajar`.
 - [x] **Chore (temuan A-13): callbackURL hook A-11** untuk email verifikasi yang dikirim server saat `account_not_verified` masih `"/"` → ganti ke `/daftar/verifikasi` (konstanta di `src/components/shared/auth/constants.ts`). Sekarang pengguna yang membuka tautan itu mendarat di beranda tanpa pesan. Catatan: `sendOnSignIn` tidak aktif — kirim ulang saat login lewat tombol di banner `/masuk`. (PR #41)
-- [ ] Chore: `extendTailwindMerge` dengan token tema BINZI (`rounded-control`, warna & ukuran kustom). Tanpa itu, override kelas lewat `cn()` pada utility kustom bisa kalah diam-diam oleh urutan stylesheet (ditemukan di PR #40: `rounded-[8px]` kalah dari `rounded-control`). Kerjakan sebelum atau bersama A-14.
+- [ ] Chore: `extendTailwindMerge` dengan token tema BINZI (`rounded-control`, warna & ukuran kustom). Tanpa itu, override kelas lewat `cn()` pada utility kustom bisa kalah diam-diam oleh urutan stylesheet (ditemukan di PR #40: `rounded-[8px]` kalah dari `rounded-control`). Kerjakan **sebelum A-14a** sebagai PR chore tersendiri (`src/lib/utils.ts` di luar lingkup kartu A-14a/b).
 - [ ] Opsional: hapus override `[--radius-control:8px]` di `expired-link-panel.tsx` (PR #40). TOKENS menetapkan radius tombol 8–10, jadi `rounded-control` (10px) sudah sah; pengecualian lokal demi selisih 2px dari mock tidak sepadan.
 - [ ] A-19 (E2E): wajib mencakup `/reset-password` tanpa token, `?token=palsu` + submit, dan alur reset penuh dengan tautan asli — rute dinamis ini tidak dirender saat build, jadi CI tidak menangkap crash-nya (kasus PR #39).
 - [ ] Chore: satukan sumber `googleEnabled` — ekspor dari `src/lib/auth.ts`, lalu `src/components/shared/auth/auth-config.ts` mengimpornya (sekarang aturannya digandakan dengan komentar penunjuk).
-- [ ] Setelah A-14: `POST_LOGIN_DEFAULT_PATH` (`src/components/shared/auth/constants.ts`) dari `"/"` ke `/belajar`.
+- [ ] Setelah A-14b: `POST_LOGIN_DEFAULT_PATH` (`src/components/shared/auth/constants.ts`) dari `"/"` ke `/belajar`.
 - [ ] Ditunda dari A-13: state "akun Google ditautkan" (3c) — callback OAuth tidak membawa sinyal linked/baru; butuh perubahan di luar layar auth.
 - [ ] Sebelum rilis, bersama halaman S&K & Kebijakan Privasi: persetujuan saat daftar hanya dicek di klien dan **tidak tercatat di server** (PRD §11 tidak punya kolomnya). Putuskan apakah bukti persetujuan disimpan (mis. versi S&K + waktu) — PRD R-11 meminta persetujuan eksplisit (UU PDP). Jalur daftar lewat Google hanya memakai kalimat pasif "Dengan masuk, Anda menyetujui…". Tautan S&K/Kebijakan Privasi di layar auth masih `<span>`.
+- [ ] ClickUp (tinjauan A-14, 11 Okt): ganti nama task A-14 menjadi `[F0][Agent] 22. A-14a Kerangka layout publik`, tambah task `23. A-14b Header member & menu akun`, nomori ulang task berikutnya (A-15 = 24 … H-07 = 31), dan ubah dependensi A-15 & A-16 ke A-14b. Jangan impor ulang CSV. Hapus `docs/tasks/fase-0/A-14-kerangka-layout-publik-dan-member.md` dari repo.
+- [ ] Revisi PRD berikutnya (§7.1): serap D-08 (isi header per lebar, Tentang tetap di header member, logo wordmark) dan D-09 (header ponsel member mengikuti 13d, navigasi utama di drawer akun).
+- [ ] Sebelum S2: putuskan D-07 — tujuan final bottom nav area belajar dan tab tablet 8t (A-14b memasang tujuan sementara).
+- [ ] Footer: ikon media sosial belum dipasang (akun & URL belum ada); tautan kategori artikel ditambahkan di S4 setelah K-04.
+- [ ] Staf (EDITOR+) setelah login mendarat di `/` dan tidak punya tautan CMS di header (PRD §7.1). Bahas pengalihan staf ke `/cms` setelah login saat A-15 atau S1.
 - [ ] Cek jumlah PR terbuka: per 8 Okt ada 6 PR terbuka; per 9 Okt (sebelum merge #40) 5. Bila 5 di antaranya Dependabot, batasnya penuh (lihat catatan "Batas 5 PR Dependabot").
 
 ## Keputusan & catatan dari diskusi yang belum ada di PRD
@@ -164,6 +170,8 @@
 - **Perilaku auth yang diterima (verifikasi A-13, 10 Okt):** `/lupa-password` tetap bisa dibuka saat sudah masuk (hanya /masuk & /daftar yang mengalihkan; jalur rapi nanti ubah password di /profil, AUTH-09). `/reset-password?token=` tidak mengecek token saat render — pil "Tautan valid" statis, token diperiksa saat submit. `?error=` tak dikenal di /masuk & /daftar → satu pesan "Tidak bisa melanjutkan dengan Google…" (di sana `?error=` hanya datang dari callback OAuth).
 - **Reset password untuk akun Google-only:** berhasil membuatkan password (terbukti di Production 10 Okt). Hook A-11 juga menghapus password akun lokal yang belum terverifikasi saat login Google bertemu email yang sama — akun itu lalu masuk lewat Google atau lupa password.
 - **Lokal & Production berbagi DB binzi-dev**, termasuk bucket rate limit. Saat menguji batas lokal, pakai email karangan (`MAIL_TRANSPORT=log` tidak mengirim email); simpan email asli untuk tes Production.
+- **Layout publik & ISR (tinjauan A-14):** layout `(public)` dan komponen header/footer tidak pernah memanggil `cookies()`, `headers()`, atau mengambil sesi di server, karena itu membuat semua halaman publik dinamis. Header member di halaman publik memakai sesi sisi klien (`useSession`); di `(learn)` memakai data dari guard server. Bukti: `/` bertanda ○ di output build.
+- **Tautan ke halaman yang belum ada** (header, footer, menu akun) memakai URL final dan boleh 404 sampai sprint-nya; tidak ada halaman sementara di area publik/member.
 - **Nilai env case-sensitive:** `MAIL_TRANSPORT` harus `log`/`resend` huruf kecil. Nilai salah tidak menggagalkan build (env dibaca per request) — halaman baru crash saat dibuka.
 
 ## Rencana setelah Fase 0
@@ -184,9 +192,8 @@ AI coding agent (Claude Code). Terlampir docs/STATUS.md dan
 docs/tasks/URUTAN-KERJA.md dari repo saya — baca keduanya sebagai konteks.
 Spesifikasi lengkap ada di docs/prd/PRD-v1.3.md dan aturan agent di
 CLAUDE.md; minta saya unggah bagian yang kamu butuhkan.
-Posisi terakhir saya: A-13 selesai dan terverifikasi penuh (lokal,
-Production, Preview); temuannya diperbaiki di PR #40 dan #43, ditambah chore
-PR #41 dan #42 — semuanya merged. Berikutnya A-14 (kerangka layout publik &
-member): sebelum sesi agent, saya ingin meninjau kartu A-14 bersamamu dan
-memperbaruinya dengan keputusan terbaru. Akan saya unggah kartunya.
+Posisi terakhir saya: A-13 selesai dan terverifikasi penuh. Kartu A-14 sudah
+ditinjau dan dipecah jadi A-14a (layout publik) dan A-14b (header member &
+menu akun); keputusan desainnya di docs/design/OPEN-ISSUES.md (D-07–D-09).
+Berikutnya: chore extendTailwindMerge, lalu sesi agent A-14a.
 ```

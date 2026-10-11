@@ -6,8 +6,8 @@ Satu berkas = satu tugas = satu task di ClickUp. **Status dilacak di ClickUp**, 
 
 | Folder | Isi |
 |---|---|
-| [`URUTAN-KERJA.md`](URUTAN-KERJA.md) | **Mulai di sini** — urutan langkah 1–30 + jalur konten |
-| [`fase-0/`](fase-0/INDEX.md) | Kartu Fase 0: H = 👤 kamu (11), A = 🤖 agent (19) |
+| [`URUTAN-KERJA.md`](URUTAN-KERJA.md) | **Mulai di sini** — urutan langkah 1–31 + jalur konten |
+| [`fase-0/`](fase-0/INDEX.md) | Kartu Fase 0: H = 👤 kamu (11), A = 🤖 agent (20) |
 | [`konten/`](konten/INDEX.md) | K = 📝 jalur konten minggu 1–2 (paralel, bukan untuk agent) |
 | [`_TEMPLATE-agent.md`](_TEMPLATE-agent.md) | Template untuk menulis kartu sprint berikutnya |
 | `clickup-import-fase-0.csv` | Semua tugas di atas dalam format CSV, bila ingin memakai fitur impor CSV ClickUp alih-alih mengetik manual |
