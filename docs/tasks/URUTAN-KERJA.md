@@ -74,25 +74,26 @@ Satu alur utuh dari database sampai layar. Setelah A-13, berhenti sejenak dan ev
 
 Kerangka halaman publik, member, CMS, lalu keamanan, storage, cron, dan tes otomatis.
 
-- [ ] **22.** 🤖 Agent · [A-14](fase-0/A-14-kerangka-layout-publik-dan-member.md) — Kerangka layout publik & member
-- [ ] **23.** 🤖 Agent · [A-15](fase-0/A-15-kerangka-layout-cms.md) — Kerangka layout CMS
-- [ ] **24.** 🤖 Agent · [A-16](fase-0/A-16-header-keamanan-dan-proposal-csp.md) — Header keamanan & proposal CSP
-- [ ] **25.** 🤖 Agent · [A-17](fase-0/A-17-lapisan-storage-r2.md) — Lapisan storage R2
-- [ ] **26.** 🤖 Agent · [A-18](fase-0/A-18-health-check-dan-cron-keep-alive.md) — Health check & cron keep-alive
-- [ ] **27.** 🤖 Agent · [A-19](fase-0/A-19-e2e-baseline-playwright.md) — E2E baseline (Playwright)
+- [ ] **22.** 🤖 Agent · [A-14a](fase-0/A-14a-kerangka-layout-publik.md) — Kerangka layout publik (header tamu, menu ponsel, footer)
+- [ ] **23.** 🤖 Agent · [A-14b](fase-0/A-14b-header-member-dan-menu-akun.md) — Header member, menu akun & layout area belajar
+- [ ] **24.** 🤖 Agent · [A-15](fase-0/A-15-kerangka-layout-cms.md) — Kerangka layout CMS
+- [ ] **25.** 🤖 Agent · [A-16](fase-0/A-16-header-keamanan-dan-proposal-csp.md) — Header keamanan & proposal CSP
+- [ ] **26.** 🤖 Agent · [A-17](fase-0/A-17-lapisan-storage-r2.md) — Lapisan storage R2
+- [ ] **27.** 🤖 Agent · [A-18](fase-0/A-18-health-check-dan-cron-keep-alive.md) — Health check & cron keep-alive
+- [ ] **28.** 🤖 Agent · [A-19](fase-0/A-19-e2e-baseline-playwright.md) — E2E baseline (Playwright)
 
 ## Tahap 7 — Verifikasi akhir Fase 0 (kamu)
 
 Kalau lolos, Fase 0 selesai dan kita menulis kartu Sprint S1.
 
-- [ ] **28.** 👤 Kamu · [H-11](fase-0/H-11-verifikasi-akhir-fase-0.md) — Verifikasi akhir Fase 0
+- [ ] **29.** 👤 Kamu · [H-11](fase-0/H-11-verifikasi-akhir-fase-0.md) — Verifikasi akhir Fase 0
 
 ## Tahap 8 — Setelah beli domain (tidak memblokir apa pun)
 
 Kerjakan kapan saja sebelum peserta penelitian atau publik mulai memakai BINZI — boleh sambil Sprint S1–S6 berjalan. Domain & DNS dikelola di Vercel. Setelah ini, email sungguhan bisa dikirim ke user dan login Google bisa dipublikasikan.
 
-- [ ] **29.** 👤 Kamu · [H-03](fase-0/H-03-domain-dan-dns-di-vercel.md) — Domain & DNS di Vercel
-- [ ] **30.** 👤 Kamu · [H-07](fase-0/H-07-resend-domain-pengirim-email.md) — Resend: domain pengirim email
+- [ ] **30.** 👤 Kamu · [H-03](fase-0/H-03-domain-dan-dns-di-vercel.md) — Domain & DNS di Vercel
+- [ ] **31.** 👤 Kamu · [H-07](fase-0/H-07-resend-domain-pengirim-email.md) — Resend: domain pengirim email
 
 ---
 

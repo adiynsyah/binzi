@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Pemilik** | Agent — satu sesi, satu branch, satu PR |
-| **Bergantung pada** | [A-14](A-14-kerangka-layout-publik-dan-member.md), [A-12](A-12-rbac-dan-proteksi-route.md) |
+| **Bergantung pada** | [A-14b](A-14b-header-member-dan-menu-akun.md), [A-12](A-12-rbac-dan-proteksi-route.md) |
 | **Tag ClickUp** | `fase-0`, `agent`, `layout`, `cms`, `ui` |
 | **Judul ClickUp** | `[F0][Agent] A-15 Kerangka layout CMS` |
 

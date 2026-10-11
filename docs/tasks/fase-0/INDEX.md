@@ -25,12 +25,13 @@
 | 19 | [A-11](A-11-login-google-dan-penautan-akun.md) | Login Google & penautan akun | 🤖 Agent | [A-09](A-09-better-auth-inti-email-password-sesi-rate-limit.md), [H-06](H-06-google-oauth-client.md) |
 | 20 | [A-12](A-12-rbac-dan-proteksi-route.md) | RBAC & proteksi route | 🤖 Agent | [A-09](A-09-better-auth-inti-email-password-sesi-rate-limit.md) |
 | 21 | [A-13](A-13-layar-autentikasi.md) | Layar autentikasi | 🤖 Agent | [A-06](A-06-komponen-overlay-dan-umpan-balik.md), [A-10](A-10-email-transaksional-verifikasi-dan-reset-passwor.md), [A-11](A-11-login-google-dan-penautan-akun.md) |
-| 22 | [A-14](A-14-kerangka-layout-publik-dan-member.md) | Kerangka layout publik & member | 🤖 Agent | [A-06](A-06-komponen-overlay-dan-umpan-balik.md), [A-12](A-12-rbac-dan-proteksi-route.md) |
-| 23 | [A-15](A-15-kerangka-layout-cms.md) | Kerangka layout CMS | 🤖 Agent | [A-14](A-14-kerangka-layout-publik-dan-member.md), [A-12](A-12-rbac-dan-proteksi-route.md) |
-| 24 | [A-16](A-16-header-keamanan-dan-proposal-csp.md) | Header keamanan & proposal CSP | 🤖 Agent | [A-14](A-14-kerangka-layout-publik-dan-member.md) |
-| 25 | [A-17](A-17-lapisan-storage-r2.md) | Lapisan storage R2 | 🤖 Agent | [A-02](A-02-konfigurasi-environment-tervalidasi-zod.md), [H-04](H-04-cloudflare-r2-bucket-dan-token.md) |
-| 26 | [A-18](A-18-health-check-dan-cron-keep-alive.md) | Health check & cron keep-alive | 🤖 Agent | [A-07](A-07-skema-drizzle-lengkap-migrasi-awal-dan-seed.md) |
-| 27 | [A-19](A-19-e2e-baseline-playwright.md) | E2E baseline (Playwright) | 🤖 Agent | [A-13](A-13-layar-autentikasi.md), [A-15](A-15-kerangka-layout-cms.md) |
-| 28 | [H-11](H-11-verifikasi-akhir-fase-0.md) | Verifikasi akhir Fase 0 | 👤 Kamu | [A-19](A-19-e2e-baseline-playwright.md) |
-| 29 | [H-03](H-03-domain-dan-dns-di-vercel.md) | Domain & DNS di Vercel | 👤 Kamu | — |
-| 30 | [H-07](H-07-resend-domain-pengirim-email.md) | Resend: domain pengirim email | 👤 Kamu | [H-03](H-03-domain-dan-dns-di-vercel.md) |
+| 22 | [A-14a](A-14a-kerangka-layout-publik.md) | Kerangka layout publik (header tamu, menu ponsel, footer) | 🤖 Agent | [A-05](A-05-komponen-kendali-halaman-dev-ui.md), [A-06](A-06-komponen-overlay-dan-umpan-balik.md) |
+| 23 | [A-14b](A-14b-header-member-dan-menu-akun.md) | Header member, menu akun & layout area belajar | 🤖 Agent | [A-14a](A-14a-kerangka-layout-publik.md), [A-09](A-09-better-auth-inti-email-password-sesi-rate-limit.md), [A-12](A-12-rbac-dan-proteksi-route.md) |
+| 24 | [A-15](A-15-kerangka-layout-cms.md) | Kerangka layout CMS | 🤖 Agent | [A-14b](A-14b-header-member-dan-menu-akun.md), [A-12](A-12-rbac-dan-proteksi-route.md) |
+| 25 | [A-16](A-16-header-keamanan-dan-proposal-csp.md) | Header keamanan & proposal CSP | 🤖 Agent | [A-14b](A-14b-header-member-dan-menu-akun.md) |
+| 26 | [A-17](A-17-lapisan-storage-r2.md) | Lapisan storage R2 | 🤖 Agent | [A-02](A-02-konfigurasi-environment-tervalidasi-zod.md), [H-04](H-04-cloudflare-r2-bucket-dan-token.md) |
+| 27 | [A-18](A-18-health-check-dan-cron-keep-alive.md) | Health check & cron keep-alive | 🤖 Agent | [A-07](A-07-skema-drizzle-lengkap-migrasi-awal-dan-seed.md) |
+| 28 | [A-19](A-19-e2e-baseline-playwright.md) | E2E baseline (Playwright) | 🤖 Agent | [A-13](A-13-layar-autentikasi.md), [A-15](A-15-kerangka-layout-cms.md) |
+| 29 | [H-11](H-11-verifikasi-akhir-fase-0.md) | Verifikasi akhir Fase 0 | 👤 Kamu | [A-19](A-19-e2e-baseline-playwright.md) |
+| 30 | [H-03](H-03-domain-dan-dns-di-vercel.md) | Domain & DNS di Vercel | 👤 Kamu | — |
+| 31 | [H-07](H-07-resend-domain-pengirim-email.md) | Resend: domain pengirim email | 👤 Kamu | [H-03](H-03-domain-dan-dns-di-vercel.md) |

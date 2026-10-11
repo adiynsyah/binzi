@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Pemilik** | Agent — satu sesi, satu branch, satu PR |
-| **Bergantung pada** | [A-14](A-14-kerangka-layout-publik-dan-member.md) |
+| **Bergantung pada** | [A-14b](A-14b-header-member-dan-menu-akun.md) |
 | **Tag ClickUp** | `fase-0`, `agent`, `security` |
 | **Judul ClickUp** | `[F0][Agent] A-16 Header keamanan & proposal CSP` |
 
