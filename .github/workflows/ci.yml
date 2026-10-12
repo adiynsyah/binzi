@@ -57,15 +57,19 @@ jobs:
         run: npm run test
 
       # Safe dummy values, scoped to the build step only — just enough for the
-      # Zod env validation that instrumentation.ts runs during `next build`.
-      # Never real secrets. Kept off the other steps on purpose: the env tests
-      # from A-02 assert behavior when MAIL_TRANSPORT is *absent*, so the test
-      # step must run with a clean environment.
+      # Zod env validation that instrumentation.ts runs during `next build`,
+      # plus the presence check in src/db/index.ts: since A-14b, /belajar is
+      # the first route importing the db module, so `next build` evaluates it
+      # while collecting page data. /belajar is dynamic (ƒ) — nothing connects
+      # to the dummy URL. Never real secrets. Kept off the other steps on
+      # purpose: the env tests from A-02 assert behavior when MAIL_TRANSPORT
+      # is *absent*, so the test step must run with a clean environment.
       - name: Build
         run: npm run build
         env:
           NEXT_PUBLIC_APP_URL: http://localhost:3000
           MAIL_TRANSPORT: log
+          DATABASE_URL: postgresql://ci:ci@localhost:6543/ci
 
       # npm audit with documented, expiring exceptions for advisories that
       # only reach dev-time tooling (scripts/check-audit.mjs).
