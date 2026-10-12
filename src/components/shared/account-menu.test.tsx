@@ -101,6 +101,20 @@ describe("AccountDropdown", () => {
     expect(screen.getByRole("menuitem", { name: "Keluar" })).toBeTruthy();
   });
 
+  it("keeps each trigger inside its own breakpoint", () => {
+    renderAt("/belajar", <AccountDropdown user={USER} />);
+
+    // Avatar-only 640–1023 (8t): hidden below 640 too — the drawer owns
+    // that range. Token-exact so a base `grid` regression cannot hide here.
+    const [avatar, pill] = screen.getAllByRole("button", {
+      name: "Menu akun",
+    }) as [HTMLElement, HTMLElement];
+    expect(avatar.className.split(" ")).toContain("hidden");
+    expect(avatar.className.split(" ")).toContain("sm:grid");
+    expect(pill.className.split(" ")).toContain("hidden");
+    expect(pill.className.split(" ")).toContain("lg:inline-flex");
+  });
+
   it("marks the matching page with fill-soft + aria-current (13d rule)", async () => {
     await openDropdown("/belajar/kursus-saya");
 

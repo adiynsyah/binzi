@@ -71,7 +71,7 @@ export function AccountDropdown({ user }: AccountMenuProps) {
         <button
           type="button"
           aria-label="Menu akun"
-          className="grid size-11 place-items-center rounded-pill text-text transition-colors duration-200 ease-out hover:bg-fill sm:grid lg:hidden"
+          className="hidden size-11 place-items-center rounded-pill text-text transition-colors duration-200 ease-out hover:bg-fill sm:grid lg:hidden"
         >
           <Avatar
             name={displayName}
