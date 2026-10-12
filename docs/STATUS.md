@@ -1,6 +1,6 @@
 # Status Proyek BINZI — catatan untuk melanjutkan di chat baru
 
-> Terakhir diperbarui: 11 Okt 2026. File ini dikelola manual (bukan oleh agent) dan hanya untuk melanjutkan percakapan dengan Claude.
+> Terakhir diperbarui: 12 Okt 2026. File ini dikelola manual (bukan oleh agent) dan hanya untuk melanjutkan percakapan dengan Claude.
 > Untuk melanjutkan: buka chat baru, unggah file ini + `docs/tasks/URUTAN-KERJA.md`, lalu pakai prompt di bagian paling bawah.
 
 ## Di mana semua keputusan tersimpan
@@ -43,7 +43,9 @@
   - ✅ Tinjauan kartu A-14 (11 Okt): dipecah jadi **A-14a** (layout publik: header tamu, menu ponsel, footer) dan **A-14b** (header member, menu akun, bottom nav, layout `(learn)`, `/belajar` sementara). Keputusan desain dicatat di `docs/design/OPEN-ISSUES.md` (D-07 terbuka, D-08 & D-09 diputuskan). Langkah kerja dinomori ulang 1–31.
   - ✅ Chore: `cn()` mengenali token BINZI lewat `createCn` (`cn/config`) — radius, warna, `content`, `shadow-menu/dialog` — dengan tes paritas terhadap `tokens.css` (PR #44).
   - ✅ A-14a kerangka layout publik (PR #46): header tamu sticky (≥ 1024 / 640–1023 / < 640), menu ponsel di atas dialog A-06 dengan ✕ di posisi ☰, footer `ink-surface` menempel di bawah, `<main>` latar `surface`, anchor `#tanya-ahli-gizi`. `/` tetap statis (○).
-  - ⏭️ Berikutnya: **A-14b** (header member, menu akun, bottom nav, layout `(learn)`).
+  - ✅ Revisi kartu A-14b sebelum sesi (12 Okt, langsung ke `main`, `17d1d4b`): drawer akun = panel lebar penuh tepat di bawah header (versi lama salah menafsirkan "panel kiri" gambar 13d sebagai drawer dari kiri), ✕ di posisi avatar, penanda item aktif, header tamu selama sesi dimuat (placeholder dihapus), tinggi header dari konstanta A-14a, pelajaran (g) masuk kartu.
+  - 🔄 A-14b header member, menu akun, bottom nav, layout `(learn)`, `/belajar` sementara — **PR #53 dibuka 12 Okt, CI hijau, belum di-merge.** Kode sudah ditinjau di Claude chat (tanpa penghalang); tinggal verifikasi manual — lihat item pertama di "Pekerjaan kecil yang masih terbuka".
+  - ⏭️ Berikutnya: verifikasi & merge PR #53 → chore `POST_LOGIN_DEFAULT_PATH` → **A-15** (kerangka layout CMS).
 - ✅ Chore: Next 16.3.7 (PR #17). Dependabot: #6 & #7 (actions major) di-merge; #8–#10 (eslint 10, typescript 7, @types/node 26) di-ignore.
 
 ## Cara kerja yang sudah berjalan
@@ -59,6 +61,12 @@
 
 ## Pekerjaan kecil yang masih terbuka
 
+- [ ] **Verifikasi & merge PR #53 (A-14b)** — mulai di sini besok:
+  - **Deploy Preview:** halaman PR menulis "This branch has not been deployed", dan laporan agent hanya menyebut CI. Cek tab Checks atau dashboard Vercel; langkah Preview di bawah butuh URL-nya.
+  - **Jumlah commit:** agent melaporkan 9 commit, remote berisi 8 (sama dengan PR). Jalankan `git status -sb` di branch `f0/a-14b-header-member` — pastikan tidak ada commit yang belum di-push.
+  - **Visual:** screenshot ada di `~/binzi-a14b-screenshots/` — seret ke PR. Agent membandingkan lewat alat analisis citra (tidak melihat sendiri; sudah dideklarasikan di PR), jadi perbandingan dengan 13a/13d/8e/8t dilakukan olehmu, atau unggah ke Claude chat untuk dibandingkan. Perbedaan yang disengaja: ✕ di posisi avatar, baris diam drawer `text-muted`, chevron pil berputar saat terbuka.
+  - **"Verifikasi oleh kamu" di kartu:** HP nyata (drawer digulir sampai Keluar, tutup lewat ✕ dan scrim, item navigasi utama di drawer, bottom nav terjangkau jempol, Keluar); HP belum login (`/` langsung header tamu tanpa kedip); tablet 768 (avatar tanpa nama, tanpa bottom nav); cabut sesi lewat `npm run user:role` lalu refresh `/belajar` → `/masuk?next=%2Fbelajar`; Preview & Production (header member muncul di `/` setelah login).
+  - Bila semua lolos: **Squash and merge**, tandai task 23 selesai di ClickUp.
 - [x] **Sisa verifikasi A-13 (setelah PR #40).** Selesai 10 Okt: reset dengan tautan asli mencabut sesi lain dan token sekali pakai; banner akun belum terverifikasi + kirim ulang; lupa password 4× → "satu jam"; `?next=` eksternal → `/`; `?error=` tak dikenal → satu pesan Google tetap; pengalihan saat sudah masuk; curl tanpa captcha → 400 `MISSING_RESPONSE`; kunci 5× (5× 401 lalu 429, email baru); alur keyboard saja; visual 360/768/1280/1440. Temuan: banner error hilang sendiri → PR #43.
 - [x] **Env Vercel (temuan PR #39):** selesai 9 Okt (Production terverifikasi; penyebab error setelah perbaikan pertama: `MAIL_TRANSPORT` diisi `LOG` huruf besar). Catatan aslinya: log build Preview menunjukkan `NEXT_PUBLIC_APP_URL` kosong di Preview. Di Vercel → Settings → Environment Variables, pastikan semua env yang dibutuhkan dicentang untuk **Preview dan Production** tanpa batasan branch (`NEXT_PUBLIC_APP_URL`, `MAIL_TRANSPORT=log`, `NEXT_PUBLIC_TURNSTILE_SITE_KEY` + `TURNSTILE_SECRET_KEY` (kunci uji di Preview), `BETTER_AUTH_SECRET`, `DATABASE_URL`, dst.). Lalu **redeploy** (nilai `NEXT_PUBLIC_*` ditanam saat build) dan buka `/masuk` & `/daftar` di URL Preview dan di `https://binzi.vercel.app`.
 - [ ] Tes env A-02 dibuat tidak bergantung pada env mesin (temuan A-03): beri objek env eksplisit atau bersihkan variabel relevan sebelum tiap tes.
@@ -80,7 +88,7 @@
 - [ ] Integrasi pelaporan error asli ke Sentry di route/server action sebelum `toErrorResponse()` (aturan di `src/modules/README.md`) — sebelum route API fitur pertama.
   Saat integrasi: hanya error tak terduga (5xx) yang dilaporkan ke Sentry; error domain 4xx (401/403/404/409/422) tidak dilaporkan dan di log cukup satu baris tanpa stack trace.
 - [x] Konflik peer npm better-auth ↔ @babel/core@7 diselesaikan dengan overrides (PR #25) — lihat catatan keputusan.
-- [ ] Chore: `src/db/index.ts` dibuat lazy (`getDb()`) agar route tidak perlu impor dinamis seperti `src/lib/auth.ts` (A-09).
+- [ ] Chore: `src/db/index.ts` dibuat lazy (`getDb()`) agar route tidak perlu impor dinamis seperti `src/lib/auth.ts` (A-09). Sejak A-14b, build CI butuh `DATABASE_URL` dummy karena `/belajar` mengimpor `src/db` (cek keberadaan env dijalankan saat modul dievaluasi waktu build); setelah `getDb()` lazy, dummy itu bisa dihapus dari `ci.yml`.
 - [ ] Kartu manajemen user (ubah role): WAJIB mencabut semua sesi user tersebut — masa sesi (30 hari/8 jam) ditetapkan saat sesi dibuat. CLI `user:role` (A-12) sudah melakukannya dalam satu transaksi — pakai ulang logikanya.
 - [x] Enumerasi lewat sign-up ditutup di A-10 (`requireEmailVerification` + `customSyntheticUser`, respons identik).
 - [x] baseURL Preview mengikuti `VERCEL_BRANCH_URL` (A-10). Callback Google OAuth untuk Preview diputuskan di A-11.
@@ -93,21 +101,26 @@
 - [x] Saat A-13: copy untuk kode `account_not_verified` (usulan di PR #29) dan `email_not_verified`; tombol Google disembunyikan di Preview (provider nonaktif di sana). (PR #39)
 - [ ] Cek aturan branch `main`: tombol Squash and merge aktif walau CI merah (PR #36). Pastikan "Require status checks to pass" aktif dengan check `ci` terdaftar, dan bypass admin dimatikan.
 - [ ] Chore kosmetik: hapus `--env-file-if-exists=.env` dari script `user:role` (repo tidak punya `.env`; pesan "not found" muncul dua kali).
-- [ ] Saat A-14b: guard layout `(learn)` baru bisa diuji setelah `/belajar/page.tsx` ada (URL tanpa halaman langsung 404 tanpa melewati layout grup). Uji: cabut sesi lewat `user:role`, refresh `/belajar` → harus ke `/masuk?next=%2Fbelajar`.
+- [ ] Guard layout `(learn)` kini bisa diuji (`/belajar/page.tsx` ada sejak PR #53): cabut sesi lewat `user:role`, refresh `/belajar` → harus ke `/masuk?next=%2Fbelajar`. Termasuk dalam verifikasi PR #53.
 - [x] **Chore (temuan A-13): callbackURL hook A-11** untuk email verifikasi yang dikirim server saat `account_not_verified` masih `"/"` → ganti ke `/daftar/verifikasi` (konstanta di `src/components/shared/auth/constants.ts`). Sekarang pengguna yang membuka tautan itu mendarat di beranda tanpa pesan. Catatan: `sendOnSignIn` tidak aktif — kirim ulang saat login lewat tombol di banner `/masuk`. (PR #41)
 - [x] Chore: `extendTailwindMerge` dengan token tema BINZI (`rounded-control`, warna & ukuran kustom). Tanpa itu, override kelas lewat `cn()` pada utility kustom bisa kalah diam-diam oleh urutan stylesheet (ditemukan di PR #40: `rounded-[8px]` kalah dari `rounded-control`). Selesai di PR #44 (lewat `createCn` dari paket `cn`, tanpa dependensi baru).
 - [ ] Opsional: hapus override `[--radius-control:8px]` di `expired-link-panel.tsx` (PR #40). TOKENS menetapkan radius tombol 8–10, jadi `rounded-control` (10px) sudah sah; pengecualian lokal demi selisih 2px dari mock tidak sepadan. Sejak PR #44, bila tetap ingin 8px, cukup `rounded-[8px]` biasa.
 - [ ] A-19 (E2E): wajib mencakup `/reset-password` tanpa token, `?token=palsu` + submit, dan alur reset penuh dengan tautan asli — rute dinamis ini tidak dirender saat build, jadi CI tidak menangkap crash-nya (kasus PR #39).
 - [ ] Chore: satukan sumber `googleEnabled` — ekspor dari `src/lib/auth.ts`, lalu `src/components/shared/auth/auth-config.ts` mengimpornya (sekarang aturannya digandakan dengan komentar penunjuk).
-- [ ] Setelah A-14b: `POST_LOGIN_DEFAULT_PATH` (`src/components/shared/auth/constants.ts`) dari `"/"` ke `/belajar`.
+- [ ] Setelah PR #53 di-merge: chore `POST_LOGIN_DEFAULT_PATH` (`src/components/shared/auth/constants.ts`) dari `"/"` ke `/belajar`.
 - [ ] Ditunda dari A-13: state "akun Google ditautkan" (3c) — callback OAuth tidak membawa sinyal linked/baru; butuh perubahan di luar layar auth.
 - [ ] Sebelum rilis, bersama halaman S&K & Kebijakan Privasi: persetujuan saat daftar hanya dicek di klien dan **tidak tercatat di server** (PRD §11 tidak punya kolomnya). Putuskan apakah bukti persetujuan disimpan (mis. versi S&K + waktu) — PRD R-11 meminta persetujuan eksplisit (UU PDP). Jalur daftar lewat Google hanya memakai kalimat pasif "Dengan masuk, Anda menyetujui…". Tautan S&K/Kebijakan Privasi di layar auth masih `<span>`.
-- [ ] ClickUp (tinjauan A-14, 11 Okt): ganti nama task A-14 menjadi `[F0][Agent] 22. A-14a Kerangka layout publik`, tambah task `23. A-14b Header member & menu akun`, nomori ulang task berikutnya (A-15 = 24 … H-07 = 31), dan ubah dependensi A-15 & A-16 ke A-14b. Jangan impor ulang CSV. Hapus `docs/tasks/fase-0/A-14-kerangka-layout-publik-dan-member.md` dari repo.
+- [ ] ClickUp (tinjauan A-14, 11 Okt): ganti nama task A-14 menjadi `[F0][Agent] 22. A-14a Kerangka layout publik`, tambah task `23. A-14b Header member & menu akun`, nomori ulang task berikutnya (A-15 = 24 … H-07 = 31), dan ubah dependensi A-15 & A-16 ke A-14b. Jangan impor ulang CSV. (File kartu A-14 lama sudah tidak ada di repo — dicek 12 Okt.)
 - [ ] Revisi PRD berikutnya (§7.1): serap D-08 (isi header per lebar, Tentang tetap di header member, logo wordmark) dan D-09 (header ponsel member mengikuti 13d, navigasi utama di drawer akun).
 - [ ] Sebelum S2: putuskan D-07 — tujuan final bottom nav area belajar dan tab tablet 8t (A-14b memasang tujuan sementara).
 - [ ] Footer: ikon media sosial belum dipasang (akun & URL belum ada); tautan kategori artikel ditambahkan di S4 setelah K-04.
 - [ ] Staf (EDITOR+) setelah login mendarat di `/` dan tidak punya tautan CMS di header (PRD §7.1). Bahas pengalihan staf ke `/cms` setelah login saat A-15 atau S1.
-- [ ] Cek jumlah PR terbuka: per 8 Okt ada 6 PR terbuka; per 9 Okt (sebelum merge #40) 5. Bila 5 di antaranya Dependabot, batasnya penuh (lihat catatan "Batas 5 PR Dependabot").
+- [ ] Cek jumlah PR terbuka: per 8 Okt ada 6 PR terbuka; per 9 Okt (sebelum merge #40) 5; per 12 Okt 6 (termasuk #53). Bila 5 di antaranya Dependabot, batasnya penuh (lihat catatan "Batas 5 PR Dependabot").
+- [ ] Koreksi kartu A-14b (commit docs kecil, tidak mendesak): "teks lebih tebal" untuk item aktif keliru (Lato tanpa 600 → diam & aktif sama-sama 700), dan "nama, email, dan inisial" menjadi "nama dan email" (prop `initial` sengaja tidak dibuat). Keduanya sudah tercatat di PR #53.
+- [ ] Akun tes `a14b.test.*@example.com` dan `a14b.long.*@example.com` dari smoke Playwright A-14b tersimpan di binzi-dev — DB yang juga dipakai Production. Hapus bila sempat; tidak mendesak (binzi-prod nanti dibuat bersih).
+- [ ] Saat kartu CMS kursus (S1): validasi slug menolak kata yang bentrok dengan rute statis — slug kursus `kursus-saya` dan `nilai` (bentrok dengan `/belajar/kursus-saya`, `/belajar/nilai`), slug materi `final-quiz` (bentrok dengan `/belajar/{slug}/final-quiz`). Segmen statis selalu menang, jadi kursus/materi dengan slug itu tidak akan pernah bisa dibuka.
+- [ ] Saat S2/S5: tinjau `getActiveAccountItem` (`src/components/shared/nav-items.ts`) — Dashboard menyala untuk `/belajar` dan semua `/belajar/**` selain Kursus Saya & Nilai Saya, termasuk ringkasan kursus `/belajar/{slug}`. Keputusan implisit agent, tidak tercatat di "Keputusan & asumsi" PR #53.
+- [ ] Repo GitHub `adiynsyah/binzi` berstatus **publik** (terlihat 12 Okt) — PRD, desain, `CLAUDE.md`, dan isi PR terbaca siapa pun. Pastikan memang disengaja.
 
 ## Keputusan & catatan dari diskusi yang belum ada di PRD
 
@@ -115,7 +128,7 @@
 - **Mode gelap:** BINZI hanya mode terang. Blok warna `.dark` & `--chart-*` dihapus, tapi `@custom-variant dark (&:is(.dark *))` wajib dipertahankan agar kelas `dark:` shadcn tidak aktif di perangkat bermode gelap.
 - **Cincin fokus:** section gelap (`ink-surface`: Tanya Ahli Gizi, footer) harus meng-override `--focus-ring` ke `var(--surface)`.
 - **Cara kerja agent:** per fitur (vertical slice): kontrak (Zod/DTO) → server → UI.
-- **CI:** env dummy (`NEXT_PUBLIC_APP_URL`, `MAIL_TRANSPORT=log`) hanya di step build; `next typegen` sebelum typecheck; `next-env.d.ts` tidak di-commit.
+- **CI:** env dummy (`NEXT_PUBLIC_APP_URL`, `MAIL_TRANSPORT=log`, dan sejak A-14b `DATABASE_URL=postgresql://ci:ci@localhost:6543/ci`) hanya di step build; `next typegen` sebelum typecheck; `next-env.d.ts` tidak di-commit. `DATABASE_URL` dibutuhkan karena `/belajar` adalah rute pertama yang mengimpor `src/db`; `/belajar` tetap ƒ dan tidak ada koneksi DB saat build (dibuktikan dengan build lokal ber-env persis CI).
 - **Blok `nextjs-agent-rules`** (ditulis otomatis Next 16) dipertahankan di `CLAUDE.md`.
 - **Backup database (Fase 1.5):** PRD §10.5 menjalankan `pg_dump` lewat API route — tidak jalan di Vercel serverless. Jalankan `pg_dump` di runner GitHub Actions lalu unggah ke R2. Wajib berjalan + uji restore sebelum pengguna pertama mendaftar (data disimpan jangka panjang, Q39).
 - **CSP:** keputusan menunggu proposal dari kartu A-16 (nonce vs ISR).
@@ -177,6 +190,10 @@
 - **Kerangka publik (A-14a, PR #46):** konstanta tautan, fungsi state aktif, dan tinggi header per breakpoint ada di satu file di `src/components/shared/` — sumber tunggal untuk A-14b dan S6 (`scroll-margin-top`). Menu ponsel memakai dialog A-06 dengan baris atas sendiri (✕ di posisi ☰), karena ☰ tidak bisa diketuk saat dialog modal terbuka. Layout: `min-h-dvh` + `<main>` `flex-1` berlatar `surface`. Tablet 640–1023 sengaja tanpa Daftar Gratis (1t, D-08) — ditinjau ulang 11 Okt, tetap.
 - **Tautan ke halaman yang belum ada** (header, footer, menu akun) memakai URL final dan boleh 404 sampai sprint-nya; tidak ada halaman sementara di area publik/member.
 - **Nilai env case-sensitive:** `MAIL_TRANSPORT` harus `log`/`resend` huruf kecil. Nilai salah tidak menggagalkan build (env dibaca per request) — halaman baru crash saat dibuka.
+- **Header member (A-14b, PR #53):** `MemberHeader` dipakai di `(public)` dan `(learn)` dengan prop `{name, email}` saja. `(public)`: `SessionHeader` (klien, `useSession`) merender header tamu A-14a selama sesi dimuat dan untuk tamu, lalu header member bila sesi ada — tanpa placeholder; pergantian sekilas untuk member diterima. `(learn)`: `requireRole("MEMBER")` lalu `getUserProfile` (service user) di layout **dan** page. `displayNameOf` (nama → email bila kosong) dan `firstNameOf` ada di `src/components/shared/member-user.ts`. Sapaan `/belajar`: "Selamat datang, {nama depan}", tanpa koma & nama bila kosong; `break-words` untuk nama panjang tanpa spasi.
+- **Avatar satu huruf (A-14b):** huruf pertama nama, huruf besar (`?` bila kosong) — semua desain (13a, 8a, 8e, 28a, 19a) memakai satu huruf, jadi aturan dua huruf A-05 diganti. Mode dekoratif: `aria-hidden` menghapus `role`/`aria-label` (dipakai bila avatar di samping teks nama atau di dalam tombol "Menu akun"). Gaya gelap di header & menu (`bg-text text-surface`) diberi lewat `className` di 5 tempat — jadikan varian Avatar bila layar lain (mis. CMS) memakainya juga.
+- **Menu akun (A-14b):** dropdown ≥ 640 (dua pemicu: avatar saja 640–1023, pil nama ≥ 1024) dan drawer < 640 (panel lebar penuh di atas dialog Radix; baris atas logo + ✕ "Tutup menu akun"; isi digulir di dalam panel; tertutup saat lebar ≥ 640). Item aktif: `fill-soft` + `aria-current`, bobot 700 untuk diam & aktif (Lato tanpa 600). Drawer: diam `text-muted`, aktif `text` — pola menu ponsel A-14a, penyimpangan sadar dari 13d. Chevron pil berputar saat terbuka. Header tablet tetap "Tentang" walau 8t menghilangkannya (PRD menang).
+- **Bottom nav (A-14b):** < 768 di `(learn)` saja; ikon Lucide garis 20px BookOpen · CircleHelp · ChartColumn; tujuan sementara di `LEARN_NAV_ITEMS` (`nav-items.ts`), cocok persis — tujuan final diputuskan sebelum S2 (D-07).
 
 ## Rencana setelah Fase 0
 
@@ -184,6 +201,7 @@
    Catatan dari A-13 (draf, putuskan saat menulis kartu S1): satu sesi + 4 putaran perbaikan (build Vercel gagal, visual, tipografi ×2). Penyebab utama: kartu ditulis sebelum keputusan A-09–A-12 (catatan tambahan harus ditempel di prompt), dan tampilan baru dibandingkan dengan `.png` setelah PR dibuat. Usulan untuk kartu UI S1: (a) perbarui kartu dengan keputusan terbaru sebelum sesi dimulai; (b) agent membandingkan screenshot (Playwright, 360/768/1280) dengan `.png` dan mencocokkan ukuran huruf dengan tabel TOKENS **sebelum** membuka PR; (c) agent mengecek status deploy Preview, bukan hanya `npm run build` lokal; (d) layar sebanyak A-13 (5 rute + modal) dipecah jadi dua kartu.
    Tambahan dari verifikasi A-13 (9 Okt): (e) sebelum membuka PR, agent wajib `npm run build && npm run start` lalu curl/buka **setiap rute**, termasuk varian query (tanpa token, token palsu, `?error=`) — Vitest dan build tidak menangkap pelanggaran batas Server/Client Component pada rute dinamis; (f) kartu tidak boleh di-merge sebelum "Verifikasi oleh kamu" dijalankan — PR #39 meloloskan 1 blocker dan 1 celah captcha.
    Tambahan dari A-14a (11 Okt): (g) bila agent tidak bisa melihat screenshot sendiri (mis. setelah compaction), ia wajib memberi tahu sebelum membuka PR — audit angka/computed-style tidak menggantikan perbandingan visual. Temuan A-14a (footer melayang, latar krem, item aktif menu ponsel) hanya terlihat dari screenshot.
+   Tambahan dari A-14b (12 Okt): (h) tinjauan singkat kartu sebelum sesi — mencocokkan kalimat kartu dengan `.png` — menangkap salah tafsir desain yang akan lolos ke kode (drawer "panel kiri" 13d); (i) agent menemukan dua bug sendiri lewat cek tambahan: nama 40 karakter tanpa spasi (overflow 217px di 360) dan smoke Playwright per breakpoint (dua tombol akun bertumpuk < 640) — jadikan "uji nama panjang tanpa spasi" butir tetap di kartu UI; (j) keputusan yang diambil agent tanpa bertanya (mis. aturan item aktif Dashboard) tidak selalu masuk "Keputusan & asumsi" — saat meninjau PR, baca fungsi state aktif & aturan sejenis langsung di kode.
 2. Tulis kartu Sprint S1 (CMS kursus & materi) dengan `docs/tasks/_TEMPLATE-agent.md`; sumber: tabel fase di `docs/design/handoff/README.md` + `docs/prd/INDEX.md`.
 3. Tahap 8 kapan saja sebelum pengguna nyata: beli domain → Vercel DNS (H-03), Resend (H-07). Saat itu juga: tambah redirect URI domain di Google OAuth, unggah logo & publish consent screen (sekarang Testing, redirect localhost saja), dan tambah hostname domain di widget Turnstile.
 4. Jalur konten paralel: K-01 s/d K-06 (K-07 selesai).
@@ -197,9 +215,9 @@ AI coding agent (Claude Code). Terlampir docs/STATUS.md dan
 docs/tasks/URUTAN-KERJA.md dari repo saya — baca keduanya sebagai konteks.
 Spesifikasi lengkap ada di docs/prd/PRD-v1.3.md dan aturan agent di
 CLAUDE.md; minta saya unggah bagian yang kamu butuhkan.
-Posisi terakhir saya: A-13 selesai dan terverifikasi penuh. Kartu A-14 sudah
-ditinjau dan dipecah jadi A-14a (layout publik) dan A-14b (header member &
-menu akun); keputusan desainnya di docs/design/OPEN-ISSUES.md (D-07–D-09).
-Chore extendTailwindMerge (PR #44) dan A-14a (PR #46) selesai. Berikutnya:
-sesi agent A-14b.
+Posisi terakhir saya (12 Okt): A-14a selesai (PR #46). Kartu A-14b direvisi,
+lalu dikerjakan agent — PR #53 terbuka, CI hijau, kodenya sudah ditinjau di
+Claude chat tanpa penghalang. Tinggal verifikasi manual & merge (checklist
+di item pertama "Pekerjaan kecil yang masih terbuka"). Setelah itu: chore
+POST_LOGIN_DEFAULT_PATH → /belajar, lalu sesi agent A-15 (kerangka layout CMS).
 ```
