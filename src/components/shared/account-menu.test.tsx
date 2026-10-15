@@ -101,18 +101,27 @@ describe("AccountDropdown", () => {
     expect(screen.getByRole("menuitem", { name: "Keluar" })).toBeTruthy();
   });
 
-  it("keeps each trigger inside its own breakpoint", () => {
+  it("renders exactly one account trigger (one Radix menu = one anchor)", () => {
     renderAt("/belajar", <AccountDropdown user={USER} />);
 
-    // Avatar-only 640–1023 (8t): hidden below 640 too — the drawer owns
-    // that range. Token-exact so a base `grid` regression cannot hide here.
-    const [avatar, pill] = screen.getAllByRole("button", {
-      name: "Menu akun",
-    }) as [HTMLElement, HTMLElement];
-    expect(avatar.className.split(" ")).toContain("hidden");
-    expect(avatar.className.split(" ")).toContain("sm:grid");
-    expect(pill.className.split(" ")).toContain("hidden");
-    expect(pill.className.split(" ")).toContain("lg:inline-flex");
+    // Regression for the 640–1023 panel-at-top-left + focus-loss bug: a
+    // Radix DropdownMenu keeps a single triggerRef, and the LAST mounted
+    // trigger wins the Popper anchor and the close-focus target. A second,
+    // display:none-below-1024 trigger therefore anchored the panel to a
+    // 0×0 rect at (0,0) and focused a hidden button on close. Both shapes
+    // must live in ONE button.
+    expect(
+      screen.getAllByRole("button", { name: "Menu akun" }),
+    ).toHaveLength(1);
+
+    // That single button spans both breakpoints: hidden below 640 (the
+    // drawer owns that range — 10c42a7), avatar-only 640–1023 (8t), and
+    // the pill ≥ 1024 (13a). Token-exact so a base `grid` regression
+    // cannot hide here.
+    const trigger = screen.getByRole("button", { name: "Menu akun" });
+    expect(trigger.className.split(" ")).toContain("hidden");
+    expect(trigger.className.split(" ")).toContain("sm:grid");
+    expect(trigger.className.split(" ")).toContain("lg:inline-flex");
   });
 
   it("marks the matching page with fill-soft + aria-current (13d rule)", async () => {

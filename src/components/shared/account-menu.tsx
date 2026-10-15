@@ -32,9 +32,9 @@ import { useSignOut } from "./use-sign-out";
  * The member account menu (card A-14b) in two shapes that mirror the guest
  * A-14a pattern:
  * - AccountDropdown, ≥ 640px (13a): the existing Dropdown/Menu primitive —
- *   a 268-wide panel, right-aligned under the account button. Two trigger
- *   presentations share one menu: the avatar-only button at 640–1023 (8t)
- *   and the name pill at ≥ 1024 (13a).
+ *   a 268-wide panel, right-aligned under the account button. ONE trigger
+ *   renders both shapes responsively: the avatar-only button at 640–1023
+ *   (8t) and the name pill at ≥ 1024 (13a).
  * - AccountDrawer, < 640px (13d-1): a full-width panel dropping straight
  *   below the header, built on the A-06 Radix dialog primitives exactly
  *   like the A-14a guest mobile menu (no hand-rolled focus trap). Its own
@@ -64,42 +64,38 @@ export function AccountDropdown({ user }: AccountMenuProps) {
 
   return (
     <DropdownMenu>
-      {/* 640–1023 (8t): avatar only. Radix labels it aria-haspopup="menu"
-          and manages aria-expanded; the avatar is decorative inside this
-          labelled button. */}
+      {/* ONE trigger for both shapes. A Radix DropdownMenu owns a single
+          anchor (triggerRef); a second trigger overwrites it, so the pill
+          (display:none below 1024) became the anchor with a 0×0 rect at
+          (0,0) — parking the panel at the viewport's top-left and dumping
+          close-focus on a hidden element. The button is responsive instead:
+          avatar-only at 640–1023 (8t), the pill at ≥ 1024 (13a). Radix
+          labels it aria-haspopup="menu" and manages aria-expanded; the
+          avatar and caret are decorative inside this labelled button. */}
       <DropdownMenuTrigger asChild>
         <button
           type="button"
           aria-label="Menu akun"
-          className="hidden size-11 place-items-center rounded-pill text-text transition-colors duration-200 ease-out hover:bg-fill sm:grid lg:hidden"
+          className={cn(
+            "group hidden h-11 w-11 place-items-center rounded-pill text-text",
+            "transition-colors duration-200 ease-out hover:bg-fill",
+            "sm:grid lg:inline-flex lg:w-auto lg:items-center lg:gap-2.5",
+            "lg:border lg:border-border lg:pl-3 lg:pr-1.5",
+            "lg:hover:border-border-strong lg:hover:bg-transparent",
+          )}
         >
-          <Avatar
-            name={displayName}
-            size="sm"
-            aria-hidden="true"
-            className="size-9 bg-text text-surface text-[14px]"
-          />
-        </button>
-      </DropdownMenuTrigger>
-      {/* ≥ 1024 (13a): the pill — name (ellipsized), avatar, caret. */}
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          aria-label="Menu akun"
-          className="group hidden h-11 items-center gap-2.5 rounded-pill border border-border pl-3 pr-1.5 transition-colors duration-200 ease-out hover:border-border-strong lg:inline-flex"
-        >
-          <span className="max-w-[22ch] truncate text-[13.5px] font-bold text-text-muted">
+          <span className="hidden max-w-[22ch] truncate text-[13.5px] font-bold text-text-muted lg:block">
             {displayName}
           </span>
           <Avatar
             name={displayName}
             size="sm"
             aria-hidden="true"
-            className="size-8 bg-text text-surface text-[13px]"
+            className="size-9 bg-text text-surface text-[14px] lg:size-8 lg:text-[13px]"
           />
           <ChevronDown
             aria-hidden="true"
-            className="size-3.5 text-text-meta transition-transform duration-200 ease-out group-data-[state=open]:rotate-180"
+            className="hidden size-3.5 text-text-meta transition-transform duration-200 ease-out group-data-[state=open]:rotate-180 lg:block"
           />
         </button>
       </DropdownMenuTrigger>
