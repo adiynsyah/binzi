@@ -15,6 +15,7 @@ import { authClient } from "./auth-client";
 vi.mock("./auth-client", () => ({
   authClient: {
     signUp: { email: vi.fn() },
+    signIn: { social: vi.fn() },
   },
 }));
 
@@ -23,6 +24,7 @@ vi.mock("./turnstile-widget", () => ({
 }));
 
 const signUpEmail = vi.mocked(authClient.signUp.email);
+const signInSocial = vi.mocked(authClient.signIn.social);
 
 // The consent Checkbox lives inside a <form>, so Radix mounts its hidden
 // bubble input, which measures itself with ResizeObserver — not implemented
@@ -140,6 +142,20 @@ describe("RegisterForm", () => {
         "Terlalu banyak percobaan pendaftaran. Coba lagi dalam 15 menit.",
       ),
     ).toBeTruthy();
+  });
+
+  it("starts the Google sign-up toward the post-login default", () => {
+    // /daftar reads no ?next= — the button must carry the constant, never a
+    // hard-coded destination (regression: this call site once sent "/").
+    renderForm({ googleEnabled: true });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Daftar dengan Google" }),
+    );
+    expect(signInSocial).toHaveBeenCalledWith({
+      provider: "google",
+      callbackURL: "/belajar",
+      errorCallbackURL: "/daftar",
+    });
   });
 
   it("hides the Google button and its helper when the provider is inactive", () => {

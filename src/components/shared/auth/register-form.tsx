@@ -16,7 +16,7 @@ import { signUpSchema } from "../../../modules/auth/schema";
 
 import { authClient } from "./auth-client";
 import { mapSignUpError, type AuthNotice } from "./auth-errors";
-import { VERIFICATION_CALLBACK_PATH } from "./constants";
+import { POST_LOGIN_DEFAULT_PATH, VERIFICATION_CALLBACK_PATH } from "./constants";
 import { GoogleButton } from "./google-button";
 import { TurnstileWidget } from "./turnstile-widget";
 
@@ -137,7 +137,7 @@ export function RegisterForm({
     <form onSubmit={onSubmit} noValidate className="space-y-4">
       {googleEnabled ? (
         <>
-          <GoogleButton label="Daftar dengan Google" callbackURL="/" errorCallbackURL="/daftar" />
+          <GoogleButton label="Daftar dengan Google" callbackURL={POST_LOGIN_DEFAULT_PATH} errorCallbackURL="/daftar" />
           <p className="text-sm text-text-muted">
             Tanpa verifikasi email — email Google sudah terverifikasi. Jika
             email itu sudah punya akun BINZI, akunnya ditautkan.

@@ -4,10 +4,11 @@
 
 /**
  * Post-login destination when `?next=` is missing or unsafe to use
- * (product-owner decision, card A-13). The homepage is a placeholder today;
- * switch this to /belajar once A-14 lands — tracked in the A-13 PR notes.
+ * (product-owner decision, card A-13). /belajar exists since A-14b
+ * (PR #53): signed-in users land in the learning home, not the guest
+ * homepage.
  */
-export const POST_LOGIN_DEFAULT_PATH = "/";
+export const POST_LOGIN_DEFAULT_PATH = "/belajar";
 
 /**
  * `callbackURL` for verification links — sign-up body, resend buttons, AND

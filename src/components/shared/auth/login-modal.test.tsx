@@ -68,6 +68,18 @@ describe("LoginModal", () => {
     });
   });
 
+  it("starts the Google flow toward the post-login default without a target page", () => {
+    renderModal();
+    fireEvent.click(
+      screen.getByRole("button", { name: /Lanjut dengan Google/ }),
+    );
+    expect(signInSocial).toHaveBeenCalledWith({
+      provider: "google",
+      callbackURL: "/belajar",
+      errorCallbackURL: "/masuk",
+    });
+  });
+
   it("sends the email path to /masuk carrying next", () => {
     renderModal({ nextPath: "/belajar/materi-1" });
     fireEvent.click(

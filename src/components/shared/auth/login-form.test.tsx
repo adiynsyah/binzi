@@ -14,7 +14,7 @@ import { authClient } from "./auth-client";
 
 vi.mock("./auth-client", () => ({
   authClient: {
-    signIn: { email: vi.fn() },
+    signIn: { email: vi.fn(), social: vi.fn() },
     sendVerificationEmail: vi.fn(),
   },
 }));
@@ -31,11 +31,19 @@ vi.mock("./turnstile-widget", () => ({
   ),
 }));
 
+// Hoisted so the next/navigation factory (itself hoisted above this module)
+// can hand the same spies to every test that needs to assert navigation.
+const { routerReplace, routerRefresh } = vi.hoisted(() => ({
+  routerReplace: vi.fn(),
+  routerRefresh: vi.fn(),
+}));
+
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }),
+  useRouter: () => ({ push: vi.fn(), replace: routerReplace, refresh: routerRefresh }),
 }));
 
 const signInEmail = vi.mocked(authClient.signIn.email);
+const signInSocial = vi.mocked(authClient.signIn.social);
 const sendVerificationEmail = vi.mocked(authClient.sendVerificationEmail);
 
 function renderForm(overrides: Partial<Parameters<typeof LoginForm>[0]> = {}) {
@@ -87,6 +95,20 @@ describe("LoginForm", () => {
     expect(
       screen.queryByRole("button", { name: /Masuk dengan Google/ }),
     ).toBeNull();
+  });
+
+  it("starts the Google flow toward the post-login default without ?next=", () => {
+    // A missing OR unsafe ?next= collapses to nextPath=null at the page
+    // (safeInternalRedirectPath) — the button then carries the default.
+    renderForm({ googleEnabled: true });
+    fireEvent.click(
+      screen.getByRole("button", { name: /Masuk dengan Google/ }),
+    );
+    expect(signInSocial).toHaveBeenCalledWith({
+      provider: "google",
+      callbackURL: "/belajar",
+      errorCallbackURL: "/masuk",
+    });
   });
 
   it("maps a 401 to the no-leak banner (§14.2)", async () => {
@@ -269,6 +291,24 @@ describe("LoginForm", () => {
     fillValidCredentials();
     fireEvent.click(screen.getByRole("button", { name: "Masuk" }));
     expect(await screen.findByText("Berhasil masuk")).toBeTruthy();
+  });
+
+  it("redirects the success state to the post-login default without ?next=", async () => {
+    signInEmail.mockResolvedValue({
+      data: { user: { id: "u1" } },
+      error: null,
+    } as never);
+    renderForm();
+    fillValidCredentials();
+    fireEvent.click(screen.getByRole("button", { name: "Masuk" }));
+    expect(await screen.findByText("Berhasil masuk")).toBeTruthy();
+    // The banner shows briefly, then the router takes over after 700ms —
+    // real timers, so allow a generous waitFor window.
+    await waitFor(
+      () => expect(routerReplace).toHaveBeenCalledWith("/belajar"),
+      { timeout: 2000 },
+    );
+    expect(routerRefresh).toHaveBeenCalled();
   });
 
   it("renders a whitelisted OAuth callback notice without echoing the raw parameter", () => {
