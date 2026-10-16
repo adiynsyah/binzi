@@ -1,4 +1,4 @@
-> Potongan dari **PRD BINZI v1.3** (`../PRD-v1.3.md`). Rujukan silang "§x" menunjuk bagian lain — cari berkasnya di `../INDEX.md`. Jika potongan ini dan PRD utuh berbeda, PRD utuh yang berlaku.
+> Potongan dari **PRD BINZI v1.4** (`../PRD-v1.4.md`). Rujukan silang "§x" menunjuk bagian lain — cari berkasnya di `../INDEX.md`. Jika potongan ini dan PRD utuh berbeda, PRD utuh yang berlaku.
 
 ## 12. Keamanan
 
@@ -66,7 +66,7 @@ Pengembangan dilakukan sepenuhnya dengan bantuan AI (§13.4). Kode yang dihasilk
 | V-01 | `is_correct` bocor di response soal quiz | Buka DevTools → tab Network → mulai quiz → periksa payload JSON. Tidak boleh ada `is_correct` atau `explanation` sebelum submit |
 | V-02 | Timer dihitung di klien | Ubah jam sistem komputer maju 1 jam → submit. Harus tetap ditolak sesuai waktu server |
 | V-03 | Attempt kedua bisa dibuat lewat API | Setelah submit, panggil ulang endpoint `POST /quizzes/{id}/attempts` dengan curl. Harus 409 |
-| V-04 | RBAC hanya dicek di UI | Login sebagai MEMBER, akses `/cms` dan endpoint `/api/v1/cms/*` langsung. Harus 403, bukan halaman kosong |
+| V-04 | RBAC hanya dicek di UI | Login sebagai MEMBER, akses `/cms` dan endpoint `/api/cms/*` langsung. Harus 403, bukan halaman kosong |
 | V-05 | IDOR pada data milik user | Ambil ID progress/attempt user lain, panggil endpointnya. Harus 403/404, bukan datanya |
 | V-06 | Gerbang materi hanya di UI | Akses URL materi ke-3 langsung padahal materi ke-2 belum dikerjakan. Harus ditolak server |
 | V-07 | Bucket R2 tidak sengaja publik | Buka URL objek R2 tanpa tanda tangan di jendela penyamaran. Harus ditolak |

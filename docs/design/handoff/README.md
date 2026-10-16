@@ -4,7 +4,7 @@
 > Urutan baca: `README.md` → `TOKENS.md` → `COMPONENTS.md` → `SCREENS.md` → `../../prd/INDEX.md` (bagian PRD yang relevan) → `../screens/<ID>.md` + `<ID>.png` (hanya untuk layar yang sedang dikerjakan).
 
 ## Overview
-BINZI adalah platform edukasi gizi: kursus video pendek + quiz satu kesempatan, artikel yang ditinjau ahli gizi, section konsultasi WhatsApp di Beranda, area member (dashboard, Nilai Saya), dan CMS untuk ahli gizi & admin. Spesifikasi lengkap ada di `docs/prd/PRD-v1.3.md`.
+BINZI adalah platform edukasi gizi: kursus video pendek + quiz satu kesempatan, artikel yang ditinjau ahli gizi, section konsultasi WhatsApp di Beranda, area member (dashboard, Nilai Saya), dan CMS untuk ahli gizi & admin. Spesifikasi lengkap ada di `docs/prd/PRD-v1.4.md`.
 
 ## Tiga aturan yang tidak boleh dilanggar
 1. **PRD = sumber kebenaran perilaku.** File desain = sumber kebenaran tampilan. Jika keduanya bertentangan, ikuti PRD dan catat perbedaannya.
@@ -57,6 +57,8 @@ Kerjakan satu baris dalam satu waktu. Setiap baris selesai = semua state di `SCR
 | PRD menyebut uji 360 / 768 / 1440; sebagian besar layar desain 1280 | Uji 360 / 768 / 1280; Beranda (1a) & Masuk (2a) juga di 1440. Lebar isi maks 1200 berlaku di semua lebar desktop |
 | File desain menulis bobot font 500/600/800 (sisa Plus Jakarta Sans) | Tulis bobot Lato yang dirender: 400 / 700 / 900 (lihat TOKENS.md) |
 | Menu "Terjadwal" di sidebar CMS 19b | Fitur CMS-15, di luar MVP — sembunyikan |
+| Menu "Materi" di sidebar CMS 19a/19b/19c | Tidak ada layar daftar materi; materi dibuka dari builder kursus — sembunyikan (PRD v1.4 Q42) |
+| Menu "Audit log" di sidebar admin 19b | Audit log hanya Super admin (PRD v1.4 Q43, catatan 27a/27c) — jangan tampilkan untuk Admin |
 | Kartu preview video di hero 1a | Diganti ilustrasi 6a/6b |
 | Aturan soal di layar 22c ("pg butuh 2–5 opsi") vs PRD v1.2 (2–6 opsi, pembahasan opsional) | **Pilihan ganda tepat 4 opsi (a–d); benar/salah 2 opsi; pembahasan wajib** (PRD Q40). Tulis ulang teks aturan di 22c sesuai ini |
 | Kode JavaScript di file desain (timer, data dummy) | Hanya demo — logika asli di server sesuai PRD |
@@ -104,7 +106,7 @@ Struktur di repositori kode (v1.3):
 | `docs/design/screens/INDEX.md` | Indeks semua layar; per ID ada `<ID>.png`, `<ID>.md`, `<ID>.html` |
 | `docs/design/OPEN-ISSUES.md` | Hal desain yang masih perlu diputuskan |
 | `docs/design/source/` | Kanvas desain asli (buka `Binzi Landing Hero.dc.html` di browser). **Jangan dibaca utuh oleh AI agent** |
-| `docs/prd/PRD-v1.3.md` · `docs/prd/INDEX.md` | Spesifikasi produk utuh · peta bagian PRD |
+| `docs/prd/PRD-v1.4.md` · `docs/prd/INDEX.md` | Spesifikasi produk utuh · peta bagian PRD |
 | `CLAUDE.md` (root) | Aturan yang dibaca AI di setiap sesi |
 | `public/brand/` | Logo & foto ahli gizi |
 | Layar `10a` | Peta alur UX (interaktif di kanvas; screenshot di `screens/10a.png`) |

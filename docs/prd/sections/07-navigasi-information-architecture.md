@@ -1,37 +1,46 @@
-> Potongan dari **PRD BINZI v1.3** (`../PRD-v1.3.md`). Rujukan silang "§x" menunjuk bagian lain — cari berkasnya di `../INDEX.md`. Jika potongan ini dan PRD utuh berbeda, PRD utuh yang berlaku.
+> Potongan dari **PRD BINZI v1.4** (`../PRD-v1.4.md`). Rujukan silang "§x" menunjuk bagian lain — cari berkasnya di `../INDEX.md`. Jika potongan ini dan PRD utuh berbeda, PRD utuh yang berlaku.
 
 ## 7. Navigasi & Information Architecture
 
 ### 7.1 Navigasi Utama (sesuai permintaan Anda)
 
 ```
-Desktop (≥1024px)
-┌────────────────────────────────────────────────────────────────────┐
-│ [Logo]   Beranda  Kursus  Artikel  Konsultasi  Tentang Kami        │
-│                              └─ scroll ke /#tanya-ahli-gizi        │
-│                                        [🔍]  [Masuk] [Daftar]      │
-└────────────────────────────────────────────────────────────────────┘
+Desktop (≥1024px) — tamu
+┌──────────────────────────────────────────────────────────────────────────┐
+│ [Logo]  Beranda  Kursus  Artikel  Konsultasi  Tentang Kami               │
+│                            └─ scroll ke /#tanya-ahli-gizi                │
+│                                         [🔍]  [Masuk]  [Daftar Gratis]   │
+└──────────────────────────────────────────────────────────────────────────┘
 
-Setelah login, kanan atas berubah menjadi:
-                          [🔍]  [Belajar]  [Avatar ▾]
-                                            ├ Dashboard
-                                            ├ Kursus Saya
-                                            ├ Nilai Saya
-                                            ├ Profil
-                                            └ Keluar
+Setelah login (member), "Belajar" menggantikan "Beranda":
+│ [Logo]  Belajar  Kursus  Artikel  Konsultasi  Tentang Kami               │
+│                                         [🔍]  [Nama  (A) ▾]              │
+                                                   ├ Dashboard
+                                                   ├ Kursus Saya
+                                                   ├ Nilai Saya
+                                                   ├ Profil & pengaturan
+                                                   └ Keluar
 
-Mobile (<768px)
+Tablet (640–1023px)
+│ [Logo]  Kursus  Artikel  Konsultasi  Tentang   [🔍]  [Masuk]   │  tamu
+│ [Logo]  Belajar  Kursus  Artikel  Konsultasi  Tentang [🔍] (A) │  member
+
+Ponsel (<640px)
 ┌──────────────────────────────┐
-│ [☰]      [Logo]        [🔍]  │   → drawer berisi 5 item nav
-└──────────────────────────────┘     + tombol Masuk/Daftar
+│ [☰]      [Logo]        [🔍]  │  tamu   → drawer: 5 item nav + Masuk & Daftar Gratis
+│ [Logo]                  (A)  │  member → drawer akun: kartu nama · item akun ·
+└──────────────────────────────┘           nav utama + Cari · Keluar
 ```
 
 **Catatan desain:**
 - **"Konsultasi" bukan halaman**, melainkan anchor ke section Beranda (`/#tanya-ahli-gizi`, KSL-13). Karena itu, jangan tampilkan state aktif "Konsultasi" di nav hanya karena user berada di Beranda — state aktif Beranda tetap yang menyala.
-- Nav CMS **terpisah total** dari nav publik (layout berbeda, sidebar kiri). Admin masuk lewat `/cms`, bukan lewat nav publik.
+- Nav CMS **terpisah total** dari nav publik (layout berbeda, sidebar kiri). Staf masuk lewat `/cms`, bukan lewat nav publik — dan diarahkan ke sana setelah login (Q44).
 - Di bawah 768px, area belajar (`/belajar/*`) memakai **bottom navigation**: Materi · Quiz · Progress (desain 8e, 28g, 29b). Jempol lebih mudah menjangkau bawah layar, dan area belajar adalah tempat user menghabiskan waktu terlama.
-- **Ambang responsif (v1.3, mengikuti desain):** hamburger + drawer di **< 640px**; menu teks mulai 640px (tablet: avatar tanpa nama); tata letak desktop penuh mulai 1024px. Diagram "Mobile (<768px)" di atas dibaca sebagai < 640px.
-- **Header member:** setelah login, item "Belajar" menggantikan "Beranda", ditambah avatar + menu akun (desain 8a, 13a).
+- **Ambang responsif (mengikuti desain):** hamburger + drawer di **< 640px**; menu teks mulai 640px (tablet: tanpa Beranda & Daftar Gratis, label "Tentang", avatar tanpa nama); tata letak desktop penuh mulai 1024px.
+- **Isi header per lebar (v1.4, Q41/D-08):** di 640–1023 Masuk berupa tombol gelap dan logo menjadi jalan ke Beranda; ≥ 1024 Masuk berupa tombol ghost. Logo header = **wordmark saja**.
+- **Header member (v1.4, Q41/D-08):** setelah login, item "Belajar" menggantikan "Beranda", ditambah avatar + menu akun (desain 8a, 13a). **Tentang tetap ada** di header member, walau desain 8a/13a/8t menghilangkannya.
+- **Header ponsel member (v1.4, Q41/D-09):** mengikuti 13d — logo di kiri dan avatar di kanan, tanpa ☰ dan tanpa Cari. Avatar membuka drawer akun yang memuat item akun, lalu navigasi utama (Kursus · Artikel · Konsultasi · Tentang Kami · Cari), lalu Keluar.
+- **Tujuan setelah login (v1.4, Q44):** `?next=` yang sah selalu dipakai. Tanpa itu, MEMBER mendarat di `/belajar` dan staf (EDITOR+) di `/cms`.
 - **Header mode fokus** di player & quiz: logo mark + judul kursus + progress, tanpa nav utama (desain 7d, 29a).
 
 ### 7.2 Sitemap
@@ -60,20 +69,26 @@ MEMBER
 ├── /belajar/{slug}/final-quiz       Final Quiz
 └── /profil                          Profil & pengaturan
 
-CMS (EDITOR / ADMIN) — sidebar sesuai peran; menu tanpa hak akses tidak ditampilkan
-├── /cms                             Ringkasan (versi admin 19b, versi ahli gizi 19a)
-├── /cms/konten                      Daftar konten + keputusan terbit (19c, 19d)*
-├── /cms/artikel                     Editor artikel (20a)
-├── /cms/kursus[/{id}/materi/{id}]   Builder kursus & editor materi + quiz (21a–22h)
-├── /cms/kategori                    Kategori & tag artikel (23a)
-├── /cms/media                       Media library (24a)
-├── /cms/pengguna                    Manajemen user (ADMIN+) (25a)
-├── /cms/reset-attempt               Reset attempt quiz (ADMIN+) (26a)
-├── /cms/pengaturan                  Pengaturan sistem (SUPER_ADMIN) (27a)
-└── /cms/audit-log                   Audit log (27c)
+CMS (EDITOR / ADMIN / SUPER_ADMIN) — sidebar sesuai peran; menu tanpa hak akses tidak ditampilkan
+├── /cms                             Ringkasan (versi admin 19b, versi ahli gizi 19a)         EDITOR+
+├── /cms/konten[/{id}]               Antrean status lintas jenis + keputusan terbit (19d)     EDITOR+ ¹
+├── /cms/artikel[/{id}]              Daftar artikel (19c) · editor artikel (20a)              EDITOR+
+├── /cms/kursus[/{id}/materi/{id}]   Daftar kursus (21e) · builder & editor materi (21a–21i)  EDITOR+
+├── /cms/quiz[/{id}]                 Daftar quiz (22f) · editor quiz (22a–22h)                EDITOR+
+├── /cms/media                       Media library (24a)                                      EDITOR+
+├── /cms/kategori                    Kategori & tag artikel (23a)                             ADMIN+
+├── /cms/pengguna                    Manajemen user (25a) — ubah peran: SUPER_ADMIN (25c)     ADMIN+
+├── /cms/reset-attempt               Reset attempt quiz (26a)                                 ADMIN+
+├── /cms/pengaturan                  Pengaturan sistem (27a; menu "Sistem")                   SUPER_ADMIN
+└── /cms/audit-log                   Audit log (27c)                                          SUPER_ADMIN
 
-* Route /cms/konten final (v1.3); desain tidak menetapkan URL untuk 19c/19d.
+¹ Menu yang membuka /cms/konten (v1.4, Q42): "Persetujuan" (ADMIN+) = konten menunggu
+  persetujuan; "Menunggu persetujuan" & "Perlu revisi" (ahli gizi) = konten miliknya.
+  Keputusan terbit (setujui · minta revisi · tarik kembali) hanya ADMIN+, ditegakkan server.
+  Menu Materi dan Terjadwal tidak ditampilkan di MVP; materi dibuka dari builder kursus.
   /cms/analitik tidak dibuat di MVP (CMS-13 → fase 2).
+  Rute sub-path (/{id}) diputuskan rinci di sprint masing-masing; matriks RBAC ada di
+  src/lib/rbac.ts (sub-path /cms tak terdaftar = SUPER_ADMIN, fail-closed).
 ```
 
 ### 7.3 Struktur Beranda

@@ -1,4 +1,4 @@
-> Potongan dari **PRD BINZI v1.3** (`../PRD-v1.3.md`). Rujukan silang "§x" menunjuk bagian lain — cari berkasnya di `../INDEX.md`. Jika potongan ini dan PRD utuh berbeda, PRD utuh yang berlaku.
+> Potongan dari **PRD BINZI v1.4** (`../PRD-v1.4.md`). Rujukan silang "§x" menunjuk bagian lain — cari berkasnya di `../INDEX.md`. Jika potongan ini dan PRD utuh berbeda, PRD utuh yang berlaku.
 
 ## 3. Persona & Role
 
@@ -22,6 +22,8 @@
 | `MEMBER` | + konsumsi materi, quiz, progress, Nilai Saya, profil |
 | `EDITOR` | + CMS dalam status Draft, submit for review. Dipakai oleh **ahli gizi** yang menggarap konten (alur 18d) |
 | `ADMIN` | + menyetujui & publish/unpublish, kelola kategori artikel, kelola user, reset attempt quiz |
-| `SUPER_ADMIN` | + kelola role, pengaturan sistem, audit log |
+| `SUPER_ADMIN` | + kelola role, pengaturan sistem, audit log (**hanya** SUPER_ADMIN — Q43) |
+
+**Label peran di antarmuka (v1.4):** `EDITOR` ditampilkan sebagai "Ahli gizi", `ADMIN` sebagai "Admin", `SUPER_ADMIN` sebagai "Super admin" (desain 19a, 19b, 27a). `MEMBER` tidak berlabel.
 
 > Rekomendasi: pisahkan `EDITOR` dan `ADMIN`. Untuk MVP Anda cukup membuat 1 akun ADMIN dan 1 akun EDITOR (untuk ahli gizi). Biayanya nol sekarang, mahal kalau ditambahkan belakangan.

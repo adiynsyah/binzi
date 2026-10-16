@@ -56,23 +56,26 @@ Singkatan varian: **m** = mobile 360, **t** = tablet 768.
 ## CMS (`/cms`, staf — sidebar terpisah dari nav publik)
 Peran mengikuti **18d**: ahli gizi (EDITOR) menggarap konten, admin menyetujui & menerbitkan. Menu tanpa hak akses **tidak ditampilkan**.
 
+Rute & menu mengikuti PRD v1.4 §7.2 (Q42, Q43): satu daftar per jenis konten; `/cms/konten` adalah antrean status (menu "Persetujuan" untuk admin, "Menunggu persetujuan" & "Perlu revisi" untuk ahli gizi). Menu **Materi** dan **Terjadwal** tidak ditampilkan; **Audit log** dan **Sistem** hanya untuk Super admin (sidebar 27a), walau 19b menampilkan Audit log untuk Admin.
+
 | Route | Utama | t / m | State | PRD |
 |---|---|---|---|---|
 | `/cms` Ringkasan | 19b (admin) · 19a (ahli gizi) | 19e | — | CMS-01 |
-| Daftar konten | 19c | 19e | — | CMS-05 |
-| Keputusan terbit | 19d | — | pratinjau + checklist + 3 aksi | CMS-05, CMS-06, CMS-11 |
-| Editor artikel | 20a | 20e (ponsel: tidak dibuka) | tolak node video 20b · simpan: menyimpan/tersimpan/gagal/konflik 20c · kirim persetujuan 20d | CRS-04, CRS-05, CMS-03 |
+| `/cms/konten` antrean status | pola daftar 19c · kartu antrean 19b | 19e (ponsel: "Persetujuan") | — | CMS-05 |
+| `/cms/konten/{id}` keputusan terbit | 19d | — | pratinjau + checklist + 3 aksi | CMS-05, CMS-06, CMS-11 |
+| `/cms/artikel` daftar artikel | 19c | 19e | — | CMS-07 |
+| `/cms/artikel/{id}` editor artikel | 20a | 20e (ponsel: tidak dibuka) | tolak node video 20b · simpan: menyimpan/tersimpan/gagal/konflik 20c · kirim persetujuan 20d | CRS-04, CRS-05, CMS-03 |
 | `/cms/kursus` | 21e | — | kursus baru (dialog) 21f → 21g | CMS-02 |
 | Builder kursus | 21a | 21d | — | CMS-02 |
 | Editor materi | 21b | — | tambah materi 21h · kosong 21i · unggah video (4 state) 21c | CMS-03 |
-| Daftar quiz | 22f | — | beda quiz materi vs final 22g | — |
-| Editor quiz | 22a · 22h (quiz materi) | 22e | satu soal 22b · impor CSV 22c · penjaga < 10 soal & sudah dikerjakan 22d | CMS-04, QZ-02…04 |
+| `/cms/quiz` daftar quiz | 22f | — | beda quiz materi vs final 22g | — |
+| `/cms/quiz/{id}` editor quiz | 22a · 22h (quiz materi) | 22e | satu soal 22b · impor CSV 22c · penjaga < 10 soal & sudah dikerjakan 22d | CMS-04, QZ-02…04 |
 | `/cms/kategori` | 23a | 23t | hapus ditolak 23b · pindah massal 23c · tab tag 23d | CMS-07 |
 | `/cms/media` | 24a | 24t | hapus ditolak/konfirmasi 24b · unggah 24c · pemilih media 24d | CMS-08 |
 | `/cms/pengguna` | 25a | 25t | detail 25b · ubah peran 25c · nonaktifkan 25d | CMS-09 |
 | `/cms/reset-attempt` | 26a | 26t | tinjau laporan 26b · reset tanpa laporan 26c | CMS-10, QZ-19 |
-| `/cms/pengaturan` | 27a (Super admin) | — | tinjau & simpan 27b | KSL-08 |
-| `/cms/audit-log` | 27c | 27t | — | CMS-12 |
+| `/cms/pengaturan` (menu "Sistem") | 27a (Super admin) | — | tinjau & simpan 27b | KSL-08 |
+| `/cms/audit-log` (Super admin) | 27c | 27t | — | CMS-12 |
 
 ## Tidak dibangun di MVP
 Analitik konten (`/cms/analitik`, CMS-13), versioning (CMS-14), jadwal terbit (CMS-15), email pengingat (NTF-03), notifikasi in-app (NTF-04), serta semua item PRD §4.2. Menu "Terjadwal" di sidebar 19b termasuk CMS-15 — sembunyikan di MVP.

@@ -1,6 +1,8 @@
-# PRD BINZI v1.3 — Indeks
+# PRD BINZI v1.4 — Indeks
 
-PRD utuh: [`PRD-v1.3.md`](PRD-v1.3.md) (~30k token). Untuk sesi AI agent, **muat hanya bagian yang relevan** dari folder `sections/`. Header & riwayat revisi: [`sections/00-header-revisi.md`](sections/00-header-revisi.md).
+PRD utuh: [`PRD-v1.4.md`](PRD-v1.4.md) (~31k token). Untuk sesi AI agent, **muat hanya bagian yang relevan** dari folder `sections/`. Header & riwayat revisi: [`sections/00-header-revisi.md`](sections/00-header-revisi.md).
+
+Bagian di `sections/` adalah turunan — jangan diedit manual. Setelah mengubah PRD utuh: `python3 scripts/split-prd.py docs/prd/PRD-v1.4.md docs/prd/sections 1.4 PRD-v1.4.md`.
 
 ## Bagian yang dibaca per fase
 

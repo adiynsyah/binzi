@@ -4,8 +4,8 @@
 | Field | Value |
 |---|---|
 | Nama Produk | **BINZI** (nama final; "NutriLearn" di versi sebelumnya hanya working title) |
-| Versi Dokumen | **1.3** |
-| Tanggal | 27 September 2026 (baseline v1.0: 7 September 2026) |
+| Versi Dokumen | **1.4** |
+| Tanggal | 16 Oktober 2026 (baseline v1.0: 7 September 2026) |
 | Target Platform | Web — desktop, tablet, dan mobile browser (responsive penuh) |
 | Prinsip Biaya | **Zero-cost stack** untuk MVP; jalur upgrade berbayar terdefinisi |
 | Target Rilis MVP | ~12 minggu sejak kick-off |
@@ -15,6 +15,7 @@
 | Versi | Tanggal | Perubahan |
 |---|---|---|
 | 1.0 | 7 Sep 2026 | Baseline |
+| 1.4 | 16 Okt 2026 | **Navigasi & CMS setelah Fase 0** (tinjauan kartu A-14 dan A-15): isi header per lebar dan header ponsel member (D-08, D-09); tujuan setelah login tanpa `?next=` — MEMBER ke `/belajar`, staf ke `/cms`; **sitemap CMS final** (D-10): satu daftar per jenis konten (`/cms/artikel`, `/cms/kursus`, `/cms/quiz`), `/cms/konten` menjadi antrean status (Persetujuan untuk admin; Menunggu persetujuan & Perlu revisi untuk ahli gizi), menu Materi disembunyikan; **Audit log khusus SUPER_ADMIN** (D-11; menu Audit log di 19b untuk Admin tidak berlaku); label peran di antarmuka; endpoint CMS di `/api/cms/*` (V-04). Keputusan Q41–Q44. Terdampak: header, §2, §3.2, §7.1, §7.2, §12.6, §17.4 |
 | 1.3 | 27 Sep 2026 | **Menyerap keputusan desain final (handoff Claude Design BINZI)** sehingga PRD kembali menjadi satu-satunya sumber kebenaran perilaku: nama produk BINZI; tombol WhatsApp netral (bukan hijau); lebar uji desktop 1280 (+1440 untuk Beranda & Masuk); hero memakai ilustrasi animasi; alur tinjau konten 18d; ambang navigasi & bottom nav; daftar materi player di kanan; CMS-13/14/15, NTF-03/04 dipindah ke fase 2; sitemap CMS disesuaikan; status pertanyaan terbuka diperbarui; §17.4 baru (peta dokumen desain); **Next.js 16.3 (Active LTS)**; judul hero dari 1a; route `/cms/konten` final; STR & nomor WhatsApp dummy selama pengembangan; **DNS & perlindungan edge di Vercel** (Cloudflare hanya untuk R2 & Turnstile); Vercel Hobby selama fase penelitian; konteks penelitian dijawab (tanpa alur etik/consent khusus, pendaftaran umum, tanpa ekspor analisis, retensi selama akun aktif); **aturan soal: pilihan ganda tepat 4 opsi, pembahasan wajib**. Keputusan K-15, Q29–Q40. Terdampak: header, §0, §1, §2, §3.2, §5.3, §5.4, §6.7, §6.8, §7.1–7.3, §8.7, §6.3, §8.4, §9.2, §9.4, §10.1, §10.4, §11.2, §11.4, §12.4, §13.1, §15, §13.4, §13.5, §14.1, §14.9, §16, §17 |
 | 1.2 | 24 Sep 2026 | **Halaman `/konsultasi` dihapus** — konsultasi menjadi section "Tanya Ahli Gizi" di Beranda; item nav "Konsultasi" melakukan scroll otomatis ke section tersebut (K-10 direvisi, Q28). Terdampak: §3, §4.1, §5, §7.1–7.4, §10.2, §11, §13.1, §13.5, §14.7, §14.9, §15, §16, §17.2 |
 | 1.1 | 24 Sep 2026 | **Kategori kursus dihapus** — kategori hanya dipakai untuk artikel (K-14, Q27). Terdampak: CRS-01, SRC-02, CMS-07, §3.2, §4.1, §7.2, §10.4, §11.1, §11.2, §13.5 |
@@ -120,6 +121,10 @@ Setiap halaman **wajib** diuji pada minimal 3 lebar: **360px, 768px, dan 1280px*
 | Q38 | DNS & perlindungan edge? | **Vercel DNS + Vercel Firewall.** Cloudflare hanya dipakai untuk R2 dan Turnstile | Vercel tidak merekomendasikan reverse proxy (termasuk proxy Cloudflare) di depan deployment Vercel karena firewall kehilangan visibilitas trafik dan IP asli pengguna. R2 diakses lewat presigned URL sehingga tidak butuh domain di Cloudflare. Jika OQ-12 memilih Cloudflare Workers, DNS dipindah ke Cloudflare saat itu (bisa tanpa downtime) |
 | Q39 | BINZI dipakai untuk penelitian ahli gizi — apa dampaknya ke produk? | **Tidak ada fitur tambahan.** Tanpa persetujuan komisi etik/informed consent khusus; pendaftaran **terbuka untuk umum**; **tidak ada** kebutuhan ekspor data untuk analisis; data **tidak dianonimkan** dan **disimpan selama akun aktif** | Alur daftar, skema, dan CMS tetap seperti rencana. Hak pengguna menghapus akun (AUTH-09, UU PDP) tetap berlaku — lihat §8.4 |
 | Q40 | Aturan soal quiz (D-06)? | **Pilihan ganda: tepat 4 opsi (a–d), tepat 1 benar. Benar/salah: 2 opsi tetap. Pembahasan wajib untuk setiap soal** | Menggantikan QZ-04 v1.2 (2–6 opsi, pembahasan opsional). Selaras dengan kolom impor CSV di desain 22c (`opsi_a`…`opsi_d`); teks aturan "2–5 opsi" di layar 22c tidak berlaku. Pembahasan wajib konsisten dengan K-05 (pembahasan selalu ditampilkan) |
+| Q41 | Isi header per lebar & header ponsel member (D-08, D-09)? | **≥ 1024:** Beranda · Kursus · Artikel · Konsultasi · Tentang Kami · Cari · Masuk (ghost) · Daftar Gratis. **640–1023:** tanpa Beranda & Daftar Gratis, label "Tentang", Masuk tombol gelap. **Member:** Belajar menggantikan Beranda, **Tentang tetap ada**. **< 640 member:** logo + avatar; navigasi utama & Cari pindah ke drawer akun. Logo header = wordmark saja | Diterapkan di kartu A-14a & A-14b (PR #46, #53). Desain 8a/13a/8t yang menghilangkan Tentang tidak berlaku (§7.1) |
+| Q42 | Rute menu CMS (D-10)? | **Satu daftar per jenis konten**, seperti catatan desain 19c: Artikel `/cms/artikel`, Kursus `/cms/kursus`, Quiz `/cms/quiz`, Media `/cms/media`. **`/cms/konten` = antrean status lintas jenis** + keputusan terbit (19d): menu "Persetujuan" (ADMIN+) dan "Menunggu persetujuan" / "Perlu revisi" (ahli gizi, kontennya sendiri). **Menu Materi disembunyikan** — tidak ada layar daftar materi; materi selalu dibuka dari builder kursus | Menggantikan v1.3: `/cms/artikel` bukan lagi editor (editor pindah ke `/cms/artikel/{id}`), `/cms/konten` bukan lagi daftar semua konten. Rute baru `/cms/quiz` (EDITOR+) di matriks RBAC (§7.2) |
+| Q43 | Siapa yang melihat Audit log (D-11)? | **SUPER_ADMIN saja** (§3.2; catatan desain 27a/27c) | Menu "Audit log" di sidebar admin 19b tidak berlaku. Riwayat tindakan yang tampil di layar lain (Aktivitas terakhir 19b, riwayat admin 25b) tetap boleh untuk ADMIN |
+| Q44 | Ke mana pengguna diarahkan setelah login tanpa tujuan? | **`?next=` yang sah selalu menang.** Tanpa itu: MEMBER → `/belajar`; EDITOR, ADMIN, SUPER_ADMIN → `/cms` | MEMBER berlaku sejak PR #54 (`POST_LOGIN_DEFAULT_PATH`). Pendaratan staf butuh logika server berbasis peran setelah login — chore tersendiri setelah kartu A-15, sebelum A-19. Staf tetap bisa membuka area belajar lewat nav publik |
 
 ---
 
@@ -145,7 +150,9 @@ Setiap halaman **wajib** diuji pada minimal 3 lebar: **360px, 768px, dan 1280px*
 | `MEMBER` | + konsumsi materi, quiz, progress, Nilai Saya, profil |
 | `EDITOR` | + CMS dalam status Draft, submit for review. Dipakai oleh **ahli gizi** yang menggarap konten (alur 18d) |
 | `ADMIN` | + menyetujui & publish/unpublish, kelola kategori artikel, kelola user, reset attempt quiz |
-| `SUPER_ADMIN` | + kelola role, pengaturan sistem, audit log |
+| `SUPER_ADMIN` | + kelola role, pengaturan sistem, audit log (**hanya** SUPER_ADMIN — Q43) |
+
+**Label peran di antarmuka (v1.4):** `EDITOR` ditampilkan sebagai "Ahli gizi", `ADMIN` sebagai "Admin", `SUPER_ADMIN` sebagai "Super admin" (desain 19a, 19b, 27a). `MEMBER` tidak berlabel.
 
 > Rekomendasi: pisahkan `EDITOR` dan `ADMIN`. Untuk MVP Anda cukup membuat 1 akun ADMIN dan 1 akun EDITOR (untuk ahli gizi). Biayanya nol sekarang, mahal kalau ditambahkan belakangan.
 
@@ -524,33 +531,42 @@ Kalibrasi ulang soal setelah 4 minggu data pertama. Perbaikan soal **tidak** men
 ### 7.1 Navigasi Utama (sesuai permintaan Anda)
 
 ```
-Desktop (≥1024px)
-┌────────────────────────────────────────────────────────────────────┐
-│ [Logo]   Beranda  Kursus  Artikel  Konsultasi  Tentang Kami        │
-│                              └─ scroll ke /#tanya-ahli-gizi        │
-│                                        [🔍]  [Masuk] [Daftar]      │
-└────────────────────────────────────────────────────────────────────┘
+Desktop (≥1024px) — tamu
+┌──────────────────────────────────────────────────────────────────────────┐
+│ [Logo]  Beranda  Kursus  Artikel  Konsultasi  Tentang Kami               │
+│                            └─ scroll ke /#tanya-ahli-gizi                │
+│                                         [🔍]  [Masuk]  [Daftar Gratis]   │
+└──────────────────────────────────────────────────────────────────────────┘
 
-Setelah login, kanan atas berubah menjadi:
-                          [🔍]  [Belajar]  [Avatar ▾]
-                                            ├ Dashboard
-                                            ├ Kursus Saya
-                                            ├ Nilai Saya
-                                            ├ Profil
-                                            └ Keluar
+Setelah login (member), "Belajar" menggantikan "Beranda":
+│ [Logo]  Belajar  Kursus  Artikel  Konsultasi  Tentang Kami               │
+│                                         [🔍]  [Nama  (A) ▾]              │
+                                                   ├ Dashboard
+                                                   ├ Kursus Saya
+                                                   ├ Nilai Saya
+                                                   ├ Profil & pengaturan
+                                                   └ Keluar
 
-Mobile (<768px)
+Tablet (640–1023px)
+│ [Logo]  Kursus  Artikel  Konsultasi  Tentang   [🔍]  [Masuk]   │  tamu
+│ [Logo]  Belajar  Kursus  Artikel  Konsultasi  Tentang [🔍] (A) │  member
+
+Ponsel (<640px)
 ┌──────────────────────────────┐
-│ [☰]      [Logo]        [🔍]  │   → drawer berisi 5 item nav
-└──────────────────────────────┘     + tombol Masuk/Daftar
+│ [☰]      [Logo]        [🔍]  │  tamu   → drawer: 5 item nav + Masuk & Daftar Gratis
+│ [Logo]                  (A)  │  member → drawer akun: kartu nama · item akun ·
+└──────────────────────────────┘           nav utama + Cari · Keluar
 ```
 
 **Catatan desain:**
 - **"Konsultasi" bukan halaman**, melainkan anchor ke section Beranda (`/#tanya-ahli-gizi`, KSL-13). Karena itu, jangan tampilkan state aktif "Konsultasi" di nav hanya karena user berada di Beranda — state aktif Beranda tetap yang menyala.
-- Nav CMS **terpisah total** dari nav publik (layout berbeda, sidebar kiri). Admin masuk lewat `/cms`, bukan lewat nav publik.
+- Nav CMS **terpisah total** dari nav publik (layout berbeda, sidebar kiri). Staf masuk lewat `/cms`, bukan lewat nav publik — dan diarahkan ke sana setelah login (Q44).
 - Di bawah 768px, area belajar (`/belajar/*`) memakai **bottom navigation**: Materi · Quiz · Progress (desain 8e, 28g, 29b). Jempol lebih mudah menjangkau bawah layar, dan area belajar adalah tempat user menghabiskan waktu terlama.
-- **Ambang responsif (v1.3, mengikuti desain):** hamburger + drawer di **< 640px**; menu teks mulai 640px (tablet: avatar tanpa nama); tata letak desktop penuh mulai 1024px. Diagram "Mobile (<768px)" di atas dibaca sebagai < 640px.
-- **Header member:** setelah login, item "Belajar" menggantikan "Beranda", ditambah avatar + menu akun (desain 8a, 13a).
+- **Ambang responsif (mengikuti desain):** hamburger + drawer di **< 640px**; menu teks mulai 640px (tablet: tanpa Beranda & Daftar Gratis, label "Tentang", avatar tanpa nama); tata letak desktop penuh mulai 1024px.
+- **Isi header per lebar (v1.4, Q41/D-08):** di 640–1023 Masuk berupa tombol gelap dan logo menjadi jalan ke Beranda; ≥ 1024 Masuk berupa tombol ghost. Logo header = **wordmark saja**.
+- **Header member (v1.4, Q41/D-08):** setelah login, item "Belajar" menggantikan "Beranda", ditambah avatar + menu akun (desain 8a, 13a). **Tentang tetap ada** di header member, walau desain 8a/13a/8t menghilangkannya.
+- **Header ponsel member (v1.4, Q41/D-09):** mengikuti 13d — logo di kiri dan avatar di kanan, tanpa ☰ dan tanpa Cari. Avatar membuka drawer akun yang memuat item akun, lalu navigasi utama (Kursus · Artikel · Konsultasi · Tentang Kami · Cari), lalu Keluar.
+- **Tujuan setelah login (v1.4, Q44):** `?next=` yang sah selalu dipakai. Tanpa itu, MEMBER mendarat di `/belajar` dan staf (EDITOR+) di `/cms`.
 - **Header mode fokus** di player & quiz: logo mark + judul kursus + progress, tanpa nav utama (desain 7d, 29a).
 
 ### 7.2 Sitemap
@@ -579,20 +595,26 @@ MEMBER
 ├── /belajar/{slug}/final-quiz       Final Quiz
 └── /profil                          Profil & pengaturan
 
-CMS (EDITOR / ADMIN) — sidebar sesuai peran; menu tanpa hak akses tidak ditampilkan
-├── /cms                             Ringkasan (versi admin 19b, versi ahli gizi 19a)
-├── /cms/konten                      Daftar konten + keputusan terbit (19c, 19d)*
-├── /cms/artikel                     Editor artikel (20a)
-├── /cms/kursus[/{id}/materi/{id}]   Builder kursus & editor materi + quiz (21a–22h)
-├── /cms/kategori                    Kategori & tag artikel (23a)
-├── /cms/media                       Media library (24a)
-├── /cms/pengguna                    Manajemen user (ADMIN+) (25a)
-├── /cms/reset-attempt               Reset attempt quiz (ADMIN+) (26a)
-├── /cms/pengaturan                  Pengaturan sistem (SUPER_ADMIN) (27a)
-└── /cms/audit-log                   Audit log (27c)
+CMS (EDITOR / ADMIN / SUPER_ADMIN) — sidebar sesuai peran; menu tanpa hak akses tidak ditampilkan
+├── /cms                             Ringkasan (versi admin 19b, versi ahli gizi 19a)         EDITOR+
+├── /cms/konten[/{id}]               Antrean status lintas jenis + keputusan terbit (19d)     EDITOR+ ¹
+├── /cms/artikel[/{id}]              Daftar artikel (19c) · editor artikel (20a)              EDITOR+
+├── /cms/kursus[/{id}/materi/{id}]   Daftar kursus (21e) · builder & editor materi (21a–21i)  EDITOR+
+├── /cms/quiz[/{id}]                 Daftar quiz (22f) · editor quiz (22a–22h)                EDITOR+
+├── /cms/media                       Media library (24a)                                      EDITOR+
+├── /cms/kategori                    Kategori & tag artikel (23a)                             ADMIN+
+├── /cms/pengguna                    Manajemen user (25a) — ubah peran: SUPER_ADMIN (25c)     ADMIN+
+├── /cms/reset-attempt               Reset attempt quiz (26a)                                 ADMIN+
+├── /cms/pengaturan                  Pengaturan sistem (27a; menu "Sistem")                   SUPER_ADMIN
+└── /cms/audit-log                   Audit log (27c)                                          SUPER_ADMIN
 
-* Route /cms/konten final (v1.3); desain tidak menetapkan URL untuk 19c/19d.
+¹ Menu yang membuka /cms/konten (v1.4, Q42): "Persetujuan" (ADMIN+) = konten menunggu
+  persetujuan; "Menunggu persetujuan" & "Perlu revisi" (ahli gizi) = konten miliknya.
+  Keputusan terbit (setujui · minta revisi · tarik kembali) hanya ADMIN+, ditegakkan server.
+  Menu Materi dan Terjadwal tidak ditampilkan di MVP; materi dibuka dari builder kursus.
   /cms/analitik tidak dibuat di MVP (CMS-13 → fase 2).
+  Rute sub-path (/{id}) diputuskan rinci di sprint masing-masing; matriks RBAC ada di
+  src/lib/rbac.ts (sub-path /cms tak terdaftar = SUPER_ADMIN, fail-closed).
 ```
 
 ### 7.3 Struktur Beranda
@@ -1344,7 +1366,7 @@ Pengembangan dilakukan sepenuhnya dengan bantuan AI (§13.4). Kode yang dihasilk
 | V-01 | `is_correct` bocor di response soal quiz | Buka DevTools → tab Network → mulai quiz → periksa payload JSON. Tidak boleh ada `is_correct` atau `explanation` sebelum submit |
 | V-02 | Timer dihitung di klien | Ubah jam sistem komputer maju 1 jam → submit. Harus tetap ditolak sesuai waktu server |
 | V-03 | Attempt kedua bisa dibuat lewat API | Setelah submit, panggil ulang endpoint `POST /quizzes/{id}/attempts` dengan curl. Harus 409 |
-| V-04 | RBAC hanya dicek di UI | Login sebagai MEMBER, akses `/cms` dan endpoint `/api/v1/cms/*` langsung. Harus 403, bukan halaman kosong |
+| V-04 | RBAC hanya dicek di UI | Login sebagai MEMBER, akses `/cms` dan endpoint `/api/cms/*` langsung. Harus 403, bukan halaman kosong |
 | V-05 | IDOR pada data milik user | Ambil ID progress/attempt user lain, panggil endpointnya. Harus 403/404, bukan datanya |
 | V-06 | Gerbang materi hanya di UI | Akses URL materi ke-3 langsung padahal materi ke-2 belum dikerjakan. Harus ditolak server |
 | V-07 | Bucket R2 tidak sengaja publik | Buka URL objek R2 tanpa tanda tangan di jendela penyamaran. Harus ditolak |
@@ -1865,21 +1887,21 @@ Di luar tabel di atas, ada satu biaya alat kerja yang nyata: **langganan Claude 
 
 *Dokumen ini adalah baseline v1.0. Tidak ada pertanyaan yang memblokir dimulainya pengembangan. Langkah berikutnya: wireframe untuk empat halaman publik (Beranda — termasuk section Tanya Ahli Gizi, Katalog Kursus, Detail Kursus, Artikel), lalu penyusunan backlog teknis per sprint. Perubahan setelah dokumen ini disetujui dicatat sebagai v1.1, v1.2, dan seterusnya.*
 
-### 17.4 Dokumen Desain & Keputusan yang Diserap (v1.3)
+### 17.4 Dokumen Desain & Keputusan yang Diserap (v1.3, v1.4)
 
 Desain final dibuat di Claude Design dan diekspor sebagai handoff bundle. Di repositori kode, dokumen disusun sebagai berikut:
 
 | Lokasi | Isi |
 |---|---|
 | `CLAUDE.md` (root) | Aturan yang dibaca AI agent di setiap sesi |
-| `docs/prd/` | PRD ini — utuh (`PRD-v1.3.md`) dan dipecah per bagian (`INDEX.md` sebagai pintu masuk) |
+| `docs/prd/` | PRD ini — utuh (`PRD-v1.4.md`) dan dipecah per bagian (`INDEX.md` sebagai pintu masuk) |
 | `docs/design/handoff/` | `README.md`, `TOKENS.md`, `COMPONENTS.md`, `SCREENS.md` |
 | `docs/design/screens/` | Tiga berkas per ID layar: `<ID>.png` (screenshot), `<ID>.md` (rute, status, copy, pemetaan warna → token), `<ID>.html` (markup hasil render). Indeks: `INDEX.md` |
 | `docs/design/OPEN-ISSUES.md` | Hal desain yang masih perlu diputuskan |
 | `docs/design/source/` | Kanvas desain asli (`.dc.html`) untuk dibuka di browser |
 | `public/brand/` | Logo & foto ahli gizi |
 
-**Pembagian otoritas:** PRD = sumber kebenaran **perilaku**; desain = sumber kebenaran **tampilan**. Semua perbedaan yang diketahui antara PRD v1.2 dan desain final sudah diselesaikan di v1.3:
+**Pembagian otoritas:** PRD = sumber kebenaran **perilaku**; desain = sumber kebenaran **tampilan**. Semua perbedaan yang diketahui antara PRD v1.2 dan desain final sudah diselesaikan di v1.3; perbedaan yang ditemukan selama Fase 0 diselesaikan di v1.4:
 
 | Hal | Keputusan final | Referensi |
 |---|---|---|
@@ -1889,7 +1911,8 @@ Desain final dibuat di Claude Design dan diekspor sebagai handoff bundle. Di rep
 | Alur tinjau konten | 18d (18a–18c ditolak) | Q32, §3.2 |
 | Hero Beranda | Copy dari 1a; visual ilustrasi 6a (dipasang seperti 6b), bukan kartu video | Q33, Q37, §7.3 |
 | Versi Next.js | 16.3.x (Active LTS), minimal 16.3.7 setelah 30 Sep 2026 | Q36, §9.2 |
-| Route daftar konten & keputusan terbit | `/cms/konten` (19c, 19d) | §7.2 |
+| Rute CMS (v1.4, D-10) | Satu daftar per jenis: `/cms/artikel`, `/cms/kursus`, `/cms/quiz`; `/cms/konten` = antrean status + keputusan terbit (19d); menu Materi disembunyikan | Q42, §7.2 |
+| Audit log (v1.4, D-11) | Hanya SUPER_ADMIN; menu Audit log di sidebar admin 19b tidak berlaku | Q43, §3.2 |
 | STR & nomor WhatsApp | Dummy selama desain & pengembangan; asli sebelum rilis | OQ-08, OQ-09, §14.9 |
 | DNS & perlindungan edge | Vercel DNS + Vercel Firewall; Cloudflare hanya untuk R2 & Turnstile | Q38, §9.2, §10.1, §12.4 |
 | Hosting fase penelitian | Vercel Hobby; keputusan Pro/Workers sebelum rilis publik | OQ-12, §9.4 |
@@ -1897,6 +1920,7 @@ Desain final dibuat di Claude Design dan diekspor sebagai handoff bundle. Di rep
 | Aturan soal quiz (D-06) | Pilihan ganda tepat 4 opsi; benar/salah 2 opsi; pembahasan wajib. Teks "2–5 opsi" di layar 22c tidak berlaku | Q40, QZ-04, §11.4 |
 | Fitur S/C CMS & notifikasi | Fase 2 | Q34, §6.7, §6.8 |
 | Navigasi | Hamburger < 640, bottom nav < 768 | Q35, §7.1 |
+| Isi header & header ponsel member (v1.4, D-08, D-09) | Isi per lebar; Tentang tetap di header member; ponsel member = logo + avatar, nav utama di drawer akun | Q41, §7.1 |
 | Player desktop | Daftar materi di kanan | §14.1 |
 | Bobot font | Desain menulis 500/600/800; kode memakai bobot Lato yang dirender: 400/700/900 | `TOKENS.md` |
 | Ulangi kursus | Membuka lagi semua quiz; nilai siklus lama tetap tersimpan (catatan lama di layar 13b tidak berlaku) | §6.3.3, desain 16a–16b |

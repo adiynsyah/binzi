@@ -1,17 +1,17 @@
 # CLAUDE.md — BINZI
 
-> File ini ada di root repositori dan dibaca otomatis di setiap sesi. Sumber: handoff desain + PRD v1.3.
+> File ini ada di root repositori dan dibaca otomatis di setiap sesi. Sumber: handoff desain + PRD v1.4.
 
 ## Sumber kebenaran
-- **PRD v1.3 = perilaku.** Desain = tampilan. PRD v1.3 sudah menyerap semua keputusan desain final, jadi jika menemukan pertentangan: **ikuti PRD**, lalu catat perbedaannya di PR.
-- Jangan pernah membaca `docs/prd/PRD-v1.3.md` utuh atau `docs/design/source/` utuh. Muat hanya bagian yang dibutuhkan lewat indeks di bawah.
+- **PRD v1.4 = perilaku.** Desain = tampilan. PRD sudah menyerap semua keputusan desain final (v1.3) dan keputusan selama Fase 0 (v1.4), jadi jika menemukan pertentangan: **ikuti PRD**, lalu catat perbedaannya di PR.
+- Jangan pernah membaca `docs/prd/PRD-v1.4.md` utuh atau `docs/design/source/` utuh. Muat hanya bagian yang dibutuhkan lewat indeks di bawah.
 - **Isi gizi/kesehatan di desain adalah pengisi tata letak.** Jangan dipakai untuk seed, konten, atau contoh data; jangan pula mengarang klaim gizi baru (PRD §13.4). Untuk seed, pakai teks netral yang jelas-jelas dummy.
 
 ## Sebelum membuat UI apa pun
 1. Cari route di `docs/design/handoff/SCREENS.md` → catat ID layar utama + ID state-nya.
 2. Untuk tiap ID: baca `docs/design/screens/<ID>.md` (status, copy, warna → token) dan **lihat** `docs/design/screens/<ID>.png`. Buka `<ID>.html` hanya bila perlu ukuran/struktur persis.
 3. Layar berstatus ⛔ (18a–18c) tidak boleh dibangun. Layar ℹ️ hanya referensi.
-4. Pakai komponen dari `docs/design/handoff/COMPONENTS.md`. **Periksa `src/components/` dulu** — jangan membuat versi kedua dari komponen yang sudah ada.
+4. Pakai komponen dari `docs/design/handoff/COMPONENTS.md`. **Periksa `src/components/` dulu** — jangan membuat versi kedua dari komponen yang sudah ada. Isi halaman `(public)` dan `(learn)` selalu dibungkus `PageContainer` (`src/components/shared/page-container.tsx`): isi maks 1200, padding 16/28/40 di luarnya.
 5. Nilai visual hanya dari `docs/design/handoff/TOKENS.md`. **Jangan menyalin hex dari desain** — pakai kolom "Token" di `<ID>.md`.
 6. Baca bagian PRD yang relevan lewat `docs/prd/INDEX.md` (tabel "Bagian yang dibaca per fase").
 7. Copy dari docs/design/screens/*.md: ID dalam kurung seperti (AUTH-07),

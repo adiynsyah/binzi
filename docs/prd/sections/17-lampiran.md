@@ -1,4 +1,4 @@
-> Potongan dari **PRD BINZI v1.3** (`../PRD-v1.3.md`). Rujukan silang "§x" menunjuk bagian lain — cari berkasnya di `../INDEX.md`. Jika potongan ini dan PRD utuh berbeda, PRD utuh yang berlaku.
+> Potongan dari **PRD BINZI v1.4** (`../PRD-v1.4.md`). Rujukan silang "§x" menunjuk bagian lain — cari berkasnya di `../INDEX.md`. Jika potongan ini dan PRD utuh berbeda, PRD utuh yang berlaku.
 
 ## 17. Lampiran
 
@@ -72,21 +72,21 @@ Di luar tabel di atas, ada satu biaya alat kerja yang nyata: **langganan Claude 
 
 *Dokumen ini adalah baseline v1.0. Tidak ada pertanyaan yang memblokir dimulainya pengembangan. Langkah berikutnya: wireframe untuk empat halaman publik (Beranda — termasuk section Tanya Ahli Gizi, Katalog Kursus, Detail Kursus, Artikel), lalu penyusunan backlog teknis per sprint. Perubahan setelah dokumen ini disetujui dicatat sebagai v1.1, v1.2, dan seterusnya.*
 
-### 17.4 Dokumen Desain & Keputusan yang Diserap (v1.3)
+### 17.4 Dokumen Desain & Keputusan yang Diserap (v1.3, v1.4)
 
 Desain final dibuat di Claude Design dan diekspor sebagai handoff bundle. Di repositori kode, dokumen disusun sebagai berikut:
 
 | Lokasi | Isi |
 |---|---|
 | `CLAUDE.md` (root) | Aturan yang dibaca AI agent di setiap sesi |
-| `docs/prd/` | PRD ini — utuh (`PRD-v1.3.md`) dan dipecah per bagian (`INDEX.md` sebagai pintu masuk) |
+| `docs/prd/` | PRD ini — utuh (`PRD-v1.4.md`) dan dipecah per bagian (`INDEX.md` sebagai pintu masuk) |
 | `docs/design/handoff/` | `README.md`, `TOKENS.md`, `COMPONENTS.md`, `SCREENS.md` |
 | `docs/design/screens/` | Tiga berkas per ID layar: `<ID>.png` (screenshot), `<ID>.md` (rute, status, copy, pemetaan warna → token), `<ID>.html` (markup hasil render). Indeks: `INDEX.md` |
 | `docs/design/OPEN-ISSUES.md` | Hal desain yang masih perlu diputuskan |
 | `docs/design/source/` | Kanvas desain asli (`.dc.html`) untuk dibuka di browser |
 | `public/brand/` | Logo & foto ahli gizi |
 
-**Pembagian otoritas:** PRD = sumber kebenaran **perilaku**; desain = sumber kebenaran **tampilan**. Semua perbedaan yang diketahui antara PRD v1.2 dan desain final sudah diselesaikan di v1.3:
+**Pembagian otoritas:** PRD = sumber kebenaran **perilaku**; desain = sumber kebenaran **tampilan**. Semua perbedaan yang diketahui antara PRD v1.2 dan desain final sudah diselesaikan di v1.3; perbedaan yang ditemukan selama Fase 0 diselesaikan di v1.4:
 
 | Hal | Keputusan final | Referensi |
 |---|---|---|
@@ -96,7 +96,8 @@ Desain final dibuat di Claude Design dan diekspor sebagai handoff bundle. Di rep
 | Alur tinjau konten | 18d (18a–18c ditolak) | Q32, §3.2 |
 | Hero Beranda | Copy dari 1a; visual ilustrasi 6a (dipasang seperti 6b), bukan kartu video | Q33, Q37, §7.3 |
 | Versi Next.js | 16.3.x (Active LTS), minimal 16.3.7 setelah 30 Sep 2026 | Q36, §9.2 |
-| Route daftar konten & keputusan terbit | `/cms/konten` (19c, 19d) | §7.2 |
+| Rute CMS (v1.4, D-10) | Satu daftar per jenis: `/cms/artikel`, `/cms/kursus`, `/cms/quiz`; `/cms/konten` = antrean status + keputusan terbit (19d); menu Materi disembunyikan | Q42, §7.2 |
+| Audit log (v1.4, D-11) | Hanya SUPER_ADMIN; menu Audit log di sidebar admin 19b tidak berlaku | Q43, §3.2 |
 | STR & nomor WhatsApp | Dummy selama desain & pengembangan; asli sebelum rilis | OQ-08, OQ-09, §14.9 |
 | DNS & perlindungan edge | Vercel DNS + Vercel Firewall; Cloudflare hanya untuk R2 & Turnstile | Q38, §9.2, §10.1, §12.4 |
 | Hosting fase penelitian | Vercel Hobby; keputusan Pro/Workers sebelum rilis publik | OQ-12, §9.4 |
@@ -104,6 +105,7 @@ Desain final dibuat di Claude Design dan diekspor sebagai handoff bundle. Di rep
 | Aturan soal quiz (D-06) | Pilihan ganda tepat 4 opsi; benar/salah 2 opsi; pembahasan wajib. Teks "2–5 opsi" di layar 22c tidak berlaku | Q40, QZ-04, §11.4 |
 | Fitur S/C CMS & notifikasi | Fase 2 | Q34, §6.7, §6.8 |
 | Navigasi | Hamburger < 640, bottom nav < 768 | Q35, §7.1 |
+| Isi header & header ponsel member (v1.4, D-08, D-09) | Isi per lebar; Tentang tetap di header member; ponsel member = logo + avatar, nav utama di drawer akun | Q41, §7.1 |
 | Player desktop | Daftar materi di kanan | §14.1 |
 | Bobot font | Desain menulis 500/600/800; kode memakai bobot Lato yang dirender: 400/700/900 | `TOKENS.md` |
 | Ulangi kursus | Membuka lagi semua quiz; nilai siklus lama tetap tersimpan (catatan lama di layar 13b tidak berlaku) | §6.3.3, desain 16a–16b |
