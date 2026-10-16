@@ -13,6 +13,7 @@ import {
   MEMBER_NAV_ITEMS,
   PUBLIC_HREFS,
 } from "./nav-items";
+import { PageContainer } from "./page-container";
 
 /*
  * Member header (card A-14b) — the A-14a skeleton with the guest chrome
@@ -35,12 +36,7 @@ import {
 export function MemberHeader({ user }: { user: MemberUser }) {
   return (
     <header className="sticky top-0 z-30 border-b border-border-soft bg-surface">
-      <div
-        className={cn(
-          "mx-auto flex max-w-content items-center px-4 sm:px-7 lg:px-10",
-          HEADER_HEIGHT_CLASS,
-        )}
-      >
+      <PageContainer className={cn("flex items-center", HEADER_HEIGHT_CLASS)}>
         {/* < 640 the logo leads from the LEFT (13d) — no centered wordmark,
             no hamburger; the drawer covers navigation. */}
         <Link href={PUBLIC_HREFS.home}>
@@ -73,7 +69,7 @@ export function MemberHeader({ user }: { user: MemberUser }) {
           {/* ≥ 640: one dropdown, two trigger shapes (8t avatar, 13a pill). */}
           <AccountDropdown user={user} />
         </div>
-      </div>
+      </PageContainer>
     </header>
   );
 }

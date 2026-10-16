@@ -6,6 +6,7 @@ import { buttonVariants } from "../ui/button-variants";
 import { MainNav } from "./main-nav";
 import { MobileMenu } from "./mobile-menu";
 import { HEADER_HEIGHT_CLASS, PUBLIC_HREFS } from "./nav-items";
+import { PageContainer } from "./page-container";
 
 /*
  * Guest header (card A-14a) — sticky, surface background, border-soft rule,
@@ -27,12 +28,7 @@ import { HEADER_HEIGHT_CLASS, PUBLIC_HREFS } from "./nav-items";
 export function SiteHeader() {
   return (
     <header className="sticky top-0 z-30 border-b border-border-soft bg-surface">
-      <div
-        className={cn(
-          "mx-auto flex max-w-content items-center px-4 sm:px-7 lg:px-10",
-          HEADER_HEIGHT_CLASS,
-        )}
-      >
+      <PageContainer className={cn("flex items-center", HEADER_HEIGHT_CLASS)}>
         <MobileMenu />
         <Link
           href={PUBLIC_HREFS.home}
@@ -90,7 +86,7 @@ export function SiteHeader() {
             Daftar Gratis
           </Link>
         </div>
-      </div>
+      </PageContainer>
     </header>
   );
 }

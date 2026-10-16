@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { PUBLIC_HREFS } from "./nav-items";
+import { PageContainer } from "./page-container";
 
 /*
  * Footer (card A-14a; screen 1a on ink-surface, stacked per 1d on phones).
@@ -69,7 +70,7 @@ function FooterColumn({
 export function SiteFooter() {
   return (
     <footer className="bg-ink-surface [--focus-ring:var(--surface)]">
-      <div className="mx-auto max-w-content px-4 py-14 sm:px-7 lg:px-10">
+      <PageContainer className="py-14">
         <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.35fr)_repeat(4,minmax(0,1fr))]">
           <div className="sm:col-span-2 lg:col-span-1">
             <Image
@@ -107,7 +108,7 @@ export function SiteFooter() {
         <p className="mt-11 font-mono text-[12.5px] font-medium text-ink-surface-text">
           © {new Date().getFullYear()} BINZI
         </p>
-      </div>
+      </PageContainer>
     </footer>
   );
 }
