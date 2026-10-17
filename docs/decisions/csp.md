@@ -225,3 +225,86 @@ Saat ini pelanggaran hanya terlihat di konsol (tanpa `report-uri`/
 terpasang — tanpa membuka endpoint untuk abuse (rate limit + validasi bentuk
 laporan). Alternatif termurah: `report-uri` langsung ke endpoint Sentry
 `{project}/security/?sentry_key=…` bila proyek Sentry sudah ada.
+
+## Penerapan (A-16b)
+
+Ditegakkan 17 Okt 2026 (kartu A-16b, PR sesuai kartu): **satu** header
+`Content-Security-Policy` persis §12.5 v1.5 di semua rute lewat
+`next.config.ts`; header `Content-Security-Policy-Report-Only` dari A-16
+**dihapus** (tanpa endpoint pelaporan, ia hanya menambah kebisingan konsol).
+Empat header §12.5 lainnya tidak berubah. Tambahan per lingkungan, sumber
+toolbar Vercel **selalu setelah** sumber dasar §12.5:
+
+- **Development** (`NODE_ENV=development`): `'unsafe-eval'` di `script-src`.
+  HMR `next dev` berfungsi tanpa tambahan `connect-src` — `'self'` (CSP3)
+  sudah mencakup websocket host sama.
+- **Preview Vercel** (`VERCEL_ENV=preview`, dibaca saat build): sumber
+  toolbar persis dokumentasi Vercel (vercel.live, ws-us3.pusher.com,
+  vercel.com, assets.vercel.com, `blob:` di `img-src`).
+- **Production** (`VERCEL_ENV=production` maupun build lokal/CI tanpa
+  `VERCEL_ENV`): tanpa tambahan apa pun.
+
+### Hasil audit (build produksi lokal, `next start` :3100)
+
+`curl -sI` — jumlah header per URL (semua bernilai persis §12.5 untuk CSP;
+`Report-Only` = 0 di semua URL):
+
+| URL | CSP | HSTS | XCTO | Ref-Pol | Perm-Pol | Report-Only |
+|---|---|---|---|---|---|---|
+| `/` | 1 | 1 | 1 | 1 | 1 | 0 |
+| `/masuk` | 1 | 1 | 1 | 1 | 1 | 0 |
+| `/api/auth/get-session` | 1 | 1 | 1 | 1 | 1 | 0 |
+| `/_next/static/chunks/3s6nzrbk-8mnv.js` | 1 | 1 | 1 | 1 | 1 | 0 |
+| `/brand/logo-binzi-wordmark.png` | 1 | 1 | 1 | 1 | 1 | 0 |
+
+Output build: `/` tetap ○ (statis); status rute lain tidak berubah.
+
+Audit Playwright (Chromium headless, event `securitypolicyviolation`,
+jendela 3 d / 9 d untuk halaman widget):
+
+| Halaman | enforce non-eval | enforce eval | keterangan |
+|---|---|---|---|
+| `/` | 0 | 0 | |
+| `/masuk` | 0 | 1 | probe zod (lihat bawah) |
+| `/daftar` | 0 | 1 | probe zod |
+| `/lupa-password` | 0 | 1 | probe zod |
+| `/reset-password` (tanpa token) | 0 | 0 | state link kedaluwarsa |
+| `/daftar/verifikasi` (kirim ulang, `?error=`) | 0 | 1 | probe zod |
+| `/belajar` (login) | 0 | 0 | |
+| `/cms` (login EDITOR) | 0 | 1 | probe zod, hanya pada dokumen pertama |
+| alur login penuh + Turnstile | 0 | 1 | probe zod |
+
+**Koreksi atribusi A-16:** satu-satunya pelanggaran `enforce` yang tersisa
+bukan dari skrip Turnstile, melainkan **probe `allowsEval` zod v4** —
+`new Function("")` di dalam try/catch untuk mendeteksi dukungan eval, jalan
+sekali per realm saat chunk form pertama termuat (`sourceFile` = chunk
+`/_next/static` lokal, `blockedURL` kosong). Zod sendiri mendokumentasikan
+perilaku ini di komentarnya: CSP ketat melaporkan panggilan yang tertangkap
+itu meski lemparannya ditelan; zod lalu memakai mode non-JIT. **Tidak ada
+kerusakan fungsional**: pendaftaran 200, verifikasi email sukses, login
+email + Turnstile 200, dashboard CMS termuat. Pelanggaran eval yang di A-16
+diatribusikan ke Turnstile ("muncul setelah 9 d") memiliki tanda tangan
+yang sama dan kini terbukti berasal dari probe zod ini. Opsi pembersihan
+menyusul bila diinginkan: `globalConfig.jitless` zod (di luar lingkup A-16b).
+
+**Turnstile di headless:** widget kunci uji menghasilkan token (tombol
+submit aktif, alur lengkap lulus) tanpa merender iframe yang terlihat di
+Chromium headless; nol pelanggaran eval yang bersumber
+`challenges.cloudflare.com`. Widget produksi (kunci asli) tetap diverifikasi
+pasca-merge sesuai butir keputusan no. 2 di atas.
+
+**Development:** `next dev` memuat halaman + HMR terbukti (ubah satu teks di
+Beranda, tampil tanpa reload manual); nol pelanggaran (`'unsafe-eval`
+membuat probe zod lolos tanpa peristiwa).
+
+### Uji mutasi (tes tiga+satu lingkungan, `src/config/security-headers.test.ts`)
+
+| Mutasi | Hasil yang diharapkan & tercapai |
+|---|---|
+| `isDev = true` (`'unsafe-eval'` bocor ke production) | kedua kasus production merah; preview merah; dev tetap hijau (3 gagal) |
+| `isVercelPreview = true` (`vercel.live` bocor ke production) | kedua kasus production merah; dev merah (3 gagal) |
+| `script-src-attr 'none'` dihapus | keempat kasus merah |
+| pengecekan preview → `Boolean(VERCEL_ENV)` (truthy) | hanya kasus Vercel Production (VERCEL_ENV=production) yang merah |
+
+Akun uji audit: `a16b.editor@example.com` (EDITOR) — dihapus dengan prosedur
+pembersihan di STATUS setelah verifikasi produksi.
