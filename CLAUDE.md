@@ -41,7 +41,7 @@ Modul berkomunikasi lewat `service.ts`; **tidak boleh** saling mengimpor `querie
 - Warna: `text #1a1614` · `text-muted #5b554f` · `border #e7e2db` · `primary #f04030` · `primary-deep #c42d1e` · `primary-tint #ffeae6` · `success #157f5f` · `danger #b3261e`. Warna lain hanya dari TOKENS.md.
 - Font: **Lato** 400/700/900 (jangan 500/600/800) · **IBM Plex Mono** 400/500 untuk label mono & angka.
 - Spasi kelipatan 4 · radius kartu 14, tombol 8–10, pil 999 · kartu tanpa bayangan · target sentuh ≥ 44px.
-- Mobile-first: gaya dasar untuk 360px, tambah dengan `min-width`. Ambang: < 640 hamburger & sheet · < 768 bottom nav area belajar · ≥ 1024 desktop.
+- Mobile-first: gaya dasar untuk 360px, tambah dengan `min-width`. Ambang: < 640 hamburger & sheet · < 768 bottom nav area belajar · ≥ 1024 desktop. Prefiks Tailwind: `sm:` = 640 · `md:` = 768 (**hanya** bottom nav area belajar) · `lg:` = 1024 — ambang 640 selalu `sm:`, bukan `md:`.
 
 ## Aturan keamanan (PRD §12)
 - SELALU serialisasi eksplisit; JANGAN kembalikan objek DB mentah.
@@ -51,6 +51,7 @@ Modul berkomunikasi lewat `service.ts`; **tidak boleh** saling mengimpor `querie
 - Jangan menulis secret ke kode, tes, atau log. Semua konfigurasi lewat `src/config` (env tervalidasi Zod).
 - JANGAN membaca, menampilkan, atau mengubah .env, .env.local, atau .env.*.local — termasuk lewat perintah shell seperti cat/grep. Jika butuh nilai env, minta pemilik produk mengisinya sendiri.
 - Kode di kategori "berisiko tinggi" (PRD §13.4) wajib disertai daftar item checklist §12.6 yang relevan di ringkasan PR.
+- **Akun uji:** sandi akun uji tidak pernah ditulis di PR, commit, komentar, atau berkas repo — repo ini publik dan DB dev juga dipakai Production. Di PR cantumkan email & peran saja; sandi cukup disebut ke pemilik produk di sesi. Akun uji memakai domain `@example.com`.
 
 ## Aturan quiz (PRD §6.3)
 - `is_correct` & pembahasan tidak pernah dikirim sebelum submit.
