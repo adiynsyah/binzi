@@ -1,4 +1,4 @@
-> Potongan dari **PRD BINZI v1.4** (`../PRD-v1.4.md`). Rujukan silang "§x" menunjuk bagian lain — cari berkasnya di `../INDEX.md`. Jika potongan ini dan PRD utuh berbeda, PRD utuh yang berlaku.
+> Potongan dari **PRD BINZI v1.5** (`../PRD-v1.5.md`). Rujukan silang "§x" menunjuk bagian lain — cari berkasnya di `../INDEX.md`. Jika potongan ini dan PRD utuh berbeda, PRD utuh yang berlaku.
 
 ## 17. Lampiran
 
@@ -79,7 +79,7 @@ Desain final dibuat di Claude Design dan diekspor sebagai handoff bundle. Di rep
 | Lokasi | Isi |
 |---|---|
 | `CLAUDE.md` (root) | Aturan yang dibaca AI agent di setiap sesi |
-| `docs/prd/` | PRD ini — utuh (`PRD-v1.4.md`) dan dipecah per bagian (`INDEX.md` sebagai pintu masuk) |
+| `docs/prd/` | PRD ini — utuh (`PRD-v1.5.md`) dan dipecah per bagian (`INDEX.md` sebagai pintu masuk) |
 | `docs/design/handoff/` | `README.md`, `TOKENS.md`, `COMPONENTS.md`, `SCREENS.md` |
 | `docs/design/screens/` | Tiga berkas per ID layar: `<ID>.png` (screenshot), `<ID>.md` (rute, status, copy, pemetaan warna → token), `<ID>.html` (markup hasil render). Indeks: `INDEX.md` |
 | `docs/design/OPEN-ISSUES.md` | Hal desain yang masih perlu diputuskan |

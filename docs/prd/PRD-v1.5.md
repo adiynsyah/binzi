@@ -4,8 +4,8 @@
 | Field | Value |
 |---|---|
 | Nama Produk | **BINZI** (nama final; "NutriLearn" di versi sebelumnya hanya working title) |
-| Versi Dokumen | **1.4** |
-| Tanggal | 16 Oktober 2026 (baseline v1.0: 7 September 2026) |
+| Versi Dokumen | **1.5** |
+| Tanggal | 17 Oktober 2026 (baseline v1.0: 7 September 2026) |
 | Target Platform | Web — desktop, tablet, dan mobile browser (responsive penuh) |
 | Prinsip Biaya | **Zero-cost stack** untuk MVP; jalur upgrade berbayar terdefinisi |
 | Target Rilis MVP | ~12 minggu sejak kick-off |
@@ -15,6 +15,7 @@
 | Versi | Tanggal | Perubahan |
 |---|---|---|
 | 1.0 | 7 Sep 2026 | Baseline |
+| 1.5 | 17 Okt 2026 | **Keputusan CSP** (kartu A-16, proposal `docs/decisions/csp.md`): opsi **(b+)** — CSP tanpa nonce ditegakkan di semua rute lewat `next.config.ts`: `'unsafe-inline'` untuk skrip & gaya, `script-src-attr 'none'`, tanpa `'unsafe-eval'` di produksi. ISR (§10.4) tetap; proxy tetap guard login. Pertahanan XSS untuk konten kaya tetap §12.3. Opsi (d) — nonce di area login — ditinjau ulang saat pratinjau CMS dibangun (S1). Keputusan Q45. Terdampak: header, §2, §12.5, §17.4 (nama berkas) |
 | 1.4 | 16 Okt 2026 | **Navigasi & CMS setelah Fase 0** (tinjauan kartu A-14 dan A-15): isi header per lebar dan header ponsel member (D-08, D-09); tujuan setelah login tanpa `?next=` — MEMBER ke `/belajar`, staf ke `/cms`; **sitemap CMS final** (D-10): satu daftar per jenis konten (`/cms/artikel`, `/cms/kursus`, `/cms/quiz`), `/cms/konten` menjadi antrean status (Persetujuan untuk admin; Menunggu persetujuan & Perlu revisi untuk ahli gizi), menu Materi disembunyikan; **Audit log khusus SUPER_ADMIN** (D-11; menu Audit log di 19b untuk Admin tidak berlaku); label peran di antarmuka; endpoint CMS di `/api/cms/*` (V-04). Keputusan Q41–Q44. Terdampak: header, §2, §3.2, §7.1, §7.2, §12.6, §17.4 |
 | 1.3 | 27 Sep 2026 | **Menyerap keputusan desain final (handoff Claude Design BINZI)** sehingga PRD kembali menjadi satu-satunya sumber kebenaran perilaku: nama produk BINZI; tombol WhatsApp netral (bukan hijau); lebar uji desktop 1280 (+1440 untuk Beranda & Masuk); hero memakai ilustrasi animasi; alur tinjau konten 18d; ambang navigasi & bottom nav; daftar materi player di kanan; CMS-13/14/15, NTF-03/04 dipindah ke fase 2; sitemap CMS disesuaikan; status pertanyaan terbuka diperbarui; §17.4 baru (peta dokumen desain); **Next.js 16.3 (Active LTS)**; judul hero dari 1a; route `/cms/konten` final; STR & nomor WhatsApp dummy selama pengembangan; **DNS & perlindungan edge di Vercel** (Cloudflare hanya untuk R2 & Turnstile); Vercel Hobby selama fase penelitian; konteks penelitian dijawab (tanpa alur etik/consent khusus, pendaftaran umum, tanpa ekspor analisis, retensi selama akun aktif); **aturan soal: pilihan ganda tepat 4 opsi, pembahasan wajib**. Keputusan K-15, Q29–Q40. Terdampak: header, §0, §1, §2, §3.2, §5.3, §5.4, §6.7, §6.8, §7.1–7.3, §8.7, §6.3, §8.4, §9.2, §9.4, §10.1, §10.4, §11.2, §11.4, §12.4, §13.1, §15, §13.4, §13.5, §14.1, §14.9, §16, §17 |
 | 1.2 | 24 Sep 2026 | **Halaman `/konsultasi` dihapus** — konsultasi menjadi section "Tanya Ahli Gizi" di Beranda; item nav "Konsultasi" melakukan scroll otomatis ke section tersebut (K-10 direvisi, Q28). Terdampak: §3, §4.1, §5, §7.1–7.4, §10.2, §11, §13.1, §13.5, §14.7, §14.9, §15, §16, §17.2 |
@@ -125,6 +126,7 @@ Setiap halaman **wajib** diuji pada minimal 3 lebar: **360px, 768px, dan 1280px*
 | Q42 | Rute menu CMS (D-10)? | **Satu daftar per jenis konten**, seperti catatan desain 19c: Artikel `/cms/artikel`, Kursus `/cms/kursus`, Quiz `/cms/quiz`, Media `/cms/media`. **`/cms/konten` = antrean status lintas jenis** + keputusan terbit (19d): menu "Persetujuan" (ADMIN+) dan "Menunggu persetujuan" / "Perlu revisi" (ahli gizi, kontennya sendiri). **Menu Materi disembunyikan** — tidak ada layar daftar materi; materi selalu dibuka dari builder kursus | Menggantikan v1.3: `/cms/artikel` bukan lagi editor (editor pindah ke `/cms/artikel/{id}`), `/cms/konten` bukan lagi daftar semua konten. Rute baru `/cms/quiz` (EDITOR+) di matriks RBAC (§7.2) |
 | Q43 | Siapa yang melihat Audit log (D-11)? | **SUPER_ADMIN saja** (§3.2; catatan desain 27a/27c) | Menu "Audit log" di sidebar admin 19b tidak berlaku. Riwayat tindakan yang tampil di layar lain (Aktivitas terakhir 19b, riwayat admin 25b) tetap boleh untuk ADMIN |
 | Q44 | Ke mana pengguna diarahkan setelah login tanpa tujuan? | **`?next=` yang sah selalu menang.** Tanpa itu: MEMBER → `/belajar`; EDITOR, ADMIN, SUPER_ADMIN → `/cms` | MEMBER berlaku sejak PR #54 (`POST_LOGIN_DEFAULT_PATH`). Pendaratan staf butuh logika server berbasis peran setelah login — chore tersendiri setelah kartu A-15, sebelum A-19. Staf tetap bisa membuka area belajar lewat nav publik |
+| Q45 | CSP: nonce atau tanpa nonce? (A-16, `docs/decisions/csp.md`) | **Opsi (b+): tanpa nonce**, ditegakkan di semua rute — `script-src 'self' 'unsafe-inline'` + Turnstile, `script-src-attr 'none'`, `style-src 'self' 'unsafe-inline'`, tanpa `'unsafe-eval'` di produksi (§12.5) | Nonce memaksa semua halaman dinamis (ISR hilang, biaya Vercel naik) dan menuntut restrukturisasi proxy yang kini berperan sebagai guard login. Audit A-16: nol pelanggaran `script-src-attr`, dan Turnstile (kunci uji) tetap berfungsi tanpa `'unsafe-eval'`. Untuk konten terbit, (b+) dan (d) sama-sama bergantung pada §12.3; (d) baru menambah perlindungan pada pratinjau di area login — ditinjau ulang saat pratinjau CMS dibangun (S1). Widget Turnstile produksi diverifikasi setelah penegakan; bila butuh eval, `'unsafe-eval'` menjadi pengecualian tercatat. Penerapan: kartu A-16b |
 
 ---
 
@@ -1346,14 +1348,21 @@ Ditambah Vercel Firewall di lapisan edge (aktifkan *Attack Challenge Mode* bila 
 
 ### 12.5 Header Keamanan
 ```
-Content-Security-Policy: default-src 'self'; script-src 'self' 'nonce-{random}';
-  img-src 'self' data: https://<r2-domain>; media-src https://<r2-domain>;
-  frame-ancestors 'none'; base-uri 'self'; form-action 'self'
+Content-Security-Policy: default-src 'self';
+  script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com; script-src-attr 'none';
+  style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; media-src 'self';
+  connect-src 'self'; frame-src https://challenges.cloudflare.com;
+  frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'
 Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
 X-Content-Type-Options: nosniff
 Referrer-Policy: strict-origin-when-cross-origin
 Permissions-Policy: camera=(), microphone=(), geolocation=()
 ```
+
+**CSP tanpa nonce (v1.5, Q45 — opsi (b+) di `docs/decisions/csp.md`).** Satu header ditegakkan untuk semua rute lewat `next.config.ts`, sehingga halaman publik tetap statis/ISR (§10.4). Skrip inline buatan Next diizinkan lewat `'unsafe-inline'`; `script-src-attr 'none'` memblokir atribut event inline (`onerror=…`). Pertahanan utama XSS untuk konten kaya tetap §12.3. Ketentuan tambahan:
+- `'unsafe-eval'` hanya saat development. Di Preview Vercel, sumber toolbar Vercel (`vercel.live` dkk., sesuai dokumentasi Vercel) boleh ditambahkan **hanya** bila `VERCEL_ENV=preview`.
+- Domain R2 ditambahkan ke `img-src`/`media-src` saat media pertama kali dimuat dari R2 di peramban (S1/S2) — bukan sebelumnya.
+- Opsi (d) — nonce di area login — ditinjau ulang saat pratinjau CMS dibangun (S1).
 
 Ditambah: Dependabot, `npm audit` di CI, secret di secret manager (tidak pernah di repo), `.env` divalidasi Zod saat startup.
 
@@ -1894,7 +1903,7 @@ Desain final dibuat di Claude Design dan diekspor sebagai handoff bundle. Di rep
 | Lokasi | Isi |
 |---|---|
 | `CLAUDE.md` (root) | Aturan yang dibaca AI agent di setiap sesi |
-| `docs/prd/` | PRD ini — utuh (`PRD-v1.4.md`) dan dipecah per bagian (`INDEX.md` sebagai pintu masuk) |
+| `docs/prd/` | PRD ini — utuh (`PRD-v1.5.md`) dan dipecah per bagian (`INDEX.md` sebagai pintu masuk) |
 | `docs/design/handoff/` | `README.md`, `TOKENS.md`, `COMPONENTS.md`, `SCREENS.md` |
 | `docs/design/screens/` | Tiga berkas per ID layar: `<ID>.png` (screenshot), `<ID>.md` (rute, status, copy, pemetaan warna → token), `<ID>.html` (markup hasil render). Indeks: `INDEX.md` |
 | `docs/design/OPEN-ISSUES.md` | Hal desain yang masih perlu diputuskan |

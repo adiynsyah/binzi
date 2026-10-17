@@ -4,7 +4,7 @@ Never edit docs/prd/sections/ by hand: change the full PRD, bump its version,
 then regenerate. Verified to reproduce the v1.3 split byte for byte.
 
 Usage (from the repo root):
-  python3 scripts/split-prd.py docs/prd/PRD-v1.4.md docs/prd/sections 1.4 PRD-v1.4.md
+  python3 scripts/split-prd.py docs/prd/PRD-v1.5.md docs/prd/sections 1.5 PRD-v1.5.md
 
 A new top-level section (## N.) or a new ### 6.x / ### 13.x subsection needs
 a filename in FILES below — the script fails loudly until it has one.

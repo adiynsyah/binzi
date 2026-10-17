@@ -1,9 +1,12 @@
 # Proposal CSP BINZI — nonce vs ISR (kartu A-16)
 
-> **Status: PROPOSAL, bukan keputusan.** Dokumen ini mengumpulkan bukti dan
-> membandingkan opsi. Keputusan diambil pemilik produk, lalu dicatat di PRD
-> (naikkan versi). Sampai itu terjadi, CSP skrip/gaya/koneksi tetap
-> report-only.
+> **Status: DIPUTUSKAN 17 Okt 2026 — opsi (b+)** (PRD v1.5, Q45, §12.5).
+> CSP tanpa nonce ditegakkan di semua rute lewat `next.config.ts`:
+> `'unsafe-inline'` untuk skrip & gaya, `script-src-attr 'none'`, tanpa
+> `'unsafe-eval'` di produksi. Penerapan: kartu A-16b. Opsi (d) ditinjau
+> ulang saat pratinjau CMS dibangun (S1). Isi di bawah adalah proposal dan
+> bukti yang menjadi dasar keputusan, dengan dua koreksi bertanda
+> **[Koreksi 17 Okt]**.
 
 ## Kondisi saat ini (sudah ditegakkan sejak A-16)
 
@@ -147,9 +150,13 @@ https://challenges.cloudflare.com` (dan `style-src 'self' 'unsafe-inline'`).
   kebijakan** yang sama ada nonce/hash. Opsi ini tetap bisa dipakai pada
   rute publik sementara area login memakai kebijakan nonce (opsi (d)),
   karena (d) memakai kebijakan berbeda per rute dan beberapa header CSP
-  dievaluasi browser sebagai irisan (yang paling ketat menang) — kebijakan
-  global dari `next.config.ts` dapat berdampingan dengan kebijakan nonce
-  dari proxy.
+  dievaluasi browser sebagai irisan (yang paling ketat menang).
+  **[Koreksi 17 Okt]** Itu perilaku browser, belum perilaku Next: percobaan
+  Turnstile di atas mengamati Next hanya mengirim satu header untuk kunci
+  yang sama, dan belum diuji apa yang terjadi bila proxy dan `next.config.ts`
+  sama-sama memasang `Content-Security-Policy`. Kartu yang menerapkan (d)
+  wajib memverifikasinya, atau mengecualikan area login dari pola `source`
+  di `next.config.ts` sehingga setiap rute hanya punya satu kebijakan skrip.
 
 ### (b+) Varian (b): tambah `script-src-attr 'none'`
 
@@ -190,12 +197,15 @@ dinamis (ƒ di output build) dan sudah dilewati matcher proxy saat ini.
   (kebijakan CSP berbeda per area), jadi tetap kartu tersendiri — tetapi
   risikonya lebih kecil dari (a) karena matcher-nya tidak perlu meluas ke
   rute publik.
-- **Turnstile:** sama seperti (a) — `TurnstileWidget` harus meneruskan nonce
-  ke tag `api.js` (halaman login memuat widget).
+- **Turnstile: [Koreksi 17 Okt] tidak perlu nonce di opsi ini.**
+  `TurnstileWidget` hanya dipakai di form auth (`/masuk`, `/daftar`,
+  `/lupa-password`, kirim ulang verifikasi) — semuanya halaman publik di luar
+  area yang dikenai nonce, jadi widget berada di bawah kebijakan (b)/(b+).
+  Nonce untuk Turnstile hanya relevan di opsi (a).
 
 ## Yang perlu diputuskan pemilik produk
 
-1. Pilih (a), (b)/(+b), atau (d) (+(c) sebagai pelengkap integritas berkas).
+1. Pilih (a), (b)/(b+), atau (d) (+(c) sebagai pelengkap integritas berkas).
 2. **Turnstile & `'unsafe-eval'`:** percobaan kunci uji menunjukkan widget
    dan login tetap berfungsi tanpa `'unsafe-eval'` (eval terblokir tanpa
    merusak). Keputusan yang tersisa: cukup verifikasi ulang dengan widget

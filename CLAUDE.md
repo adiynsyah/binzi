@@ -1,10 +1,10 @@
 # CLAUDE.md — BINZI
 
-> File ini ada di root repositori dan dibaca otomatis di setiap sesi. Sumber: handoff desain + PRD v1.4.
+> File ini ada di root repositori dan dibaca otomatis di setiap sesi. Sumber: handoff desain + PRD v1.5.
 
 ## Sumber kebenaran
-- **PRD v1.4 = perilaku.** Desain = tampilan. PRD sudah menyerap semua keputusan desain final (v1.3) dan keputusan selama Fase 0 (v1.4), jadi jika menemukan pertentangan: **ikuti PRD**, lalu catat perbedaannya di PR.
-- Jangan pernah membaca `docs/prd/PRD-v1.4.md` utuh atau `docs/design/source/` utuh. Muat hanya bagian yang dibutuhkan lewat indeks di bawah.
+- **PRD v1.5 = perilaku.** Desain = tampilan. PRD sudah menyerap semua keputusan desain final (v1.3) dan keputusan selama Fase 0 (v1.4–v1.5), jadi jika menemukan pertentangan: **ikuti PRD**, lalu catat perbedaannya di PR.
+- Jangan pernah membaca `docs/prd/PRD-v1.5.md` utuh atau `docs/design/source/` utuh. Muat hanya bagian yang dibutuhkan lewat indeks di bawah.
 - **Isi gizi/kesehatan di desain adalah pengisi tata letak.** Jangan dipakai untuk seed, konten, atau contoh data; jangan pula mengarang klaim gizi baru (PRD §13.4). Untuk seed, pakai teks netral yang jelas-jelas dummy.
 
 ## Sebelum membuat UI apa pun

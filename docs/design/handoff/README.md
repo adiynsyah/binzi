@@ -4,7 +4,7 @@
 > Urutan baca: `README.md` → `TOKENS.md` → `COMPONENTS.md` → `SCREENS.md` → `../../prd/INDEX.md` (bagian PRD yang relevan) → `../screens/<ID>.md` + `<ID>.png` (hanya untuk layar yang sedang dikerjakan).
 
 ## Overview
-BINZI adalah platform edukasi gizi: kursus video pendek + quiz satu kesempatan, artikel yang ditinjau ahli gizi, section konsultasi WhatsApp di Beranda, area member (dashboard, Nilai Saya), dan CMS untuk ahli gizi & admin. Spesifikasi lengkap ada di `docs/prd/PRD-v1.4.md`.
+BINZI adalah platform edukasi gizi: kursus video pendek + quiz satu kesempatan, artikel yang ditinjau ahli gizi, section konsultasi WhatsApp di Beranda, area member (dashboard, Nilai Saya), dan CMS untuk ahli gizi & admin. Spesifikasi lengkap ada di `docs/prd/PRD-v1.5.md`.
 
 ## Tiga aturan yang tidak boleh dilanggar
 1. **PRD = sumber kebenaran perilaku.** File desain = sumber kebenaran tampilan. Jika keduanya bertentangan, ikuti PRD dan catat perbedaannya.
@@ -106,7 +106,7 @@ Struktur di repositori kode (v1.3):
 | `docs/design/screens/INDEX.md` | Indeks semua layar; per ID ada `<ID>.png`, `<ID>.md`, `<ID>.html` |
 | `docs/design/OPEN-ISSUES.md` | Hal desain yang masih perlu diputuskan |
 | `docs/design/source/` | Kanvas desain asli (buka `Binzi Landing Hero.dc.html` di browser). **Jangan dibaca utuh oleh AI agent** |
-| `docs/prd/PRD-v1.4.md` · `docs/prd/INDEX.md` | Spesifikasi produk utuh · peta bagian PRD |
+| `docs/prd/PRD-v1.5.md` · `docs/prd/INDEX.md` | Spesifikasi produk utuh · peta bagian PRD |
 | `CLAUDE.md` (root) | Aturan yang dibaca AI di setiap sesi |
 | `public/brand/` | Logo & foto ahli gizi |
 | Layar `10a` | Peta alur UX (interaktif di kanvas; screenshot di `screens/10a.png`) |

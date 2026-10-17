@@ -29,6 +29,7 @@
 | 23 | [A-14b](A-14b-header-member-dan-menu-akun.md) | Header member, menu akun & layout area belajar | 🤖 Agent | [A-14a](A-14a-kerangka-layout-publik.md), [A-09](A-09-better-auth-inti-email-password-sesi-rate-limit.md), [A-12](A-12-rbac-dan-proteksi-route.md) |
 | 24 | [A-15](A-15-kerangka-layout-cms.md) | Kerangka layout CMS | 🤖 Agent | [A-14b](A-14b-header-member-dan-menu-akun.md), [A-12](A-12-rbac-dan-proteksi-route.md) |
 | 25 | [A-16](A-16-header-keamanan-dan-proposal-csp.md) | Header keamanan & proposal CSP | 🤖 Agent | [A-14b](A-14b-header-member-dan-menu-akun.md) |
+| 25b | [A-16b](A-16b-penegakan-csp.md) | Penegakan CSP (opsi b+) | 🤖 Agent | [A-16](A-16-header-keamanan-dan-proposal-csp.md) |
 | 26 | [A-17](A-17-lapisan-storage-r2.md) | Lapisan storage R2 | 🤖 Agent | [A-02](A-02-konfigurasi-environment-tervalidasi-zod.md), [H-04](H-04-cloudflare-r2-bucket-dan-token.md) |
 | 27 | [A-18](A-18-health-check-dan-cron-keep-alive.md) | Health check & cron keep-alive | 🤖 Agent | [A-07](A-07-skema-drizzle-lengkap-migrasi-awal-dan-seed.md) |
 | 28 | [A-19](A-19-e2e-baseline-playwright.md) | E2E baseline (Playwright) | 🤖 Agent | [A-13](A-13-layar-autentikasi.md), [A-15](A-15-kerangka-layout-cms.md) |

@@ -78,6 +78,7 @@ Kerangka halaman publik, member, CMS, lalu keamanan, storage, cron, dan tes otom
 - [ ] **23.** 🤖 Agent · [A-14b](fase-0/A-14b-header-member-dan-menu-akun.md) — Header member, menu akun & layout area belajar
 - [ ] **24.** 🤖 Agent · [A-15](fase-0/A-15-kerangka-layout-cms.md) — Kerangka layout CMS
 - [ ] **25.** 🤖 Agent · [A-16](fase-0/A-16-header-keamanan-dan-proposal-csp.md) — Header keamanan & proposal CSP
+- [ ] **25b.** 🤖 Agent · [A-16b](fase-0/A-16b-penegakan-csp.md) — Penegakan CSP (opsi b+)
 - [ ] **26.** 🤖 Agent · [A-17](fase-0/A-17-lapisan-storage-r2.md) — Lapisan storage R2
 - [ ] **27.** 🤖 Agent · [A-18](fase-0/A-18-health-check-dan-cron-keep-alive.md) — Health check & cron keep-alive
 - [ ] **28.** 🤖 Agent · [A-19](fase-0/A-19-e2e-baseline-playwright.md) — E2E baseline (Playwright)
@@ -111,4 +112,4 @@ Dikerjakan kamu bersama ahli gizi, **tidak menunggu** tahap di atas. Konten, buk
 
 ## Keputusan yang masih kamu tunggu
 
-- [ ] **Proposal CSP** — muncul dari A-16 (tahap 6). Kamu memilih salah satu opsi.
+- [x] **Proposal CSP** — diputuskan 17 Okt: opsi (b+) (PRD v1.5 Q45), diterapkan di [A-16b](fase-0/A-16b-penegakan-csp.md).

@@ -1,4 +1,4 @@
-> Potongan dari **PRD BINZI v1.4** (`../PRD-v1.4.md`). Rujukan silang "§x" menunjuk bagian lain — cari berkasnya di `../INDEX.md`. Jika potongan ini dan PRD utuh berbeda, PRD utuh yang berlaku.
+> Potongan dari **PRD BINZI v1.5** (`../PRD-v1.5.md`). Rujukan silang "§x" menunjuk bagian lain — cari berkasnya di `../INDEX.md`. Jika potongan ini dan PRD utuh berbeda, PRD utuh yang berlaku.
 
 ## 12. Keamanan
 
@@ -46,14 +46,21 @@ Ditambah Vercel Firewall di lapisan edge (aktifkan *Attack Challenge Mode* bila 
 
 ### 12.5 Header Keamanan
 ```
-Content-Security-Policy: default-src 'self'; script-src 'self' 'nonce-{random}';
-  img-src 'self' data: https://<r2-domain>; media-src https://<r2-domain>;
-  frame-ancestors 'none'; base-uri 'self'; form-action 'self'
+Content-Security-Policy: default-src 'self';
+  script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com; script-src-attr 'none';
+  style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; media-src 'self';
+  connect-src 'self'; frame-src https://challenges.cloudflare.com;
+  frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'
 Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
 X-Content-Type-Options: nosniff
 Referrer-Policy: strict-origin-when-cross-origin
 Permissions-Policy: camera=(), microphone=(), geolocation=()
 ```
+
+**CSP tanpa nonce (v1.5, Q45 — opsi (b+) di `docs/decisions/csp.md`).** Satu header ditegakkan untuk semua rute lewat `next.config.ts`, sehingga halaman publik tetap statis/ISR (§10.4). Skrip inline buatan Next diizinkan lewat `'unsafe-inline'`; `script-src-attr 'none'` memblokir atribut event inline (`onerror=…`). Pertahanan utama XSS untuk konten kaya tetap §12.3. Ketentuan tambahan:
+- `'unsafe-eval'` hanya saat development. Di Preview Vercel, sumber toolbar Vercel (`vercel.live` dkk., sesuai dokumentasi Vercel) boleh ditambahkan **hanya** bila `VERCEL_ENV=preview`.
+- Domain R2 ditambahkan ke `img-src`/`media-src` saat media pertama kali dimuat dari R2 di peramban (S1/S2) — bukan sebelumnya.
+- Opsi (d) — nonce di area login — ditinjau ulang saat pratinjau CMS dibangun (S1).
 
 Ditambah: Dependabot, `npm audit` di CI, secret di secret manager (tidak pernah di repo), `.env` divalidasi Zod saat startup.
 
