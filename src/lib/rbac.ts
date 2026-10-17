@@ -75,6 +75,7 @@ export const ROUTE_RULES: readonly RouteRule[] = [
   { path: "/cms/konten", match: "exact", minRole: "EDITOR" },
   { path: "/cms/artikel", match: "exact", minRole: "EDITOR" },
   { path: "/cms/kursus", match: "prefix", minRole: "EDITOR" },
+  { path: "/cms/quiz", match: "prefix", minRole: "EDITOR" },
   { path: "/cms/media", match: "exact", minRole: "EDITOR" },
   // ADMIN+
   { path: "/cms/kategori", match: "exact", minRole: "ADMIN" },

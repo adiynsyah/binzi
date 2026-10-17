@@ -50,6 +50,8 @@ const GUARDED: { path: string; min: UserRole }[] = [
   { path: "/cms/artikel", min: "EDITOR" },
   { path: "/cms/kursus", min: "EDITOR" },
   { path: "/cms/kursus/1/materi/2", min: "EDITOR" },
+  { path: "/cms/quiz", min: "EDITOR" },
+  { path: "/cms/quiz/17", min: "EDITOR" },
   { path: "/cms/media", min: "EDITOR" },
   { path: "/cms/kategori", min: "ADMIN" },
   { path: "/cms/pengguna", min: "ADMIN" },
