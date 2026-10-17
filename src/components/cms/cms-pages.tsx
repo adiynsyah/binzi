@@ -7,9 +7,11 @@
 import { firstNameOf } from "../shared/member-user";
 import type { CmsUser } from "./cms-nav";
 
-/* CMS heading scale (19a): Lato 900, 28 / 1.16, letter-spacing -0.022em. */
+/* CMS heading scale (19a): Lato 900, 28 / 1.16, letter-spacing -0.022em.
+   break-words: a 40-character no-space name must never force horizontal
+   scroll at 360 (card "Selesai jika"). */
 const HEADING_CLASS =
-  "text-[28px] font-black leading-[1.16] tracking-[-0.022em] text-text";
+  "break-words text-[28px] font-black leading-[1.16] tracking-[-0.022em] text-text";
 
 /**
  * /cms heading per role: "Halo, {nama depan}" for the ahli gizi (19a) —

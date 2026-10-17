@@ -35,7 +35,7 @@ export function CmsSidebar({ groups, user }: CmsSidebarProps) {
   const label = roleLabel(user.role);
 
   return (
-    <aside className="sticky top-0 hidden h-dvh w-[248px] shrink-0 flex-col border-r border-border-soft bg-surface-2 lg:flex">
+    <aside className="sticky top-0 hidden h-dvh w-[249px] shrink-0 flex-col border-r border-border-soft bg-surface-2 lg:flex">
       {/* Brand row (19a): wordmark 22 tall + "CMS" chip, padding 18/16/14. */}
       <div className="flex flex-none items-center gap-2.5 border-b border-border-soft pb-3.5 pl-4 pr-4 pt-[18px]">
         <Link href="/cms">

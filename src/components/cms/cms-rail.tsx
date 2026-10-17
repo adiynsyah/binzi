@@ -44,7 +44,7 @@ export function CmsRail({ groups, user }: CmsRailProps) {
   );
 
   return (
-    <aside className="sticky top-0 hidden h-dvh w-[72px] shrink-0 flex-col items-center border-r border-border-soft bg-surface-2 md:flex lg:hidden">
+    <aside className="sticky top-0 hidden h-dvh w-[73px] shrink-0 flex-col items-center border-r border-border-soft bg-surface-2 md:flex lg:hidden">
       <div className="flex flex-none items-center pb-3.5 pt-[18px]">
         <Link href="/cms">
           <Image
