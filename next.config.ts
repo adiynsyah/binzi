@@ -1,28 +1,76 @@
 import type { NextConfig } from "next";
 
 const isDev = process.env.NODE_ENV === "development";
+// Read at build time on Vercel: "production" | "preview" | "development"
+// (the last only for `vercel dev`, which this app does not use).
+const isVercelPreview = process.env.VERCEL_ENV === "preview";
 
-// Security headers (card A-16, PRD §12.5) applied to every route — pages,
-// API routes, and static assets — through one catch-all source. The CSP is
-// split in two on purpose:
-// - Enforced: only directives that never touch scripts/styles/connections,
-//   so ISR pages stay static (PRD §10.4). frame-ancestors in a report-only
-//   header protects nothing — report-only never enforces.
-// - Report-only: the §12.5 target policy WITHOUT nonces, plus origins
-//   already in use (Turnstile script + frame). It records what would break
-//   if scripts were tightened today; the decision lives in
-//   docs/decisions/csp.md. R2 entries wait for A-17, Sentry for its SDK.
-// media-src 'self' is a deliberate placeholder until the R2 domain exists.
-const cspReportOnly = [
+// Content-Security-Policy (card A-16b, PRD §12.5 v1.5, decision Q45 —
+// option b+ in docs/decisions/csp.md): ONE enforced policy for every route
+// (pages, API routes, static assets) through one catch-all source, replacing
+// the enforced/report-only pair from A-16. Base sources follow §12.5 exactly;
+// per-environment additions are appended AFTER the base sources, never
+// before:
+// - development: 'unsafe-eval' in script-src for next dev tooling.
+// - Vercel preview: toolbar origins per vercel.com/docs/vercel-toolbar/
+//   managing-toolbar ("Using a Content Security Policy").
+// - production: no additions — no 'unsafe-eval', no vercel.live.
+// R2 entries wait for S1/S2, Sentry for its SDK. media-src 'self' is a
+// deliberate placeholder until the R2 domain exists.
+const scriptSrc = [
+  "'self'",
+  "'unsafe-inline'",
+  "https://challenges.cloudflare.com",
+  ...(isDev ? ["'unsafe-eval'"] : []),
+  ...(isVercelPreview ? ["https://vercel.live"] : []),
+];
+
+const styleSrc = [
+  "'self'",
+  "'unsafe-inline'",
+  ...(isVercelPreview ? ["https://vercel.live"] : []),
+];
+
+const imgSrc = [
+  "'self'",
+  "data:",
+  ...(isVercelPreview
+    ? ["https://vercel.live", "https://vercel.com", "blob:"]
+    : []),
+];
+
+const fontSrc = [
+  "'self'",
+  ...(isVercelPreview
+    ? ["https://vercel.live", "https://assets.vercel.com"]
+    : []),
+];
+
+const connectSrc = [
+  "'self'",
+  ...(isVercelPreview
+    ? ["https://vercel.live", "wss://ws-us3.pusher.com"]
+    : []),
+];
+
+const frameSrc = [
+  "https://challenges.cloudflare.com",
+  ...(isVercelPreview ? ["https://vercel.live"] : []),
+];
+
+const csp = [
   "default-src 'self'",
-  `script-src 'self' https://challenges.cloudflare.com${isDev ? " 'unsafe-eval'" : ""}`,
-  "img-src 'self' data:",
-  "font-src 'self'",
+  `script-src ${scriptSrc.join(" ")}`,
+  "script-src-attr 'none'",
+  `style-src ${styleSrc.join(" ")}`,
+  `img-src ${imgSrc.join(" ")}`,
+  `font-src ${fontSrc.join(" ")}`,
   "media-src 'self'",
-  "form-action 'self'",
-  "frame-src https://challenges.cloudflare.com",
+  `connect-src ${connectSrc.join(" ")}`,
+  `frame-src ${frameSrc.join(" ")}`,
   "frame-ancestors 'none'",
   "base-uri 'self'",
+  "form-action 'self'",
   "object-src 'none'",
 ].join("; ");
 
@@ -33,12 +81,11 @@ const securityHeaders = [
   },
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
   {
-    key: "Content-Security-Policy",
-    value: "frame-ancestors 'none'; base-uri 'self'; object-src 'none'",
+    key: "Permissions-Policy",
+    value: "camera=(), microphone=(), geolocation=()",
   },
-  { key: "Content-Security-Policy-Report-Only", value: cspReportOnly },
+  { key: "Content-Security-Policy", value: csp },
 ];
 
 const nextConfig: NextConfig = {
