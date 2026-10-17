@@ -51,7 +51,8 @@
   - ✅ A-15 kerangka layout CMS (PR #56, di-merge 17 Okt): menu per peran dari satu konfigurasi (`cms-nav.ts`) yang disaring di server (`getVisibleCmsMenu`), baris RBAC `/cms/quiz`, sidebar ≥ 1024 · rel ikon + tooltip 640–1023 · bar + drawer < 640, topbar breadcrumb, menu akun (Lihat situs + Keluar), 11 halaman "Segera hadir" ber-guard. Rencana agent ditinjau di Claude chat sebelum disetujui (filter teruji, admin + `perlu-revisi`, batas segmen). Review PR menemukan ambang `md:` (768) di empat tempat dan baris ✕ drawer yang ikut tergulir → diperbaiki di PR yang sama (`cfca622`). Uji mutasi 4/4 merah.
   - ✅ Chore pendaratan staf Q44 (PR #57, di-merge 17 Okt): `POST_LOGIN_DEFAULT_PATH` → `/masuk/lanjut`, page server `requireUser()` → `landingPathForRole` (`rbac.ts`, fail-closed): MEMBER → `/belajar`, EDITOR+ → `/cms`; `?next=` sah tetap menang. Bukti `curl` per peran di PR, uji mutasi 3/3 merah. Tinjauan rencana memangkas lingkup: `requireUser()` yang sudah ada menggantikan fungsi baca sesi baru. PR pertama yang mematuhi aturan akun uji (tanpa sandi di PR).
   - ✅ Revisi kartu A-16 (17 Okt, docs langsung ke `main`): `src/proxy.ts` tidak disentuh, CSP dua header (`frame-ancestors`/`base-uri`/`object-src` ditegakkan, sisanya report-only), bukti `curl` + konsol per halaman, empat opsi untuk `docs/decisions/csp.md`.
-  - ⏭️ Berikutnya: **hapus akun uji `@example.com`** (lihat "Pekerjaan kecil") → sesi agent **A-16** dengan kartu revisi 17 Okt → A-17 (butuh H-04) atau A-18 lebih dulu.
+  - ✅ Akun uji `@example.com` dihapus dari binzi-dev (17 Okt) — termasuk `a15.super` yang sandinya sempat tertulis di PR #56. Celah login Super admin di Production tertutup.
+  - ⏭️ Berikutnya: sesi agent **A-16** dengan kartu revisi 17 Okt → A-17 (butuh H-04) atau A-18 lebih dulu.
 - ✅ Chore: Next 16.3.7 (PR #17). Dependabot: #6 & #7 (actions major) di-merge; #8–#10 (eslint 10, typescript 7, @types/node 26) di-ignore.
 
 ## Cara kerja yang sudah berjalan
@@ -70,7 +71,7 @@
 
 ## Pekerjaan kecil yang masih terbuka
 
-- [ ] **Segera — hapus akun uji `@example.com` di binzi-dev.** Sandi akun a15 (termasuk **Super admin**) tertulis di deskripsi PR #56, dan sandi akun chore-lebar di PR #55. Repo publik dan DB ini dipakai Production, jadi siapa pun yang membaca PR bisa login. Menyunting deskripsi PR tidak cukup (riwayat suntingan GitHub publik). Supabase → binzi-dev → SQL Editor: `select email, role from users where email like '%@example.com' order by email;` (pastikan tidak ada akun asli), lalu `delete from users where email like '%@example.com';` — `sessions` & `accounts` ikut terhapus lewat cascade. Mencakup juga akun tes lama A-14b, PR #54, PR #55, dan akun `q44.*` (PR #57 — sandinya tidak di PR, tapi tetap akun staf di DB yang dipakai Production). Aturan baru di `CLAUDE.md`: sandi akun uji tidak pernah ditulis di PR.
+- [x] **Hapus akun uji `@example.com` di binzi-dev** — selesai 17 Okt: akun a15.*, q44.*, a14b.*, dan chore-* dihapus (sisa 0). Sandi yang sempat tertulis di PR #56 dan #55 tidak lagi berlaku. Untuk PR berikutnya yang membuat akun uji: ulangi pembersihan setelah merge (cara di catatan "Akun uji").
 - [x] **Chore `POST_LOGIN_DEFAULT_PATH`** → `/belajar`, termasuk tombol "Daftar dengan Google". Selesai 16 Okt (PR #54).
 - [ ] Cek Production setelah merge PR #53: login di `https://binzi.vercel.app` → header member muncul di `/`. Sejak PR #54 login mendarat di `/belajar` — buka `/` secara manual.
 - [x] **Chore lebar isi desktop** — satu pembungkus `PageContainer` (isi maks 1200, padding 16/28/40 di luarnya) untuk header, footer, dan halaman. Selesai 16 Okt (PR #55).
@@ -210,7 +211,7 @@
 - **Prefiks breakpoint Tailwind:** `sm:` = 640 (drawer ↔ menu teks/rel), `md:` = 768 **hanya** untuk bottom nav area belajar, `lg:` = 1024. A-15 sempat memakai `md:` untuk ambang 640 di empat tempat; lolos tes, Playwright, dan screenshot karena tidak ada lebar uji di 640–767 (`cfca622`). Aturan ini juga di `CLAUDE.md`.
 - **Drawer yang lebih tinggi dari layar** (drawer akun A-14b, drawer CMS A-15): baris sampul ✕ `flex-none`, hanya isi yang digulir (`overscroll-contain`, `max-height: calc(100dvh - <tinggi baris>)`). Scrim tertutup panel bila isi melebihi layar — tutup lewat ✕ atau Esc. Menu ponsel tamu A-14a menggulir seluruh panel (aman karena pendek).
 - **Menu akun CMS (A-15):** Lihat situs + Keluar (tambahan sadar — desain CMS tidak menggambar Keluar); sidebar dan rel masing-masing satu instance `DropdownMenu` dengan satu pemicu; `side="top"` + `collisionPadding={8}`. Topbar tidak sticky (tinjau ulang di S1 bila halaman panjang). Tooltip rel 300 ms (`src/components/ui/tooltip.tsx`, dari paket `radix-ui`).
-- **Akun uji:** domain `@example.com`; email & peran boleh ditulis di PR, **sandi tidak pernah** (repo publik, DB binzi-dev dipakai Production). Akun uji berperan staf dihapus setelah verifikasi. Aturannya di `CLAUDE.md`.
+- **Akun uji:** domain `@example.com`; email & peran boleh ditulis di PR, **sandi tidak pernah** (repo publik, DB binzi-dev dipakai Production). Akun uji berperan staf dihapus setelah verifikasi. Aturannya di `CLAUDE.md`. **Pembersihan** dijalankan pemilik (bukan agent) setelah PR yang membuat akun uji di-merge, tiga langkah: lihat (`select email, role from users where email like '%@example.com'`) → hapus (`delete from users where email like '%@example.com' returning email, role`) → cek sisa 0. Lewat Supabase → binzi-dev → SQL Editor, atau dari terminal di root repo dengan `node --env-file=.env.local -e` + paket `postgres` (`MIGRATION_DATABASE_URL`, opsi `{ prepare: false, max: 1 }`). `sessions` & `accounts` ikut terhapus lewat cascade; error foreign key berarti tidak ada yang terhapus.
 - **Pendaratan setelah login (Q44, PR #57):** `POST_LOGIN_DEFAULT_PATH = "/masuk/lanjut"` — page server (bukan `route.ts`: form email bernavigasi lewat `router.replace`, tombol Google lewat redirect penuh Better Auth; `redirect()` di page aman untuk keduanya). Isinya hanya `requireUser()` lalu `redirect(landingPathForRole(user.role))`. `landingPathForRole` di `src/lib/rbac.ts` diturunkan dari matriks (peran yang lolos `minRoleForPath("/cms")` → `/cms`, selain itu `/belajar`; fail-closed bila `/cms` tanpa baris), dijaga tes invarian "tidak pernah mendarat di 403". `/masuk/lanjut` di luar matcher proxy, jadi belum masuk → `/masuk` tanpa `next`. **Jangan** memanggil `redirectIfSignedIn` di sana (loop). Ketujuh pemakai konstanta (form masuk, tombol Google di `/masuk` & `/daftar`, LoginModal, `redirectIfSignedIn` di `/masuk` & `/daftar`, "Mulai belajar" di `/daftar/verifikasi`) tetap lewat konstanta.
 - **Docs dari Claude chat** (PRD, kartu, STATUS sekaligus) diterapkan sebagai patch git (`git am`), bukan dengan mengekstrak zip — patch gagal dengan jelas bila `main` sudah berubah, jadi tidak ada berkas versi lama yang menimpa versi repo.
 - **Nilai env case-sensitive:** `MAIL_TRANSPORT` harus `log`/`resend` huruf kecil. Nilai salah tidak menggagalkan build (env dibaca per request) — halaman baru crash saat dibuka.
@@ -246,8 +247,8 @@ docs/tasks/URUTAN-KERJA.md dari repo saya — baca keduanya sebagai konteks.
 Spesifikasi lengkap ada di docs/prd/PRD-v1.4.md dan aturan agent di
 CLAUDE.md; minta saya unggah bagian yang kamu butuhkan.
 Posisi terakhir saya (17 Okt): A-15 (PR #56) dan chore pendaratan staf
-Q44 (PR #57) di-merge; kartu A-16 sudah direvisi. Berikutnya: hapus akun uji
-@example.com di binzi-dev, lalu sesi agent A-16. Repo publik di
+Q44 (PR #57) di-merge; kartu A-16 sudah direvisi; akun uji @example.com
+sudah dihapus. Berikutnya: sesi agent A-16. Repo publik di
 github.com/adiynsyah/binzi — kamu bisa clone untuk membaca kode dan
 meninjau PR.
 ```
