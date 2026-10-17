@@ -74,9 +74,10 @@ export function CmsMobileBar({ groups, user }: CmsMobileBarProps) {
   const lock = pending ? "pointer-events-none" : undefined;
 
   return (
-    <>
+    <DialogPrimitive.Root open={open} onOpenChange={setOpen}>
       {/* Top bar — 68 tall; the avatar is decorative (card), Keluar lives
-          in the drawer. */}
+          in the drawer. The bar sits INSIDE the Root so its ☰ is a proper
+          DialogTrigger (aria-expanded/aria-controls come from Radix). */}
       <div className="flex h-[68px] flex-none items-center gap-3 border-b border-border-soft bg-surface px-4 md:hidden">
         <DialogPrimitive.Trigger asChild>
           <button
@@ -108,8 +109,7 @@ export function CmsMobileBar({ groups, user }: CmsMobileBarProps) {
         />
       </div>
 
-      <DialogPrimitive.Root open={open} onOpenChange={setOpen}>
-        <DialogPrimitive.Portal>
+      <DialogPrimitive.Portal>
           <DialogPrimitive.Overlay
             className={cn(
               "fixed inset-0 z-40 bg-scrim",
@@ -250,7 +250,6 @@ export function CmsMobileBar({ groups, user }: CmsMobileBarProps) {
             </div>
           </DialogPrimitive.Content>
         </DialogPrimitive.Portal>
-      </DialogPrimitive.Root>
-    </>
+    </DialogPrimitive.Root>
   );
 }
