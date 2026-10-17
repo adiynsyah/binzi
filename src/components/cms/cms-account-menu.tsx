@@ -30,8 +30,15 @@ export function CmsAccountMenu({ children }: { children: ReactElement }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>{children}</DropdownMenuTrigger>
-      {/* side="top": the trigger sits at the BOTTOM of the sidebar/rail. */}
-      <DropdownMenuContent side="top" align="start" className="w-56">
+      {/* side="top": the trigger sits at the BOTTOM of the sidebar/rail;
+          collisionPadding keeps the menu ~8px off the left screen edge at
+          1280 (align="start" would otherwise flush it to x≈1). */}
+      <DropdownMenuContent
+        side="top"
+        align="start"
+        collisionPadding={8}
+        className="w-56"
+      >
         <DropdownMenuItem asChild disabled={pending}>
           <Link href="/">Lihat situs</Link>
         </DropdownMenuItem>

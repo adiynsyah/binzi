@@ -52,7 +52,7 @@ export default async function CmsLayout({
                 (sides) and 16/22/26 (top), capped at 1200 and LEFT-aligned
                 beside the sidebar — deliberately NOT PageContainer (the
                 public 16/28/40 centered scale does not apply here). */}
-            <div className="w-full max-w-[1200px] px-4 pt-4 md:px-[22px] md:pt-[22px] lg:px-7 lg:pt-[26px]">
+            <div className="w-full max-w-content px-4 pt-4 sm:px-[22px] sm:pt-[22px] lg:px-7 lg:pt-[26px]">
               {children}
             </div>
           </main>

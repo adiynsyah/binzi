@@ -26,7 +26,7 @@ export function CmsTopbar({ role }: { role: UserRole }) {
     : null;
 
   return (
-    <div className="hidden h-[58px] flex-none items-center border-b border-border-soft bg-surface px-[22px] md:flex lg:h-[62px] lg:px-7">
+    <div className="hidden h-[58px] flex-none items-center border-b border-border-soft bg-surface px-[22px] sm:flex lg:h-[62px] lg:px-7">
       {breadcrumb ? (
         <p className="font-mono text-[11.5px] font-medium uppercase tracking-[0.1em] text-text-subtle">
           {breadcrumb}

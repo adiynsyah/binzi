@@ -28,9 +28,11 @@ import {
  * while the modal is open.
  *
  * The drawer closes after any item is clicked and when the viewport grows
- * to ≥ 640px. Its content scrolls INSIDE the panel, so Keluar stays
- * reachable on a 360×640 screen. Keluar uses useSignOut; on failure the
- * drawer stays open and shows the generic Banner notice.
+ * to ≥ 640px. The ✕ cover row is PINNED (flex-none) and only the nav +
+ * user block scroll INSIDE the panel (A-14b account-drawer pattern), so ✕
+ * and the scrim stay reachable on a 360×640 screen even at the bottom.
+ * Keluar uses useSignOut; on failure the drawer stays open and shows the
+ * generic Banner notice.
  */
 
 type CmsMobileBarProps = {
@@ -78,7 +80,7 @@ export function CmsMobileBar({ groups, user }: CmsMobileBarProps) {
       {/* Top bar — 68 tall; the avatar is decorative (card), Keluar lives
           in the drawer. The bar sits INSIDE the Root so its ☰ is a proper
           DialogTrigger (aria-expanded/aria-controls come from Radix). */}
-      <div className="flex h-[68px] flex-none items-center gap-3 border-b border-border-soft bg-surface px-4 md:hidden">
+      <div className="flex h-[68px] flex-none items-center gap-3 border-b border-border-soft bg-surface px-4 sm:hidden">
         <DialogPrimitive.Trigger asChild>
           <button
             type="button"
@@ -121,7 +123,7 @@ export function CmsMobileBar({ groups, user }: CmsMobileBarProps) {
           <DialogPrimitive.Content
             aria-describedby={undefined}
             className={cn(
-              "fixed inset-x-0 top-0 z-50 max-h-dvh overflow-y-auto bg-surface",
+              "fixed inset-x-0 top-0 z-50 flex max-h-dvh flex-col bg-surface",
               "data-[state=open]:animate-in data-[state=open]:fade-in-0",
               "data-[state=closed]:animate-out data-[state=closed]:fade-out-0",
               "duration-200 ease-out",
@@ -131,8 +133,9 @@ export function CmsMobileBar({ groups, user }: CmsMobileBarProps) {
               Menu CMS
             </DialogPrimitive.Title>
 
-            {/* Cover row — ✕ in the ☰ slot + wordmark + CMS chip. */}
-            <div className="flex h-[68px] items-center gap-3 border-b border-border-soft px-4">
+            {/* Cover row — ✕ in the ☰ slot + wordmark + CMS chip; pinned
+                (flex-none) so it never scrolls out of view. */}
+            <div className="flex h-[68px] flex-none items-center gap-3 border-b border-border-soft px-4">
               <DialogPrimitive.Close asChild>
                 <button
                   type="button"
@@ -159,6 +162,12 @@ export function CmsMobileBar({ groups, user }: CmsMobileBarProps) {
               </span>
             </div>
 
+            {/* Scrollable panel — everything except the cover row; caps at
+                viewport − 68 so ✕ and the scrim below stay reachable. */}
+            <div
+              className="flex-1 overscroll-contain overflow-y-auto"
+              style={{ maxHeight: "calc(100dvh - 68px)" }}
+            >
             {/* Same groups & items as the sidebar; rows min 48 tall. */}
             <nav aria-label="Menu CMS" className="flex flex-col p-4">
               {groups.map((group) => (
@@ -247,6 +256,7 @@ export function CmsMobileBar({ groups, user }: CmsMobileBarProps) {
               {error ? (
                 <Banner tone="error" title={error} className="mt-3" />
               ) : null}
+            </div>
             </div>
           </DialogPrimitive.Content>
         </DialogPrimitive.Portal>
