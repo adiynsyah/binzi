@@ -41,6 +41,10 @@ widget setelah ~3–9 d dan menambah pelanggarannya).
 | `/belajar` (login) | 1 | 2 | 0 | **0** |
 | `/cms` (login) | 3 | 2 | 0 | **0** |
 
+Catatan tambahan dari tabel: **tidak ada satu pun pelanggaran
+`script-src-attr`** di kelima halaman — atribut event inline tidak dipakai
+aplikasi (dipakai untuk varian (b+) di bawah).
+
 Pola yang terbaca:
 
 - **Inline script Next ada di semua halaman** (2 × `script-src-elem`): script
@@ -49,12 +53,41 @@ Pola yang terbaca:
 - **Inline style ada di semua halaman** (`style-src-attr`): atribut `style`
   yang disuntikkan React/komponen — §12.5 tidak menyetel `style-src`, jadi
   jatuh ke `default-src 'self'` dan ikut terlaporkan.
-- **Turnstile menambah 1 pelanggaran `eval`** di halaman yang memuat widgetnya
-  (`/masuk`, `/daftar`): skrip `challenges.cloudflare.com` mengevaluasi string
-  — jika CSP skrip diperketat tanpa `'unsafe-eval'`, widget uji ini akan rusak
-  (perlu direkonsiliasi dengan widget produksi saat keputusan diambil).
+- **Turnstile**: pelanggaran `eval` di halaman widget berasal dari skrip
+  `challenges.cloudflare.com` — lihat "Percobaan Turnstile tanpa
+  `'unsafe-eval'`": terblokir saat ditegakkan **tanpa merusak alur**.
 - **Nol pelanggaran enforce** di kelima halaman — direktif yang ditegakkan
   tidak merusak apa pun.
+
+## Percobaan Turnstile tanpa `'unsafe-eval'` (review PR #58)
+
+Dokumentasi resmi Cloudflare
+(`developers.cloudflare.com/turnstile/reference/content-security-policy`)
+hanya meminta `script-src` dan `frame-src`
+`https://challenges.cloudflare.com`, dan menyatakan Turnstile mendukung
+nonce + `strict-dynamic`. Untuk menguji klaim itu pada aplikasi ini, header
+report-only **sementara** dipromosikan menjadi CSP yang ditegakkan (build
+lokal, **tidak di-commit**): tanpa `'unsafe-eval'`, dengan `'unsafe-inline'`
+di `script-src` dan `style-src` supaya inline Next tidak mematikan halaman.
+
+Hasil (Chromium headless, event `securitypolicyviolation` disposition
+enforce + konsol):
+
+- **Widget Turnstile tetap berfungsi dan login email penuh berhasil**:
+  alur `lupa-password` → reset password (200) → login di `/masuk` dengan
+  Turnstile (`sign-in/email` 200) → mendarat di `/masuk/lanjut`. Nol
+  pelanggaran enforce selama alur tersebut.
+- Dengan jendela tunggu lebih panjang (9 d), `/masuk` dan `/daftar`
+  masing-masing mencatat **1 × `enforce | script-src | eval`** — evaluasi
+  string oleh skrip Turnstile memang terblokir, tetapi **tidak merusak**
+  widget maupun alur login (jalur yang butuh eval tampaknya opsional/fallback
+  pada widget uji).
+- Kesimpulan: pelanggaran `eval` yang tercatat report-only **belum membuktikan
+  widget rusak**; untuk widget uji, `'unsafe-eval'` tidak diperlukan.
+
+**Batasan:** diuji dengan **kunci uji** (widget produksi mungkin memakai
+jalur berbeda). Widget produksi diverifikasi ulang setelah keputusan CSP
+diambil — itulah butir keputusan no. 2 di bawah.
 
 ## Percobaan SRI (opsi c) — build lokal, tidak di-commit
 
@@ -92,12 +125,16 @@ Next otomatis memasang nonce pada script framework dan inline.
   semua tamu terkunci dan `/masuk` mengalihkan ke dirinya sendiri. Opsi ini
   menuntut restrukturisasi proxy (kartu tersendiri) + verifikasi regredensi
   guard.
+- **Turnstile:** `TurnstileWidget` memuat `api.js` lewat tag `<script>` buatan
+  sendiri (`document.createElement`) — dengan nonce, tag itu wajib menerima
+  dan memasang nonce (baca dari `headers()` di server) agar tidak diblokir;
+  Cloudflare mendokumentasikan dukungan nonce + `strict-dynamic`.
 
 ### (b) Tanpa nonce: `'unsafe-inline'` untuk skrip
 
 Pindahkan report-only → enforced dengan `script-src 'self' 'unsafe-inline'
-https://challenges.cloudflare.com` (dan `style-src 'self' 'unsafe-inline'`;
-Turnstile butuh `'unsafe-eval'` — lihat bukti di atas).
+https://challenges.cloudflare.com` (dan `style-src 'self' 'unsafe-inline'`).
+`'unsafe-eval'` tidak diperlukan untuk widget uji (lihat percobaan di atas).
 
 - **ISR: tetap.** Halaman statis tetap statis; nol perubahan rendering.
 - **Biaya Vercel Hobby: nol tambahan.**
@@ -106,8 +143,23 @@ Turnstile butuh `'unsafe-eval'` — lihat bukti di atas).
   skrip eksternal tak diizinkan. Pertimbangan: lapisan pertahanan utama BINZI
   memang whitelist node TipTap di server (§12.3, CRS-05), bukan CSP.
 - **Usaha: kecil** (satu string di `next.config.ts`).
-- Catatan teknis: `'unsafe-inline'` diabaikan browser bila di kebijakan yang
-  sama ada nonce/hash — opsi ini tidak bisa dicampur bertahap dengan (a)/(d).
+- Catatan teknis: `'unsafe-inline'` diabaikan browser bila **dalam satu
+  kebijakan** yang sama ada nonce/hash. Opsi ini tetap bisa dipakai pada
+  rute publik sementara area login memakai kebijakan nonce (opsi (d)),
+  karena (d) memakai kebijakan berbeda per rute dan beberapa header CSP
+  dievaluasi browser sebagai irisan (yang paling ketat menang) — kebijakan
+  global dari `next.config.ts` dapat berdampingan dengan kebijakan nonce
+  dari proxy.
+
+### (b+) Varian (b): tambah `script-src-attr 'none'`
+
+Data audit menunjukkan **nol pelanggaran `script-src-attr`** di kelima
+halaman, jadi `script-src-attr 'none'` bisa ditegakkan bersama (b) tanpa
+merusak apa pun. Ini memblokir atribut event inline (`onerror=…`,
+`onclick=…` — vektor umum bypass sanitasi karena menyisip kode lewat
+atribut, bukan elemen `<script>`), walau tidak memblokir elemen
+`<script>` yang tersisip di HTML SSR. Usaha: satu direktif tambahan di
+string (b).
 
 ### (c) SRI murni
 
@@ -122,19 +174,34 @@ dinamis (ƒ di output build) dan sudah dilewati matcher proxy saat ini.
 - **ISR: tetap** untuk `(public)`; area login memang selalu SSR/CSR.
 - **Biaya Vercel Hobby: minim** — hanya trafik area login (pengguna login)
   yang sudah dinamis hari ini.
-- **XSS: kuat di tempat paling berisiko** (CMS yang menyunting konten,
-  area privat), `'unsafe-inline'` hanya di halaman publik.
+- **XSS: kuat di tempat konten itu dirender sebelum terbit.** Yang dilindungi
+  nonce adalah konten yang dirender **di dalam area login** — terutama
+  pratinjau admin di `/cms` sebelum konten terbit (alur 18d): skrip sisipan
+  pada konten yang belum tervalidasi tidak akan jalan di sesi staf. Namun
+  setelah terbit, konten yang sama dirender di halaman publik yang memakai
+  `'unsafe-inline'` — skrip sisipan di sana berjalan di origin yang sama dan
+  bisa memanggil API (termasuk `/api/cms/*`) atas nama **pengunjung yang
+  sedang login**, termasuk staf (cookie `httpOnly` mencegah token
+  **dicuri**, bukan **dipakai** — request dari skrip di origin yang sama
+  tetap membawa cookie). Jadi untuk konten terbit, (b) dan (d) sama-sama
+  bergantung pada §12.3 (whitelist node TipTap di server) sebagai pertahanan
+  utama.
 - **Usaha: menengah.** Proxy masih perlu diubah untuk menghasilkan nonce
   (kebijakan CSP berbeda per area), jadi tetap kartu tersendiri — tetapi
   risikonya lebih kecil dari (a) karena matcher-nya tidak perlu meluas ke
   rute publik.
+- **Turnstile:** sama seperti (a) — `TurnstileWidget` harus meneruskan nonce
+  ke tag `api.js` (halaman login memuat widget).
 
 ## Yang perlu diputuskan pemilik produk
 
-1. Pilih (a), (b), atau (d) (+(c) sebagai pelengkap integritas berkas).
-2. Apakah `'unsafe-eval'` Turnstile dapat diterima di produksi, atau widget
-   Turnstile diganti/diuji ulang dengan mode non-eval (butuh verifikasi
-   widget produksi, bukan kunci uji).
+1. Pilih (a), (b)/(+b), atau (d) (+(c) sebagai pelengkap integritas berkas).
+2. **Turnstile & `'unsafe-eval'`:** percobaan kunci uji menunjukkan widget
+   dan login tetap berfungsi tanpa `'unsafe-eval'` (eval terblokir tanpa
+   merusak). Keputusan yang tersisa: cukup verifikasi ulang dengan widget
+   **produksi** setelah kebijakan dipasang — kalau widget produksi butuh
+   eval, `'unsafe-eval'` ditambahkan kembali sebagai pengecualian yang
+   diperdebatkan, bukan default.
 3. Kebijakan `style-src`: mengikuti §12.5 (tanpa `style-src`, fallback
    `default-src 'self'` → wajib nonce/`'unsafe-inline'` untuk style) atau
    menambahkan `style-src 'self' 'unsafe-inline'` eksplisit.
