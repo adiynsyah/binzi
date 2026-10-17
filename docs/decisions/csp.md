@@ -308,3 +308,34 @@ membuat probe zod lolos tanpa peristiwa).
 
 Akun uji audit: `a16b.editor@example.com` (EDITOR) — dihapus dengan prosedur
 pembersihan di STATUS setelah verifikasi produksi.
+
+### Verifikasi produksi (17 Okt, kunci asli)
+
+Dijalankan pemilik di `https://binzi.vercel.app` (Chrome Incognito, DevTools
+Console + Issues, Preserve log):
+
+- Login email + Turnstile kunci asli berhasil untuk MEMBER (→ `/belajar`) dan
+  EDITOR (→ `/cms`); widget selesai di `/masuk`, `/daftar`, dan
+  `/lupa-password`. Tidak ada rollback.
+- Di dokumen BINZI, satu-satunya pelanggaran adalah `script-src` eval dari
+  chunk `/_next/static` (probe zod) — sesuai audit di atas.
+- Widget kunci asli merender iframe
+  `challenges.cloudflare.com/cdn-cgi/challenge-platform/…/flexible?lang=auto`
+  dengan CSP **milik Cloudflare** (`connect-src 'self'` + host
+  `*.challenges.cloudflare.com` dan `dnstest.dev`). Di dalam iframe itu
+  Cloudflare memblokir `connect-src` ke `data:,` (plus "Fetch API cannot load
+  data:,") dan `eval`; Chrome juga melaporkan "Deprecated:
+  `StorageType.persistent`" dan "Quirks Mode" untuk dokumen iframe tersebut.
+  Chrome menampilkan semuanya di konsol dan panel Issues halaman BINZI karena
+  pesan semua frame dicampur. CSP BINZI tidak berlaku di dokumen iframe lintas
+  origin, jadi pelanggaran ini di luar kendali BINZI dan tidak menandakan
+  kerusakan. Audit headless di atas tidak melihatnya (kunci uji tanpa iframe;
+  event `securitypolicyviolation` hanya dari dokumen induk).
+- Login Google tidak dapat diuji: redirect URI client OAuth hanya localhost
+  (H-06). Diuji setelah H-03.
+
+Untuk verifikasi berikutnya, pelanggaran dinilai dari **kebijakan yang dikutip
+dan lokasi sumbernya**, bukan nama host di pesan: yang mengutip kebijakan §12.5
+dengan sumber berkas BINZI → periksa; yang bersumber `flexible?lang=auto` atau
+mengutip `connect-src` berhost Cloudflare → derau pihak ketiga. Console →
+"Selected context only" dengan konteks `top` menyaring pesan iframe.
