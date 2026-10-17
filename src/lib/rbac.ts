@@ -126,6 +126,18 @@ export function pathAllows(user: SessionUser | null, pathname: string): boolean 
   return user !== null && roleAtLeast(user.role, min);
 }
 
+/**
+ * PRD Q44: where a user lands after login when no valid `?next=` exists.
+ * Derived from the matrix — every role the CMS lets in lands on /cms,
+ * everyone else on /belajar — so raising the /cms row's minimum tightens
+ * the landing rule too. Fail-closed: if /cms ever leaves the matrix
+ * (null minimum), every role lands on /belajar, never on a 403.
+ */
+export function landingPathForRole(role: UserRole): "/cms" | "/belajar" {
+  const min = minRoleForPath("/cms");
+  return min !== null && roleAtLeast(role, min) ? "/cms" : "/belajar";
+}
+
 // Unknown role/status shapes (e.g. a future enum value the running code
 // does not know) must fail closed, so the session user is validated with
 // the actual DB enums before any decision is made.

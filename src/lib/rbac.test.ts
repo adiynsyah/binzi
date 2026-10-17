@@ -8,6 +8,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   ALL_ROLES,
+  landingPathForRole,
   loginRedirectPath,
   minRoleForPath,
   pathAllows,
@@ -110,6 +111,27 @@ describe("pathAllows — full role × route matrix", () => {
       for (const [name, actor] of ACTORS) {
         expect(pathAllows(actor, path), `${name} → ${path}`).toBe(true);
       }
+    }
+  });
+});
+
+describe("landingPathForRole — post-login landing (PRD Q44)", () => {
+  // Expected destinations spelled out per role, NOT derived from the
+  // matrix again — a ROUTE_RULES regression must turn these red.
+  it("lands MEMBER on /belajar and every staff role on /cms", () => {
+    expect(landingPathForRole("MEMBER")).toBe("/belajar");
+    expect(landingPathForRole("EDITOR")).toBe("/cms");
+    expect(landingPathForRole("ADMIN")).toBe("/cms");
+    expect(landingPathForRole("SUPER_ADMIN")).toBe("/cms");
+  });
+
+  it("never lands a role on a page it cannot open (no 403 landing)", () => {
+    for (const role of ALL_ROLES) {
+      const landing = landingPathForRole(role);
+      expect(
+        pathAllows({ id: "t", role, status: "ACTIVE" }, landing),
+        `${role} → ${landing}`,
+      ).toBe(true);
     }
   });
 });

@@ -106,7 +106,7 @@ describe("LoginForm", () => {
     );
     expect(signInSocial).toHaveBeenCalledWith({
       provider: "google",
-      callbackURL: "/belajar",
+      callbackURL: "/masuk/lanjut",
       errorCallbackURL: "/masuk",
     });
   });
@@ -305,7 +305,7 @@ describe("LoginForm", () => {
     // The banner shows briefly, then the router takes over after 700ms —
     // real timers, so allow a generous waitFor window.
     await waitFor(
-      () => expect(routerReplace).toHaveBeenCalledWith("/belajar"),
+      () => expect(routerReplace).toHaveBeenCalledWith("/masuk/lanjut"),
       { timeout: 2000 },
     );
     expect(routerRefresh).toHaveBeenCalled();

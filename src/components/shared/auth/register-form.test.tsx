@@ -153,7 +153,7 @@ describe("RegisterForm", () => {
     );
     expect(signInSocial).toHaveBeenCalledWith({
       provider: "google",
-      callbackURL: "/belajar",
+      callbackURL: "/masuk/lanjut",
       errorCallbackURL: "/daftar",
     });
   });

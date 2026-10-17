@@ -4,11 +4,13 @@
 
 /**
  * Post-login destination when `?next=` is missing or unsafe to use
- * (product-owner decision, card A-13). /belajar exists since A-14b
- * (PR #53): signed-in users land in the learning home, not the guest
- * homepage.
+ * (product-owner decision, card A-13; role split per PRD Q44).
+ * /masuk/lanjut is a tiny server page that reads the session role and
+ * redirects: MEMBER → /belajar, staff roles (EDITOR+) → /cms
+ * (landingPathForRole in src/lib/rbac.ts) — the destination is decided
+ * from the DB session, never from a client-sent value.
  */
-export const POST_LOGIN_DEFAULT_PATH = "/belajar";
+export const POST_LOGIN_DEFAULT_PATH = "/masuk/lanjut";
 
 /**
  * `callbackURL` for verification links — sign-up body, resend buttons, AND
