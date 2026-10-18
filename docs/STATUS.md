@@ -1,6 +1,6 @@
 # Status Proyek BINZI — catatan untuk melanjutkan di chat baru
 
-> Terakhir diperbarui: 17 Okt 2026. File ini dikelola manual (bukan oleh agent) dan hanya untuk melanjutkan percakapan dengan Claude.
+> Terakhir diperbarui: 18 Okt 2026. File ini dikelola manual (bukan oleh agent) dan hanya untuk melanjutkan percakapan dengan Claude.
 > Untuk melanjutkan: buka chat baru, unggah file ini + `docs/tasks/URUTAN-KERJA.md`, lalu pakai prompt di bagian paling bawah.
 
 ## Di mana semua keputusan tersimpan
@@ -56,7 +56,8 @@
   - ✅ **Keputusan CSP (17 Okt): opsi (b+)** — PRD v1.5 (Q45, §12.5), `csp.md` berstatus diputuskan, kartu penerapan **A-16b** (langkah 25b).
   - ✅ A-16b penegakan CSP (PR #59, di-merge 17 Okt): satu `Content-Security-Policy` §12.5 v1.5 ditegakkan di semua rute, report-only dihapus, `'unsafe-eval'` hanya development, toolbar Vercel hanya bila `VERCEL_ENV=preview`. Tes 4 lingkungan; tinjauan rencana menutup celah tes `VERCEL_ENV` (Production Vercel membawa `VERCEL_ENV=production`, bukan kosong). Audit agent mengoreksi atribusi A-16: pelanggaran `eval` di halaman form berasal dari probe `allowsEval` zod, **bukan Turnstile**. Uji mutasi 6/6 merah. `curl` Production 17 Okt: satu CSP identik §12.5 (tanpa `vercel.live`, tanpa `unsafe-eval`), satu HSTS.
   - ✅ Verifikasi A-16b di Production (17 Okt, Chrome Incognito, Preserve log): login email + Turnstile kunci asli lolos untuk MEMBER (→ `/belajar`) dan EDITOR (→ `/cms`, sekaligus bukti Q44 di Production); widget selesai di `/masuk`, `/daftar`, `/lupa-password`. Di dokumen BINZI hanya probe zod yang diblokir (chunk `/_next/static`); semua pelanggaran lain berasal dari iframe Turnstile di bawah CSP Cloudflare sendiri (catatan "Header keamanan"). Login Google **tidak dapat diuji** — redirect URI client "BINZI Web (dev)" hanya localhost (H-06) → ditunda ke H-03. Akun `a16b.editor` dihapus; sisa `%@example.com` = 0.
-  - ⏭️ Berikutnya: **revisi kartu A-18** (kartu masih versi 27 Sep — tinjau terhadap kode sebelum sesi, pelajaran (h)/(y)) → sesi A-18. A-17 menunggu H-04 R2.
+  - ✅ Revisi kartu A-18 (18 Okt, docs langsung ke `main`), ditinjau terhadap kode `ea7adf9`: kontrak respons kedua endpoint (`{ data }`/`{ error }`, `Cache-Control: no-store`, 503 tanpa detail internal), `CRON_SECRET` fail-closed di endpoint (401 seragam; tetap opsional di `env.server.ts` karena `instrumentation.ts` memvalidasi env saat startup), perbandingan SHA-256 + `timingSafeEqual`, secret dicek sebelum DB disentuh, logika di `src/lib/` berimpor relatif agar bisa dites Vitest, lima uji mutasi wajib, bukti `curl` dengan secret sekali pakai lewat env proses, workflow tanpa action pihak ketiga dengan menit jadwal bukan `:00`. Uji `workflow_dispatch` dipindah ke setelah merge (workflow harus ada di branch default).
+  - ⏭️ Berikutnya: sesi **A-18** dengan kartu revisi 18 Okt — sebelum uji workflow: GitHub Secret `APP_URL` + `CRON_SECRET` di Vercel Production (lihat kartu) → A-19. A-17 menunggu H-04 R2.
 - ✅ Chore: Next 16.3.7 (PR #17). Dependabot: #6 & #7 (actions major) di-merge; #8–#10 (eslint 10, typescript 7, @types/node 26) di-ignore.
 
 ## Cara kerja yang sudah berjalan
@@ -122,6 +123,8 @@
 - [x] Saat A-13: halaman tujuan tautan verifikasi & reset (`callbackURL`/`redirectTo`), tampilan kode error `TOKEN_EXPIRED`/`INVALID_TOKEN`, dan form mengirim token Turnstile lewat header `x-captcha-response`. (PR #39)
 - [ ] Sebelum pengguna nyata: H-07 Resend + `MAIL_TRANSPORT=resend` di Vercel Production. Dengan transport `log`, tautan bertoken tercetak di log Vercel.
 - [ ] `users.last_login_at` belum diisi saat login (opsional, catatan PR #25).
+- [ ] Sebelum rilis (§14.9 "uptime monitor"): pasang uptime monitor gratis ke `/api/health` (A-18) di domain final setelah H-03.
+- [ ] Pembersihan tabel `rate_limits`: §11 menandai index `expires_at` "dibersihkan lewat cron", tetapi job-nya tidak ada di tabel §10.5. Bucket per IP+email hanya dihapus saat login sukses, jadi baris dari percobaan gagal menumpuk. Putuskan saat menambah job terjadwal berikutnya (mis. `purge-accounts`) — di luar lingkup A-18.
 - [ ] Sebelum 2 Nov 2026: cek advisory braces GHSA-vfj7-8cjw-p6xm. Bila sudah ada versi tambalan, hapus entri di .github/audit-exceptions.json dan upgrade; bila belum, perpanjang expires dengan alasan yang diperbarui.
 - [ ] `id_token` Google masih tersimpan plaintext (`encryptOAuthTokens` hanya mencakup access/refresh token). BINZI tidak memakainya setelah login → kosongkan lewat `databaseHooks.account` create/update.before.
 - [x] Saat A-13: copy untuk kode `account_not_verified` (usulan di PR #29) dan `email_not_verified`; tombol Google disembunyikan di Preview (provider nonaktif di sana). (PR #39)
@@ -250,6 +253,7 @@
    Tambahan dari A-16 (17 Okt): (z) pelanggaran report-only bukan bukti kerusakan — klaim "widget Turnstile akan rusak tanpa `'unsafe-eval'`" runtuh begitu diuji dengan kebijakan ditegakkan; cek dokumentasi resmi pihak ketiga sebelum sebuah temuan menjadi butir keputusan; (aa) instruksi dari review di Claude chat juga bisa keliru — dua kalimat `csp.md` yang berasal dari instruksi review (nonce Turnstile di opsi (d), header ganda proxy + `next.config`) diluruskan saat keputusan dicatat; (bb) uji mutasi agent hanya memutasi satu nilai (`max-age`) — mutasi yang bermakna adalah yang menjaga keputusan keamanan (`'unsafe-eval'` bocor ke production, `frame-ancestors` hilang), jadi kartu keamanan menyebut mutasi wajibnya (A-16b).
    Tambahan dari A-16b (17 Okt): (cc) atribusi pelanggaran CSP dibaca dari `sourceFile`/`blockedURI` event, bukan dari halaman atau widget tempat ia muncul — di A-16 pelanggaran probe zod salah dikira milik Turnstile karena hanya muncul di halaman ber-widget; (dd) tes yang bergantung env platform harus memakai nilai yang benar-benar dipasang platform (Vercel Production = `VERCEL_ENV=production`, bukan kosong) — tinjauan rencana menangkap mutasi "toolbar bila `VERCEL_ENV` terisi" yang akan lolos dan membocorkan `vercel.live` ke Production; (ee) verifikasi pasca-merge yang tertunda dicatat di STATUS sebagai item teratas, lengkap dengan kriteria normal/bermasalah dan jalur rollback.
    Tambahan dari verifikasi A-16b di Production (17 Okt): (ff) kriteria "bermasalah" pada verifikasi CSP ditulis berdasarkan **kebijakan yang dikutip dan lokasi sumber**, bukan nama host — kriteria awal "error yang menyebut `challenges.cloudflare.com`" akan memicu rollback palsu, karena iframe Turnstile kunci asli punya CSP sendiri yang pelanggarannya tampil di konsol halaman; (gg) langkah verifikasi yang bergantung konfigurasi pihak ketiga dicek prasyaratnya saat kartu ditulis — kartu A-16b meminta login Google di Production, padahal redirect URI hanya localhost sejak H-06.
+   Tambahan dari tinjauan A-18 (18 Okt): (hh) prasyarat platform juga berlaku untuk langkah verifikasi itu sendiri — kartu lama meminta workflow dijalankan manual sebelum merge, padahal `workflow_dispatch` hanya tersedia untuk workflow di branch default; (ii) bukti yang butuh secret ditulis di kartu dengan secret **sekali pakai** lewat env proses, karena agent tidak membaca `.env.local` (Next tidak menimpa env proses dengan isi `.env.local`); (jj) angka di PRD yang bergantung kebijakan pihak ketiga dicek ke dokumentasi resminya — §10.5 "tiap 3 hari" vs dokumentasi Supabase yang menyebut beberapa request per hari.
 2. Tulis kartu Sprint S1 (CMS kursus & materi) dengan `docs/tasks/_TEMPLATE-agent.md`; sumber: tabel fase di `docs/design/handoff/README.md` + `docs/prd/INDEX.md`.
 3. Tahap 8 kapan saja sebelum pengguna nyata: beli domain → Vercel DNS (H-03), Resend (H-07). Saat itu juga: tambah redirect URI domain di Google OAuth, unggah logo & publish consent screen (sekarang Testing, redirect localhost saja), dan tambah hostname domain di widget Turnstile. Setelahnya uji login Google di Production dengan konsol terbuka (sisa verifikasi A-16b; kriteria di catatan "Header keamanan").
 4. Jalur konten paralel: K-01 s/d K-06 (K-07 selesai).
@@ -263,11 +267,11 @@ AI coding agent (Claude Code). Terlampir docs/STATUS.md dan
 docs/tasks/URUTAN-KERJA.md dari repo saya — baca keduanya sebagai konteks.
 Spesifikasi lengkap ada di docs/prd/PRD-v1.5.md dan aturan agent di
 CLAUDE.md; minta saya unggah bagian yang kamu butuhkan.
-Posisi terakhir saya (17 Okt): A-15 (PR #56), Q44 (PR #57), A-16 (PR #58),
+Posisi terakhir saya (18 Okt): A-15 (PR #56), Q44 (PR #57), A-16 (PR #58),
 dan A-16b penegakan CSP (PR #59) di-merge; CSP opsi (b+) ditegakkan dan
 terverifikasi di Production (login email + Turnstile kunci asli; login
-Google ditunda ke H-03), akun uji a16b dihapus. Berikutnya: revisi kartu
-A-18 (tinjau terhadap kode) lalu sesi A-18; A-17 menunggu H-04 R2. Repo
+Google ditunda ke H-03). Kartu A-18 direvisi 18 Okt (ditinjau terhadap
+kode). Berikutnya: sesi A-18, lalu A-19; A-17 menunggu H-04 R2. Repo
 publik di github.com/adiynsyah/binzi — kamu bisa clone untuk membaca kode
 dan meninjau PR.
 ```
