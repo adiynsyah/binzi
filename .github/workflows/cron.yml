@@ -1,0 +1,58 @@
+# Scheduled jobs (card A-18, PRD §10.5): GitHub Actions curling protected
+# API routes — no queue, no extra infrastructure. keep-alive is first; the
+# remaining §10.5 jobs (backup-db, cleanup-media, purge-accounts,
+# learning-reminder) join as new jobs in this same file when their cards
+# land.
+
+name: Cron
+
+on:
+  schedule:
+    # Every 3 days at 19:17 UTC = 02:17 WIB. The minute is deliberately not
+    # :00 — GitHub delays, and under load even drops, scheduled jobs that
+    # all land at the top of the hour.
+    - cron: '17 19 */3 * *'
+  workflow_dispatch:
+
+# The job only curls an API route — it needs no GitHub token at all.
+permissions: {}
+
+jobs:
+  keep-alive:
+    name: keep-alive
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: POST /api/cron/keep-alive
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$APP_URL" ] || [ -z "$CRON_SECRET" ]; then
+            echo "::error::Required GitHub Secrets are missing: set APP_URL and CRON_SECRET (names only, values are never printed)"
+            exit 1
+          fi
+
+          # Strip one trailing slash: a leftover "/" would turn the path
+          # into //api/... and Next answers 308 — which must never be
+          # mistaken for a green run.
+          APP_URL="${APP_URL%/}"
+
+          # No curl -f: it only fails on status >= 400, so a 3xx redirect
+          # (double slash, http → https) would silently "succeed" without
+          # ever reaching the endpoint. Instead: capture the status code,
+          # print it with the body, and fail unless it is exactly 200.
+          http_code="$(curl -sS \
+            -o "$RUNNER_TEMP/response.json" -w '%{http_code}' \
+            --max-time 30 --retry 2 --retry-delay 15 \
+            -X POST "$APP_URL/api/cron/keep-alive" \
+            -H "x-cron-secret: $CRON_SECRET")"
+
+          echo "HTTP $http_code"
+          cat "$RUNNER_TEMP/response.json"
+          echo
+
+          if [ "$http_code" != "200" ]; then
+            echo "::error::keep-alive expected HTTP 200, got $http_code"
+            exit 1
+          fi
