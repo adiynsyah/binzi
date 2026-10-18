@@ -21,6 +21,15 @@ describe("isCronSecretValid", () => {
     expect(isCronSecretValid(SECRET, SECRET.slice(0, 8))).toBe(false);
   });
 
+  it("rejects a same-length header that differs only in the last character", () => {
+    const sameLength = `${SECRET.slice(0, -1)}X`;
+    // Preconditions, so this can never silently degrade into a
+    // different-length case.
+    expect(sameLength).toHaveLength(SECRET.length);
+    expect(sameLength).not.toBe(SECRET);
+    expect(isCronSecretValid(SECRET, sameLength)).toBe(false);
+  });
+
   it("rejects an empty header", () => {
     expect(isCronSecretValid(SECRET, "")).toBe(false);
   });

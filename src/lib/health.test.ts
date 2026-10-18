@@ -49,6 +49,8 @@ describe("getHealth", () => {
 
   it("503 after the 5 s budget when the ping never settles (fake timers)", async () => {
     vi.useFakeTimers();
+    // The timeout outcome is logged before the 503 — silence it here.
+    vi.spyOn(console, "error").mockImplementation(() => {});
     const hanging = new Promise<never>(() => {});
 
     const responsePromise = getHealth({ ping: () => hanging });
@@ -103,6 +105,18 @@ describe("postKeepAlive", () => {
     expect(ping).not.toHaveBeenCalled();
   });
 
+  it("401 when the header has the right length but wrong content — ping NOT called", async () => {
+    const ping = vi.fn();
+    const response = await postKeepAlive({
+      secret: SECRET,
+      header: `${SECRET.slice(0, -1)}X`,
+      ping,
+    });
+
+    expect(response.status).toBe(401);
+    expect(ping).not.toHaveBeenCalled();
+  });
+
   it("401 for every request when the server secret is empty — one log line each, header value not echoed", async () => {
     const ping = vi.fn();
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
@@ -120,6 +134,9 @@ describe("postKeepAlive", () => {
   });
 
   it("401 when the server secret is undefined, even for an empty header", async () => {
+    // The unset-secret warning is expected here — silence it.
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+
     const response = await postKeepAlive({
       secret: undefined,
       header: "",
@@ -150,6 +167,8 @@ describe("postKeepAlive", () => {
 
   it("503 after the 5 s budget when the ping never settles and the secret is valid (fake timers)", async () => {
     vi.useFakeTimers();
+    // The timeout outcome is logged before the 503 — silence it here.
+    vi.spyOn(console, "error").mockImplementation(() => {});
     const hanging = new Promise<never>(() => {});
 
     const responsePromise = postKeepAlive({
