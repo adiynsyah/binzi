@@ -3,11 +3,15 @@
 // migrations are run, and PGlite keeps it off the network entirely.
 import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { Db } from "./client";
 import { pingDatabase } from "./ping";
 import * as schema from "./schema";
+
+// PGlite takes seconds to boot and gets slower under parallel load — same
+// raised budget as the other PGlite test files (e.g. rbac.integration.test).
+vi.setConfig({ testTimeout: 120_000, hookTimeout: 120_000 });
 
 describe("pingDatabase", () => {
   it("resolves after `select 1` on a real (PGlite) database", async () => {
