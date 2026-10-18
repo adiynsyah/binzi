@@ -64,7 +64,8 @@ Vitest tidak bisa mengimpor route: alias `@/` belum ada di `vitest.config.ts`, d
 - Pemicu: `schedule` tiap 3 hari (§10.5) pada menit yang **bukan** `:00`, mis. `'17 19 */3 * *'` (02.17 WIB), plus `workflow_dispatch`. GitHub menunda, bahkan bisa membuang, job terjadwal saat beban tinggi, terutama di awal jam.
 - `permissions: {}` (job tidak butuh token), `timeout-minutes: 5`, tanpa `actions/checkout` maupun action pihak ketiga — cukup satu step `run`.
 - `APP_URL` dan `CRON_SECRET` dari GitHub Secrets masuk lewat `env:` step, bukan disisipkan langsung ke skrip. Step gagal dengan pesan jelas bila salah satunya kosong, tanpa mencetak nilainya.
-- `curl -fsS --max-time 30 --retry 2 --retry-delay 15 -X POST "$APP_URL/api/cron/keep-alive" -H "x-cron-secret: $CRON_SECRET"`. curl hanya mengulang galat sementara (timeout, 5xx), jadi 401 langsung gagal. Status non-2xx menggagalkan run, dan GitHub mengirim email run gagal ke pemilik.
+- Buang satu `/` di akhir `APP_URL`, lalu `curl -sS -o "$RUNNER_TEMP/response.json" -w '%{http_code}' --max-time 30 --retry 2 --retry-delay 15 -X POST "$APP_URL/api/cron/keep-alive" -H "x-cron-secret: $CRON_SECRET"`. Cetak `HTTP <kode>` dan badan respons, lalu gagalkan run bila kode bukan persis 200. curl tetap mengulang galat sementara (timeout, 5xx) tanpa `-f`; 401 langsung gagal. GitHub mengirim email run gagal ke pemilik.
+  > *Dikoreksi 18 Okt (tinjauan rencana, sebelum kode ditulis):* versi awal bullet ini memakai `curl -fsS`. `-f` hanya gagal untuk status ≥ 400, jadi 308 — dari `APP_URL` berakhiran `/` (`//api/…`, Next menormalkan dengan 308) atau `http://` (Vercel → https) — akan menjadi run hijau tanpa endpoint pernah terpanggil.
 - Nama workflow `Cron`, job `keep-alive`. Job terjadwal berikutnya (§10.5) menyusul sebagai job baru di berkas yang sama.
 
 ## Bukan lingkup tugas ini
