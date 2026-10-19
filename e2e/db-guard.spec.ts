@@ -37,6 +37,21 @@ test.describe("assertE2eDatabaseUrl", () => {
     ).toThrowError(/not local/);
   });
 
+  test("rejects a non-local host even with the exact binzi_e2e database", () => {
+    // Isolates the HOST rule: with the right database name, only the
+    // local-host check can (and must) reject this URL.
+    expect(() =>
+      assertE2eDatabaseUrl(
+        "postgresql://postgres:postgres@aws-0-ap-southeast-1.pooler.supabase.com:6543/binzi_e2e",
+      ),
+    ).toThrowError(/not local/);
+    expect(() =>
+      assertE2eDatabaseUrl(
+        "postgresql://postgres:postgres@evil.example.com:5432/binzi_e2e",
+      ),
+    ).toThrowError(/not local/);
+  });
+
   test("rejects a local host with any other database name", () => {
     expect(() =>
       assertE2eDatabaseUrl("postgresql://postgres:postgres@127.0.0.1:54329/binzi_dev"),

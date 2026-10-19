@@ -34,8 +34,21 @@ test.describe("smoke", () => {
     expect(csp, "Content-Security-Policy header must be present").toBeTruthy();
     expect(csp).not.toContain("vercel.live");
     expect(csp).not.toContain("'unsafe-eval'");
-    // The Turnstile script source must be present (mutation 7 relies on it).
-    expect(csp).toContain("https://challenges.cloudflare.com");
+    // Directive-level (a whole-header check passes as long as ANY directive
+    // lists the origin): script-src AND frame-src must carry the Turnstile
+    // source. Mutation-tested: dropping it from script-src alone must fail.
+    const directives = new Map(
+      (csp as string).split(";").map((directive) => {
+        const [name, ...sources] = directive.trim().split(/\s+/);
+        return [name, sources] as const;
+      }),
+    );
+    expect(directives.get("script-src")).toContain(
+      "https://challenges.cloudflare.com",
+    );
+    expect(directives.get("frame-src")).toContain(
+      "https://challenges.cloudflare.com",
+    );
   });
 
   test("an API-created account exists in the E2E database", async ({
