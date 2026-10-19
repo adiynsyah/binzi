@@ -107,7 +107,11 @@ test.describe("daftar & verifikasi", () => {
     await submit.click();
 
     // AUTH-03 literal copy (2b): password was correct, e-mail is not.
-    const alert = page.getByRole("alert");
+    // Filtered: Next's route announcer also carries role="alert" (empty), so
+    // the bare role selector is a strict-mode violation.
+    const alert = page
+      .getByRole("alert")
+      .filter({ hasText: "belum diverifikasi" });
     await expect(alert).toContainText("Email Anda belum diverifikasi.");
     await expect(alert).toContainText("Kirim ulang tautan");
     await expect(alert).toContainText("berlaku 24 jam.");
@@ -129,7 +133,9 @@ test.describe("reset password", () => {
     await expect(page.getByText("Tautan valid")).toBeVisible();
 
     const newPassword = randomPassword();
-    await page.getByLabel("Password baru").fill(newPassword);
+    // exact: "Password baru" is a case-insensitive substring of "Ulangi
+    // password baru" — without it the fill hits both inputs.
+    await page.getByLabel("Password baru", { exact: true }).fill(newPassword);
     await page.getByLabel("Ulangi password baru").fill(newPassword);
     const submit = page.getByRole("button", { name: "Simpan password baru" });
     await expect(submit).toBeEnabled();
@@ -182,7 +188,9 @@ test.describe("reset password", () => {
     await pageB.goto(link);
     await expect(pageB).toHaveURL(/\/reset-password\?token=/);
     const newPassword = randomPassword();
-    await pageB.getByLabel("Password baru").fill(newPassword);
+    await pageB
+      .getByLabel("Password baru", { exact: true })
+      .fill(newPassword);
     await pageB.getByLabel("Ulangi password baru").fill(newPassword);
     const save = pageB.getByRole("button", { name: "Simpan password baru" });
     await expect(save).toBeEnabled();
@@ -232,9 +240,21 @@ test.describe("reset password", () => {
       linkPathIncludes: "/reset-password",
     });
 
-    // First open validates the token; the second must fail (one-time use).
+    // First open validates the token and shows the form (the GET does NOT
+    // consume it — the token dies when the new password is saved).
     await page.goto(link);
     await expect(page).toHaveURL(/\/reset-password\?token=/);
+    const newPassword = randomPassword();
+    await page
+      .getByLabel("Password baru", { exact: true })
+      .fill(newPassword);
+    await page.getByLabel("Ulangi password baru").fill(newPassword);
+    const save = page.getByRole("button", { name: "Simpan password baru" });
+    await expect(save).toBeEnabled();
+    await save.click();
+    await expect(page.getByText("Password baru disimpan.")).toBeVisible();
+
+    // Single use: after the reset, the same link is dead.
     await page.goto(link);
     await expect(page).toHaveURL(/\/reset-password\?error=/);
     await expect(

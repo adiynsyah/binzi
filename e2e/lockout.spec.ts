@@ -42,14 +42,20 @@ test.describe("kunci 5× (UI)", () => {
       const submit = page.getByRole("button", { name: "Masuk", exact: true });
       await expect(submit).toBeEnabled(); // fresh Turnstile token
       await submit.click();
-      await expect(page.getByRole("alert")).toContainText(WRONG_COPY);
+      // Filtered role="alert": Next's (empty) route announcer also carries
+      // the role — the bare selector is a strict-mode violation.
+      await expect(
+        page.getByRole("alert").filter({ hasText: "password salah" }),
+      ).toContainText(WRONG_COPY);
     }
 
     await page.locator("#login-password").fill(wrongPassword);
     const submit = page.getByRole("button", { name: "Masuk", exact: true });
     await expect(submit).toBeEnabled();
     await submit.click();
-    await expect(page.getByRole("alert")).toContainText(LOCKED_COPY);
+    await expect(
+      page.getByRole("alert").filter({ hasText: "Terlalu banyak" }),
+    ).toContainText(LOCKED_COPY);
   });
 });
 

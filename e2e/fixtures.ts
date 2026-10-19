@@ -14,7 +14,7 @@
 //   on navigation) and asserted after the test body.
 import { randomBytes } from "node:crypto";
 import { spawnSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
 
 import {
   test as base,
@@ -26,6 +26,10 @@ import {
 import type { Sql } from "postgres";
 
 import { E2E_DATABASE_URL } from "./env";
+// Same callback the app's register form sends (register-form.tsx) — without
+// it the verification link falls back to callbackURL=/ and error redirects
+// land on the homepage instead of /daftar/verifikasi.
+import { VERIFICATION_CALLBACK_PATH } from "../src/modules/auth/schema";
 
 // ---------------------------------------------------------------- accounts
 
@@ -88,9 +92,9 @@ export async function markVerifiedInE2eDb(email: string): Promise<void> {
  * revokes every session.
  */
 export function setRoleViaScript(email: string, role: UserRole): void {
-  const script = fileURLToPath(
-    new URL("../scripts/set-role.ts", import.meta.url),
-  );
+  // process.cwd() (not import.meta — see the CJS note in mail-log.ts):
+  // Playwright workers run from the project root.
+  const script = resolve(process.cwd(), "scripts/set-role.ts");
   const child = spawnSync("npx", ["tsx", script, email, role], {
     encoding: "utf8",
     env: { ...process.env, DATABASE_URL: E2E_DATABASE_URL },
@@ -117,7 +121,7 @@ export async function signUpViaApi(
 ): Promise<void> {
   const response = await request.post("/api/auth/sign-up/email", {
     headers: authHeaders(),
-    data: account,
+    data: { ...account, callbackURL: VERIFICATION_CALLBACK_PATH },
   });
   expect(response.status(), await response.text()).toBe(200);
 }

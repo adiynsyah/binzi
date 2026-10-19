@@ -11,13 +11,14 @@
 // (`/api/auth/reset-password/`) links without depending on subject copy.
 // Polling with a deadline — never a fixed waitForTimeout.
 import { readFile } from "node:fs/promises";
-import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
 
 import { maskEmail } from "../src/lib/mail";
 
-const SERVER_LOG = fileURLToPath(
-  new URL("../test-results/server.log", import.meta.url),
-);
+// Playwright loads spec files (and their imports) as CJS in this repo —
+// `import.meta` is therefore unavailable here. Workers run from the project
+// root, so resolve against process.cwd().
+const SERVER_LOG = resolve(process.cwd(), "test-results/server.log");
 
 // [mail:log] dari BINZI <…> untuk r***@example.com · subjek: … · tautan: https://…
 const MAIL_LINE =
@@ -30,15 +31,22 @@ export type MailLogLine = {
   link?: string;
 };
 
-/** Current line count of the server log — the offset for the next wait. */
+/**
+ * Number of COMPLETE lines in the server log (newline-terminated) — the
+ * offset for the next wait. Not `split("\n").length`: that counts the empty
+ * string after the trailing newline too, so a line appended right after the
+ * snapshot would land exactly at `slice(sinceLine)`'s exclusive start and be
+ * missed (every mail wait failed on exactly this off-by-one).
+ */
 export async function mailLogOffset(): Promise<number> {
+  let text: string;
   try {
-    const text = await readFile(SERVER_LOG, "utf8");
-    return text.length === 0 ? 0 : text.split("\n").length;
+    text = await readFile(SERVER_LOG, "utf8");
   } catch {
     // File not created yet (no `next start` output at all).
     return 0;
   }
+  return text.split("\n").length - 1;
 }
 
 function parseLines(text: string, sinceLine: number): MailLogLine[] {

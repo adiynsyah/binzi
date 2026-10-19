@@ -5,8 +5,7 @@
 // oracle that changes together with the code catches nothing. Page statuses
 // are read with cookie-carrying API requests that do NOT follow redirects.
 import { readdirSync } from "node:fs";
-import { join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join, resolve } from "node:path";
 
 import { expect, test } from "./fixtures";
 import {
@@ -69,7 +68,9 @@ function locationPath(response: {
 
 /** Every page.tsx route under src/app/(cms) — the coverage oracle. */
 function listCmsPages(): string[] {
-  const root = fileURLToPath(new URL("../src/app/(cms)/cms", import.meta.url));
+  // process.cwd() — import.meta is unavailable in Playwright's CJS worker
+  // transform (see the note in mail-log.ts).
+  const root = resolve(process.cwd(), "src/app/(cms)/cms");
   const paths: string[] = [];
   const walk = (dir: string, prefix: string): void => {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -89,8 +90,13 @@ function listCmsPages(): string[] {
 test.describe("cakupan tabel RBAC", () => {
   test("every CMS page.tsx has a row in the expectation table", () => {
     // A new CMS page without an expectation row turns this red — the table
-    // can never silently drift from the actual routes (card §4f).
-    expect(PAGE_EXPECTATIONS.map((row) => row.path)).toEqual(listCmsPages());
+    // can never silently drift from the actual routes (card §4f). /belajar
+    // is asserted separately (it is not a CMS page).
+    const expectedCms = PAGE_EXPECTATIONS.map((row) => row.path)
+      .filter((path) => path.startsWith("/cms"))
+      .sort();
+    expect(expectedCms).toEqual(listCmsPages());
+    expect(PAGE_EXPECTATIONS.map((row) => row.path)).toContain("/belajar");
   });
 });
 
@@ -196,32 +202,37 @@ test.describe("menu CMS di 1280 (Q43)", () => {
       await page.goto("/cms");
       await expect(page.locator('nav[aria-label="Menu CMS"] a').first()).toBeVisible();
 
+      // Two "Menu CMS" navs exist in the DOM (sidebar AND rail — one is
+      // visually hidden), so read ALL of their texts/links, not a strict
+      // single match.
+      const menuTexts = await page
+        .locator('nav[aria-label="Menu CMS"]')
+        .allInnerTexts();
+      const menuText = menuTexts.join("\n");
+
       const links = page.locator('nav[aria-label="Menu CMS"] a');
       const count = await links.count();
       expect(count).toBeGreaterThan(0);
+      const hrefs = new Set<string>();
       for (let i = 0; i < count; i++) {
         const href = await links.nth(i).getAttribute("href");
         expect(href, `${role} menu link #${i}`).toBeTruthy();
-        const response = await page.request.get(href as string, {
-          maxRedirects: 0,
-        });
+        hrefs.add(href as string);
+      }
+      for (const href of hrefs) {
+        const response = await page.request.get(href, { maxRedirects: 0 });
         expect(response.status(), `${role} menu link ${href}`).toBe(200);
       }
 
       if (role === "ADMIN") {
-        // Q43: ADMIN must not see the SUPER_ADMIN items in the menu.
-        const menuText = await page
-          .locator('nav[aria-label="Menu CMS"]')
-          .innerText();
+        // Q43: ADMIN must not see the SUPER_ADMIN items in the menu (their
+        // labels are "Audit log" and "Sistem" — cms-nav.ts).
         expect(menuText).not.toContain("Audit log");
-        expect(menuText).not.toContain("Pengaturan");
+        expect(menuText).not.toContain("Sistem");
       }
       if (role === "SUPER_ADMIN") {
-        const menuText = await page
-          .locator('nav[aria-label="Menu CMS"]')
-          .innerText();
         expect(menuText).toContain("Audit log");
-        expect(menuText).toContain("Pengaturan");
+        expect(menuText).toContain("Sistem");
       }
     });
   }
