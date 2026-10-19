@@ -71,6 +71,12 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "coverage/**",
+    // Playwright artifacts (traces, bundled report JS) — git-ignored, and
+    // ESLint's flat config does not read .gitignore.
+    "test-results/**",
+    "playwright-report/**",
+    "playwright/.cache/**",
+    "vitest-results/**",
     "next-env.d.ts",
     "package-lock.json",
     // Design handoff demo JS — vendored files, not project source
