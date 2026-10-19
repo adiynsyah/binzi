@@ -72,7 +72,7 @@ Satu alur utuh dari database sampai layar. Setelah A-13, berhenti sejenak dan ev
 
 ## Tahap 6 — Agent: layout & pelengkap
 
-Kerangka halaman publik, member, CMS, lalu keamanan, storage, cron, dan tes otomatis.
+Kerangka halaman publik, member, CMS, lalu keamanan, storage, cron, dan tes otomatis (E2E dipecah: A-19 harness & alur, A-19b tata letak & aksesibilitas).
 
 - [ ] **22.** 🤖 Agent · [A-14a](fase-0/A-14a-kerangka-layout-publik.md) — Kerangka layout publik (header tamu, menu ponsel, footer)
 - [ ] **23.** 🤖 Agent · [A-14b](fase-0/A-14b-header-member-dan-menu-akun.md) — Header member, menu akun & layout area belajar
@@ -81,7 +81,8 @@ Kerangka halaman publik, member, CMS, lalu keamanan, storage, cron, dan tes otom
 - [ ] **25b.** 🤖 Agent · [A-16b](fase-0/A-16b-penegakan-csp.md) — Penegakan CSP (opsi b+)
 - [ ] **26.** 🤖 Agent · [A-17](fase-0/A-17-lapisan-storage-r2.md) — Lapisan storage R2
 - [ ] **27.** 🤖 Agent · [A-18](fase-0/A-18-health-check-dan-cron-keep-alive.md) — Health check & cron keep-alive
-- [ ] **28.** 🤖 Agent · [A-19](fase-0/A-19-e2e-baseline-playwright.md) — E2E baseline (Playwright)
+- [ ] **28.** 🤖 Agent · [A-19](fase-0/A-19-e2e-baseline-playwright.md) — E2E: harness Playwright & alur auth/RBAC (sebelum sesi: Docker menyala)
+- [ ] **28b.** 🤖 Agent · [A-19b](fase-0/A-19b-e2e-tata-letak-dan-aksesibilitas.md) — E2E: tata letak per lebar & aksesibilitas
 
 ## Tahap 7 — Verifikasi akhir Fase 0 (kamu)
 

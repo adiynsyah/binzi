@@ -32,7 +32,8 @@
 | 25b | [A-16b](A-16b-penegakan-csp.md) | Penegakan CSP (opsi b+) | 🤖 Agent | [A-16](A-16-header-keamanan-dan-proposal-csp.md) |
 | 26 | [A-17](A-17-lapisan-storage-r2.md) | Lapisan storage R2 | 🤖 Agent | [A-02](A-02-konfigurasi-environment-tervalidasi-zod.md), [H-04](H-04-cloudflare-r2-bucket-dan-token.md) |
 | 27 | [A-18](A-18-health-check-dan-cron-keep-alive.md) | Health check & cron keep-alive | 🤖 Agent | [A-07](A-07-skema-drizzle-lengkap-migrasi-awal-dan-seed.md) |
-| 28 | [A-19](A-19-e2e-baseline-playwright.md) | E2E baseline (Playwright) | 🤖 Agent | [A-13](A-13-layar-autentikasi.md), [A-15](A-15-kerangka-layout-cms.md) |
-| 29 | [H-11](H-11-verifikasi-akhir-fase-0.md) | Verifikasi akhir Fase 0 | 👤 Kamu | [A-19](A-19-e2e-baseline-playwright.md) |
+| 28 | [A-19](A-19-e2e-baseline-playwright.md) | E2E: harness Playwright & alur auth/RBAC | 🤖 Agent | [A-13](A-13-layar-autentikasi.md), [A-15](A-15-kerangka-layout-cms.md), [A-16b](A-16b-penegakan-csp.md), [A-18](A-18-health-check-dan-cron-keep-alive.md) |
+| 28b | [A-19b](A-19b-e2e-tata-letak-dan-aksesibilitas.md) | E2E: tata letak per lebar & aksesibilitas | 🤖 Agent | [A-19](A-19-e2e-baseline-playwright.md) |
+| 29 | [H-11](H-11-verifikasi-akhir-fase-0.md) | Verifikasi akhir Fase 0 | 👤 Kamu | [A-19b](A-19b-e2e-tata-letak-dan-aksesibilitas.md) |
 | 30 | [H-03](H-03-domain-dan-dns-di-vercel.md) | Domain & DNS di Vercel | 👤 Kamu | — |
 | 31 | [H-07](H-07-resend-domain-pengirim-email.md) | Resend: domain pengirim email | 👤 Kamu | [H-03](H-03-domain-dan-dns-di-vercel.md) |

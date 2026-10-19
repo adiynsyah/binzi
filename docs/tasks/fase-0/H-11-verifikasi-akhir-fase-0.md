@@ -4,7 +4,7 @@
 |---|---|
 | **Pemilik** | Kamu (tidak dikerjakan agent) |
 | **Perkiraan** | 1–2 jam |
-| **Bergantung pada** | [A-19](A-19-e2e-baseline-playwright.md) |
+| **Bergantung pada** | [A-19](A-19-e2e-baseline-playwright.md), [A-19b](A-19b-e2e-tata-letak-dan-aksesibilitas.md) |
 | **Tag ClickUp** | `fase-0`, `manual`, `review`, `security` |
 | **Judul ClickUp** | `[F0][Kamu] H-11 Verifikasi akhir Fase 0` |
 
