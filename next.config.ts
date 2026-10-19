@@ -20,7 +20,6 @@ const isVercelPreview = process.env.VERCEL_ENV === "preview";
 const scriptSrc = [
   "'self'",
   "'unsafe-inline'",
-  "https://challenges.cloudflare.com",
   ...(isDev ? ["'unsafe-eval'"] : []),
   ...(isVercelPreview ? ["https://vercel.live"] : []),
 ];
