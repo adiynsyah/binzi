@@ -28,9 +28,17 @@ async function main(): Promise<void> {
   try {
     try {
       await sql`select 1`;
-    } catch {
+    } catch (error) {
+      // The postgres error code (ECONNREFUSED, ENOTFOUND, …) without the
+      // message — postgres embeds the URL/host in messages, and this log
+      // must never echo it.
+      const code =
+        error instanceof Error && "code" in error
+          ? String((error as { code?: unknown }).code)
+          : "";
       console.error(
-        "Tidak bisa terhubung ke database E2E. Jalankan `npm run e2e:db` " +
+        `Tidak bisa terhubung ke database E2E${code ? ` (kode ${code})` : ""}. ` +
+          "Jalankan `npm run e2e:db` " +
           "untuk menyalakan container lokal (binzi-e2e-db, port 54329), " +
           "lalu jalankan ulang. (Di CI, database menyala sebagai service container.)",
       );
@@ -43,9 +51,11 @@ async function main(): Promise<void> {
     // Fresh schema every run ("Selesai jika": green twice in a row, with the
     // database reset between runs). Both the app schema (public) and the
     // drizzle migrations bookkeeping schema (drizzle) go away; migration
-    // 0000 then recreates everything inside a fresh `public`.
+    // 0000 then recreates everything inside a fresh `public`. IF EXISTS on
+    // BOTH drops: a run killed between the drop and the create must not
+    // leave the NEXT run stuck on "schema public does not exist".
     console.log("[e2e-db] DROP SCHEMA public/drizzle …");
-    await sql`drop schema public cascade`;
+    await sql`drop schema if exists public cascade`;
     await sql`drop schema if exists drizzle cascade`;
     await sql`create schema public`;
 

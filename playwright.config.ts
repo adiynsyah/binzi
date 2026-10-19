@@ -4,9 +4,11 @@
 // webServer.command chains EVERYTHING in order: db-setup (guard → drop →
 // migrate → seed) → next build → next start. globalSetup is NOT used: the
 // relative order of globalSetup vs webServer is not guaranteed by Playwright,
-// while the guard must run before the server env is ever used. The command's
-// environment is ONLY E2E_SERVER_ENV (explicit dummy/test values), so the
-// production build runs the same fail-fast paths as Production.
+// while the guard must run before the server env is ever used. webServer.env
+// is E2E_SERVER_ENV MERGED over the inherited process env (Playwright merges,
+// it does not replace) — the isolation guarantee is the explicit DB/URL/
+// auth/Turnstile values it overrides, plus the smoke CSP test that fails if
+// VERCEL_ENV ever leaks in (see e2e/env.ts).
 //
 // reuseExistingServer is false EVERYWHERE: a dev server on 3100 (connected
 // to binzi-dev) must never be reused. bypassCSP is NOT set — tests run

@@ -49,6 +49,7 @@ test.describe("daftar & verifikasi", () => {
       sinceLine: offset,
       email,
       linkPathIncludes: "/verify-email",
+      verifyJwtEmail: true,
     });
     await page.goto(link);
 
@@ -80,11 +81,17 @@ test.describe("daftar & verifikasi", () => {
       sinceLine: offset,
       email,
       linkPathIncludes: "/verify-email",
+      verifyJwtEmail: true,
     });
     await page.goto(corruptToken(link));
 
     await expect(page).toHaveURL(/\/daftar\/verifikasi\?error=/);
     await expect(page).not.toHaveURL(/token=/);
+    // Positive assertion, not just absence: the error state must actually
+    // render (a crashed blank page would keep every negative check green).
+    await expect(
+      page.getByRole("heading", { name: "Akun Anda belum aktif." }),
+    ).toBeVisible();
     await expect(page.getByText("Akun aktif")).toHaveCount(0);
   });
 

@@ -210,6 +210,9 @@ export async function attachCspCollector(
     violations.push(violation as CspViolation);
   });
   await context.addInitScript(() => {
+    // Main document only: third-party iframes (Turnstile) run under their
+    // own policy — their violations are not this app's regressions.
+    if (window !== window.top) return;
     document.addEventListener("securitypolicyviolation", (event) => {
       (window as unknown as {
         __e2eCspViolation: (v: unknown) => void;

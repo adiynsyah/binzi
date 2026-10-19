@@ -108,14 +108,19 @@ test.describe("enumerasi via API", () => {
 });
 
 test.describe("Turnstile wajib", () => {
+  // Passwords are runtime-generated here too (zero-literal rule, CLAUDE.md).
   const ENDPOINTS = [
     {
       path: "/api/auth/sign-in/email",
-      body: { email: uniqueEmail("nocaptcha"), password: "Whatever1" },
+      body: { email: uniqueEmail("nocaptcha"), password: randomPassword() },
     },
     {
       path: "/api/auth/sign-up/email",
-      body: { name: "No Captcha", email: uniqueEmail("nocaptcha"), password: "Whatever1" },
+      body: {
+        name: "No Captcha",
+        email: uniqueEmail("nocaptcha"),
+        password: randomPassword(),
+      },
     },
     {
       path: "/api/auth/request-password-reset",
@@ -127,7 +132,7 @@ test.describe("Turnstile wajib", () => {
     },
   ] as const;
 
-  test("no x-captcha-response header → 400 on all protected endpoints", async ({
+  test("no x-captcha-response header → captcha 400 on all protected endpoints", async ({
     request,
   }) => {
     for (const endpoint of ENDPOINTS) {
@@ -139,6 +144,17 @@ test.describe("Turnstile wajib", () => {
         response.status(),
         `${endpoint.path} without x-captcha-response`,
       ).toBe(400);
+      // The 400 must come from the captcha plugin (better-auth's
+      // MISSING_RESPONSE middlewareResponse) — not from some unrelated
+      // validation happening to return 400.
+      const body = (await response.json().catch(() => ({}))) as {
+        code?: string;
+        error?: { code?: string } | null;
+      };
+      expect(
+        body.code ?? body.error?.code,
+        `${endpoint.path} rejection code`,
+      ).toBe("MISSING_RESPONSE");
     }
   });
 });

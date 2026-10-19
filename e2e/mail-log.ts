@@ -5,10 +5,14 @@
 // action, then poll for the ONE matching line that appears AFTER that
 // offset — more than one match fails the test (session decision #7).
 //
-// Lines are matched by the masked recipient (maskEmail from src/lib/mail.ts
-// — same masking the server applies) plus the link's path, which
-// distinguishes verification (`/api/auth/verify-email`) from password-reset
-// (`/api/auth/reset-password/`) links without depending on subject copy.
+// What actually identifies a line: the OFFSET (lines written after the
+// snapshot), the link's PATH (verification `/api/auth/verify-email` vs
+// reset `/api/auth/reset-password/`), and the EXACTLY-ONE rule — NOT the
+// masked recipient: every test address starts with "e", so maskEmail
+// renders them all as e***@example.com and distinguishes nothing. For
+// verification links the token is a JWT, so `verifyJwtEmail` can decode
+// its payload and pin the line to one EXACT address; reset tokens are
+// opaque, so those tests rely on offset+path+exactly-one alone.
 // Polling with a deadline — never a fixed waitForTimeout.
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
@@ -64,15 +68,35 @@ function parseLines(text: string, sinceLine: number): MailLogLine[] {
 }
 
 /**
+ * Exact address from a verification link's JWT payload, or null when the
+ * link has no decodable `token` (reset links use opaque tokens).
+ */
+function jwtEmail(link: string): string | null {
+  try {
+    const token = new URL(link).searchParams.get("token") ?? "";
+    const payload = token.split(".")[1] ?? "";
+    const json = JSON.parse(
+      Buffer.from(payload, "base64url").toString("utf8"),
+    ) as { email?: unknown };
+    return typeof json.email === "string" ? json.email : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Polls the server log until EXACTLY ONE mail line addressed to `email`
  * (masked comparison) with a link containing `linkPathIncludes` appears
  * after `sinceLine`. Returns the action link; throws on zero matches at the
- * deadline or on more than one match.
+ * deadline or on more than one match. With `verifyJwtEmail`, the matched
+ * line's JWT token payload must ALSO contain the exact address — a real
+ * identity check instead of the (non-distinguishing) masked comparison.
  */
 export async function waitForMailLink(options: {
   sinceLine: number;
   email: string;
   linkPathIncludes: string;
+  verifyJwtEmail?: boolean;
   timeoutMs?: number;
 }): Promise<string> {
   const expectedMasked = maskEmail(options.email);
@@ -95,7 +119,16 @@ export async function waitForMailLink(options: {
     lastSeen = matches.length;
     if (matches.length === 1) {
       const link = matches[0]?.link;
-      if (link) return link;
+      if (link) {
+        if (options.verifyJwtEmail && jwtEmail(link) !== options.email) {
+          throw new Error(
+            `The [mail:log] line for ${expectedMasked} carries a token ` +
+              `whose JWT payload does not hold the exact address ` +
+              `(${options.linkPathIncludes}).`,
+          );
+        }
+        return link;
+      }
     }
     if (matches.length > 1) {
       throw new Error(

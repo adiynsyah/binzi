@@ -28,10 +28,16 @@ export const E2E_DATABASE_URL = assertE2eDatabaseUrl(
 export const E2E_BASE_URL = "http://localhost:3100";
 
 /**
- * The ONE env object for build + start (card A-19 §2). Explicit values in
- * the webServer process environment win over `.env.local` (dotenv/Next never
- * overwrite variables that are already set), which is what keeps binzi-dev
- * unreachable even though `next start` loads that file.
+ * The ONE env object for build + start (card A-19 §2).
+ *
+ * Isolation, stated precisely (PR review): Playwright MERGES this object on
+ * top of the inherited process environment — it is not a clean room — and
+ * `next build`/`next start` additionally load `.env.local` for any key NOT
+ * set here. What actually keeps binzi-dev unreachable is that every
+ * variable able to open a database/auth/mail connection is EXPLICITLY set
+ * below (dotenv and Next never overwrite variables that already exist);
+ * the smoke CSP test backstops the rest — a leaked VERCEL_ENV would add
+ * vercel.live to the header and turn that test red.
  *
  * No real secrets here (§12.6 V-09): the BETTER_AUTH_SECRET is a clearly
  * named E2E-only dummy, the Turnstile pair are Cloudflare's documented
