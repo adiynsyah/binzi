@@ -8,6 +8,8 @@
 | **Judul ClickUp** | `[F0][Agent] A-19b E2E tata letak per lebar & aksesibilitas` |
 
 > **Dibuat 19 Okt 2026** dari pemecahan kartu A-19 (ditinjau terhadap kode `main` `e642da2`). Memakai harness A-19 apa adanya: DB E2E, server build produksi, fixture akun berperan, dan penangkap pelanggaran CSP.
+>
+> **Ditinjau ulang 20 Okt 2026** terhadap kode A-19 yang di-merge (`340d909`): semua berkas di "Baca dulu" ada dan keenam target uji mutasi cocok dengan kode. Ditambahkan: pemisahan berkas antar-project (bagian 1), locator menu CMS (bagian 3), dan cara memverifikasi mutasi di branch uji ("Verifikasi oleh kamu").
 
 ## Tujuan
 Mengunci perilaku responsif dan aksesibilitas dasar yang sejauh ini hanya tertangkap lewat screenshot dan verifikasi manual (A-14a, A-14b, A-15): tanpa scroll horizontal, menu & drawer per ambang, target sentuh, keyboard, dan axe — di lebar yang mencakup setiap rentang breakpoint.
@@ -35,6 +37,8 @@ Setiap rentang breakpoint punya satu titik uji. Pelajaran A-15: ambang `md:` lol
 
 Tes alur A-19 tetap di project 1280-nya; tes kartu ini berjalan di project-project di atas. Chromium saja.
 
+Project A-19 bernama `chromium` (1280 × 800) dan namanya tidak diubah. Memisahkan berkas antar-project lewat `testMatch`/`testIgnore` — di project `chromium` dan di project baru — termasuk "penambahan project": boleh tanpa bertanya. Tes A-19 tidak boleh ikut berjalan di project lebar, dan tes kartu ini tidak boleh berjalan di project `chromium`.
+
 ### 2. Tanpa scroll horizontal (§14.1)
 Di setiap lebar, `document.documentElement.scrollWidth <= clientWidth` pada:
 - tamu: `/`, `/masuk`, `/daftar`, `/lupa-password`, `/reset-password` (tanpa token), `/daftar/verifikasi`;
@@ -54,6 +58,7 @@ Tambahan: akun dengan **nama 40 karakter tanpa spasi** (pelajaran A-14b — over
   - ≥ 1024: pemicu berupa pil nama.
 - **Bottom nav "Navigasi belajar"** di `(learn)`: ada di `w360` dan `w700`, tidak ada di `w768` dan `w1280`.
 - **CMS:** < 640 bar + "Buka menu CMS" → drawer + "Tutup menu CMS"; 640–1023 rel ikon (lebar 72) dengan tooltip saat fokus; ≥ 1024 sidebar (lebar 248). Lebar diukur dengan `getBoundingClientRect`.
+  - DOM `/cms` memuat **dua** `<nav aria-label="Menu CMS">` di setiap lebar: sidebar (`cms-sidebar.tsx`) dan rel (`cms-rail.tsx`); yang tidak sesuai lebar `display: none`. Nav ketiga (`cms-mobile-bar.tsx`) hanya ada saat drawer terbuka. `page.locator('nav[aria-label="Menu CMS"]')` cocok dua elemen (strict mode gagal); `getByRole("navigation", { name: "Menu CMS" })` hanya menghitung yang terlihat. Asersi per lebar menyasar nav yang terlihat.
 - **Drawer yang lebih tinggi dari layar** (drawer akun dan drawer CMS, viewport 360 × 640): baris ✕ tetap terlihat setelah isi digulir ke bawah.
 
 ### 4. Target sentuh ≥ 44 px (§14.1)
@@ -112,7 +117,7 @@ Jika pekerjaan menuntut menyentuh hal di luar lingkup, **berhenti dan tanyakan**
 ## Verifikasi oleh kamu (sebelum merge)
 - [ ] `npx playwright show-report`: project `w360`, `w700`, `w768`, `w1280`, `w1440` tampil dan hijau. Lampiran axe `moderate`/`minor` dibaca — putuskan mana yang jadi item STATUS.
 - [ ] Unggah folder screenshot ke Claude chat untuk perbandingan dengan desain (13a, 13d, 8e, 8t, 1d, 19a–19c).
-- [ ] Satu mutasi di branch uji lewat PR draft → job `e2e` merah → tutup PR dan hapus branch.
+- [ ] Satu mutasi di branch uji **yang dibuat dari branch PR** (bukan `main` — tes kartu ini belum ada di sana) lewat PR draft → job `e2e` merah **dengan tes A-19b yang diharapkan di daftar gagal**: `gh run view --job <id> --log-failed | grep -E "✘|[0-9]+ (failed|passed)"`. Langkah "Run E2E tests" yang merah saja belum bukti, karena langkah itu juga menjalankan `next build`. Lalu tutup PR dan hapus branch (`gh pr close <n> --delete-branch`).
 
 ## Catatan keputusan
 - **Lebar 700 ditambahkan** karena 360/768/1280 tidak menyentuh rentang 640–767, tempat ambang `sm:` dan `md:` berbeda. 1440 hanya untuk Beranda dan Masuk, sesuai definisi selesai.
