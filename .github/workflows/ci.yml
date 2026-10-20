@@ -75,3 +75,66 @@ jobs:
       # only reach dev-time tooling (scripts/check-audit.mjs).
       - name: Audit dependencies
         run: node scripts/check-audit.mjs
+
+  # E2E harness (card A-19): real Chromium against a PRODUCTION build served
+  # by webServer.command, on a throwaway Postgres that the harness resets
+  # every run. Runs in parallel with `ci` under a stable job name so branch
+  # protection can require it (the H-01 pattern).
+  #
+  # NO secrets.* anywhere (public repo): every server value is the explicit
+  # dummy/Cloudflare-test env from e2e/env.ts, and PRs from forks/Dependabot
+  # cannot leak anything they do not have.
+  e2e:
+    name: e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        # Same image as the local `binzi-e2e-db` container (A-19: same major
+        # as binzi-dev, pinned minor tag) — the harness drops/recreates the
+        # schema inside this service container every run.
+        image: postgres:17.6
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: binzi_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium for Playwright
+        run: npx playwright install --with-deps chromium
+
+      # webServer.command does db-setup (drop → migrate → seed against
+      # E2E_DATABASE_URL below) → next build → next start on :3100.
+      - name: Run E2E tests
+        run: npm run e2e
+        env:
+          E2E_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/binzi_e2e
+
+      # Reports only on failure, 7-day retention (card A-19 §5). Artifacts
+      # contain no secrets — the E2E env is all dummy/test values.
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-artifacts
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+

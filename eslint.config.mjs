@@ -56,11 +56,27 @@ const eslintConfig = defineConfig([
       ],
     },
   },
+  // E2E harness (card A-19): Playwright fixture factories take a `use`
+  // callback that eslint-plugin-react-hooks misreads as a React hook call
+  // ("React Hook 'use' is called in function 'page'…"). Only that ONE rule
+  // is disabled, only under e2e/**.
+  {
+    files: ["e2e/**/*.ts"],
+    rules: {
+      "react-hooks/rules-of-hooks": "off",
+    },
+  },
   globalIgnores([
     ".next/**",
     "out/**",
     "build/**",
     "coverage/**",
+    // Playwright artifacts (traces, bundled report JS) — git-ignored, and
+    // ESLint's flat config does not read .gitignore.
+    "test-results/**",
+    "playwright-report/**",
+    "playwright/.cache/**",
+    "vitest-results/**",
     "next-env.d.ts",
     "package-lock.json",
     // Design handoff demo JS — vendored files, not project source
