@@ -166,18 +166,23 @@ test.describe("menu & drawer", () => {
       await openAccountDropdown(page);
       const panel = page.getByRole("menu");
       await expect(panel).toBeVisible();
-      const panelBox = await panel.boundingBox();
-      console.log(
-        `[menu-akun @${testInfo.project.name}] trigger right=${triggerBox!.x + triggerBox!.width} bottom=${triggerBox!.y + triggerBox!.height}; panel right=${panelBox!.x + panelBox!.width} top=${panelBox!.y}`,
-      );
-      expect
-        .soft(
-          Math.abs(
-            panelBox!.x + panelBox!.width - (triggerBox!.x + triggerBox!.width),
-          ),
-          "panel rata kanan dengan pemicu (<= 2px)",
+      // "Keluar" visible does NOT imply positioned: the Radix popper keeps
+      // the panel at translate(0, -200%) ("keep off the page when
+      // measuring") until floating-ui's first update lands — a boundingBox()
+      // taken in that same layout pass sees the parked panel. Poll for the
+      // settled position instead; the <= 2px tolerance itself is unchanged.
+      await expect
+        .poll(
+          async () => {
+            const panelBox = await panel.boundingBox();
+            return Math.abs(
+              panelBox!.x + panelBox!.width - (triggerBox!.x + triggerBox!.width),
+            );
+          },
+          { message: "panel rata kanan dengan pemicu (<= 2px)" },
         )
         .toBeLessThanOrEqual(2);
+      const panelBox = await panel.boundingBox();
       expect
         .soft(
           Math.abs(panelBox!.y - (triggerBox!.y + triggerBox!.height + 6)),
