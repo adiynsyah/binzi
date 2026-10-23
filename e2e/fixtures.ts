@@ -109,6 +109,7 @@ export function setRoleViaScript(email: string, role: UserRole): void {
 export type UserRole = "MEMBER" | "EDITOR" | "ADMIN" | "SUPER_ADMIN";
 
 export type TestAccount = {
+  name: string;
   email: string;
   password: string;
   role: UserRole;
@@ -129,13 +130,16 @@ export async function signUpViaApi(
 /**
  * Verified account with a role, created end-to-end: real sign-up →
  * verify flag in the E2E DB → set-role child process (before any sign-in).
+ * `options.name` overrides the display name (A-19b: the 40-char no-space
+ * overflow probe; defaults to "E2E <role>").
  */
 export async function createRoleAccount(
   request: APIRequestContext,
   role: UserRole,
+  options?: { name?: string },
 ): Promise<TestAccount> {
   const account = {
-    name: `E2E ${role}`,
+    name: options?.name ?? `E2E ${role}`,
     email: uniqueEmail(role.toLowerCase()),
     password: randomPassword(),
   };
