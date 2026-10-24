@@ -115,6 +115,7 @@ Prasyarat Sprint 1 (tanpa tanggal tetap — sebelum S1-01, tanpa branch kartu la
 - [ ] 🤖 [C-05](chore/C-05-db-lokal-dan-seed-demo.md) — DB lokal untuk development + seed demo
 - [ ] 🤖 [C-06](chore/C-06-fondasi-modul-fitur.md) — Fondasi modul fitur: alias `@/` di Vitest + batas impor DB
 - [ ] 🤖 [C-07](chore/C-07-token-kontras.md) — Token kontras: tombol utama `primary-deep`, tautan merah, `text-subtle`
+- [ ] 🤖 [C-08](chore/C-08-ui-auth-aksesibilitas.md) — UI auth: aksesibilitas form & dua celah tata letak (setelah C-07)
 
 ## Sprint 1 — CMS kursus & materi
 
