@@ -1,8 +1,58 @@
 [
   {
-    "id": "GHSA-vfj7-8cjw-p6xm",
-    "package": "braces",
-    "reason": "Belum ada versi tambalan; hanya lewat alat lint/CLI (eslint-config-next, shadcn), pola dari konfigurasi repo, bukan input pengguna.",
-    "expires": "2026-11-02"
+    "id": "GHSA-2464-fhr4-w9xw",
+    "package": "next",
+    "reason": "Tambalan 16.4.1 (rilis 2026-10-14, diverifikasi via npm view) belum 14 hari saat entri dibuat; sharp 0.35.5 sudah ada di lockfile sebagai workaround advisory image optimization ini; upgrade ke tepat 16.4.1 (bukan 16.4.3 yang disarankan output gate), mulai 2026-10-29.",
+    "soakUntil": "2026-10-28",
+    "expires": "2026-11-01"
+  },
+  {
+    "id": "GHSA-673q-mjm6-r5xr",
+    "package": "next",
+    "reason": "Tambalan 16.4.1 (rilis 2026-10-14) belum 14 hari saat entri dibuat; tidak ada directive 'use cache' di src/ (diverifikasi grep) sehingga vektor RCE ini tidak terpakai; upgrade ke tepat 16.4.1, mulai 2026-10-29.",
+    "soakUntil": "2026-10-28",
+    "expires": "2026-11-01"
+  },
+  {
+    "id": "GHSA-p3m5-59mp-jv5r",
+    "package": "next",
+    "reason": "Tambalan 16.4.1 (rilis 2026-10-14) belum 14 hari saat entri dibuat; tidak ada directive 'use server'/Server Actions di src/ (diverifikasi grep) sehingga vektor DoS ini tidak terpakai; upgrade ke tepat 16.4.1, mulai 2026-10-29.",
+    "soakUntil": "2026-10-28",
+    "expires": "2026-11-01"
+  },
+  {
+    "id": "GHSA-mrhx-c7xc-m3w5",
+    "package": "zod",
+    "reason": "Temuan mencakup salinan bersarang shadcn/node_modules/zod dan @shadcn/registry/node_modules/zod 3.25.76 (rentang <4.6.6, tanpa tambalan 3.x; fix = shadcn >=4.22.0) di samping zod langsung 4.6.5 — menaikkan zod langsung saja tidak menghapus temuan. Tambalan shadcn 4.22.1 (rilis 2026-10-18, diverifikasi via npm view) belum 14 hari; zod langsung tetap dinaikkan ke 4.6.6 di kartu 2026-10-26 (entri ini TIDAK ikut dihapus), entri dihapus di kartu shadcn 4.22.1 + body-parser (2026-11-06).",
+    "soakUntil": "2026-11-01",
+    "expires": "2026-11-08"
+  },
+  {
+    "id": "GHSA-4qv8-2p9j-2685",
+    "package": "undici",
+    "reason": "Advisory moderate (DoS memori), tetap perlu entri karena gate mewajibkan SEMUA advisory pada rantai via paket terekskusi agar temuan undici lolos; undici di tree ini hanya berada di rantai CLI shadcn, tidak dibundel ke aplikasi. Tambalan 7.30.1 (rilis 2026-10-15, diverifikasi via npm view) belum 14 hari; upgrade dijadwalkan 2026-10-30.",
+    "soakUntil": "2026-10-29",
+    "expires": "2026-11-01"
+  },
+  {
+    "id": "GHSA-f72v-6w45-q472",
+    "package": "undici",
+    "reason": "Advisory moderate (bypass Subresource Integrity), tetap perlu entri karena gate mewajibkan SEMUA advisory pada rantai via paket terekskusi agar temuan undici lolos; undici di tree ini hanya berada di rantai CLI shadcn, tidak dibundel ke aplikasi. Tambalan 7.30.1 (rilis 2026-10-15) belum 14 hari; upgrade dijadwalkan 2026-10-30.",
+    "soakUntil": "2026-10-29",
+    "expires": "2026-11-01"
+  },
+  {
+    "id": "GHSA-xjj6-f33q-929c",
+    "package": "undici",
+    "reason": "Advisory high (DoS) yang membuat temuan undici berseverity high; undici di tree ini hanya berada di rantai CLI shadcn, tidak dibundel ke aplikasi. Tambalan 7.30.1 (rilis 2026-10-15) belum 14 hari; upgrade dijadwalkan 2026-10-30.",
+    "soakUntil": "2026-10-29",
+    "expires": "2026-11-01"
+  },
+  {
+    "id": "GHSA-27r3-jxmh-p828",
+    "package": "body-parser",
+    "reason": "Tambalan 2.4.0 (rilis 2026-10-22, diverifikasi via npm view) belum 14 hari saat entri dibuat; body-parser di tree ini hanya berada di rantai CLI shadcn, tidak dibundel ke aplikasi; upgrade rantai shadcn dijadwalkan 2026-11-06.",
+    "soakUntil": "2026-11-05",
+    "expires": "2026-11-08"
   }
 ]

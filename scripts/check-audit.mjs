@@ -6,8 +6,8 @@
  * finding is not covered by an active exception in
  * .github/audit-exceptions.json — a JSON array of entries shaped:
  *
- *   { "id": "GHSA-xxxx-xxxx-xxxx", "package": "braces",
- *     "reason": "…", "expires": "YYYY-MM-DD" }
+ *   { "id": "GHSA-xxxx-xxxx-xxxx", "package": "next",
+ *     "reason": "…", "soakUntil": "YYYY-MM-DD", "expires": "YYYY-MM-DD" }
  *
  * Rules:
  *   - Same bar as the `npm audit --audit-level=high` step it replaces:
@@ -19,10 +19,17 @@
  *     @next/eslint-plugin-next -> fast-glob -> micromatch -> braces ->
  *     GHSA-vfj7-8cjw-p6xm). Any other high advisory on the chain still
  *     fails the gate.
+ *   - `soakUntil` (optional) is the calendar date the patched release
+ *     turns 14 days old, and may not be more than 14 days in the future.
+ *     With `soakUntil`, `expires` must not be earlier than `soakUntil`
+ *     (the gate would go red before the patch is usable) and may not
+ *     exceed `soakUntil` + 7 days; an active exception may defer a
+ *     non-breaking fix until `expires`
+ *     (logged, not fatal). Without `soakUntil`, a non-breaking fix for an
+ *     excepted advisory fails the gate: the exception must be removed and
+ *     the upgrade applied.
  *   - Exceptions past their `expires` date (compared as local calendar
  *     dates) are not active and additionally fail the gate outright.
- *   - If npm reports a non-breaking fix for an excepted advisory, the
- *     gate fails: the exception must be removed and the upgrade applied.
  */
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
@@ -52,6 +59,12 @@ function localToday() {
   const month = String(now.getMonth() + 1).padStart(2, "0");
   const day = String(now.getDate()).padStart(2, "0");
   return `${now.getFullYear()}-${month}-${day}`;
+}
+
+function addDays(isoDate, days) {
+  const [year, month, day] = isoDate.split("-").map(Number);
+  const shifted = new Date(Date.UTC(year, month - 1, day) + days * 86400000);
+  return `${shifted.getUTCFullYear()}-${String(shifted.getUTCMonth() + 1).padStart(2, "0")}-${String(shifted.getUTCDate()).padStart(2, "0")}`;
 }
 
 function loadExceptions(today) {
@@ -104,6 +117,34 @@ function loadExceptions(today) {
     if (!isRealIsoDate(entry.expires)) {
       errors.push(`${entry.id}: "expires" must be a real date as YYYY-MM-DD`);
       continue;
+    }
+    if (entry.soakUntil !== undefined) {
+      if (!isRealIsoDate(entry.soakUntil)) {
+        errors.push(
+          `${entry.id}: "soakUntil" must be a real date as YYYY-MM-DD when present`,
+        );
+        continue;
+      }
+      if (entry.expires < entry.soakUntil) {
+        errors.push(
+          `${entry.id} (${entry.package}): "expires" ${entry.expires} is earlier than soakUntil ${entry.soakUntil} — the gate would go red before the patched release is 14 days old`,
+        );
+        continue;
+      }
+      const expiresLimit = addDays(entry.soakUntil, 7);
+      if (entry.expires > expiresLimit) {
+        errors.push(
+          `${entry.id} (${entry.package}): "expires" ${entry.expires} is later than soakUntil + 7 days (${expiresLimit})`,
+        );
+        continue;
+      }
+      const soakLimit = addDays(today, 14);
+      if (entry.soakUntil > soakLimit) {
+        errors.push(
+          `${entry.id} (${entry.package}): "soakUntil" ${entry.soakUntil} is later than today + 14 days (${soakLimit})`,
+        );
+        continue;
+      }
     }
     if (active.has(entry.id)) {
       errors.push(`${entry.id}: duplicate exception entry`);
@@ -240,29 +281,42 @@ for (const [name, vuln] of Object.entries(vulnerabilities)) {
   }
 }
 
-// If npm can already fix an excepted advisory without a breaking change,
-// the exception is stale — fail so it gets removed and the fix applied.
+// A non-breaking fix for an excepted advisory is handled per entry:
+// with `soakUntil` the deferral runs until `expires` (bounded to
+// soakUntil + 7 days at load time) and is logged, not fatal; without
+// `soakUntil` the gate fails — the exception must be removed and the
+// upgrade applied (the original PR #21 rule).
+const deferredFixes = [];
 for (const [name, vuln] of Object.entries(vulnerabilities)) {
   if (!blockingSeverities.has(vuln.severity)) continue;
-  const carried = vuln.via.find(
-    (cause) =>
-      cause !== null &&
-      typeof cause === "object" &&
-      typeof cause.url === "string" &&
-      activeExceptions.has(advisoryId(cause)),
-  );
-  if (!carried) continue;
 
   const fix = vuln.fixAvailable;
   const nonBreaking =
     fix === true ||
     (fix !== null && typeof fix === "object" && fix.isSemVerMajor === false);
-  if (nonBreaking) {
-    const how =
-      fix === true ? "npm audit fix" : `update ${fix.name} to ${fix.version}`;
-    gateErrors.push(
-      `${advisoryId(carried)} (${name}): perbaikan tersedia, hapus pengecualian dan upgrade — npm reports a non-breaking fix (${how})`,
-    );
+  if (!nonBreaking) continue;
+
+  const how =
+    fix === true ? "npm audit fix" : `update ${fix.name} to ${fix.version}`;
+  for (const cause of vuln.via) {
+    if (
+      cause === null ||
+      typeof cause !== "object" ||
+      typeof cause.url !== "string"
+    ) {
+      continue;
+    }
+    const id = advisoryId(cause);
+    if (!activeExceptions.has(id)) continue;
+    const entry = activeExceptions.get(id);
+    if (entry.soakUntil) {
+      const line = `${id} (${name}): non-breaking fix available (${how}) — deferred until ${entry.expires}, soak until ${entry.soakUntil}`;
+      if (!deferredFixes.includes(line)) deferredFixes.push(line);
+    } else {
+      gateErrors.push(
+        `${id} (${name}): perbaikan tersedia, hapus pengecualian dan upgrade — npm reports a non-breaking fix (${how})`,
+      );
+    }
   }
 }
 
@@ -281,6 +335,13 @@ if (excused.length > 0) {
       `  - ${finding.name} [${finding.severity}] — ${prefix}${finding.chain.join(" -> ")} (${expires})`,
     );
   }
+}
+
+if (deferredFixes.length > 0) {
+  console.log(
+    "Non-breaking fixes deferred by active exceptions (time-boxed by expires):",
+  );
+  for (const line of deferredFixes) console.log(`  - ${line}`);
 }
 
 if (blocking.length > 0) {
@@ -342,7 +403,7 @@ if (blocking.length > 0) {
     `audit:check — FAILED — ${blocking.length} blocking high/critical finding(s).`,
   );
   console.error(
-    "  Fix by upgrading, or add a documented entry (id/package/reason/expires) to .github/audit-exceptions.json.",
+    "  Fix by upgrading, or add a documented entry (id/package/reason/soakUntil/expires) to .github/audit-exceptions.json.",
   );
   process.exit(1);
 }

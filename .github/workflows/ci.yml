@@ -71,8 +71,8 @@ jobs:
           MAIL_TRANSPORT: log
           DATABASE_URL: postgresql://ci:ci@localhost:6543/ci
 
-      # npm audit with documented, expiring exceptions for advisories that
-      # only reach dev-time tooling (scripts/check-audit.mjs).
+      # npm audit with documented, expiring exceptions; entries may carry
+      # a soak window and expiry (scripts/check-audit.mjs).
       - name: Audit dependencies
         run: node scripts/check-audit.mjs
 
