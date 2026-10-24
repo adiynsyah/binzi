@@ -21,8 +21,10 @@
  *     fails the gate.
  *   - `soakUntil` (optional) is the calendar date the patched release
  *     turns 14 days old, and may not be more than 14 days in the future.
- *     With `soakUntil`, `expires` may not exceed `soakUntil` + 7 days and
- *     an active exception may defer a non-breaking fix until `expires`
+ *     With `soakUntil`, `expires` must not be earlier than `soakUntil`
+ *     (the gate would go red before the patch is usable) and may not
+ *     exceed `soakUntil` + 7 days; an active exception may defer a
+ *     non-breaking fix until `expires`
  *     (logged, not fatal). Without `soakUntil`, a non-breaking fix for an
  *     excepted advisory fails the gate: the exception must be removed and
  *     the upgrade applied.
@@ -120,6 +122,12 @@ function loadExceptions(today) {
       if (!isRealIsoDate(entry.soakUntil)) {
         errors.push(
           `${entry.id}: "soakUntil" must be a real date as YYYY-MM-DD when present`,
+        );
+        continue;
+      }
+      if (entry.expires < entry.soakUntil) {
+        errors.push(
+          `${entry.id} (${entry.package}): "expires" ${entry.expires} is earlier than soakUntil ${entry.soakUntil} — the gate would go red before the patched release is 14 days old`,
         );
         continue;
       }
