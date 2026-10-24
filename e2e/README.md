@@ -4,6 +4,25 @@ Harness uji peramban sungguhan terhadap **build produksi** (CSP §12.5 aktif,
 `NODE_ENV=production`, jalur fail-fast `src/lib/auth.ts` berjalan). Lingkup
 kartu A-19: alur auth & RBAC. Tata letak per lebar + axe ada di kartu A-19b.
 
+## Project per lebar (A-19b)
+
+- `chromium` (1280×800): **semua spec A-19** (root `e2e/*.spec.ts`); tidak
+  pernah menjalankan `e2e/layout/` (`testIgnore`).
+- `w360`/`w700`/`w768`/`w1280`/`w1440`: **hanya** `e2e/layout/**`
+  (`testMatch`), masing-masing satu titik uji per rentang breakpoint
+  (tabel lebar + ekspektasi per lebar: `e2e/layout/widths.ts` — nama
+  project tak dikenal di-*throw*, bukan di-skip). Project lebar memakai
+  `reducedMotion: "reduce"` supaya animasi drawer/dropdown tidak mengganggu
+  pengukuran posisi. Spec tertentu hanya relevan untuk lebar tertentu
+  (target sentuh w360; keyboard & axe w360+w1280; w1440 hanya `/` dan
+  `/masuk`) — pemetaannya di `playwright.config.ts`.
+- `E2E_SCREENSHOT_DIR=~/folder` (di luar repo): simpan screenshot halaman
+  penuh tiap halaman × lebar + state menu terbuka untuk tinjauan visual di
+  Claude chat — bukan baseline, tidak di-commit.
+- axe (WCAG 2.1 A/AA) via `@axe-core/playwright`; hanya pengecualian wadah
+  Turnstile (iframe lintas origin). serious/critical menggagalkan;
+  moderate/minor dilampirkan ke laporan.
+
 ## Menjalankan
 
 ```bash
