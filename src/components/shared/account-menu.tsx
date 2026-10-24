@@ -72,30 +72,41 @@ export function AccountDropdown({ user }: AccountMenuProps) {
           avatar-only at 640–1023 (8t), the pill at ≥ 1024 (13a). Radix
           labels it aria-haspopup="menu" and manages aria-expanded; the
           avatar and caret are decorative inside this labelled button. */}
+      {/* UJI MUTASI 2 (A-19b) — JANGAN DI-MERGE. Dua pemicu disembunyikan
+          bergantian (pola bug A-14b): pil terakhir menjadi anchor, jadi di
+          640–1023 panel terparkir di (0,0). */}
       <DropdownMenuTrigger asChild>
         <button
           type="button"
           aria-label="Menu akun"
-          className={cn(
-            "group hidden h-11 w-11 place-items-center rounded-pill text-text",
-            "transition-colors duration-200 ease-out hover:bg-fill",
-            "sm:grid lg:inline-flex lg:w-auto lg:items-center lg:gap-2.5",
-            "lg:border lg:border-border lg:pl-3 lg:pr-1.5",
-            "lg:hover:border-border-strong lg:hover:bg-transparent",
-          )}
+          className="hidden size-11 place-items-center rounded-pill text-text sm:grid lg:hidden"
         >
-          <span className="hidden max-w-[22ch] truncate text-[13.5px] font-bold text-text-muted lg:block">
+          <Avatar
+            name={displayName}
+            size="sm"
+            aria-hidden="true"
+            className="size-9 bg-text text-surface text-[14px]"
+          />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          aria-label="Menu akun"
+          className="group hidden h-11 items-center gap-2.5 rounded-pill border border-border pl-3 pr-1.5 text-text lg:inline-flex"
+        >
+          <span className="max-w-[22ch] truncate text-[13.5px] font-bold text-text-muted">
             {displayName}
           </span>
           <Avatar
             name={displayName}
             size="sm"
             aria-hidden="true"
-            className="size-9 bg-text text-surface text-[14px] lg:size-8 lg:text-[13px]"
+            className="size-8 bg-text text-surface text-[13px]"
           />
           <ChevronDown
             aria-hidden="true"
-            className="hidden size-3.5 text-text-meta transition-transform duration-200 ease-out group-data-[state=open]:rotate-180 lg:block"
+            className="size-3.5 text-text-meta transition-transform duration-200 ease-out group-data-[state=open]:rotate-180"
           />
         </button>
       </DropdownMenuTrigger>
