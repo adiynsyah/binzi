@@ -23,6 +23,12 @@
 **Next.js 16.3.x** App Router · TypeScript strict · Tailwind CSS v4 + shadcn/ui · Drizzle ORM · Supabase PostgreSQL · Better Auth · Cloudflare R2 + Turnstile · TipTap · Resend · React Hook Form + Zod · TanStack Query · Vitest + Playwright.
 Jangan menambah dependensi baru tanpa menyebutkannya secara eksplisit di ringkasan perubahan.
 
+### Versi baru dan lockfile (soak 14 hari)
+- Setiap versi yang masuk `package-lock.json` — dependensi langsung **maupun transitif** — sudah dirilis ≥ 14 hari. npm memilih versi terbaru dalam rentang, jadi satu pin bisa menyeret rilis berumur hari.
+- Ubah lockfile hanya dengan `npm install … --before=<YYYY-MM-DD>` (hari ini − 14, atau tanggal di kartu); dependensi langsung dipin eksak. Jangan `npm update` / `npm audit fix` tanpa `--before`. Versi yang disarankan output `npm audit` (mis. "update next to 16.4.3") tidak memperhitungkan soak.
+- Sebelum PR: bandingkan lockfile dengan `origin/main` per entri (versi + integrity, bukan byte) dan sebut tanggal rilis setiap versi baru di ringkasan PR.
+- Advisory yang tambalannya belum 14 hari ditangani lewat pengecualian ber-`soakUntil` di `.github/audit-exceptions.json` (aturan di komentar kepala `scripts/check-audit.mjs`), hanya atas kartu atau keputusan pemilik.
+
 ### Aturan versi Next.js 16 (PRD Q36)
 - Pin versi patch Next.js di `package.json` (tanpa `^`); minimal **16.3.7** setelah rilis keamanan 30 Sep 2026.
 - Tulis kode untuk **Next.js 16**, bukan 15. Contoh yang sering salah: pakai `proxy.ts`, bukan `middleware.ts`; `params`, `searchParams`, `cookies()`, dan `headers()` bersifat async.
@@ -75,6 +81,7 @@ Acceptance criteria PRD §14 untuk fitur itu lulus · semua state di SCREENS.md 
 
 ## Alur Git (agent yang menjalankan)
 - **Awal sesi:** pastikan working tree bersih (jika tidak, berhenti dan tanya), `git checkout main`, `git pull`, lalu buat branch baru dari `main` terbaru.
+- **Sesi paralel:** bila sesi lain sedang memakai checkout utama, kerjakan kartu di worktree sendiri (`.claude/worktrees/…`) dan jangan menyentuh berkas sesi lain. `npm run e2e` tidak dijalankan bersamaan dengan sesi lain (port 3100 tetap). Status PR sesi lain (sudah merge atau belum) ditanyakan ke pemilik, bukan ditebak.
 - **Nama branch:** `<fase>/<id-huruf-kecil>-<nama-singkat>`, mis. `f0/a-02-env` (Fase 0 = `f0`, Sprint 1 = `s1`, dst.). Satu kartu = satu branch.
 - **Commit:** kecil dan sering, format Conventional Commits dengan ID kartu, mis. `feat(auth): add email/password login [A-09]`.
 - **Akhir sesi:** jalankan verifikasi otomatis di kartu → push branch → buat PR ke `main` dengan `gh pr create` bila GitHub CLI tersedia dan sudah login; jika tidak, berikan tautan pembuatan PR. Isi PR = ringkasan sesuai format di `docs/tasks/README.md`.

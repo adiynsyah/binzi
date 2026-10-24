@@ -8,6 +8,7 @@ Ikuti dari atas ke bawah. Centang setiap langkah yang selesai (di sini atau di C
 |---|---|---|
 | **H**-xx | 👤 **Kamu** | Pekerjaan manusia: membuat akun, mengisi secret, meninjau. Agent **tidak** mengerjakan ini. |
 | **A**-xx | 🤖 **Agent** | Pekerjaan AI coding agent. Satu kartu = satu sesi agent. Tugasmu: memulai sesi dan meninjau hasilnya. |
+| **C**-xx | 🤖 **Agent** | Chore terjadwal di luar urutan tahap (mis. upgrade dependensi yang menunggu soak 14 hari). Cara mengerjakannya sama dengan kartu A — prompt pembuka yang sama, ganti ID. |
 | **K**-xx | 📝 **Konten** | Pekerjaan konten bersama ahli gizi. Berjalan **paralel**, tidak menunggu kode. |
 
 ## Cara mengerjakan langkah 🤖 Agent (sama untuk semua kartu A)
@@ -96,6 +97,17 @@ Kerjakan kapan saja sebelum peserta penelitian atau publik mulai memakai BINZI �
 
 - [ ] **30.** 👤 Kamu · [H-03](fase-0/H-03-domain-dan-dns-di-vercel.md) — Domain & DNS di Vercel
 - [ ] **31.** 👤 Kamu · [H-07](fase-0/H-07-resend-domain-pengirim-email.md) — Resend: domain pengirim email
+
+---
+
+## Chore terjadwal — upgrade audit Okt–Nov 2026
+
+Tanggal mulai mengikuti soak 14 hari; tenggat mengikuti `expires` pengecualian audit. Melewati tenggat membuat gate audit merah dan semua PR terblokir (detail di `STATUS.md`).
+
+- [ ] 🤖 [C-01](chore/C-01-zod-4-6-6-dan-kebersihan-soak.md) — zod 4.6.6 + kebersihan soak · *mulai Sen 26 Okt*
+- [ ] 🤖 [C-02](chore/C-02-next-16-4-1.md) — next 16.4.1 · *mulai Kam 29 Okt, merge ≤ Min 1 Nov*
+- [ ] 🤖 [C-03](chore/C-03-undici-7-30-1.md) — undici 7.30.1 · *mulai Jum 30 Okt, merge ≤ Min 1 Nov*
+- [ ] 🤖 [C-04](chore/C-04-shadcn-4-22-1-dan-body-parser-2-4-0.md) — shadcn 4.22.1 + body-parser 2.4.0 · *mulai Jum 6 Nov, merge ≤ Min 8 Nov*
 
 ---
 
