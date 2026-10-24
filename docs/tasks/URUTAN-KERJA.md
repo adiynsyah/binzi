@@ -8,6 +8,7 @@ Ikuti dari atas ke bawah. Centang setiap langkah yang selesai (di sini atau di C
 |---|---|---|
 | **H**-xx | 👤 **Kamu** | Pekerjaan manusia: membuat akun, mengisi secret, meninjau. Agent **tidak** mengerjakan ini. |
 | **A**-xx | 🤖 **Agent** | Pekerjaan AI coding agent. Satu kartu = satu sesi agent. Tugasmu: memulai sesi dan meninjau hasilnya. |
+| **S1**-xx | 🤖 **Agent** | Kartu fitur Sprint 1 (dan seterusnya S2-xx, …). Cara mengerjakannya sama dengan kartu A. |
 | **C**-xx | 🤖 **Agent** | Chore terjadwal di luar urutan tahap (mis. upgrade dependensi yang menunggu soak 14 hari). Cara mengerjakannya sama dengan kartu A — prompt pembuka yang sama, ganti ID. |
 | **K**-xx | 📝 **Konten** | Pekerjaan konten bersama ahli gizi. Berjalan **paralel**, tidak menunggu kode. |
 
@@ -108,6 +109,24 @@ Tanggal mulai mengikuti soak 14 hari; tenggat mengikuti `expires` pengecualian a
 - [ ] 🤖 [C-02](chore/C-02-next-16-4-1.md) — next 16.4.1 · *mulai Kam 29 Okt, merge ≤ Min 1 Nov*
 - [ ] 🤖 [C-03](chore/C-03-undici-7-30-1.md) — undici 7.30.1 · *mulai Jum 30 Okt, merge ≤ Min 1 Nov*
 - [ ] 🤖 [C-04](chore/C-04-shadcn-4-22-1-dan-body-parser-2-4-0.md) — shadcn 4.22.1 + body-parser 2.4.0 · *mulai Jum 6 Nov, merge ≤ Min 8 Nov*
+
+Prasyarat Sprint 1 (tanpa tanggal tetap — sebelum S1-01, tanpa branch kartu lain yang terbuka):
+
+- [ ] 🤖 [C-05](chore/C-05-db-lokal-dan-seed-demo.md) — DB lokal untuk development + seed demo
+- [ ] 🤖 [C-06](chore/C-06-fondasi-modul-fitur.md) — Fondasi modul fitur: alias `@/` di Vitest + batas impor DB
+
+## Sprint 1 — CMS kursus & materi
+
+Kartu ditulis di Claude chat menjelang sesinya, terhadap kode `main` terbaru. Rencana lengkap, prasyarat, dan keputusan tertunda ada di `STATUS.md` (item "Rencana S1").
+
+- [ ] 🤖 [S1-01](sprint-1/S1-01-daftar-dan-kursus-baru.md) — Daftar kursus, kursus baru, builder kosong
+- [ ] 🤖 [S1-02](sprint-1/S1-02-builder-kursus.md) — Builder kursus: pengaturan, outline materi, syarat terbit
+- [ ] 🤖 S1-03 — Dokumen konten: editor TipTap, validasi server, renderer *(kartu belum ditulis)*
+- [ ] 🤖 S1-04 — Editor materi (teks) + deskripsi kursus, auto-save *(kartu belum ditulis)*
+- [ ] 🤖 S1-05 — Unggah video materi *(butuh A-17; kartu belum ditulis)*
+- [ ] 🤖 S1-06 — Media library *(butuh A-17 + keputusan penyajian gambar; kartu belum ditulis)*
+- [ ] 🤖 S1-07 — Pemilih gambar, sampul, pemakaian aset *(kartu belum ditulis)*
+- [ ] 🤖 S1-08 — Kirim persetujuan & keputusan terbit *(butuh PRD v1.6; kartu belum ditulis)*
 
 ---
 
