@@ -256,15 +256,16 @@ test.describe("menu & drawer", () => {
   });
 });
 
-// Drawer taller than the screen (card §3, viewport 360×640): the pinned ✕
-// cover row must stay fully visible after the drawer content is scrolled
-// to the bottom. Runs in the w360 project only.
+// Drawer taller than the screen (card §3, viewport 360×640): the drawer
+// must actually overflow first (a drawer that fits makes the scroll below
+// prove nothing), then the pinned ✕ cover row AND the scrolled-to Keluar
+// must both be in the viewport after scrolling. Runs in w360 only.
 test.describe("drawer lebih tinggi dari layar (360×640)", () => {
   for (const [label, role, open] of [
     ["drawer akun", "MEMBER", openAccountDrawer],
     ["drawer CMS", "EDITOR", openCmsDrawer],
   ] as const) {
-    test(`${label}: baris ✕ tetap terlihat setelah gulir`, async ({
+    test(`${label}: meluap, Keluar & baris ✕ terlihat setelah gulir`, async ({
       page,
       request,
     }, testInfo) => {
@@ -279,16 +280,38 @@ test.describe("drawer lebih tinggi dari layar (360×640)", () => {
       await page.goto(role === "MEMBER" ? "/belajar" : "/cms");
       await open(page);
 
+      // Premise guard: the dialog's scroll area (div.overflow-y-auto) must
+      // overflow at 640 — otherwise this test scrolls nothing and must
+      // fail loudly instead of passing vacuously.
+      const dialog = page.getByRole("dialog", {
+        name: label === "drawer akun" ? "Menu akun" : "Menu CMS",
+      });
+      const overflow = await dialog.evaluate((el) => {
+        const scroller = el.querySelector<HTMLElement>("div.overflow-y-auto");
+        return scroller
+          ? {
+              scrollHeight: scroller.scrollHeight,
+              clientHeight: scroller.clientHeight,
+            }
+          : null;
+      });
+      expect(overflow, `${label}: area gulir ditemukan`).not.toBeNull();
+      expect(
+        overflow!.scrollHeight,
+        `${label}: isi meluap di 640 (scrollHeight ${overflow!.scrollHeight} > clientHeight ${overflow!.clientHeight})`,
+      ).toBeGreaterThan(overflow!.clientHeight);
+      test.info().annotations.push({
+        type: "note",
+        description: `${label} @360×640: scrollHeight ${overflow!.scrollHeight}px > clientHeight ${overflow!.clientHeight}px`,
+      });
+
       const keluar = page.getByRole("button", { name: "Keluar" });
       await keluar.scrollIntoViewIfNeeded();
+      await expect(keluar, "Keluar terlihat setelah gulir").toBeInViewport();
       const close = page.getByRole("button", {
         name: label === "drawer akun" ? "Tutup menu akun" : "Tutup menu CMS",
       });
-      const box = await close.boundingBox();
-      expect.soft(box!.y, "✕ tetap di atas (y >= 0)").toBeGreaterThanOrEqual(0);
-      expect
-        .soft(box!.y + box!.height, "✕ tetap terlihat (bottom <= 640)")
-        .toBeLessThanOrEqual(640);
+      await expect(close, "✕ tetap terlihat setelah gulir").toBeInViewport();
     });
   }
 });

@@ -15,8 +15,10 @@ import {
   maybeScreenshot,
   openAccountDrawer,
   openAccountDropdown,
+  openCmsAccountMenu,
   openCmsDrawer,
   openGuestMenu,
+  visibleCmsAccountTrigger,
   waitForMemberHeader,
   widthSpecOf,
 } from "./helpers";
@@ -96,6 +98,11 @@ test.describe("tanpa scroll horizontal", () => {
           "MEMBER dropdown akun terbuka",
           true,
         );
+        await maybeScreenshot(
+          page,
+          "member-dropdown-terbuka",
+          testInfo.project.name,
+        );
       });
     }
   });
@@ -127,6 +134,39 @@ test.describe("tanpa scroll horizontal", () => {
         await maybeScreenshot(
           page,
           "editor-drawer-cms-terbuka",
+          testInfo.project.name,
+        );
+      });
+    } else {
+      // Rail (640–1023) / sidebar (>= 1024): the CMS account menu opens as
+      // a dropdown ABOVE the trigger. Screenshot only after the popper has
+      // settled — Radix parks the panel at translate(0, -200%) until
+      // floating-ui positions it, and a screenshot in that frame would
+      // show no menu at all.
+      await test.step("EDITOR /cms menu akun CMS terbuka", async () => {
+        const trigger = visibleCmsAccountTrigger(page);
+        const triggerBox = await trigger.boundingBox();
+        await openCmsAccountMenu(page);
+        const panel = page.getByRole("menu");
+        await expect
+          .poll(
+            async () => {
+              const panelBox = await panel.boundingBox();
+              // Settled = on screen AND at/above the bottom-anchored
+              // trigger (side="top"); the parked position is far negative.
+              return (
+                panelBox !== null &&
+                panelBox.y >= 0 &&
+                panelBox.y <= triggerBox!.y
+              );
+            },
+            { message: "menu akun CMS terposisi di atas pemicu" },
+          )
+          .toBe(true);
+        await expectNoHorizontalScroll(page, "EDITOR menu akun CMS terbuka", true);
+        await maybeScreenshot(
+          page,
+          "editor-menu-akun-cms-terbuka",
           testInfo.project.name,
         );
       });
