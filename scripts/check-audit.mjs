@@ -6,8 +6,8 @@
  * finding is not covered by an active exception in
  * .github/audit-exceptions.json — a JSON array of entries shaped:
  *
- *   { "id": "GHSA-xxxx-xxxx-xxxx", "package": "braces",
- *     "reason": "…", "expires": "YYYY-MM-DD" }
+ *   { "id": "GHSA-xxxx-xxxx-xxxx", "package": "next",
+ *     "reason": "…", "soakUntil": "YYYY-MM-DD", "expires": "YYYY-MM-DD" }
  *
  * Rules:
  *   - Same bar as the `npm audit --audit-level=high` step it replaces:
@@ -19,10 +19,14 @@
  *     @next/eslint-plugin-next -> fast-glob -> micromatch -> braces ->
  *     GHSA-vfj7-8cjw-p6xm). Any other high advisory on the chain still
  *     fails the gate.
+ *   - `soakUntil` is the calendar date the patched release turns 14 days
+ *     old. An exception may defer a non-breaking fix until `expires`, and
+ *     `expires` may not exceed `soakUntil` + 7 days.
  *   - Exceptions past their `expires` date (compared as local calendar
  *     dates) are not active and additionally fail the gate outright.
- *   - If npm reports a non-breaking fix for an excepted advisory, the
- *     gate fails: the exception must be removed and the upgrade applied.
+ *   - While an exception is active, npm reporting a non-breaking fix for
+ *     its advisory is logged, not fatal: the deferral is time-boxed by
+ *     `expires`.
  */
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
@@ -52,6 +56,12 @@ function localToday() {
   const month = String(now.getMonth() + 1).padStart(2, "0");
   const day = String(now.getDate()).padStart(2, "0");
   return `${now.getFullYear()}-${month}-${day}`;
+}
+
+function addDays(isoDate, days) {
+  const [year, month, day] = isoDate.split("-").map(Number);
+  const shifted = new Date(Date.UTC(year, month - 1, day) + days * 86400000);
+  return `${shifted.getUTCFullYear()}-${String(shifted.getUTCMonth() + 1).padStart(2, "0")}-${String(shifted.getUTCDate()).padStart(2, "0")}`;
 }
 
 function loadExceptions(today) {
@@ -93,16 +103,25 @@ function loadExceptions(today) {
       typeof entry.package === "string" &&
       entry.package.length > 0 &&
       typeof entry.reason === "string" &&
-      entry.reason.length > 0;
+      entry.reason.length > 0 &&
+      typeof entry.soakUntil === "string" &&
+      isRealIsoDate(entry.soakUntil);
 
     if (!shapeOk) {
       errors.push(
-        `${id}: entry must have non-empty string id (GHSA-…), package, and reason`,
+        `${id}: entry must have non-empty string id (GHSA-…), package, reason, and soakUntil (real date YYYY-MM-DD)`,
       );
       continue;
     }
     if (!isRealIsoDate(entry.expires)) {
       errors.push(`${entry.id}: "expires" must be a real date as YYYY-MM-DD`);
+      continue;
+    }
+    const expiresLimit = addDays(entry.soakUntil, 7);
+    if (entry.expires > expiresLimit) {
+      errors.push(
+        `${entry.id} (${entry.package}): "expires" ${entry.expires} is later than soakUntil + 7 days (${expiresLimit})`,
+      );
       continue;
     }
     if (active.has(entry.id)) {
@@ -240,8 +259,10 @@ for (const [name, vuln] of Object.entries(vulnerabilities)) {
   }
 }
 
-// If npm can already fix an excepted advisory without a breaking change,
-// the exception is stale — fail so it gets removed and the fix applied.
+// An active exception may defer a non-breaking fix until its `expires`
+// date (bounded to soakUntil + 7 days at load time). Log the deferral so
+// it stays visible in CI output instead of failing the gate.
+const deferredFixes = [];
 for (const [name, vuln] of Object.entries(vulnerabilities)) {
   if (!blockingSeverities.has(vuln.severity)) continue;
   const carried = vuln.via.find(
@@ -260,8 +281,9 @@ for (const [name, vuln] of Object.entries(vulnerabilities)) {
   if (nonBreaking) {
     const how =
       fix === true ? "npm audit fix" : `update ${fix.name} to ${fix.version}`;
-    gateErrors.push(
-      `${advisoryId(carried)} (${name}): perbaikan tersedia, hapus pengecualian dan upgrade — npm reports a non-breaking fix (${how})`,
+    const entry = activeExceptions.get(advisoryId(carried));
+    deferredFixes.push(
+      `${advisoryId(carried)} (${name}): non-breaking fix available (${how}) — deferred until ${entry.expires}, soak until ${entry.soakUntil}`,
     );
   }
 }
@@ -281,6 +303,13 @@ if (excused.length > 0) {
       `  - ${finding.name} [${finding.severity}] — ${prefix}${finding.chain.join(" -> ")} (${expires})`,
     );
   }
+}
+
+if (deferredFixes.length > 0) {
+  console.log(
+    "Non-breaking fixes deferred by active exceptions (time-boxed by expires):",
+  );
+  for (const line of deferredFixes) console.log(`  - ${line}`);
 }
 
 if (blocking.length > 0) {
