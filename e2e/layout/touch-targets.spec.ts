@@ -1,9 +1,11 @@
 // Touch targets >= 44px (card A-19b §4, PRD §14.1) — w360 only. Every
 // interactive chrome element the phone user can tap: header buttons, menu/
-// drawer rows, bottom-nav items, auth form submits, the password toggle and
+// drawer rows, bottom-nav items, auth form submits, the password toggle
+// (BOTH auth variants: login-form and ui/password-field on /daftar) and
 // every ✕. Text links INSIDE sentences are excluded by the card — except
 // "Lupa password?", which stands alone in the label row (owner decision):
-// it is measured and REPORTED; asserted only if it already meets 44px.
+// measured and REPORTED only, never asserted (an inline link in the label
+// row cannot reach 44px; tracked for the a11y chore).
 import { createRoleAccount, expect, signInViaApi, test } from "../fixtures";
 import type { Locator } from "@playwright/test";
 import {
@@ -88,6 +90,18 @@ test.describe("target sentuh >= 44px @w360", () => {
       drawer.getByRole("link").filter({ hasNot: page.getByAltText("BINZI") }),
       "drawer akun",
     );
+    // "Cari" has NO header button below 640 (member-header.tsx keeps it
+    // `hidden … sm:grid`; at w360 it lives as a drawer row) — so the w360
+    // touch target IS this row, asserted explicitly (owner review item).
+    await expectTouchTarget(
+      drawer.getByRole("link", { name: "Cari" }),
+      "Cari (baris drawer akun, < 640)",
+    );
+    test.info().annotations.push({
+      type: "note",
+      description:
+        "Cari @w360: header link hidden < 640 (by design) — target diukur di baris drawer akun",
+    });
     await expectTouchTarget(drawer.getByRole("button", { name: "Keluar" }), "Keluar (drawer akun)");
   });
 
@@ -136,29 +150,27 @@ test.describe("target sentuh >= 44px @w360", () => {
       "✕ Tutup (/masuk)",
     );
 
-    // Reported, asserted only when it already meets 44px (owner decision).
+    // Measured & reported only (owner decision): the conditional assert
+    // could never fail while the link stays inline in the label row.
     const lupa = await measureTarget(
       page.getByRole("link", { name: "Lupa password?" }),
       "Lupa password? (baris label)",
     );
-    const measured = /^(\d+)×(\d+)$/.exec(lupa);
-    if (measured) {
-      test.info().annotations.push({
-        type: "note",
-        description: `Lupa password? measured ${lupa}`,
-      });
-      if (Number(measured[1]) >= 44 && Number(measured[2]) >= 44) {
-        await expectTouchTarget(
-          page.getByRole("link", { name: "Lupa password?" }),
-          "Lupa password? (>= 44px)",
-        );
-      }
-    }
+    test.info().annotations.push({
+      type: "note",
+      description: `Lupa password? measured ${lupa}`,
+    });
 
     await page.goto("/daftar");
     await expectTouchTarget(
       page.getByRole("button", { name: "Buat Akun Gratis" }),
       "tombol kirim Buat Akun Gratis",
+    );
+    // /daftar uses ui/password-field.tsx (NOT the login form's toggle
+    // above) — same 44px rule, different component (owner review).
+    await expectTouchTarget(
+      page.getByRole("button", { name: "Tampilkan kata sandi" }),
+      "toggle Tampilkan kata sandi (/daftar, password-field)",
     );
     await expectTouchTarget(
       page.getByRole("link", { name: "Tutup" }),
