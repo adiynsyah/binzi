@@ -187,36 +187,6 @@ export async function focusIndicatorOf(page: Page): Promise<FocusCheck> {
   }, TURNSTILE_CONTAINER);
 }
 
-/**
- * Presses Tab until `target` holds focus. Every intermediate stop is
- * soft-checked for a visible focus indicator and recorded (the recorded
- * order is documented in the PR). Bounded: a stuck traversal fails loudly
- * with the stops seen so far instead of looping forever.
- */
-export async function walkTabUntil(
-  page: Page,
-  target: Locator,
-  label: string,
-): Promise<string[]> {
-  const stops: string[] = [];
-  for (let i = 0; i < 40; i += 1) {
-    await page.keyboard.press("Tab");
-    const check = await focusIndicatorOf(page);
-    stops.push(
-      `${check.descriptor}${check.pass ? "" : ` [${check.reason}]`}`,
-    );
-    expect
-      .soft(check.pass, `focus indicator at ${check.descriptor}`)
-      .toBe(true);
-    const reached = await target.evaluate((el) => el === document.activeElement);
-    if (reached) {
-      await expect(target, label).toBeFocused();
-      return stops;
-    }
-  }
-  throw new Error(`${label}: Tab never reached the target. Stops:\n${stops.join("\n")}`);
-}
-
 // -------------------------------------------------------------------- menus
 
 /** MEMBER "/" first renders the guest header — wait for the swap (A-14b). */
@@ -249,6 +219,26 @@ export async function openCmsDrawer(page: Page): Promise<void> {
   await page.getByRole("button", { name: "Buka menu CMS" }).click();
   await expect(
     page.getByRole("button", { name: "Tutup menu CMS" }),
+  ).toBeVisible();
+}
+
+/**
+ * The VISIBLE CMS account-menu trigger (>= 640: the rail avatar button at
+ * 640–1023, the sidebar user block at >= 1024). Both stay in the DOM
+ * (CSS-hidden per breakpoint) and their accessible names differ (the rail
+ * button carries aria-label="Menu akun", the sidebar one is named by its
+ * text) — the stable shared handle is the Radix-set aria-haspopup="menu"
+ * on the trigger inside the CMS <aside>, filtered to the rendered one.
+ */
+export function visibleCmsAccountTrigger(page: Page): Locator {
+  return page.locator('aside button[aria-haspopup="menu"] >> visible=true');
+}
+
+/** Opens the CMS account menu (>= 640) and waits for its first item. */
+export async function openCmsAccountMenu(page: Page): Promise<void> {
+  await visibleCmsAccountTrigger(page).click();
+  await expect(
+    page.getByRole("menuitem", { name: "Lihat situs" }),
   ).toBeVisible();
 }
 

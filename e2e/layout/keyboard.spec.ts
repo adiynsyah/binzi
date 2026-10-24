@@ -1,53 +1,141 @@
 // Keyboard (card A-19b §5) — runs in w360 and w1280 (config testIgnore).
-// The login flow runs WITHOUT a mouse: Tab walks to Email, then to the
-// password (passing "Lupa password?" between them), waits for the Turnstile
-// token, then Enter on the submit button lands on /belajar. Every Tab stop
-// must show a visible focus indicator (helpers.focusIndicatorOf; stops
-// inside the Turnstile region are excluded — cross-origin widget, noted in
-// the PR). /masuk has NO skip link (owner decision — the (auth) shell is
-// chrome-less); the skip link is tested separately on / and /belajar,
-// where it exists.
+// The login flow runs WITHOUT a mouse along an EXPECTED stop list per
+// width (owner decision): ONE Tab per stop + toBeFocused, so a stop that
+// appears, disappears, or reorders fails by name. The Turnstile region is
+// crossed with Tab until focus leaves it (max 3 presses); its inner stops
+// are cross-origin and excluded from the indicator check (noted in the
+// PR). Every other stop must show a visible focus indicator
+// (helpers.focusIndicatorOf). /masuk has NO skip link (owner decision —
+// the (auth) shell is chrome-less); the skip link is tested separately on
+// / and /belajar, where it exists.
 import { createRoleAccount, expect, signInViaApi, test } from "../fixtures";
+import type { Locator, Page } from "@playwright/test";
 import {
+  TURNSTILE_CONTAINER,
   focusIndicatorOf,
-  walkTabUntil,
   waitForMemberHeader,
 } from "./helpers";
 
+/** One expected Tab stop; `afterTurnstile` changes the approach (below). */
+type Stop = {
+  label: string;
+  locator: Locator;
+  /** Type into the field once focused. */
+  type?: "email" | "password";
+  /** Reached by Tabbing OUT of the Turnstile region, not by one Tab. */
+  afterTurnstile?: boolean;
+};
+
+/**
+ * Tabs to `stop`, asserts it holds focus and shows an indicator. For
+ * `afterTurnstile` stops the Tab presses continue while focus stays inside
+ * the Turnstile container — the widget contributes at most 3 stops (the
+ * observed wrapper div, the iframe, a trailing wrapper), so up to 4
+ * presses are allowed: 3 landing inside + the one that exits; the
+ * toBeFocused below then proves the exit stopped exactly where expected.
+ */
+async function tabToStop(
+  page: Page,
+  stop: Stop,
+  typed: { email: string; password: string },
+): Promise<void> {
+  if (stop.afterTurnstile) {
+    for (let i = 0; i < 4; i += 1) {
+      await page.keyboard.press("Tab");
+      const outside = await page.evaluate((container) => {
+        const active = document.activeElement;
+        return !(active instanceof Element) || active.closest(container) === null;
+      }, TURNSTILE_CONTAINER);
+      if (outside) break;
+    }
+  } else {
+    await page.keyboard.press("Tab");
+  }
+  await expect(stop.locator, stop.label).toBeFocused();
+  const indicator = await focusIndicatorOf(page);
+  expect
+    .soft(indicator.pass, `indikator fokus di ${stop.label}: ${indicator.reason}`)
+    .toBe(true);
+  if (stop.type) await page.keyboard.type(typed[stop.type]);
+}
+
 test.describe("keyboard", () => {
-  test("masuk tanpa mouse: Tab → email → password → Enter → /belajar", async ({
+  test("masuk tanpa mouse: perhentian Tab sesuai lebar → Enter → /belajar", async ({
     page,
     request,
   }, testInfo) => {
     const account = await createRoleAccount(request, "MEMBER");
     await page.goto("/masuk");
 
-    const email = page.getByLabel("Email");
-    const password = page.locator("#login-password");
     const submit = page.getByRole("button", { name: "Masuk", exact: true });
 
-    const stopsToEmail = await walkTabUntil(page, email, "Email");
-    await page.keyboard.type(account.email);
+    // Expected stop order per width (owner decision). Only the first stop
+    // differs: w360 starts at the ✕ back link, w1280 at the header's
+    // "Daftar gratis"; from the Google button on the form is identical.
+    const firstStop: Stop =
+      testInfo.project.name === "w360"
+        ? {
+            label: "✕ Tutup",
+            locator: page.getByRole("link", { name: "Tutup" }),
+          }
+        : {
+            label: "Daftar gratis",
+            locator: page.getByRole("link", { name: "Daftar gratis" }),
+          };
+    const finalStop: Stop = {
+      label: "tombol Masuk (setelah keluar dari wilayah Turnstile)",
+      locator: submit,
+      afterTurnstile: true,
+    };
+    const stops: readonly Stop[] = [
+      firstStop,
+      {
+        label: "Masuk dengan Google",
+        locator: page.getByRole("button", { name: "Masuk dengan Google" }),
+      },
+      {
+        label: "Email",
+        locator: page.getByLabel("Email"),
+        type: "email",
+      },
+      {
+        label: "Lupa password?",
+        locator: page.getByRole("link", { name: "Lupa password?" }),
+      },
+      {
+        label: "Kata sandi",
+        locator: page.locator("#login-password"),
+        type: "password",
+      },
+      {
+        label: "Tampilkan kata sandi",
+        locator: page.getByRole("button", { name: "Tampilkan kata sandi" }),
+      },
+      finalStop,
+    ];
 
-    const stopsToPassword = await walkTabUntil(
-      page,
-      password,
-      "Password (melewati 'Lupa password?')",
-    );
-    await page.keyboard.type(account.password);
-
-    // Turnstile token arms the button; Enter submits from the keyboard.
-    await expect(submit).toBeEnabled();
-    const stopsToSubmit = await walkTabUntil(page, submit, "tombol Masuk");
-
-    // The stop order (documented in the PR) — stdout lands in the report.
     console.log(
-      `[keyboard @${testInfo.project.name}] stops:\n` +
-        [...stopsToEmail, ...stopsToPassword, ...stopsToSubmit]
-          .map((stop, index) => `  ${index + 1}. ${stop}`)
-          .join("\n"),
+      `[keyboard @${testInfo.project.name}] perhentian: ${stops
+        .map((stop) => stop.label)
+        .join(" → ")}`,
     );
+    for (const stop of stops.slice(0, -1)) {
+      await tabToStop(page, stop, {
+        email: account.email,
+        password: account.password,
+      });
+    }
 
+    // The Turnstile token must arm the submit BEFORE the final Tab: a
+    // disabled button is skipped by Tab (focus would sail past "Masuk" to
+    // the card's "Daftar gratis" link — observed in the debug run).
+    await expect(submit).toBeEnabled();
+    await tabToStop(page, finalStop, {
+      email: account.email,
+      password: account.password,
+    });
+
+    // Enter submits from the keyboard.
     await page.keyboard.press("Enter");
     await expect(page).toHaveURL(/\/belajar$/);
   });
@@ -62,11 +150,13 @@ test.describe("skip link 'Lewati ke konten utama'", () => {
     const skip = page.getByRole("link", {
       name: "Lewati ke konten utama",
     });
+    // toBeVisible() alone would pass while the link sits translated
+    // -200% OFFSCREEN — toBeInViewport proves the resting state is out of
+    // view and focus:translate-y-0 actually slides it in (skip-link.tsx).
+    await expect(skip, "skip link di luar viewport sebelum fokus").not.toBeInViewport();
     await page.keyboard.press("Tab");
     await expect(skip).toBeFocused();
-    // The link slides into view when focused — that visibility IS its
-    // indicator (plus the global focus-visible outline).
-    await expect(skip).toBeVisible();
+    await expect(skip, "skip link masuk viewport saat fokus").toBeInViewport();
 
     await page.keyboard.press("Enter");
     await expect(page).toHaveURL(/#konten-utama$/);
@@ -108,9 +198,10 @@ test.describe("skip link 'Lewati ke konten utama'", () => {
     const skip = page.getByRole("link", {
       name: "Lewati ke konten utama",
     });
+    await expect(skip, "skip link di luar viewport sebelum fokus").not.toBeInViewport();
     await page.keyboard.press("Tab");
     await expect(skip).toBeFocused();
-    await expect(skip).toBeVisible();
+    await expect(skip, "skip link masuk viewport saat fokus").toBeInViewport();
 
     await page.keyboard.press("Enter");
     await expect(page).toHaveURL(/#konten-utama$/);
