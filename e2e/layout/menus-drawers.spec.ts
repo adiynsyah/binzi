@@ -307,11 +307,26 @@ test.describe("drawer lebih tinggi dari layar (360×640)", () => {
 
       const keluar = page.getByRole("button", { name: "Keluar" });
       await keluar.scrollIntoViewIfNeeded();
-      await expect(keluar, "Keluar terlihat setelah gulir").toBeInViewport();
+      // The scroll must actually have happened — against an unscrolled
+      // drawer the ✕ row below would pass trivially (it is pinned
+      // outside the scroll area). Same scroller as the premise above.
+      const scroller = dialog.locator("div.overflow-y-auto").first();
+      const scrollTop = await scroller.evaluate((el) => el.scrollTop);
+      expect(
+        scrollTop,
+        `${label}: area gulir benar-benar tergulir (scrollTop ${scrollTop} > 0)`,
+      ).toBeGreaterThan(0);
+      // ratio 1 = fully visible; the default ratio 0 passes on a 1px
+      // sliver of the row.
+      await expect(keluar, "Keluar terlihat penuh setelah gulir").toBeInViewport(
+        { ratio: 1 },
+      );
       const close = page.getByRole("button", {
         name: label === "drawer akun" ? "Tutup menu akun" : "Tutup menu CMS",
       });
-      await expect(close, "✕ tetap terlihat setelah gulir").toBeInViewport();
+      await expect(close, "✕ tetap terlihat penuh setelah gulir").toBeInViewport(
+        { ratio: 1 },
+      );
     });
   }
 });

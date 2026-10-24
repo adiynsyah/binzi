@@ -2,9 +2,9 @@
 // The login flow runs WITHOUT a mouse along an EXPECTED stop list per
 // width (owner decision): ONE Tab per stop + toBeFocused, so a stop that
 // appears, disappears, or reorders fails by name. The Turnstile region is
-// crossed with Tab until focus leaves it (max 3 presses); its inner stops
-// are cross-origin and excluded from the indicator check (noted in the
-// PR). Every other stop must show a visible focus indicator
+// crossed with Tab until focus leaves it — at most 3 stops inside the
+// region + 1 Tab to exit (≤ 4 presses); its inner stops are cross-origin
+// and excluded from the indicator check (noted in the PR). Every other stop must show a visible focus indicator
 // (helpers.focusIndicatorOf). /masuk has NO skip link (owner decision —
 // the (auth) shell is chrome-less); the skip link is tested separately on
 // / and /belajar, where it exists.
