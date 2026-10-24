@@ -4,10 +4,11 @@
 // appears, disappears, or reorders fails by name. The Turnstile region is
 // crossed with Tab until focus leaves it — at most 3 stops inside the
 // region + 1 Tab to exit (≤ 4 presses); its inner stops are cross-origin
-// and excluded from the indicator check (noted in the PR). Every other stop must show a visible focus indicator
-// (helpers.focusIndicatorOf). /masuk has NO skip link (owner decision —
-// the (auth) shell is chrome-less); the skip link is tested separately on
-// / and /belajar, where it exists.
+// and excluded from the indicator check (noted in the PR). Every other
+// stop must show a visible focus indicator (helpers.focusIndicatorOf).
+// /masuk has NO skip link (owner decision — the (auth) shell is
+// chrome-less); the skip link is tested separately on / and /belajar,
+// where it exists.
 import { createRoleAccount, expect, signInViaApi, test } from "../fixtures";
 import type { Locator, Page } from "@playwright/test";
 import {
