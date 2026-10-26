@@ -23,7 +23,7 @@
   {
     "id": "GHSA-mrhx-c7xc-m3w5",
     "package": "zod",
-    "reason": "Temuan mencakup salinan bersarang shadcn/node_modules/zod dan @shadcn/registry/node_modules/zod 3.25.76 (rentang <4.6.6, tanpa tambalan 3.x; fix = shadcn >=4.22.0) di samping zod langsung 4.6.5 — menaikkan zod langsung saja tidak menghapus temuan. Tambalan shadcn 4.22.1 (rilis 2026-10-18, diverifikasi via npm view) belum 14 hari; zod langsung tetap dinaikkan ke 4.6.6 di kartu 2026-10-26 (entri ini TIDAK ikut dihapus), entri dihapus di kartu shadcn 4.22.1 + body-parser (2026-11-06).",
+    "reason": "Temuan hanya tersisa pada salinan bersarang shadcn/node_modules/zod dan @shadcn/registry/node_modules/zod 3.25.76 (rentang <4.6.6, tanpa tambalan 3.x; fix = shadcn >=4.22.0) — zod langsung sudah dinaikkan ke 4.6.6 di C-01 (2026-10-26), sehingga menaikkan zod langsung lagi tidak menghapus temuan. Tambalan shadcn 4.22.1 (rilis 2026-10-18, diverifikasi via npm view) belum 14 hari; entri dihapus di kartu shadcn 4.22.1 + body-parser (2026-11-06).",
     "soakUntil": "2026-11-01",
     "expires": "2026-11-08"
   },
