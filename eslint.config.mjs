@@ -81,6 +81,13 @@ const eslintConfig = defineConfig([
     "package-lock.json",
     // Design handoff demo JS — vendored files, not project source
     "docs/**",
+    // Claude Code parallel-session worktrees (.claude/worktrees/*) are full
+    // checkouts. Flat-config ESLint lints dot directories, and both ignore
+    // patterns and `files` blocks are anchored to this repo root (e.g.
+    // "docs/**" above, the e2e/** hook exemption), so they do not cover the
+    // copies inside a worktree. The only tracked file under .claude/ is
+    // settings.json.
+    ".claude/**",
   ]),
 ]);
 
