@@ -4,10 +4,14 @@
 version: 2
 updates:
   # npm dependencies (package.json / package-lock.json).
+  # Version-update PRs wait 14 days after a release (CLAUDE.md soak rule);
+  # security updates are unaffected by cooldown.
   - package-ecosystem: npm
     directory: /
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 14
 
   # GitHub Actions used by .github/workflows/*.
   - package-ecosystem: github-actions
