@@ -32,8 +32,10 @@
    Supabase), **berhenti** dan perbaiki env; jangan lanjut ke seed.
 4. `npm run db:seed` — data sistem (system_settings + kategori artikel
    dummy). Idempoten; nilai yang sudah ada tidak pernah ditimpa.
-5. `npm run db:seed:demo` — data demo netral (semua teks berprefiks
-   `[DEMO]`, tanpa istilah gizi/kesehatan): 1 penulis demo
+5. `npm run db:seed:demo` — data demo netral (judul, ringkasan, deskripsi,
+   teks materi, dan instruksi quiz berprefiks `[DEMO]`; soal, pembahasan,
+   dan opsi memakai teks dummy "Pertanyaan demo n?", "Pembahasan demo n.",
+   "Opsi A"–"Opsi D" — tanpa istilah gizi/kesehatan): 1 penulis demo
    `demo.penulis@example.com` (EDITOR, tanpa baris `accounts` — tidak bisa
    login), 3 kursus (2 `DRAFT`, 1 `IN_REVIEW` berisi summary + description
    sehingga satu-satunya syarat terbit yang belum terpenuhi adalah sampul),
@@ -49,7 +51,7 @@
 Setelah `.env.local` menunjuk DB lokal, `db:migrate` / `user:role` biasa
 tidak lagi mengenai binzi-dev. Production tetap butuh migrasi dan pengelolaan
 role di sana — pemilik produk membuat berkas `.env.binzi-dev` di root repo
-(ter-ignore otomatis oleh pola `.env*`; **agent tidak membukanya`) berisi
+(ter-ignore otomatis oleh pola `.env*`; **agent tidak membukanya**) berisi
 persis dua baris:
 
 ```
@@ -88,4 +90,6 @@ dijalankan sebelum atau sesaat setelah deploy).
 
 ## Reset data demo lokal
 
-`docker rm -f binzi-local-db` lalu ulangi setup dari langkah 1.
+`docker rm -f binzi-local-db` lalu ulangi setup dari langkah 1. Perhatian:
+ini menghapus **SEMUA** data lokal — termasuk akun yang sudah kamu
+daftarkan sendiri saat uji manual, bukan hanya data demo seed.

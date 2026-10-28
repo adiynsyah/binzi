@@ -1,8 +1,11 @@
 // Demo seed (card C-05 §2) — run with: npm run db:seed:demo
 //
-// Clearly-dummy, neutral content ONLY: every text is prefixed "[DEMO]" and
-// carries no nutrition/health terms, numbers, or claims (CLAUDE.md, PRD
-// §13.4). This is data to LOOK at screens with, never real content.
+// Clearly-dummy, neutral content ONLY, never real content (CLAUDE.md, PRD
+// §13.4): titles, summaries, descriptions, lesson texts and quiz
+// instructions are prefixed "[DEMO]"; questions, explanations and options
+// carry dummy wording ("Pertanyaan demo n?", "Pembahasan demo n.",
+// "Opsi A"–"Opsi D"). Nothing here is a nutrition/health term, number, or
+// claim. This is data to LOOK at screens with.
 //
 // Idempotent: every row carries a FIXED UUID and is inserted with
 // onConflictDoNothing on its primary key — re-running never duplicates.

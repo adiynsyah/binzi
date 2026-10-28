@@ -13,6 +13,8 @@
 // installed automatically.
 import { spawnSync } from "node:child_process";
 
+import { formatDatabaseTarget } from "../src/db/local-guard";
+
 const CONTAINER_NAME = "binzi-local-db";
 // Same pinned tag as e2e/db-container.ts (major matches binzi-dev).
 const IMAGE = "postgres:17.6";
@@ -24,7 +26,9 @@ const POSTGRES_PASSWORD = "postgres";
 // What the product owner puts into .env.local after this card (card C-05 §1).
 // Host label `localhost` (resolves to the 127.0.0.1 binding above) so the
 // drizzle target line reads `localhost:54330/binzi_local` as documented.
-export const DEV_DATABASE_URL = `postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@localhost:${HOST_PORT}/${DATABASE_NAME}`;
+// Deliberately NOT exported: main() runs at module load, so importing this
+// module must never be side-effect-free to rely on.
+const DEV_DATABASE_URL = `postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@localhost:${HOST_PORT}/${DATABASE_NAME}`;
 
 const READY_TIMEOUT_MS = 60_000;
 
@@ -101,7 +105,8 @@ async function main(): Promise<void> {
   while (Date.now() < deadline) {
     if (await databaseReady()) {
       console.log("\nPostgres development lokal siap.");
-      console.log(`Target: 127.0.0.1:${HOST_PORT}/${DATABASE_NAME}`);
+      // Same target-line format as drizzle.config.ts and CLAUDE.md.
+      console.log(`Target: ${formatDatabaseTarget(DEV_DATABASE_URL)}`);
       console.log(
         "Isi .env.local (pemilik produk — agent tidak mengubahnya):\n" +
           `  DATABASE_URL=${DEV_DATABASE_URL}\n` +
