@@ -23,6 +23,8 @@
     "db:seed:demo": "tsx src/db/seed-demo.ts",
     "db:studio": "drizzle-kit studio",
     "user:role": "tsx --env-file-if-exists=.env --env-file-if-exists=.env.local scripts/set-role.ts",
+    "db:migrate:binzi-dev": "tsx scripts/binzi-dev.ts migrate",
+    "user:role:binzi-dev": "tsx scripts/binzi-dev.ts set-role",
     "format": "prettier --write .",
     "check": "npm run typecheck && npm run lint && npm run test && npm run lint:hex",
     "prepare": "git config core.hooksPath .githooks"
