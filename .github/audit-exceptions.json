@@ -28,6 +28,12 @@
     "expires": "2026-11-08"
   },
   {
+    "id": "GHSA-gcqx-w48m-w2h4",
+    "package": "deepmerge",
+    "reason": "Advisory low (prototype poisoning di mergeObject), dipublikasikan setelah 2026-10-26, tanpa versi tambalan: rentang >=4.2.0 <=4.3.1 dan 4.3.1 adalah rilis terbaru (2023). Entri ini hanya diperlukan karena gate mewajibkan SEMUA advisory pada rantai via shadcn dan @shadcn/registry terekskusi selama keduanya masih high oleh salinan zod 3.25.76 bersarang (entri GHSA-mrhx-c7xc-m3w5). deepmerge dipakai CLI shadcn, tidak dibundel ke aplikasi (aplikasi hanya mengimpor shadcn/tailwind.css). Setelah C-04 (shadcn 4.22.1), shadcn turun di bawah high dan gate OK dengan daftar kosong (disimulasikan 2026-10-28) — entri dihapus di C-04. Tanpa soakUntil karena tidak ada tambalan; saran 'update shadcn to 4.23.0' dari npm keliru: shadcn 4.23.0 tetap meminta deepmerge ^4.3.1.",
+    "expires": "2026-11-08"
+  },
+  {
     "id": "GHSA-4qv8-2p9j-2685",
     "package": "undici",
     "reason": "Advisory moderate (DoS memori), tetap perlu entri karena gate mewajibkan SEMUA advisory pada rantai via paket terekskusi agar temuan undici lolos; undici di tree ini hanya berada di rantai CLI shadcn, tidak dibundel ke aplikasi. Tambalan 7.30.1 (rilis 2026-10-15, diverifikasi via npm view) belum 14 hari; upgrade dijadwalkan 2026-10-30.",
@@ -45,6 +51,41 @@
     "id": "GHSA-xjj6-f33q-929c",
     "package": "undici",
     "reason": "Advisory high (DoS) yang membuat temuan undici berseverity high; undici di tree ini hanya berada di rantai CLI shadcn, tidak dibundel ke aplikasi. Tambalan 7.30.1 (rilis 2026-10-15) belum 14 hari; upgrade dijadwalkan 2026-10-30.",
+    "soakUntil": "2026-10-29",
+    "expires": "2026-11-01"
+  },
+  {
+    "id": "GHSA-4w7w-5xrc-9h26",
+    "package": "undici",
+    "reason": "Advisory high (cache poisoning dan kebocoran lintas pengguna lewat redirect lintas origin), dipublikasikan setelah 2026-10-26 dengan rentang >=7.0.0 <7.30.1 atau >=7.15.0 <7.30.1 — tertutup oleh tambalan yang sama dengan tiga entri undici di atas: 7.30.1 (rilis 2026-10-15, diverifikasi via npm view), belum 14 hari. undici dipakai shadcn dan @shadcn/registry (CLI), jsdom (lingkungan tes Vitest), dan @dotenvx/dotenvx; tidak ada impor undici di src/, e2e/, scripts/, dan tidak dibundel ke aplikasi. Entri dihapus di C-03 (dijadwalkan 2026-10-30; tambalan genap 14 hari 2026-10-29 21.18 WIB).",
+    "soakUntil": "2026-10-29",
+    "expires": "2026-11-01"
+  },
+  {
+    "id": "GHSA-2m5v-pch6-74hx",
+    "package": "undici",
+    "reason": "Advisory high (validasi sertifikat TLS terlewati karena opsi tls di Agent terbuang), dipublikasikan setelah 2026-10-26 dengan rentang >=7.0.0 <7.30.1 atau >=7.15.0 <7.30.1 — tertutup oleh tambalan yang sama dengan tiga entri undici di atas: 7.30.1 (rilis 2026-10-15, diverifikasi via npm view), belum 14 hari. undici dipakai shadcn dan @shadcn/registry (CLI), jsdom (lingkungan tes Vitest), dan @dotenvx/dotenvx; tidak ada impor undici di src/, e2e/, scripts/, dan tidak dibundel ke aplikasi. Entri dihapus di C-03 (dijadwalkan 2026-10-30; tambalan genap 14 hari 2026-10-29 21.18 WIB).",
+    "soakUntil": "2026-10-29",
+    "expires": "2026-11-01"
+  },
+  {
+    "id": "GHSA-qrxm-fqhp-jwvm",
+    "package": "undici",
+    "reason": "Advisory high (DoS lewat renegosiasi TLS 1.2 yang mengganti sertifikat), dipublikasikan setelah 2026-10-26 dengan rentang >=7.0.0 <7.30.1 atau >=7.15.0 <7.30.1 — tertutup oleh tambalan yang sama dengan tiga entri undici di atas: 7.30.1 (rilis 2026-10-15, diverifikasi via npm view), belum 14 hari. undici dipakai shadcn dan @shadcn/registry (CLI), jsdom (lingkungan tes Vitest), dan @dotenvx/dotenvx; tidak ada impor undici di src/, e2e/, scripts/, dan tidak dibundel ke aplikasi. Entri dihapus di C-03 (dijadwalkan 2026-10-30; tambalan genap 14 hari 2026-10-29 21.18 WIB).",
+    "soakUntil": "2026-10-29",
+    "expires": "2026-11-01"
+  },
+  {
+    "id": "GHSA-9fm3-97px-rjf6",
+    "package": "undici",
+    "reason": "Advisory moderate (DoS lewat buffer PONG otomatis WebSocket yang tak terbatas), dipublikasikan setelah 2026-10-26 dengan rentang >=7.0.0 <7.30.1 atau >=7.15.0 <7.30.1 — tertutup oleh tambalan yang sama dengan tiga entri undici di atas: 7.30.1 (rilis 2026-10-15, diverifikasi via npm view), belum 14 hari. undici dipakai shadcn dan @shadcn/registry (CLI), jsdom (lingkungan tes Vitest), dan @dotenvx/dotenvx; tidak ada impor undici di src/, e2e/, scripts/, dan tidak dibundel ke aplikasi. Entri dihapus di C-03 (dijadwalkan 2026-10-30; tambalan genap 14 hari 2026-10-29 21.18 WIB).",
+    "soakUntil": "2026-10-29",
+    "expires": "2026-11-01"
+  },
+  {
+    "id": "GHSA-55wc-3pg8-jfw6",
+    "package": "undici",
+    "reason": "Advisory moderate (DoS lewat exception tak tertangani di interceptor decompress), dipublikasikan setelah 2026-10-26 dengan rentang >=7.0.0 <7.30.1 atau >=7.15.0 <7.30.1 — tertutup oleh tambalan yang sama dengan tiga entri undici di atas: 7.30.1 (rilis 2026-10-15, diverifikasi via npm view), belum 14 hari. undici dipakai shadcn dan @shadcn/registry (CLI), jsdom (lingkungan tes Vitest), dan @dotenvx/dotenvx; tidak ada impor undici di src/, e2e/, scripts/, dan tidak dibundel ke aplikasi. Entri dihapus di C-03 (dijadwalkan 2026-10-30; tambalan genap 14 hari 2026-10-29 21.18 WIB).",
     "soakUntil": "2026-10-29",
     "expires": "2026-11-01"
   },
