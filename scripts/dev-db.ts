@@ -22,7 +22,9 @@ const POSTGRES_USER = "postgres";
 const POSTGRES_PASSWORD = "postgres";
 
 // What the product owner puts into .env.local after this card (card C-05 §1).
-export const DEV_DATABASE_URL = `postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@127.0.0.1:${HOST_PORT}/${DATABASE_NAME}`;
+// Host label `localhost` (resolves to the 127.0.0.1 binding above) so the
+// drizzle target line reads `localhost:54330/binzi_local` as documented.
+export const DEV_DATABASE_URL = `postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@localhost:${HOST_PORT}/${DATABASE_NAME}`;
 
 const READY_TIMEOUT_MS = 60_000;
 
