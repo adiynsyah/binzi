@@ -79,6 +79,13 @@ Acceptance criteria PRD §14 untuk fitur itu lulus · semua state di SCREENS.md 
 - Tugas berkode `H-xx` dan semua di `docs/tasks/konten/` dikerjakan manusia. Jangan dikerjakan, dan jangan meminta nilai secret.
 - Akhiri sesi dengan ringkasan PR sesuai format di `docs/tasks/README.md`.
 
+## Database
+- Development & uji manual memakai **Postgres lokal**: `npm run dev:db` (container `binzi-local-db`, target `localhost:54330/binzi_local`), lalu `db:migrate` → `db:seed` → `db:seed:demo` (data demo netral). Panduan lengkap: `docs/development-lokal.md`.
+- **Baca baris target sebelum melanjutkan.** `db:migrate` selalu mencetak `[drizzle] target: host:port/nama-db` dari dalam proses yang benar-benar tersambung — pastikan sesuai harapan (lokal: `localhost:54330/binzi_local`) sebelum menjalankan perintah lain; bila tidak sesuai, berhenti.
+- Agent **tidak pernah** menjalankan migrasi/seed/set-role ke binzi-dev. binzi-dev digarap pemilik lewat `npm run db:migrate:binzi-dev` dan `npm run user:role:binzi-dev` (env dari `.env.binzi-dev`, di-root, ter-ignore).
+- Agent tidak membuka `.env.binzi-dev` — berkas itu milik pemilik produk.
+- Setiap PR yang membawa migrasi diikuti langkah pemilik `npm run db:migrate:binzi-dev` sebelum fitur yang memakainya dibuka di Production.
+
 ## Alur Git (agent yang menjalankan)
 - **Awal sesi:** pastikan working tree bersih (jika tidak, berhenti dan tanya), `git checkout main`, `git pull`, lalu buat branch baru dari `main` terbaru.
 - **Sesi paralel:** bila sesi lain sedang memakai checkout utama, kerjakan kartu di worktree sendiri (`.claude/worktrees/…`) dan jangan menyentuh berkas sesi lain. `npm run e2e` tidak dijalankan bersamaan dengan sesi lain (port 3100 tetap). Status PR sesi lain (sudah merge atau belum) ditanyakan ke pemilik, bukan ditebak.
