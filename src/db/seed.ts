@@ -49,7 +49,10 @@ async function main() {
   if (!url) {
     throw new Error(
       "Invalid database configuration: DATABASE_URL is not set. " +
-        "The seed must run against the Supabase transaction pooler (port 6543).",
+        "The seed runs against the LOCAL dev database (npm run dev:db, " +
+        "localhost:54330/binzi_local); for Production flows the owner aims " +
+        "it at the binzi-dev Supabase transaction pooler (port 6543) — " +
+        "both targets are valid (card C-05).",
     );
   }
 
