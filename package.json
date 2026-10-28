@@ -16,6 +16,7 @@
     "test": "vitest run --passWithNoTests",
     "e2e": "playwright test",
     "e2e:db": "tsx e2e/db-container.ts",
+    "dev:db": "tsx scripts/dev-db.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:seed": "tsx src/db/seed.ts",
