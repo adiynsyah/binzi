@@ -20,7 +20,7 @@
    pola "\([A-Z]{1,4}-[0-9]+\)" dan "§" di teks yang dirender.
 
 ## Stack (PRD §9.2)
-**Next.js 16.3.x** App Router · TypeScript strict · Tailwind CSS v4 + shadcn/ui · Drizzle ORM · Supabase PostgreSQL · Better Auth · Cloudflare R2 + Turnstile · TipTap · Resend · React Hook Form + Zod · TanStack Query · Vitest + Playwright.
+**Next.js 16.4.x** App Router · TypeScript strict · Tailwind CSS v4 + shadcn/ui · Drizzle ORM · Supabase PostgreSQL · Better Auth · Cloudflare R2 + Turnstile · TipTap · Resend · React Hook Form + Zod · TanStack Query · Vitest + Playwright.
 Jangan menambah dependensi baru tanpa menyebutkannya secara eksplisit di ringkasan perubahan.
 
 ### Versi baru dan lockfile (soak 14 hari)
@@ -30,7 +30,7 @@ Jangan menambah dependensi baru tanpa menyebutkannya secara eksplisit di ringkas
 - Advisory yang tambalannya belum 14 hari ditangani lewat pengecualian ber-`soakUntil` di `.github/audit-exceptions.json` (aturan di komentar kepala `scripts/check-audit.mjs`), hanya atas kartu atau keputusan pemilik.
 
 ### Aturan versi Next.js 16 (PRD Q36)
-- Pin versi patch Next.js di `package.json` (tanpa `^`); minimal **16.3.7** setelah rilis keamanan 30 Sep 2026.
+- Pin versi patch Next.js di `package.json` (tanpa `^`); minimal **16.4.1** (tambalan advisory Okt 2026).
 - Tulis kode untuk **Next.js 16**, bukan 15. Contoh yang sering salah: pakai `proxy.ts`, bukan `middleware.ts`; `params`, `searchParams`, `cookies()`, dan `headers()` bersifat async.
 - Jika ragu soal API, rujuk dokumentasi yang sesuai versi terpasang — jangan mengandalkan ingatan atau contoh dari versi lama.
 

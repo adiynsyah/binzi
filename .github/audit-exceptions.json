@@ -1,26 +1,5 @@
 [
   {
-    "id": "GHSA-2464-fhr4-w9xw",
-    "package": "next",
-    "reason": "Tambalan 16.4.1 (rilis 2026-10-14, diverifikasi via npm view) belum 14 hari saat entri dibuat; sharp 0.35.5 sudah ada di lockfile sebagai workaround advisory image optimization ini; upgrade ke tepat 16.4.1 (bukan 16.4.3 yang disarankan output gate), mulai 2026-10-29.",
-    "soakUntil": "2026-10-28",
-    "expires": "2026-11-01"
-  },
-  {
-    "id": "GHSA-673q-mjm6-r5xr",
-    "package": "next",
-    "reason": "Tambalan 16.4.1 (rilis 2026-10-14) belum 14 hari saat entri dibuat; tidak ada directive 'use cache' di src/ (diverifikasi grep) sehingga vektor RCE ini tidak terpakai; upgrade ke tepat 16.4.1, mulai 2026-10-29.",
-    "soakUntil": "2026-10-28",
-    "expires": "2026-11-01"
-  },
-  {
-    "id": "GHSA-p3m5-59mp-jv5r",
-    "package": "next",
-    "reason": "Tambalan 16.4.1 (rilis 2026-10-14) belum 14 hari saat entri dibuat; tidak ada directive 'use server'/Server Actions di src/ (diverifikasi grep) sehingga vektor DoS ini tidak terpakai; upgrade ke tepat 16.4.1, mulai 2026-10-29.",
-    "soakUntil": "2026-10-28",
-    "expires": "2026-11-01"
-  },
-  {
     "id": "GHSA-mrhx-c7xc-m3w5",
     "package": "zod",
     "reason": "Temuan hanya tersisa pada salinan bersarang shadcn/node_modules/zod dan @shadcn/registry/node_modules/zod 3.25.76 (rentang <4.6.6, tanpa tambalan 3.x; fix = shadcn >=4.22.0) — zod langsung sudah dinaikkan ke 4.6.6 di C-01 (2026-10-26), sehingga menaikkan zod langsung lagi tidak menghapus temuan. Tambalan shadcn 4.22.1 (rilis 2026-10-18, diverifikasi via npm view) belum 14 hari; entri dihapus di kartu shadcn 4.22.1 + body-parser (2026-11-06).",
