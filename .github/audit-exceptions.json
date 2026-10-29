@@ -95,5 +95,19 @@
     "reason": "Tambalan 2.4.0 (rilis 2026-10-22, diverifikasi via npm view) belum 14 hari saat entri dibuat; body-parser di tree ini hanya berada di rantai CLI shadcn, tidak dibundel ke aplikasi; upgrade rantai shadcn dijadwalkan 2026-11-06.",
     "soakUntil": "2026-11-05",
     "expires": "2026-11-08"
+  },
+  {
+    "id": "GHSA-3f7j-7jwc-fxfj",
+    "package": "systeminformation",
+    "reason": "Advisory high (injeksi perintah Windows di services() lewat tanda kutip Unicode), rentang <5.33.16; mulai memblokir gate 2026-10-29 (advisory GitHub terbit 2026-10-21, diperbarui 2026-10-28). Tambalan 5.33.16 (rilis 2026-10-19 15.53 UTC, diverifikasi via npm view) belum 14 hari, genap 2026-11-02 22.53 WIB. systeminformation masuk lewat @dotenvx/dotenvx 1.75.1 (^5.22.11) milik CLI shadcn dan @shadcn/registry; tidak ada impor di src/, e2e/, scripts/, dan tidak dibundel ke aplikasi. Fungsi yang rentan khusus Windows; BINZI dibangun dan berjalan di Linux/macOS. Entri dihapus di C-04: memasang shadcn 4.22.1 ikut menaikkan systeminformation ke 5.33.16 (sudah ada di daftar 14 entri lockfile kartu C-04; disimulasikan 2026-10-29 di atas C-02 dan C-03, gate OK dengan []).",
+    "soakUntil": "2026-11-02",
+    "expires": "2026-11-08"
+  },
+  {
+    "id": "GHSA-4vjg-vx72-qq4g",
+    "package": "systeminformation",
+    "reason": "Advisory low (path traversal lewat symlink di networkStats() Linux), rentang <5.33.14. Entri hanya diperlukan karena gate mewajibkan semua advisory paket yang high terekskusi (systeminformation high oleh GHSA-3f7j-7jwc-fxfj). Ditutup tambalan yang sama, 5.33.16 (rilis 2026-10-19): satu upgrade untuk kedua advisory, karena 5.33.14/5.33.15 tidak menutup yang high. systeminformation masuk lewat @dotenvx/dotenvx 1.75.1 (^5.22.11) milik CLI shadcn dan @shadcn/registry; tidak ada impor di src/, e2e/, scripts/, dan tidak dibundel ke aplikasi. Entri dihapus di C-04: memasang shadcn 4.22.1 ikut menaikkan systeminformation ke 5.33.16 (sudah ada di daftar 14 entri lockfile kartu C-04; disimulasikan 2026-10-29 di atas C-02 dan C-03, gate OK dengan []).",
+    "soakUntil": "2026-11-02",
+    "expires": "2026-11-08"
   }
 ]
