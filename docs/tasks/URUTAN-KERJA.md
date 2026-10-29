@@ -106,8 +106,8 @@ Kerjakan kapan saja sebelum peserta penelitian atau publik mulai memakai BINZI �
 Tanggal mulai mengikuti soak 14 hari; tenggat mengikuti `expires` pengecualian audit. Melewati tenggat membuat gate audit merah dan semua PR terblokir (detail di `STATUS.md`).
 
 - [x] 🤖 [C-01](chore/C-01-zod-4-6-6-dan-kebersihan-soak.md) — zod 4.6.6 + kebersihan soak · *✅ selesai 26 Okt (PR #77)*
-- [ ] 🤖 [C-02](chore/C-02-next-16-4-1.md) — next 16.4.1 · *mulai Kam 29 Okt, merge ≤ Min 1 Nov*
-- [ ] 🤖 [C-03](chore/C-03-undici-7-30-1.md) — undici 7.30.1 · *mulai setelah C-02 (paling cepat Kam 29 Okt 21.18 WIB), merge ≤ Min 1 Nov*
+- [x] 🤖 [C-02](chore/C-02-next-16-4-1.md) — next 16.4.1 · *✅ selesai 29 Okt (PR #87)*
+- [ ] 🤖 [C-03](chore/C-03-undici-7-30-1.md) — undici 7.30.1 · *boleh dimulai (C-02 selesai; tambalan genap 14 hari Kam 29 Okt 21.18 WIB), merge ≤ Min 1 Nov*
 - [ ] 🤖 [C-04](chore/C-04-shadcn-4-22-1-dan-body-parser-2-4-0.md) — shadcn 4.22.1 + body-parser 2.4.0 · *mulai Jum 6 Nov, merge ≤ Min 8 Nov*
 
 Prasyarat Sprint 1 (tanpa tanggal tetap — sebelum S1-01, tanpa branch kartu lain yang terbuka):
