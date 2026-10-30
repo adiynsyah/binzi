@@ -5,7 +5,7 @@
 // calls getVisibleCmsMenu and hands the result to the shell components as
 // plain serializable props; the per-role menu tests call the SAME function,
 // never a copy of the logic.
-import { pathAllows, type SessionUser } from "../../lib/rbac";
+import { pathAllows, type SessionUser } from "@/lib/rbac";
 
 import { CMS_MENU, type CmsMenuGroup } from "./cms-nav";
 

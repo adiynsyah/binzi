@@ -2,8 +2,8 @@
 
 import { useRouter } from "next/navigation";
 
-import { Dialog, DialogContent, type DialogProps } from "../../ui/dialog";
-import { Button } from "../../ui/button";
+import { Dialog, DialogContent, type DialogProps } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 import { POST_LOGIN_DEFAULT_PATH } from "./constants";
 import { GoogleButton } from "./google-button";

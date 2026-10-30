@@ -11,10 +11,10 @@
 //   verification request itself.
 // Either way the auth endpoints keep responses that do not depend on
 // mail delivery succeeding (§14.2).
-import { resetPasswordEmail } from "../../emails/reset-password";
-import { verificationEmail } from "../../emails/verification";
-import { welcomeEmail } from "../../emails/welcome";
-import { describeError, maskEmail, type MailMessage } from "../../lib/mail";
+import { resetPasswordEmail } from "@/emails/reset-password";
+import { verificationEmail } from "@/emails/verification";
+import { welcomeEmail } from "@/emails/welcome";
+import { describeError, maskEmail, type MailMessage } from "@/lib/mail";
 
 export type SendMailFn = (message: MailMessage) => Promise<void>;
 

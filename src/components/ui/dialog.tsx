@@ -3,7 +3,7 @@
 import { useId, type ComponentProps } from "react";
 import { Dialog as DialogPrimitive } from "radix-ui";
 import { X } from "lucide-react";
-import { cn } from "../../lib/utils";
+import { cn } from "@/lib/utils";
 
 /*
  * Dialog (card A-06, COMPONENTS.md → "Dasar"): modal 560 ≥ 640px,

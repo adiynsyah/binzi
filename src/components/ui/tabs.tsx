@@ -2,7 +2,7 @@
 
 import type { ComponentProps } from "react";
 import { Tabs as TabsPrimitive } from "radix-ui";
-import { cn } from "../../lib/utils";
+import { cn } from "@/lib/utils";
 
 /*
  * Tabs — underline style (card A-05): the active tab carries a 2px

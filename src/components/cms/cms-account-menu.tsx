@@ -7,9 +7,9 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "../ui/dropdown-menu";
-import { Banner } from "../ui/banner";
-import { useSignOut } from "../shared/use-sign-out";
+} from "@/components/ui/dropdown-menu";
+import { Banner } from "@/components/ui/banner";
+import { useSignOut } from "@/components/shared/use-sign-out";
 
 /*
  * CMS account menu (card A-15 step 8), ≥ 640px only: the A-06 dropdown

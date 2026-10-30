@@ -18,7 +18,7 @@ export const POST_LOGIN_DEFAULT_PATH = "/masuk/lanjut";
  * so client and server sends can never drift apart. Relative import because
  * vitest has no `@/` alias and the component tests reach this file.
  */
-export { VERIFICATION_CALLBACK_PATH } from "../../../modules/auth/schema";
+export { VERIFICATION_CALLBACK_PATH } from "@/modules/auth/schema";
 
 /**
  * `redirectTo` for the reset link: Better Auth's token callback endpoint

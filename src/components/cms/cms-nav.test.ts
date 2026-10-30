@@ -4,7 +4,7 @@
 // the real getVisibleCmsMenu, not a copy.
 import { describe, expect, it } from "vitest";
 
-import type { UserRole } from "../../lib/rbac";
+import type { UserRole } from "@/lib/rbac";
 import {
   CMS_MENU,
   cmsGroupOf,

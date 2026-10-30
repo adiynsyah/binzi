@@ -27,8 +27,8 @@ import { headers } from "next/headers";
 import { forbidden, redirect } from "next/navigation";
 import { z } from "zod";
 
-import { userRoleEnum, userStatusEnum } from "../db/schema";
-import { safeInternalRedirectPath } from "../modules/auth/schema";
+import { userRoleEnum, userStatusEnum } from "@/db/schema";
+import { safeInternalRedirectPath } from "@/modules/auth/schema";
 import { ForbiddenError, UnauthorizedError } from "./errors";
 
 export type UserRole = (typeof userRoleEnum.enumValues)[number];

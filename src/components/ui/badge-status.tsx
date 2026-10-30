@@ -1,4 +1,4 @@
-import { cn } from "../../lib/utils";
+import { cn } from "@/lib/utils";
 
 /*
  * Status badge (card A-05, screen 16c): ONE shape — a fully rounded pill;

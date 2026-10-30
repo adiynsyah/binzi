@@ -5,11 +5,11 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
-import { Banner } from "../../ui/banner";
-import { Button } from "../../ui/button";
-import { Field } from "../../ui/field";
-import { Input } from "../../ui/input";
-import { signInSchema } from "../../../modules/auth/schema";
+import { Banner } from "@/components/ui/banner";
+import { Button } from "@/components/ui/button";
+import { Field } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { signInSchema } from "@/modules/auth/schema";
 
 import { authClient } from "./auth-client";
 import { mapEmailSendError, type AuthNotice } from "./auth-errors";

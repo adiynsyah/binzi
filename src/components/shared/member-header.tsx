@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Search } from "lucide-react";
-import { cn } from "../../lib/utils";
+import { cn } from "@/lib/utils";
 import { MainNav } from "./main-nav";
 import { AccountDrawer, AccountDropdown } from "./account-menu";
 import type { MemberUser } from "./member-user";

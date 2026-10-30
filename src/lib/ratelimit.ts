@@ -23,9 +23,9 @@
 import { eq, sql } from "drizzle-orm";
 import { z } from "zod";
 
-import { rateLimits } from "../db/schema";
-import type { Db } from "../db/client";
-import { normalizeEmail } from "../modules/auth/schema";
+import { rateLimits } from "@/db/schema";
+import type { Db } from "@/db/client";
+import { normalizeEmail } from "@/modules/auth/schema";
 
 /** AUTH-08 / §12.4: 5 attempts per 15 minutes per IP+email. */
 export const LOGIN_RATE_LIMIT = {

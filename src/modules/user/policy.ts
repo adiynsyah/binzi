@@ -6,8 +6,8 @@
 // - Role: authenticated but lacking the required role → ForbiddenError (403).
 //
 // The schema import is type-only so policy tests run without any db setup.
-import type { userRoleEnum } from "../../db/schema";
-import { ForbiddenError, NotFoundError } from "../../lib/errors";
+import type { userRoleEnum } from "@/db/schema";
+import { ForbiddenError, NotFoundError } from "@/lib/errors";
 
 export type UserRole = (typeof userRoleEnum.enumValues)[number];
 

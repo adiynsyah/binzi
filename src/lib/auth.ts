@@ -25,7 +25,7 @@ import { z } from "zod";
 import {
   createAuthInstance,
   type AuthInstance,
-} from "../modules/auth/better-auth";
+} from "@/modules/auth/better-auth";
 import type { TurnstileConfig } from "./turnstile";
 
 // Cloudflare's documented integration-test secret that always passes
@@ -89,9 +89,9 @@ export async function getAuth(): Promise<AuthInstance> {
   if (cached) return cached;
 
   const [{ serverEnv }, { clientEnv }, { db }] = await Promise.all([
-    import("../config/env.server"),
-    import("../config/env.client"),
-    import("../db"),
+    import("@/config/env.server"),
+    import("@/config/env.client"),
+    import("@/db"),
   ]);
   const nodeEnv = serverEnv.NODE_ENV;
   const isProduction = nodeEnv === "production";
@@ -161,7 +161,7 @@ export async function getAuth(): Promise<AuthInstance> {
   // failures degrade to a logged line without touching auth responses.
   const [{ getMailTransport }, { createMailCallbacks }] = await Promise.all([
     import("./mail"),
-    import("../modules/auth/email-senders"),
+    import("@/modules/auth/email-senders"),
   ]);
   const transport = await getMailTransport();
   const mail = createMailCallbacks((message) => transport.send(message), {

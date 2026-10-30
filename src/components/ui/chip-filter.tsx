@@ -2,7 +2,7 @@
 
 import type { CSSProperties } from "react";
 import { X } from "lucide-react";
-import { cn } from "../../lib/utils";
+import { cn } from "@/lib/utils";
 
 /*
  * Chip filter (card A-05, screens 17b/13b): visual height 40 (the 38–40

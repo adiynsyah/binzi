@@ -4,14 +4,14 @@ import { Fragment } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { cn } from "../../lib/utils";
-import { Avatar } from "../ui/avatar";
+import { cn } from "@/lib/utils";
+import { Avatar } from "@/components/ui/avatar";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "../ui/tooltip";
+} from "@/components/ui/tooltip";
 import { CmsAccountMenu } from "./cms-account-menu";
 import { CMS_ICONS } from "./cms-icons";
 import {

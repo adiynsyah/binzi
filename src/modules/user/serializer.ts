@@ -14,7 +14,7 @@
 //
 // This file imports the db schema as types only and must stay free of any
 // runtime db import, so serializer tests run without DATABASE_URL.
-import type { users } from "../../db/schema";
+import type { users } from "@/db/schema";
 
 /** Fields queries may fetch for serialization — deliberately excluding
  *  deletedAt/updatedAt, which never even reach the serializers. */

@@ -12,7 +12,7 @@
 // compare `path` — a query string never reaches minRoleForPath/pathAllows,
 // because the /cms/konten matrix row is exact and a query would silently
 // fall through to the fail-closed catch-all.
-import type { UserRole } from "../../lib/rbac";
+import type { UserRole } from "@/lib/rbac";
 
 /** String ids keep the config serializable; cms-icons.tsx maps id → Lucide. */
 export type CmsIconId =

@@ -31,10 +31,10 @@ import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
-import * as schema from "../../db/schema";
-import { accounts, sessions, users } from "../../db/schema";
-import type { Db } from "../../db/client";
-import type { MailMessage } from "../../lib/mail";
+import * as schema from "@/db/schema";
+import { accounts, sessions, users } from "@/db/schema";
+import type { Db } from "@/db/client";
+import type { MailMessage } from "@/lib/mail";
 import {
   createAuthInstance,
   createOAuthUserInfoGate,

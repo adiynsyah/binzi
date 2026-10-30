@@ -117,7 +117,7 @@ let cachedTransport: MailTransport | undefined;
  */
 export async function getMailTransport(): Promise<MailTransport> {
   if (cachedTransport) return cachedTransport;
-  const { serverEnv } = await import("../config/env.server");
+  const { serverEnv } = await import("@/config/env.server");
   const from = serverEnv.MAIL_FROM ?? DEV_LOG_FROM;
   cachedTransport =
     serverEnv.MAIL_TRANSPORT === "resend" && serverEnv.RESEND_API_KEY

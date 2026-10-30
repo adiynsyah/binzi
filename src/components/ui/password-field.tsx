@@ -13,7 +13,7 @@ import {
   passwordRules,
   satisfiedPasswordRules,
 } from "./password-rules";
-import { cn } from "../../lib/utils";
+import { cn } from "@/lib/utils";
 
 /*
  * PasswordField (card A-05, screens 3a/2b).

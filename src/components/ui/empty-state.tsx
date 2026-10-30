@@ -2,7 +2,7 @@
 
 import { Button } from "./button";
 import { buttonVariants } from "./button-variants";
-import { cn } from "../../lib/utils";
+import { cn } from "@/lib/utils";
 
 /*
  * Empty state (card A-06, screens 13c · 28d · 28e): one component for

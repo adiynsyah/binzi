@@ -10,9 +10,9 @@ import "server-only";
 
 import { and, count, desc, eq, inArray, isNull } from "drizzle-orm";
 
-import { db } from "../../db";
-import { users } from "../../db/schema";
-import { PAGE_SIZE, offsetForPage } from "../../lib/pagination";
+import { db } from "@/db";
+import { users } from "@/db/schema";
+import { PAGE_SIZE, offsetForPage } from "@/lib/pagination";
 
 import { PUBLIC_PROFILE_ROLES } from "./policy";
 import type { PublicUserRow, UserRow } from "./serializer";

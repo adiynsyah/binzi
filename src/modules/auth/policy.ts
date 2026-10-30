@@ -2,7 +2,7 @@
 //
 // Pure module — type-only import from the DB schema, safe to load in tests
 // and in the Better Auth instance factory without a database connection.
-import type { userRoleEnum } from "../../db/schema";
+import type { userRoleEnum } from "@/db/schema";
 
 export type UserRole = (typeof userRoleEnum.enumValues)[number];
 

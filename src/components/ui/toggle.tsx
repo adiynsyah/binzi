@@ -2,7 +2,7 @@
 
 import type { ComponentProps } from "react";
 import { Switch as SwitchPrimitive } from "radix-ui";
-import { cn } from "../../lib/utils";
+import { cn } from "@/lib/utils";
 
 /*
  * Toggle (card A-05): 48×28 track. The visual is shorter than the 44px
