@@ -3,7 +3,7 @@ import "server-only";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { toSessionUser } from "../../../lib/rbac";
+import { toSessionUser } from "@/lib/rbac";
 
 // Server-side UI configuration for the (auth) pages (card A-13).
 //
@@ -35,7 +35,7 @@ const TURNSTILE_TEST_SITEKEY = "1x0000000000000000000000000000000AA";
  * export this from src/lib/auth.ts as the single source. Never throws.
  */
 export async function getGoogleEnabled(): Promise<boolean> {
-  const { serverEnv } = await import("../../../config/env.server");
+  const { serverEnv } = await import("@/config/env.server");
   const isVercelPreview = process.env.VERCEL_ENV === "preview";
   return (
     !isVercelPreview &&
@@ -54,8 +54,8 @@ export async function getGoogleEnabled(): Promise<boolean> {
  */
 export async function getTurnstileSiteKey(): Promise<string | null> {
   const [{ clientEnv }, { serverEnv }] = await Promise.all([
-    import("../../../config/env.client"),
-    import("../../../config/env.server"),
+    import("@/config/env.client"),
+    import("@/config/env.server"),
   ]);
   if (clientEnv.NEXT_PUBLIC_TURNSTILE_SITE_KEY) {
     return clientEnv.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
@@ -91,7 +91,7 @@ function missingConfig(variable: string): Error {
 export async function redirectIfSignedIn(target: string): Promise<void> {
   // Lazy import — getAuth pulls the DB client, which must never load at
   // build time (see src/lib/auth.ts).
-  const { getAuth } = await import("../../../lib/auth");
+  const { getAuth } = await import("@/lib/auth");
   const auth = await getAuth();
   const session = await auth.api.getSession({
     headers: await headers(),

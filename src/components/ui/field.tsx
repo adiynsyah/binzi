@@ -1,7 +1,7 @@
 "use client";
 
 import { cloneElement, useId, type ReactElement } from "react";
-import { cn } from "../../lib/utils";
+import { cn } from "@/lib/utils";
 
 /*
  * Field — label + control + hint/error wiring (card A-05).

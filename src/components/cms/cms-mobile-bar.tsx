@@ -6,10 +6,10 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Dialog as DialogPrimitive } from "radix-ui";
 import { Menu, X } from "lucide-react";
-import { cn } from "../../lib/utils";
-import { Avatar } from "../ui/avatar";
-import { Banner } from "../ui/banner";
-import { useSignOut } from "../shared/use-sign-out";
+import { cn } from "@/lib/utils";
+import { Avatar } from "@/components/ui/avatar";
+import { Banner } from "@/components/ui/banner";
+import { useSignOut } from "@/components/shared/use-sign-out";
 import { CMS_ICONS } from "./cms-icons";
 import {
   getActiveCmsItem,

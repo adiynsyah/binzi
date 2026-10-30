@@ -1,7 +1,7 @@
 import Link from "next/link";
 
-import { buttonVariants } from "../../ui/button-variants";
-import { cn } from "../../../lib/utils";
+import { buttonVariants } from "@/components/ui/button-variants";
+import { cn } from "@/lib/utils";
 
 // 3c "tautan kedaluwarsa atau sudah dipakai" state for the reset link: the
 // dark callout is the highest-contrast element on the page and its recovery

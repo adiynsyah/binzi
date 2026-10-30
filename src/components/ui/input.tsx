@@ -1,5 +1,5 @@
 import type { InputHTMLAttributes } from "react";
-import { cn } from "../../lib/utils";
+import { cn } from "@/lib/utils";
 
 /*
  * Text input (card A-05, COMPONENTS.md → "Dasar": height 52, radius 8–10).

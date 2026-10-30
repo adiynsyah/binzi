@@ -4,7 +4,7 @@
 // - role failures throw ForbiddenError (403).
 import { describe, expect, it } from "vitest";
 
-import { ForbiddenError, NotFoundError } from "../../lib/errors";
+import { ForbiddenError, NotFoundError } from "@/lib/errors";
 import type { Actor } from "./policy";
 import {
   PUBLIC_PROFILE_ROLES,

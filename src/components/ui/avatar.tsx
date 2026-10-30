@@ -2,7 +2,7 @@
    images that must also accept the data-URI placeholder used by /dev/ui;
    next/image optimization adds nothing here. */
 import type { ComponentProps } from "react";
-import { cn } from "../../lib/utils";
+import { cn } from "@/lib/utils";
 
 /*
  * Avatar (card A-05, screen 17b): one shape — fully rounded. Renders the

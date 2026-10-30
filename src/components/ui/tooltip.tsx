@@ -2,7 +2,7 @@
 
 import type { ComponentProps } from "react";
 import { Tooltip as TooltipPrimitive } from "radix-ui";
-import { cn } from "../../lib/utils";
+import { cn } from "@/lib/utils";
 
 /*
  * Tooltip (card A-15 step 6): shadcn-style wrapper over the Tooltip

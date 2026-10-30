@@ -27,15 +27,15 @@ import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
-import * as schema from "../../db/schema";
-import { rateLimits, sessions, users } from "../../db/schema";
-import type { Db } from "../../db/client";
+import * as schema from "@/db/schema";
+import { rateLimits, sessions, users } from "@/db/schema";
+import type { Db } from "@/db/client";
 import {
   loginRateLimitKey,
   passwordResetRateLimitKey,
   verificationEmailRateLimitKey,
-} from "../../lib/ratelimit";
-import type { MailMessage } from "../../lib/mail";
+} from "@/lib/ratelimit";
+import type { MailMessage } from "@/lib/mail";
 import {
   LOGIN_BLOCKED_MESSAGE,
   LOGIN_FAILED_MESSAGE,

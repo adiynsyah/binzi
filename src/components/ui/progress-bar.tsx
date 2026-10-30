@@ -1,6 +1,6 @@
 "use client";
 
-import { cn } from "../../lib/utils";
+import { cn } from "@/lib/utils";
 
 /*
  * Progress bar (card A-06, screens 8a · 7d): thin 8px track on `fill`.

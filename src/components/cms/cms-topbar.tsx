@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useSearchParams } from "next/navigation";
-import type { UserRole } from "../../lib/rbac";
+import type { UserRole } from "@/lib/rbac";
 import { cmsGroupOf, getActiveCmsItem } from "./cms-nav";
 
 /*

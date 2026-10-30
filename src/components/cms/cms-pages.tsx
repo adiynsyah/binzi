@@ -4,7 +4,7 @@
  * Vitest-importable. The layout owns <main id="konten-utama"> and the
  * content paddings; pages only render what is inside.
  */
-import { firstNameOf } from "../shared/member-user";
+import { firstNameOf } from "@/components/shared/member-user";
 import type { CmsUser } from "./cms-nav";
 
 /* CMS heading scale (19a): Lato 900, 28 / 1.16, letter-spacing -0.022em.

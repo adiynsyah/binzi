@@ -1,8 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Search } from "lucide-react";
-import { cn } from "../../lib/utils";
-import { buttonVariants } from "../ui/button-variants";
+import { cn } from "@/lib/utils";
+import { buttonVariants } from "@/components/ui/button-variants";
 import { MainNav } from "./main-nav";
 import { MobileMenu } from "./mobile-menu";
 import { HEADER_HEIGHT_CLASS, PUBLIC_HREFS } from "./nav-items";

@@ -62,10 +62,10 @@ import type { BetterAuthPlugin } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { and, eq } from "drizzle-orm";
 
-import * as schema from "../../db/schema";
-import { accounts, sessions, users } from "../../db/schema";
-import type { Db } from "../../db/client";
-import { maskEmail } from "../../lib/mail";
+import * as schema from "@/db/schema";
+import { accounts, sessions, users } from "@/db/schema";
+import type { Db } from "@/db/client";
+import { maskEmail } from "@/lib/mail";
 import {
   EMAIL_SEND_RATE_LIMIT,
   LOGIN_RATE_LIMIT,
@@ -76,8 +76,8 @@ import {
   reserveAttempt,
   signUpRateLimitKey,
   verificationEmailRateLimitKey,
-} from "../../lib/ratelimit";
-import { type TurnstileConfig, turnstilePlugin } from "../../lib/turnstile";
+} from "@/lib/ratelimit";
+import { type TurnstileConfig, turnstilePlugin } from "@/lib/turnstile";
 import type { MailCallbacks } from "./email-senders";
 import {
   EMAIL_VERIFICATION_SECONDS,

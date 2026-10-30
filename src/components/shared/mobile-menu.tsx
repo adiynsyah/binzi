@@ -6,8 +6,8 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Dialog as DialogPrimitive } from "radix-ui";
 import { Menu, Search, X } from "lucide-react";
-import { cn } from "../../lib/utils";
-import { buttonVariants } from "../ui/button-variants";
+import { cn } from "@/lib/utils";
+import { buttonVariants } from "@/components/ui/button-variants";
 import {
   getActiveNavItem,
   HEADER_HEIGHT_CLASS,

@@ -9,7 +9,7 @@ import {
   pathAllows,
   type SessionUser,
   type UserRole,
-} from "../../lib/rbac";
+} from "@/lib/rbac";
 import { CMS_MENU, getActiveCmsItem } from "./cms-nav";
 import { getVisibleCmsMenu } from "./cms-menu.server";
 

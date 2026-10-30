@@ -8,8 +8,8 @@
 // - Ownership-based endpoints: parse input first (the target id is needed),
 //   then the ownership policy, then the query.
 // Raw rows never cross this boundary; every return value is a JSON-safe DTO.
-import { NotFoundError } from "../../lib/errors";
-import { PAGE_SIZE } from "../../lib/pagination";
+import { NotFoundError } from "@/lib/errors";
+import { PAGE_SIZE } from "@/lib/pagination";
 
 import type { Actor } from "./policy";
 import { assertMinRole, assertSelf, assertSelfOrAdmin } from "./policy";

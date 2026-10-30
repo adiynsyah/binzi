@@ -6,13 +6,13 @@ import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 
-import { Banner } from "../../ui/banner";
-import { Button } from "../../ui/button";
-import { Checkbox } from "../../ui/checkbox";
-import { Field } from "../../ui/field";
-import { Input } from "../../ui/input";
-import { PasswordField } from "../../ui/password-field";
-import { signUpSchema } from "../../../modules/auth/schema";
+import { Banner } from "@/components/ui/banner";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Field } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { PasswordField } from "@/components/ui/password-field";
+import { signUpSchema } from "@/modules/auth/schema";
 
 import { authClient } from "./auth-client";
 import { mapSignUpError, type AuthNotice } from "./auth-errors";

@@ -25,14 +25,14 @@ import { migrate } from "drizzle-orm/pglite/migrator";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { setUserRole } from "../../scripts/set-role";
-import * as schema from "../db/schema";
-import { auditLogs, sessions, users } from "../db/schema";
-import type { Db } from "../db/client";
+import * as schema from "@/db/schema";
+import { auditLogs, sessions, users } from "@/db/schema";
+import type { Db } from "@/db/client";
 import {
   createAuthInstance,
   type AuthInstance,
-} from "../modules/auth/better-auth";
-import { createMailCallbacks } from "../modules/auth/email-senders";
+} from "@/modules/auth/better-auth";
+import { createMailCallbacks } from "@/modules/auth/email-senders";
 import {
   requireApiRole,
   requireApiUser,

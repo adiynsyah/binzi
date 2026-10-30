@@ -6,16 +6,16 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Dialog as DialogPrimitive } from "radix-ui";
 import { ChevronDown, X } from "lucide-react";
-import { cn } from "../../lib/utils";
-import { Avatar } from "../ui/avatar";
-import { Banner } from "../ui/banner";
+import { cn } from "@/lib/utils";
+import { Avatar } from "@/components/ui/avatar";
+import { Banner } from "@/components/ui/banner";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "../ui/dropdown-menu";
+} from "@/components/ui/dropdown-menu";
 import {
   ACCOUNT_MENU_ITEMS,
   getActiveAccountItem,

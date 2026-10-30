@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BookOpen, ChartColumn, CircleHelp } from "lucide-react";
-import { cn } from "../../lib/utils";
+import { cn } from "@/lib/utils";
 import { getActiveLearnNavItem, LEARN_NAV_ITEMS } from "./nav-items";
 
 /*

@@ -3,7 +3,7 @@
 import type { ComponentProps } from "react";
 import { Checkbox as CheckboxPrimitive } from "radix-ui";
 import { Check } from "lucide-react";
-import { cn } from "../../lib/utils";
+import { cn } from "@/lib/utils";
 
 /*
  * Checkbox (card A-05). The ROOT is a full 44px button so the touch

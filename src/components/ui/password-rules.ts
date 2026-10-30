@@ -12,7 +12,7 @@
  */
 // Relative import: this module is reached from Vitest tests (via
 // PasswordField), and vitest.config.ts has no "@/" alias resolution.
-import { PASSWORD_MIN_LENGTH } from "../../modules/auth/schema";
+import { PASSWORD_MIN_LENGTH } from "@/modules/auth/schema";
 
 export type PasswordRule = {
   id: string;

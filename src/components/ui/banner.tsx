@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { AlertCircle, Check, Info } from "lucide-react";
-import { cn } from "../../lib/utils";
+import { cn } from "@/lib/utils";
 
 /*
  * Banner (card A-06, screen 28c): inline feedback — there is deliberately
