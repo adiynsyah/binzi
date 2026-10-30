@@ -113,7 +113,7 @@ Tanggal mulai mengikuti soak 14 hari; tenggat mengikuti `expires` pengecualian a
 Prasyarat Sprint 1 (tanpa tanggal tetap — sebelum S1-01, tanpa branch kartu lain yang terbuka):
 
 - [x] 🤖 [C-05](chore/C-05-db-lokal-dan-seed-demo.md) — DB lokal untuk development + seed demo · *✅ selesai 28 Okt (PR #84)*
-- [ ] 🤖 [C-06](chore/C-06-fondasi-modul-fitur.md) — Fondasi modul fitur: alias `@/` di Vitest + batas impor DB
+- [x] 🤖 [C-06](chore/C-06-fondasi-modul-fitur.md) — Fondasi modul fitur: alias `@/` di Vitest + batas impor DB · *✅ selesai 30 Okt (PR #92)*
 - [ ] 🤖 [C-07](chore/C-07-token-kontras.md) — Token kontras: tombol utama `primary-deep`, tautan merah, `text-subtle`
 - [ ] 🤖 [C-08](chore/C-08-ui-auth-aksesibilitas.md) — UI auth: aksesibilitas form & dua celah tata letak (setelah C-07)
 
