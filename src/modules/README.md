@@ -76,9 +76,28 @@ ini benar-benar menggagalkan: `src/lib/module-boundary.test.ts` menjalankan
 ESLint API atas berkas konfigurasi yang sama — tanpa perlu meng-commit berkas
 yang melanggar.
 
-Konvensi impor tambahan di `src/modules/**`: impor yang keluar dari direktori
-modul memakai path relatif (`../../db/schema`, `../../lib/errors`), karena
-vitest belum mengonfigurasi alias `@/` (lihat "Belum selesai").
+Konvensi impor di `src/modules/**` (berlaku juga di `src/components/**` dan
+`src/lib/**`): impor yang keluar dari direktorinya memakai alias `@/…`
+(`@/db/schema`, `@/lib/errors`); vitest mengonfigurasi alias yang sama.
+
+### Batas impor instance DB (kartu C-06)
+
+Instance DB (`@/db`, `@/db/index`, `@/db/client`, dan padanan relatifnya)
+hanya boleh diimpor sebagai **nilai** dari daftar izin: `src/modules/**`,
+`src/db/**`, adapter Better Auth (`src/lib/auth.ts`, impor dinamis), dan dua
+titik komposisi A-18 (`src/app/api/health/route.ts`,
+`src/app/api/cron/keep-alive/route.ts`). Aturan hanya berlaku di `src/**` —
+`scripts/**` dan `e2e/**` membuat koneksinya sendiri lewat `createDb`.
+
+Ditegakkan **dua aturan ESLint**, karena `no-restricted-imports` tidak
+memeriksa `import()` dinamis: aturan itu untuk impor statis, plus
+`no-restricted-syntax` dengan selector `ImportExpression` untuk impor dinamis
+(`import("@/db")` dari page mana pun tetap merah). `import type` dari
+`@/db/client` tetap boleh di mana saja (`allowTypeImports`), dan `@/db/schema`
+serta `@/db/ping` tidak dibatasi. Celah yang diketahui: `import()` dengan
+template literal atau variabel (`import(path)`) tidak tertangkap selector —
+jangan pakai bentuk itu untuk instance DB. Bukti otomatis kedua aturan ada di
+`src/lib/module-boundary.test.ts`.
 
 ## Error domain → HTTP
 
@@ -114,11 +133,6 @@ hilang. (Aturan saja; integrasi Sentry bukan bagian kartu A-08.)
 - `src/components/ui/pagination.tsx` masih mengekspor `PAGE_SIZE` versinya
   sendiri — perlu beralih mengimpor dari `src/lib/pagination.ts` agar satu
   sumber kebenaran (di luar daftar berkas kartu A-08).
-- Usulan aturan lanjutan (kartu berikutnya): larang impor `@/db` dari luar
-  `src/modules/**` dan `src/db/**`, dengan pengecualian adapter Better Auth
-  (kartu A-09).
-- `vitest.config.ts` belum mengonfigurasi alias `@/` — itulah alasannya impor
-  lintas direktori dari modul memakai path relatif.
 - Integrasi Sentry/logger untuk aturan pelaporan error di atas belum
   terpasang (di luar kartu A-08) — sampai ada, route minimal mencatat error
   asli ke `console.error` sebelum memanggil `toErrorResponse()`.
