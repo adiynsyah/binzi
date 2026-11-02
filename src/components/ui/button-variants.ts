@@ -12,7 +12,7 @@ export const buttonVariants = cva(
   {
     variants: {
       variant: {
-        primary: "bg-primary text-surface hover:bg-primary-deep",
+        primary: "bg-primary-deep text-surface hover:bg-primary-deeper",
         secondary:
           "border border-border-strong bg-surface text-text hover:bg-fill",
         dark: "bg-text text-surface hover:bg-ink-surface",

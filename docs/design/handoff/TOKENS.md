@@ -14,12 +14,13 @@ Sumber: layar 17a–17c di file desain. Dinamai menurut **peran**, bukan rupa.
 | `text-muted` | `#5b554f` | Paragraf pendukung (7.1:1) |
 | `text-body` | `#4d4741` | Badan teks panjang (artikel, materi) |
 | `text-meta` | `#6b645c` | Metadata, placeholder, teks status (5.8:1) |
-| `text-subtle` | `#8a8378` | **Hanya** label mono huruf besar kecil yang isinya diulang teks lain (3.8:1) |
+| `text-subtle` | `#706a61` | Label mono huruf besar kecil dan teks state disabled |
 | `border` | `#e7e2db` | Garis kartu & tabel |
 | `border-strong` | `#dcd6ce` / `#e0d9d0` | Tombol sekunder, chip diam, input |
 | `border-soft` | `#eeeae4` | Pemisah di dalam kartu, garis header |
-| `primary` | `#f04030` | Aksi utama, progress berjalan |
-| `primary-deep` | `#c42d1e` | Teks di atas primary-tint, tautan, hover tombol utama |
+| `primary` | `#f04030` | Elemen non-teks saja: progress, garis aktif, titik, kontrol tercentang |
+| `primary-deep` | `#c42d1e` | Tombol utama (teks putih), teks & tautan merah |
+| `primary-deeper` | `#a8261a` | Hover tombol utama & tautan merah (putih di atasnya 7,1:1) |
 | `primary-tint` | `#ffeae6` | Latar badge & peringatan lembut |
 | `success` | `#157f5f` | Lulus, nilai memenuhi ambang, video selesai |
 | `success-tint` | `#e6f3ee` | Latar notifikasi berhasil (teks: `#0f5f47`) |
@@ -100,7 +101,7 @@ Tombol utama 50–54 · sekunder 46–48 · input 52 · chip 38–40 · **minimu
 ## Garis, fokus, bayangan
 - Garis 1px `border`; tombol sekunder 1.5px `border-strong`
 - Fokus: cincin 2px `#1a1614` dengan jeda 3px, sama untuk semua kendali
-- Disabled: warna padat (`#efe9e1` latar, `#8a8378` teks), **tanpa opasitas**
+- Disabled: warna padat (`#efe9e1` latar, `#706a61` teks), **tanpa opasitas**
 - Loading: label jadi kata kerja berjalan ("Menyimpan…"), tombol terkunci
 - Bayangan menu/dropdown: `0 18px 40px rgba(26,22,20,.16)`
 - Bayangan dialog: `0 22px 50px rgba(26,22,20,.14)`

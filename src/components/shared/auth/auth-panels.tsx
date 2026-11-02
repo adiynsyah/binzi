@@ -201,7 +201,7 @@ export function AuthInlineLink({
   return (
     <Link
       href={href}
-      className="font-bold text-primary transition-colors duration-200 ease-out hover:text-primary-deep"
+      className="font-bold text-primary-deep transition-colors duration-200 ease-out hover:text-primary-deeper"
     >
       {children}
     </Link>

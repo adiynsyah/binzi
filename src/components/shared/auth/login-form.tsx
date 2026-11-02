@@ -262,7 +262,7 @@ export function LoginForm({
           </label>
           <Link
             href="/lupa-password"
-            className="text-sm font-bold text-primary transition-colors duration-200 ease-out hover:text-primary-deep"
+            className="text-sm font-bold text-primary-deep transition-colors duration-200 ease-out hover:text-primary-deeper"
           >
             Lupa password?
           </Link>

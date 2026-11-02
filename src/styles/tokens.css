@@ -22,7 +22,7 @@
   --text-muted: #5b554f; /* supporting paragraphs (7.1:1) */
   --text-body: #4d4741; /* long-form body (articles, learning material) */
   --text-meta: #6b645c; /* metadata, placeholders, status text (5.8:1) */
-  --text-subtle: #8a8378; /* ONLY small uppercase mono labels (3.8:1) */
+  --text-subtle: #706a61; /* small mono labels & disabled text (4.44–5.35:1) */
   --text-nav: #3f3a35; /* CMS sidebar & secondary nav items */
 
   --border: #e7e2db; /* card & table lines */
@@ -30,8 +30,9 @@
   --border-soft: #eeeae4; /* separators inside cards, header lines */
   --border-dashed: #d8d1c8; /* dashed empty-state & utility lines */
 
-  --primary: #f04030; /* primary actions, running progress */
-  --primary-deep: #c42d1e; /* text on primary-tint, links, primary hover */
+  --primary: #f04030; /* non-text elements only (3.83 passes the 3:1 non-text bar) */
+  --primary-deep: #c42d1e; /* primary buttons, red text & links (white on it 5.61) */
+  --primary-deeper: #a8261a; /* hover for primary buttons & red links (white on it 7.10) */
   --primary-tint: #ffeae6; /* soft badge & warning backgrounds */
 
   --success: #157f5f; /* passed, at/above threshold, video done */
@@ -135,6 +136,7 @@
   --color-border-dashed: var(--border-dashed);
   --color-primary: var(--primary);
   --color-primary-deep: var(--primary-deep);
+  --color-primary-deeper: var(--primary-deeper);
   --color-primary-tint: var(--primary-tint);
   --color-success: var(--success);
   --color-success-tint: var(--success-tint);

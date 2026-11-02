@@ -116,14 +116,14 @@ export function RegisterForm({
           Sudah punya akun?{" "}
           <Link
             href="/masuk"
-            className="font-bold text-primary transition-colors duration-200 ease-out hover:text-primary-deep"
+            className="font-bold text-primary-deep transition-colors duration-200 ease-out hover:text-primary-deeper"
           >
             Masuk
           </Link>{" "}
           atau{" "}
           <Link
             href="/lupa-password"
-            className="font-bold text-primary transition-colors duration-200 ease-out hover:text-primary-deep"
+            className="font-bold text-primary-deep transition-colors duration-200 ease-out hover:text-primary-deeper"
           >
             reset password
           </Link>
@@ -225,11 +225,11 @@ export function RegisterForm({
             {/* Placeholder marks until the legal pages exist (A-14+, PR note):
                 styled like links but not focusable, so nobody clicks a dead
                 control. */}
-            <span className="font-bold text-primary underline underline-offset-2">
+            <span className="font-bold text-primary-deep underline underline-offset-2">
               Syarat &amp; Ketentuan
             </span>{" "}
             dan{" "}
-            <span className="font-bold text-primary underline underline-offset-2">
+            <span className="font-bold text-primary-deep underline underline-offset-2">
               Kebijakan Privasi
             </span>
             , termasuk penyimpanan progres belajar saya.

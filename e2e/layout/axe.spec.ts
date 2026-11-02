@@ -3,14 +3,12 @@
 // are scanned per width, plus the open menu/drawer states at w360, with
 // ALL rules active (no disableRules; the only `exclude` is the Turnstile
 // container — cross-origin Cloudflare iframe). Everything serious/critical
-// fails EXCEPT the color-contrast nodes listed in KNOWN_CONTRAST_FINDINGS
-// below: a pre-existing src token problem (small `text-primary`/white-on-
-// primary ≈ 3.8:1 and `text-text-subtle` micro text ≈ 3.6–3.8:1, both
-// under the 4.5:1 AA bar) that is out of A-19b scope and queued as a
-// separate token-fix chore (owner decision, full table in the PR). The
-// list is SELF-PRUNING: every entry is also asserted to still fire, so
-// once the chore lands the tests force the list to be emptied — and any
-// NEW serious/critical violation (contrast included, on any other
+// fails the suite: the color-contrast findings A-19b had to excuse (small
+// `text-primary`/white-on-primary ≈ 3.8:1 and `text-text-subtle` micro
+// text ≈ 3.6–3.8:1, both under the 4.5:1 AA bar) were fixed by the C-07
+// token change, so KNOWN_CONTRAST_FINDINGS below is empty. The exception
+// mechanism stays for the future: every entry is asserted to still fire,
+// and any NEW serious/critical violation (contrast included, on any
 // element) fails immediately.
 import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
@@ -32,86 +30,16 @@ const AXE_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"] as const;
 type KnownFinding = readonly [target: string, note: string];
 
 /**
- * Baseline of the KNOWN serious color-contrast findings, keyed
- * `"${axeLabel} @${projectName}"`. Targets are axe's own selectors for the
- * DOM as rendered today — captured from two identical runs (stable). When
- * the token-fix chore lands, the stale-entry assertion below forces this
- * table to be pruned entry by entry.
+ * Exception list for KNOWN serious color-contrast findings, keyed
+ * `"${axeLabel} @${projectName}"` — empty since C-07 closed every A-19b
+ * finding. To add an entry, capture its axe target verbatim from
+ * analyze(); the stale-entry assertion below then keeps the list honest:
+ * an entry whose finding no longer fires fails the suite until it is
+ * pruned.
  */
 const KNOWN_CONTRAST_FINDINGS: Readonly<
   Record<string, readonly KnownFinding[]>
-> = {
-  // ---- guest auth pages ----------------------------------------------
-  // "Daftar gratis" (login-form) — text-primary #f04030 on white 3.83:1.
-  "tamu /masuk @w1280": [
-    [String.raw`.mt-2\.5 > .text-primary.hover\:text-primary-deep[href$="daftar"]`, "Daftar gratis (text-primary)"],
-    [String.raw`a[href$="lupa-password"]`, "Lupa password? (text-primary)"],
-  ],
-  "tamu /masuk @w360": [
-    [String.raw`.mt-6.text-center.text-text-muted > .text-primary.hover\:text-primary-deep[href$="daftar"]`, "Daftar gratis (text-primary)"],
-    [String.raw`a[href$="lupa-password"]`, "Lupa password? (text-primary)"],
-  ],
-  // "Masuk di sini." + S&K/Privasi (register-form) — text-primary 3.83:1.
-  "tamu /daftar @w1280": [
-    [String.raw`.mt-10 > .hover\:text-primary-deep[href$="masuk"]`, "Masuk di sini. (text-primary)"],
-    [String.raw`.underline.underline-offset-2.text-primary:nth-child(1)`, "Syarat & Ketentuan (text-primary)"],
-    [String.raw`.underline.underline-offset-2.text-primary:nth-child(2)`, "Kebijakan Privasi (text-primary)"],
-  ],
-  "tamu /daftar @w360": [
-    [String.raw`.text-center > .hover\:text-primary-deep[href$="masuk"]`, "Masuk di sini. (text-primary)"],
-    [String.raw`.underline.underline-offset-2.text-primary:nth-child(1)`, "Syarat & Ketentuan (text-primary)"],
-    [String.raw`.underline.underline-offset-2.text-primary:nth-child(2)`, "Kebijakan Privasi (text-primary)"],
-  ],
-  // "Google" toggle (forgot-password-form) — text-primary 3.83:1; the
-  // w360 panel also shows the "Masuk" back link.
-  "tamu /lupa-password @w1280": [
-    [String.raw`button[type="button"]`, "tombol Google (text-primary)"],
-  ],
-  "tamu /lupa-password @w360": [
-    [String.raw`.text-center > a`, "Masuk (kembali, text-primary)"],
-    [String.raw`button[type="button"]`, "tombol Google (text-primary)"],
-  ],
-  // w360 only: the compact panel carries a "Masuk" link.
-  "tamu /reset-password @w360": [
-    [String.raw`.text-primary`, "Masuk (kembali, text-primary)"],
-  ],
-  // ---- home & 403 -----------------------------------------------------
-  // Header "Daftar Gratis" pill — white on bg-primary #f04030 3.83:1.
-  "tamu / @w1280": [
-    [String.raw`.bg-primary`, "pil Daftar Gratis header (primary-foreground di bg-primary)"],
-  ],
-  // "Kembali ke Beranda" (forbidden.tsx) — white on bg-primary 3.83:1.
-  "403 @w1280": [
-    [String.raw`a`, "Kembali ke Beranda (primary-foreground di bg-primary)"],
-  ],
-  "403 @w360": [
-    [String.raw`a`, "Kembali ke Beranda (primary-foreground di bg-primary)"],
-  ],
-  // ---- CMS --------------------------------------------------------------
-  // Status chips (badge-status) & "Ringkasan" label — text-text-subtle
-  // #8a8378 on white/tint 3.59–3.75:1 at 10.5–11.5px mono.
-  "EDITOR /cms @w1280": [
-    [String.raw`.pl-4 > .rounded-\[5px\].px-\[7px\].py-\[3px\]`, "chip status (text-text-subtle)"],
-    [String.raw`p`, "label Ringkasan (text-text-subtle)"],
-  ],
-  "EDITOR /cms @w360": [
-    [String.raw`.gap-2 > .rounded-\[5px\].px-\[7px\].py-\[3px\]`, "chip status (text-text-subtle)"],
-  ],
-  "drawer CMS terbuka @w360": [
-    [String.raw`.gap-2 > .rounded-\[5px\].px-\[7px\].py-\[3px\]`, "chip status (text-text-subtle)"],
-    [String.raw`.h-\[68px\].gap-3.border-b > .rounded-\[5px\].px-\[7px\].py-\[3px\]`, "chip status bar atas (text-text-subtle)"],
-  ],
-  // ---- open menus (w360) -----------------------------------------------
-  // Guest mobile menu: "Daftar Gratis" button + "Konsultasi di beranda ↓"
-  // hint; account drawer: the same hint row style.
-  "menu ponsel terbuka @w360": [
-    [String.raw`.bg-primary.hover\:bg-primary-deep.min-h-\(--height-button-secondary\)`, "tombol Daftar Gratis (primary-foreground di bg-primary)"],
-    [String.raw`.mt-0\.5`, "hint 'di beranda ↓' (text-text-subtle)"],
-  ],
-  "drawer akun terbuka @w360": [
-    [String.raw`.mt-0\.5`, "hint 'di beranda ↓' (text-text-subtle)"],
-  ],
-};
+> = {};
 
 /** Violation digest for logs/attachments (id, impact, targets count). */
 function digest(
