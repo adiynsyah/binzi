@@ -17,6 +17,7 @@ import {
   signUpViaApi,
   uniqueEmail,
   authHeaders,
+  waitForCaptchaArmed,
 } from "./fixtures";
 
 /** Corrupts the token query param of an action link. */
@@ -40,7 +41,7 @@ test.describe("daftar & verifikasi", () => {
     await page.locator("#register-consent").check();
     const submit = page.getByRole("button", { name: "Buat Akun Gratis" });
     // Waits for the always-pass Turnstile token to arm the button.
-    await expect(submit).toBeEnabled();
+    await waitForCaptchaArmed(submit);
     await submit.click();
 
     await expect(page.getByText("Cek email Anda.")).toBeVisible();
@@ -110,7 +111,7 @@ test.describe("daftar & verifikasi", () => {
     await page.getByLabel("Email").fill(account.email);
     await page.locator("#login-password").fill(account.password);
     const submit = page.getByRole("button", { name: "Masuk", exact: true });
-    await expect(submit).toBeEnabled();
+    await waitForCaptchaArmed(submit);
     await submit.click();
 
     // AUTH-03 literal copy (2b): password was correct, e-mail is not.
@@ -183,7 +184,7 @@ test.describe("reset password", () => {
     await pageB.goto("/lupa-password");
     await pageB.getByLabel("Email").fill(account.email);
     const submitB = pageB.getByRole("button", { name: "Kirim tautan reset" });
-    await expect(submitB).toBeEnabled();
+    await waitForCaptchaArmed(submitB);
     await submitB.click();
     await expect(pageB.getByText("Periksa email Anda.")).toBeVisible();
 

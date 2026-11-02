@@ -1,8 +1,14 @@
 // Sign-in & landing (Q44, A-13) — card A-19 §4c. Every test signs in through
-// the REAL /masuk form (Turnstile arms the button; expect(…).toBeEnabled()
-// waits for the token). Landing expectations are literals, derived from the
-// PRD — never imported from landingPathForRole.
-import { createRoleAccount, expect, test } from "./fixtures";
+// the REAL /masuk form. The submit is Turnstile-gated with aria-disabled
+// (card C-08): waitForCaptchaArmed waits for the token before clicking.
+// Landing expectations are literals, derived from the PRD — never imported
+// from landingPathForRole.
+import {
+  createRoleAccount,
+  expect,
+  test,
+  waitForCaptchaArmed,
+} from "./fixtures";
 
 /** Fills /masuk and submits, waiting for the Turnstile token first. */
 export async function signInViaUi(
@@ -13,7 +19,7 @@ export async function signInViaUi(
   await page.getByLabel("Email").fill(account.email);
   await page.locator("#login-password").fill(account.password);
   const submit = page.getByRole("button", { name: "Masuk", exact: true });
-  await expect(submit).toBeEnabled();
+  await waitForCaptchaArmed(submit);
   await submit.click();
 }
 
@@ -40,7 +46,7 @@ test.describe("pendaratan setelah masuk (Q44)", () => {
     await page.getByLabel("Email").fill(account.email);
     await page.locator("#login-password").fill(account.password);
     const submit = page.getByRole("button", { name: "Masuk", exact: true });
-    await expect(submit).toBeEnabled();
+    await waitForCaptchaArmed(submit);
     await submit.click();
     await expect(page).toHaveURL(/\/belajar$/);
   });
@@ -55,7 +61,7 @@ test.describe("pendaratan setelah masuk (Q44)", () => {
       await page.getByLabel("Email").fill(account.email);
       await page.locator("#login-password").fill(account.password);
       const submit = page.getByRole("button", { name: "Masuk", exact: true });
-      await expect(submit).toBeEnabled();
+      await waitForCaptchaArmed(submit);
       await submit.click();
       // EDITOR default landing — and still on the E2E origin.
       await expect(page).toHaveURL(new RegExp("^http://localhost:3100/cms$"));

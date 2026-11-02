@@ -21,6 +21,7 @@ import {
   expect,
   type APIRequestContext,
   type BrowserContext,
+  type Locator,
   type Page,
 } from "@playwright/test";
 import type { Sql } from "postgres";
@@ -61,6 +62,19 @@ export function authHeaders(): Record<string, string> {
     "x-captcha-response": DUMMY_CAPTCHA_TOKEN,
     Origin: "http://localhost:3100",
   };
+}
+
+// ------------------------------------------------------------ captcha wait
+
+/**
+ * Waits until a Turnstile-gated button is ARMED (card C-08). Those buttons
+ * are no longer natively disabled while the challenge is pending — they
+ * carry aria-disabled="true" and stay focusable/clickable, so Playwright's
+ * built-in enabled check passes instantly and proves nothing. The LIFT of
+ * the aria-disabled attribute is the signal that the token arrived.
+ */
+export async function waitForCaptchaArmed(button: Locator): Promise<void> {
+  await expect(button).not.toHaveAttribute("aria-disabled", "true");
 }
 
 // -------------------------------------------------------------------- db

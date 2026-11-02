@@ -9,6 +9,7 @@ import {
   randomPassword,
   signUpViaApi,
   uniqueEmail,
+  waitForCaptchaArmed,
 } from "./fixtures";
 
 const WRONG_COPY = "Email atau password salah. Periksa kembali dan coba lagi.";
@@ -40,7 +41,7 @@ test.describe("kunci 5× (UI)", () => {
     for (let attempt = 1; attempt <= 5; attempt++) {
       await page.locator("#login-password").fill(wrongPassword);
       const submit = page.getByRole("button", { name: "Masuk", exact: true });
-      await expect(submit).toBeEnabled(); // fresh Turnstile token
+      await waitForCaptchaArmed(submit); // fresh Turnstile token
       await submit.click();
       // Filtered role="alert": Next's (empty) route announcer also carries
       // the role — the bare selector is a strict-mode violation.
@@ -51,7 +52,7 @@ test.describe("kunci 5× (UI)", () => {
 
     await page.locator("#login-password").fill(wrongPassword);
     const submit = page.getByRole("button", { name: "Masuk", exact: true });
-    await expect(submit).toBeEnabled();
+    await waitForCaptchaArmed(submit);
     await submit.click();
     await expect(
       page.getByRole("alert").filter({ hasText: "Terlalu banyak" }),
