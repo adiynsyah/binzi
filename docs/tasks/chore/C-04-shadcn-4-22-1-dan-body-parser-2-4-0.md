@@ -5,16 +5,18 @@
 | **Pemilik** | Agent — satu sesi, satu branch, satu PR |
 | **Bergantung pada** | C-01, C-02, C-03 di-merge |
 | **Mulai paling cepat** | Jumat 6 Nov 2026 — body-parser 2.4.0 rilis 22 Okt 11.39 UTC, genap 14 hari 5 Nov 18.39 WIB; shadcn 4.22.1 rilis 18 Okt |
-| **Tenggat keras** | Merge paling lambat **Minggu 8 Nov**. Entri zod, body-parser, deepmerge, dan systeminformation `expires` 2026-11-08 → gate merah Senin 9 Nov 07.00 WIB |
+| **Tenggat keras** | Merge paling lambat **Minggu 8 Nov**. Entri zod, body-parser, deepmerge, minimatch, dan systeminformation `expires` 2026-11-08 → gate merah Senin 9 Nov 07.00 WIB |
 | **Branch** | `f0/c-04-shadcn-body-parser` |
 
 > **Dibuat 24 Okt 2026** di Claude chat, ditinjau terhadap `main` `2283dc5`. Hasil lockfile dan gate di bawah sudah disimulasikan pada tanggal itu, di atas hasil C-01–C-03.
 > **Diperbarui 28 Okt 2026:** advisory deepmerge GHSA-gcqx-w48m-w2h4 (low, tanpa versi tambalan) dipublikasikan setelah 26 Okt. Selama shadcn masih high oleh zod bersarang, rantai deepmerge membuat `shadcn` dan `@shadcn/registry` blocking, jadi diberi entri tanpa `soakUntil` yang dihapus di kartu ini (PR chore 28 Okt). Disimulasikan ulang 28 Okt di atas C-02 dan C-03: 14 entri lockfile yang sama, gate OK dengan `[]`.
 >
 > **Diperbarui 29 Okt 2026:** dua advisory systeminformation (GHSA-3f7j-7jwc-fxfj high, GHSA-4vjg-vx72-qq4g low) mulai memblokir gate 29 Okt. Tambalannya, 5.33.16, sudah ada di daftar entri lockfile kartu ini (ikut naik saat shadcn 4.22.1 dipasang), jadi tidak ada perintah tambahan. Kedua entrinya (`soakUntil` 2026-11-02, `expires` 2026-11-08) dihapus di langkah 2. Disimulasikan ulang 29 Okt di atas C-02 dan C-03: 14 entri lockfile yang sama, gate OK dengan `[]`.
+>
+> **Diperbarui 2 Nov 2026:** advisory minimatch GHSA-g3hv-75wg-m249 (moderate, tambalan hanya di major 11.0.1, tanpa perbaikan dalam rentang `^10.0.1` milik `@ts-morph/common`) memerahkan gate setelah 30 Okt lewat rantai `shadcn` → `ts-morph` → `@ts-morph/common` → `minimatch`, dengan pola yang sama seperti deepmerge. Entrinya tanpa `soakUntil`, `expires` 2026-11-08 (PR chore 2 Nov), dan dihapus di langkah 2. Disimulasikan ulang 2 Nov di atas `main` `a5d0b9a` dengan perintah kartu: 14 entri lockfile yang sama, gate OK dengan `[]` (0 excused, 0 blocking).
 
 ## Tujuan
-Menutup dua advisory terakhir: zod GHSA-mrhx-c7xc-m3w5 untuk salinan zod 3.25.76 yang bersarang di shadcn, dan body-parser GHSA-27r3-jxmh-p828. Begitu shadcn tidak lagi high, entri deepmerge GHSA-gcqx-w48m-w2h4 juga tidak diperlukan. Setelah kartu ini, `.github/audit-exceptions.json` kosong.
+Menutup dua advisory terakhir: zod GHSA-mrhx-c7xc-m3w5 untuk salinan zod 3.25.76 yang bersarang di shadcn, dan body-parser GHSA-27r3-jxmh-p828. Begitu shadcn tidak lagi high, entri deepmerge GHSA-gcqx-w48m-w2h4 dan minimatch GHSA-g3hv-75wg-m249 juga tidak diperlukan. Setelah kartu ini, `.github/audit-exceptions.json` kosong.
 
 ## Baca dulu (hanya ini)
 - `CLAUDE.md`
@@ -40,9 +42,11 @@ Hasil yang diharapkan (14 entri lockfile):
 Entri di luar daftar ini wajib dijelaskan di PR, termasuk dependensi mana yang memaksanya.
 
 ### 2. Hapus pengecualian
-Hapus entri `zod`, `body-parser`, `deepmerge`, dan kedua entri `systeminformation`, sehingga `.github/audit-exceptions.json` menjadi `[]`. Output gate yang diharapkan: `0 excused, 0 blocking`, OK.
+Hapus entri `zod`, `body-parser`, `deepmerge`, `minimatch`, dan kedua entri `systeminformation`, sehingga `.github/audit-exceptions.json` menjadi `[]`. Output gate yang diharapkan: `0 excused, 0 blocking`, OK.
 
 deepmerge 4.3.1 tetap ada di lockfile, karena shadcn 4.22.1 (juga 4.23.0) masih meminta `^4.3.1` dan belum ada versi tambalan. Temuannya low dan masuk hitungan baris "info/low/moderate" di output gate. Itu hasil yang diharapkan, jadi versi shadcn tetap tepat 4.22.1.
+
+Begitu juga minimatch: salinan 10.2.6 di bawah `@ts-morph/common` tetap ada, karena tambalannya hanya di major 11. Temuannya moderate dan masuk hitungan baris yang sama.
 
 ### 3. Tampilan
 `dist/tailwind.css` di shadcn 4.21.4 dan 4.22.1 identik (dicek 24 Okt). Ulangi pengecekan itu dengan `diff` berkas sebelum dan sesudah install, lalu tulis hasilnya di PR. `browserslist`/`caniuse-lite` yang naik bisa menggeser target build CSS/JS, jadi e2e tata letak A-19b menjadi pengaman utama di sini.

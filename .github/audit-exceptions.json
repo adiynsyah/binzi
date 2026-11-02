@@ -32,5 +32,11 @@
     "reason": "Advisory low (path traversal lewat symlink di networkStats() Linux), rentang <5.33.14. Entri hanya diperlukan karena gate mewajibkan semua advisory paket yang high terekskusi (systeminformation high oleh GHSA-3f7j-7jwc-fxfj). Ditutup tambalan yang sama, 5.33.16 (rilis 2026-10-19): satu upgrade untuk kedua advisory, karena 5.33.14/5.33.15 tidak menutup yang high. systeminformation masuk lewat @dotenvx/dotenvx 1.75.1 (^5.22.11) milik CLI shadcn dan @shadcn/registry; tidak ada impor di src/, e2e/, scripts/, dan tidak dibundel ke aplikasi. Entri dihapus di C-04: memasang shadcn 4.22.1 ikut menaikkan systeminformation ke 5.33.16 (sudah ada di daftar 14 entri lockfile kartu C-04; disimulasikan 2026-10-29 di atas C-02 dan C-03, gate OK dengan []).",
     "soakUntil": "2026-11-02",
     "expires": "2026-11-08"
+  },
+  {
+    "id": "GHSA-g3hv-75wg-m249",
+    "package": "minimatch",
+    "reason": "Advisory moderate (DoS lewat amplifikasi globparts), rentang <11.0.1, mulai memblokir gate setelah CI main terakhir 2026-10-30. Tambalan hanya di major baru 11.0.1 (rilis 2026-10-27, diverifikasi via npm view); tidak ada backport 10.x atau 3.x, dan @ts-morph/common terbaru (0.29.0) tetap meminta minimatch ^10.0.1, jadi tidak ada perbaikan dalam rentang. Salinan: @ts-morph/common/node_modules/minimatch 10.2.6 (rantai CLI shadcn: shadcn -> ts-morph -> @ts-morph/common), serta @typescript-eslint/typescript-estree/node_modules/minimatch 10.2.6 dan minimatch 3.1.5 (keduanya dev). minimatch sendiri moderate dan tidak memblokir; entri ini hanya diperlukan karena gate mewajibkan SEMUA advisory pada rantai via shadcn terekskusi selama shadcn masih high oleh salinan zod 3.25.76 bersarang (entri GHSA-mrhx-c7xc-m3w5). Tidak ada impor minimatch atau ts-morph di src/, e2e/, scripts/, dan keduanya tidak dibundel ke aplikasi. Setelah C-04 (shadcn 4.22.1) shadcn turun di bawah high dan gate OK dengan daftar kosong (disimulasikan 2026-11-02) — entri dihapus di C-04. Tanpa soakUntil karena tidak ada tambalan dalam rentang; saran npm \"eslint 4.0.0\" (semver major) tidak relevan.",
+    "expires": "2026-11-08"
   }
 ]
