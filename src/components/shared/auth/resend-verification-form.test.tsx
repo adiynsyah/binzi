@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ResendVerificationForm } from "./resend-verification-form";
 import { authClient } from "./auth-client";
+import { CAPTCHA_WAIT_COPY } from "./constants";
 
 // Card A-13: the 3c expired-verification state. The resend must go to the
 // A-10 endpoint with /daftar/verifikasi as the destination so the fresh
@@ -92,13 +93,24 @@ describe("ResendVerificationForm", () => {
 
     const submitButton = screen.getByRole("button", {
       name: "Kirim tautan verifikasi baru",
-    });
-    expect((submitButton as HTMLButtonElement).disabled).toBe(true);
+    }) as HTMLButtonElement;
+    // C-08: unarmed = aria-disabled but NOT natively disabled — the
+    // control stays reachable; the handler guard owns the request.
+    expect(submitButton.getAttribute("aria-disabled")).toBe("true");
+    expect(submitButton.disabled).toBe(false);
     expect(screen.getByTestId("turnstile-widget")).toBeTruthy();
 
-    // The challenge "passes" — only now may the request leave.
+    // Activation without a token: no request, the wait notice shows (RHF's
+    // resolver is async — findByText, not a synchronous query).
+    submit("rina@email.com");
+    expect(await screen.findByText(CAPTCHA_WAIT_COPY)).toBeTruthy();
+    expect(sendVerificationEmail).not.toHaveBeenCalled();
+
+    // The challenge "passes" — attribute and notice lift together, and
+    // only now may the request leave.
     fireEvent.click(screen.getByTestId("turnstile-widget"));
-    expect((submitButton as HTMLButtonElement).disabled).toBe(false);
+    expect(submitButton.getAttribute("aria-disabled")).toBeNull();
+    expect(screen.queryByText(CAPTCHA_WAIT_COPY)).toBeNull();
 
     submit("rina@email.com");
     await waitFor(() => {
@@ -110,15 +122,29 @@ describe("ResendVerificationForm", () => {
     );
   });
 
+  it("Enter tanpa token: tidak ada request, pesan tunggu di wadah status", async () => {
+    const { container } = render(
+      <ResendVerificationForm turnstileSiteKey="site-key" />,
+    );
+    const waitRegion = screen.getByRole("status");
+    expect(waitRegion.textContent).toBe("");
+
+    fireEvent.change(screen.getByLabelText("Email"), {
+      target: { value: "rina@email.com" },
+    });
+    fireEvent.submit(container.querySelector("form") as HTMLFormElement);
+
+    expect(await screen.findByText(CAPTCHA_WAIT_COPY)).toBeTruthy();
+    expect(sendVerificationEmail).not.toHaveBeenCalled();
+  });
+
   it("hides the widget entirely when the server provides no sitekey", () => {
     render(<ResendVerificationForm turnstileSiteKey={null} />);
     expect(screen.queryByTestId("turnstile-widget")).toBeNull();
-    expect(
-      (
-        screen.getByRole("button", {
-          name: "Kirim tautan verifikasi baru",
-        }) as HTMLButtonElement
-      ).disabled,
-    ).toBe(false);
+    const button = screen.getByRole("button", {
+      name: "Kirim tautan verifikasi baru",
+    }) as HTMLButtonElement;
+    expect(button.getAttribute("aria-disabled")).toBeNull();
+    expect(button.disabled).toBe(false);
   });
 });

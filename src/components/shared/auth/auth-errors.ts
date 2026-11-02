@@ -104,6 +104,16 @@ export function unknownNotice(): AuthNotice {
 }
 
 /**
+ * Google start failure reported CLIENT-side (card C-08 f): GoogleButton's
+ * signIn.social resolved with an error or threw before any redirect began.
+ * Same generic copy as mapCallbackError's fallback — no details, no raw
+ * error text; the owning form/modal decides where to render it.
+ */
+export function googleFailedNotice(): AuthNotice {
+  return notice("google_failed");
+}
+
+/**
  * OAuth-callback `?error=` on /masuk and /daftar (A-11 stable codes land here
  * via errorCallbackURL). Whitelist: the two A-11 codes keep their copy;
  * EVERYTHING else — `access_denied`, garbage, an attacker-crafted string —

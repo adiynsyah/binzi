@@ -98,4 +98,22 @@ describe("LoginModal", () => {
       screen.getByRole("button", { name: "Masuk dengan email" }),
     ).toBeTruthy();
   });
+
+  // Card C-08 f: the modal has no banner area — a failed Google start
+  // shows the generic message right under its button instead.
+  it("menampilkan pesan generik di bawah tombol bila Google gagal dimulai", async () => {
+    signInSocial.mockResolvedValue({
+      data: null,
+      error: { status: 500 } as never,
+    });
+    renderModal();
+    fireEvent.click(
+      screen.getByRole("button", { name: /Lanjut dengan Google/ }),
+    );
+    const message = await screen.findByText(
+      "Tidak bisa melanjutkan dengan Google. Coba lagi, atau lanjut dengan email.",
+    );
+    expect(message).toBeTruthy();
+    expect(message.getAttribute("role")).toBe("alert");
+  });
 });

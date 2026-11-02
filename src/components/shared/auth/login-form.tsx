@@ -16,11 +16,16 @@ import { signInSchema } from "@/modules/auth/schema";
 
 import { authClient } from "./auth-client";
 import {
+  googleFailedNotice,
   mapEmailSendError,
   mapLoginError,
   type AuthNotice,
 } from "./auth-errors";
-import { POST_LOGIN_DEFAULT_PATH, VERIFICATION_CALLBACK_PATH } from "./constants";
+import {
+  CAPTCHA_WAIT_COPY,
+  POST_LOGIN_DEFAULT_PATH,
+  VERIFICATION_CALLBACK_PATH,
+} from "./constants";
 import { GoogleButton } from "./google-button";
 import { TurnstileWidget } from "./turnstile-widget";
 
@@ -69,16 +74,29 @@ export function LoginForm({
   // Turnstile tokens are single-use: bumping the key after every submit
   // remounts the widget so the next attempt gets a fresh challenge.
   const [captchaKey, setCaptchaKey] = useState(0);
+  // C-08 a: wait notices, armed only by an activation without a token.
+  const [captchaWait, setCaptchaWait] = useState(false);
+  const [resendWait, setResendWait] = useState(false);
   const [resendState, setResendState] = useState<
     "idle" | "sending" | "sent" | "blocked"
   >("idle");
 
   const needsCaptcha = turnstileSiteKey !== null;
+  // The banner's resend link is unarmed while no fresh token exists —
+  // marked aria-disabled (C-08), never natively disabled.
+  const resendUnarmed = needsCaptcha && !captchaToken;
 
   const resetCaptcha = () => {
     if (!needsCaptcha) return;
     setCaptchaToken(null);
     setCaptchaKey((key) => key + 1);
+  };
+
+  // A token arriving clears both wait notices (C-08 a3).
+  const handleCaptchaVerify = (token: string) => {
+    setCaptchaToken(token);
+    setCaptchaWait(false);
+    setResendWait(false);
   };
 
   const resendVerification = async () => {
@@ -88,6 +106,13 @@ export function LoginForm({
     if (!email) {
       setError("email", { message: " " }); // flags the field; copy stays 2b's
       setFocus("email");
+      return;
+    }
+    // Token guard in the HANDLER, not just the control (C-08 a2): the
+    // button is reachable and clickable while aria-disabled, so this is
+    // the one place that decides whether a request may leave.
+    if (needsCaptcha && !captchaToken) {
+      setResendWait(true);
       return;
     }
     setResendState("sending");
@@ -119,6 +144,14 @@ export function LoginForm({
     // action returns even after a previous "sent".
     setNotice(null);
     setResendState("idle");
+    // Token guard in the HANDLER (C-08 a2): with the button no longer
+    // natively disabled, Enter in any field and a click on the
+    // aria-disabled submit both land here — no request may leave without
+    // a token. Field validation has already run above (handleSubmit).
+    if (needsCaptcha && !captchaToken) {
+      setCaptchaWait(true);
+      return;
+    }
     const { error } = await authClient.signIn.email(
       { email: values.email, password: values.password },
       {
@@ -173,6 +206,7 @@ export function LoginForm({
                 ? "/masuk"
                 : `/masuk?next=${encodeURIComponent(nextPath)}`
             }
+            onError={() => setNotice(googleFailedNotice())}
           />
           <div
             aria-hidden="true"
@@ -230,13 +264,26 @@ export function LoginForm({
                     <button
                       type="button"
                       onClick={() => void resendVerification()}
-                      disabled={needsCaptcha && !captchaToken}
-                      className="font-bold underline underline-offset-2 disabled:cursor-not-allowed disabled:text-text-subtle disabled:no-underline"
+                      aria-disabled={resendUnarmed || undefined}
+                      aria-describedby={resendWait ? "login-resend-wait" : undefined}
+                      className="font-bold underline underline-offset-2 aria-disabled:cursor-not-allowed aria-disabled:text-text-subtle aria-disabled:no-underline"
                     >
                       Kirim ulang tautan
                     </button>
                   )}{" "}
                   — berlaku 24 jam.
+                  {/* C-08 a3: same wait copy as the submit's, inside the
+                      banner after the link. The container is mounted (empty)
+                      with the banner itself so filling it is announced. */}
+                  {needsCaptcha ? (
+                    <span
+                      role="status"
+                      id="login-resend-wait"
+                      className={cn("block", resendWait && "mt-1")}
+                    >
+                      {resendWait ? CAPTCHA_WAIT_COPY : ""}
+                    </span>
+                  ) : null}
                 </>
               )
             ) : undefined
@@ -311,20 +358,35 @@ export function LoginForm({
         <TurnstileWidget
           key={captchaKey}
           siteKey={turnstileSiteKey as string}
-          onVerify={setCaptchaToken}
+          onVerify={handleCaptchaVerify}
           onExpire={() => setCaptchaToken(null)}
         />
       ) : null}
 
-      <Button
-        type="submit"
-        className="w-full"
-        loading={isSubmitting}
-        loadingLabel="Memeriksa…"
-        disabled={needsCaptcha && !captchaToken}
-      >
-        Masuk
-      </Button>
+      <div>
+        <Button
+          type="submit"
+          className="w-full"
+          loading={isSubmitting}
+          loadingLabel="Memeriksa…"
+          softDisabled={needsCaptcha && !captchaToken}
+          aria-describedby={captchaWait ? "login-captcha-wait" : undefined}
+        >
+          Masuk
+        </Button>
+        {/* C-08 a3: mounted EMPTY from the start so the filled text is
+            announced by the live region — Enter happens in an input, where
+            the button's aria-describedby is never read. */}
+        {needsCaptcha ? (
+          <p
+            role="status"
+            id="login-captcha-wait"
+            className={cn("text-sm text-text-muted", captchaWait && "mt-2")}
+          >
+            {captchaWait ? CAPTCHA_WAIT_COPY : ""}
+          </p>
+        ) : null}
+      </div>
 
       <p className={cn("text-center text-sm text-text-meta")}>
         Dengan masuk, Anda menyetujui Syarat &amp; Ketentuan serta Kebijakan

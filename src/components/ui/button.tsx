@@ -1,6 +1,6 @@
 "use client";
 
-import type { ButtonHTMLAttributes } from "react";
+import type { ButtonHTMLAttributes, Ref } from "react";
 import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { buttonVariants, type ButtonVariantProps } from "./button-variants";
@@ -25,6 +25,10 @@ import { buttonVariants, type ButtonVariantProps } from "./button-variants";
  * - loading  → label becomes the running verb via `loadingLabel` (Indonesian
  *   meN- conjugation is not mechanical, so the caller supplies it), the
  *   control is locked, aria-busy is set and a spinner precedes the label.
+ * - softDisabled (card C-08) → the LOOK of disabled (solid fill, no hover
+ *   change, cursor-not-allowed) via aria-disabled variants, but the control
+ *   STAYS focusable and clickable so keyboard users can reach it — the
+ *   caller's handler owns the activation guard.
  */
 
 export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> &
@@ -33,6 +37,16 @@ export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> &
     loading?: boolean;
     /** Running-verb label shown while loading, e.g. "Menyimpan…". */
     loadingLabel?: string;
+    /**
+     * Marks the control aria-disabled="true" with the disabled LOOK, but —
+     * unlike `disabled` — does NOT block focus or activation (no
+     * pointer-events-none, no disabled attribute). The handler that owns
+     * the gating MUST guard the action itself (card C-08: Turnstile-gated
+     * submits stay Tab-reachable while the challenge is pending).
+     */
+    softDisabled?: boolean;
+    /** Forwarded to the <button> element (React 19 ref-as-prop). */
+    ref?: Ref<HTMLButtonElement>;
   };
 
 export function Button({
@@ -41,7 +55,9 @@ export function Button({
   size,
   loading = false,
   loadingLabel,
+  softDisabled = false,
   disabled,
+  ref,
   type = "button",
   children,
   ...props
@@ -53,8 +69,10 @@ export function Button({
 
   return (
     <button
+      ref={ref}
       type={type}
       disabled={disabled || loading}
+      aria-disabled={softDisabled || undefined}
       aria-busy={loading || undefined}
       className={cn(
         buttonVariants({ variant, size: resolvedSize }),

@@ -9,11 +9,18 @@
 // /masuk has NO skip link (owner decision — the (auth) shell is
 // chrome-less); the skip link is tested separately on / and /belajar,
 // where it exists.
-import { createRoleAccount, expect, signInViaApi, test } from "../fixtures";
+import {
+  createRoleAccount,
+  expect,
+  signInViaApi,
+  test,
+  waitForCaptchaArmed,
+} from "../fixtures";
 import type { Locator, Page } from "@playwright/test";
 import {
   TURNSTILE_CONTAINER,
   focusIndicatorOf,
+  maybeScreenshot,
   waitForMemberHeader,
 } from "./helpers";
 
@@ -127,18 +134,77 @@ test.describe("keyboard", () => {
       });
     }
 
-    // The Turnstile token must arm the submit BEFORE the final Tab: a
-    // disabled button is skipped by Tab (focus would sail past "Masuk" to
-    // the card's "Daftar gratis" link — observed in the debug run).
-    await expect(submit).toBeEnabled();
+    // The Turnstile token must ARM the submit BEFORE Enter (card C-08):
+    // the button is focusable while aria-disabled, so Tab reaches it
+    // either way — but Enter before the token only surfaces the wait
+    // notice and never navigates (the helper, not a Tab-order trick, is
+    // what keeps this deterministic).
     await tabToStop(page, finalStop, {
       email: account.email,
       password: account.password,
     });
+    await waitForCaptchaArmed(submit);
 
     // Enter submits from the keyboard.
     await page.keyboard.press("Enter");
     await expect(page).toHaveURL(/\/belajar$/);
+  });
+
+  // Card C-08 a5: the state BEFORE the token, made deterministic — the
+  // Turnstile script is blocked at the network layer, so no token can ever
+  // arrive. The submit must stay reachable (aria-disabled, not natively
+  // disabled), Enter must surface the wait notice without any request
+  // leaving, and hover must keep the disabled fill (mutation M3).
+  test("sebelum token: tombol terjangkau ber-aria-disabled; Enter → pesan tunggu", async ({
+    page,
+  }, testInfo) => {
+    await page.route("https://challenges.cloudflare.com/**", (route) =>
+      route.abort(),
+    );
+    await page.goto("/masuk");
+    await page.getByLabel("Email").fill("e2e.sebelum-token@example.com");
+    await page.locator("#login-password").fill("sandicontoh8");
+
+    const submit = page.getByRole("button", { name: "Masuk", exact: true });
+
+    // Tab to the submit (same allowance as the Turnstile crossing: the
+    // widget contributes no stops when its script never loaded).
+    for (let i = 0; i < 15; i += 1) {
+      await page.keyboard.press("Tab");
+      const landed = await submit.evaluate(
+        (el) => document.activeElement === el,
+      );
+      if (landed) break;
+    }
+    await expect(submit).toBeFocused();
+    await expect(submit).toHaveAttribute("aria-disabled", "true");
+
+    const signInRequests: string[] = [];
+    page.on("request", (request) => {
+      if (request.url().includes("/api/auth/sign-in/email")) {
+        signInRequests.push(request.url());
+      }
+    });
+
+    await page.keyboard.press("Enter");
+    await expect(
+      page.getByText("Tunggu sebentar — verifikasi keamanan belum selesai."),
+    ).toBeVisible();
+    await expect(page).toHaveURL(/\/masuk$/);
+    expect(
+      signInRequests,
+      "no sign-in request may leave without a token",
+    ).toEqual([]);
+
+    // Hover keeps the disabled fill: aria-disabled:hover pins
+    // surface-disabled so the control never looks interactive.
+    await submit.hover();
+    const background = await submit.evaluate(
+      (el) => getComputedStyle(el).backgroundColor,
+    );
+    expect(background).toBe("rgb(239, 233, 225)");
+
+    await maybeScreenshot(page, "masuk-sebelum-token", testInfo.project.name);
   });
 });
 

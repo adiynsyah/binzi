@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
   type InputHTMLAttributes,
+  type Ref,
 } from "react";
 import { Input } from "./input";
 import {
@@ -44,6 +45,11 @@ export type PasswordFieldProps = {
   /** Per-field error message below the input. */
   error?: string;
   className?: string;
+  /**
+   * Forwarded to the underlying <input> (React 19 ref-as-prop) so form
+   * libraries can focus the field on a validation error (card C-08 e).
+   */
+  ref?: Ref<HTMLInputElement>;
 };
 
 export function PasswordField({
@@ -57,6 +63,7 @@ export function PasswordField({
   loading = false,
   error,
   className,
+  ref,
 }: PasswordFieldProps) {
   const autoId = useId();
   const fieldId = id ?? autoId;
@@ -100,6 +107,10 @@ export function PasswordField({
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? `${fieldId}-error` : undefined}
           className="pr-14"
+          // Input's props type predates React 19 ref-as-prop and does not
+          // declare `ref`; a JSX spread skips excess-property checking, and
+          // Input's own {...props} spread lands the ref on the <input>.
+          {...(ref ? { ref } : {})}
         />
         <button
           type="button"

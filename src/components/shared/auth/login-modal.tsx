@@ -1,10 +1,12 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 import { Dialog, DialogContent, type DialogProps } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 
+import { googleFailedNotice } from "./auth-errors";
 import { POST_LOGIN_DEFAULT_PATH } from "./constants";
 import { GoogleButton } from "./google-button";
 
@@ -41,6 +43,9 @@ export function LoginModal({
 }: LoginModalProps) {
   const router = useRouter();
   const target = nextPath ?? POST_LOGIN_DEFAULT_PATH;
+  // C-08 f: the modal has no banner area — a failed Google start shows the
+  // generic message right under its button instead.
+  const [googleError, setGoogleError] = useState(false);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -54,16 +59,24 @@ export function LoginModal({
       >
         <div className="mt-6 space-y-3">
           {googleEnabled ? (
-            <GoogleButton
-              label="Lanjut dengan Google"
-              variant="primary"
-              callbackURL={target}
-              errorCallbackURL={
-                nextPath === null
-                  ? "/masuk"
-                  : `/masuk?next=${encodeURIComponent(nextPath)}`
-              }
-            />
+            <>
+              <GoogleButton
+                label="Lanjut dengan Google"
+                variant="primary"
+                callbackURL={target}
+                errorCallbackURL={
+                  nextPath === null
+                    ? "/masuk"
+                    : `/masuk?next=${encodeURIComponent(nextPath)}`
+                }
+                onError={() => setGoogleError(true)}
+              />
+              {googleError ? (
+                <p role="alert" className="text-sm text-danger">
+                  {googleFailedNotice().message}
+                </p>
+              ) : null}
+            </>
           ) : null}
           <Button
             type="button"

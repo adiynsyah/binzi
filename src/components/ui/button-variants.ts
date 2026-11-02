@@ -8,7 +8,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 // components import from it. Keep it that way.
 
 export const buttonVariants = cva(
-  "inline-flex select-none items-center justify-center gap-2 py-2 text-balance rounded-control font-bold transition-colors duration-200 ease-out disabled:cursor-not-allowed disabled:pointer-events-none disabled:border-transparent disabled:bg-surface-disabled disabled:text-text-subtle",
+  "inline-flex select-none items-center justify-center gap-2 py-2 text-balance rounded-control font-bold transition-colors duration-200 ease-out disabled:cursor-not-allowed disabled:pointer-events-none disabled:border-transparent disabled:bg-surface-disabled disabled:text-text-subtle aria-disabled:cursor-not-allowed aria-disabled:border-transparent aria-disabled:bg-surface-disabled aria-disabled:text-text-subtle aria-disabled:hover:bg-surface-disabled aria-disabled:hover:brightness-100",
   {
     variants: {
       variant: {

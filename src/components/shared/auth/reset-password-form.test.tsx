@@ -87,4 +87,27 @@ describe("ResetPasswordForm", () => {
     expect(screen.getByText("Tautan valid")).toBeTruthy();
     expect(mockRouter.push).not.toHaveBeenCalled();
   });
+
+  // Card C-08 e: PasswordField now forwards its ref, so RHF's
+  // focus-first-error lands on the offending password input — a screen
+  // reader otherwise gets NO signal about what was wrong here (this form
+  // has no captcha and no other focus wiring).
+  it("memindahkan fokus ke isian kata sandi yang salah", async () => {
+    render(<ResetPasswordForm token="tok_123" />);
+    // Both fields filled and matching, but under the 8-character rule —
+    // the ONLY error is the password itself.
+    fireEvent.change(screen.getByLabelText("Password baru"), {
+      target: { value: "pendek1" },
+    });
+    fireEvent.change(screen.getByLabelText("Ulangi password baru"), {
+      target: { value: "pendek1" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Simpan password baru" }));
+    await waitFor(() => {
+      expect(document.activeElement).toBe(
+        screen.getByLabelText("Password baru"),
+      );
+    });
+    expect(resetPassword).not.toHaveBeenCalled();
+  });
 });

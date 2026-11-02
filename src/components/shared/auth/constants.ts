@@ -25,3 +25,12 @@ export { VERIFICATION_CALLBACK_PATH } from "@/modules/auth/schema";
  * redirects here with `?token=<VALID>` or `?error=INVALID_TOKEN`.
  */
 export const PASSWORD_RESET_REDIRECT_PATH = "/reset-password";
+
+/**
+ * Wait notice for Turnstile-gated submits (card C-08): shown only after an
+ * activation (click/Enter) without a token, in a role="status" container
+ * that exists from mount so the filled text is announced. Card-proposed
+ * copy, not from a screen .md (PR "Keputusan & asumsi").
+ */
+export const CAPTCHA_WAIT_COPY =
+  "Tunggu sebentar — verifikasi keamanan belum selesai.";

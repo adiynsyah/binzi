@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { LoginForm } from "./login-form";
 import { authClient } from "./auth-client";
+import { CAPTCHA_WAIT_COPY } from "./constants";
 
 // Card A-13: the login form's 2b states — per-field copy, the no-leak
 // banner, the locked dark toast, the unverified-email banner with its
@@ -190,16 +191,18 @@ describe("LoginForm", () => {
     fireEvent.click(screen.getByRole("button", { name: "Masuk" }));
 
     // The submit consumed the single-use token and resetCaptcha() dropped
-    // it: the resend must be DISABLED until the remounted widget produces
-    // a fresh one — reusing the old token would be rejected 403.
+    // it: the resend stays aria-disabled (C-08: reachable but marked)
+    // until the remounted widget produces a fresh one — reusing the old
+    // token would be rejected 403.
     const resend = await screen.findByRole("button", {
       name: "Kirim ulang tautan",
     });
-    expect((resend as HTMLButtonElement).disabled).toBe(true);
+    expect(resend.getAttribute("aria-disabled")).toBe("true");
+    expect((resend as HTMLButtonElement).disabled).toBe(false);
 
     // Fresh challenge passes — only now may the resend leave.
     fireEvent.click(screen.getByTestId("turnstile-widget"));
-    expect((resend as HTMLButtonElement).disabled).toBe(false);
+    expect(resend.getAttribute("aria-disabled")).toBeNull();
     fireEvent.click(resend);
     await waitFor(() => {
       expect(sendVerificationEmail).toHaveBeenCalledTimes(1);
@@ -321,6 +324,131 @@ describe("LoginForm", () => {
     });
     expect(
       screen.getByText(/Email ini sudah terdaftar tetapi belum diverifikasi/),
+    ).toBeTruthy();
+  });
+
+  // ------------------------------------------------- C-08 a: captcha wait
+
+  it("Enter tanpa token: tidak ada request, pesan tunggu di wadah status", async () => {
+    const { container } = renderForm({ turnstileSiteKey: "site-key" });
+    // The wait container is in the DOM BEFORE any activation (empty), so
+    // filling it is announced — Enter happens in an input, where the
+    // button's aria-describedby is never read (owner decision, C-08).
+    const waitRegion = screen.getByRole("status");
+    expect(waitRegion.textContent).toBe("");
+
+    fillValidCredentials();
+    // Enter in a field = the form's implicit submission. RHF's resolver is
+    // async, so the guard runs after a microtask — findByText waits for the
+    // notice, and only then is "no request" meaningful.
+    fireEvent.submit(container.querySelector("form") as HTMLFormElement);
+
+    expect(await screen.findByText(CAPTCHA_WAIT_COPY)).toBeTruthy();
+    expect(signInEmail).not.toHaveBeenCalled();
+  });
+
+  it("klik tombol aria-disabled tanpa token: tidak ada request; tombol tetap fokus", async () => {
+    renderForm({ turnstileSiteKey: "site-key" });
+    const submit = screen.getByRole("button", {
+      name: "Masuk",
+    }) as HTMLButtonElement;
+    expect(submit.getAttribute("aria-disabled")).toBe("true");
+    expect(submit.disabled).toBe(false);
+    submit.focus();
+    expect(document.activeElement).toBe(submit);
+
+    fillValidCredentials();
+    fireEvent.click(submit);
+    await waitFor(() => {
+      expect(signInEmail).not.toHaveBeenCalled();
+      expect(screen.getByText(CAPTCHA_WAIT_COPY)).toBeTruthy();
+    });
+  });
+
+  it("setelah token masuk: atribut & pesan hilang, header membawa token", async () => {
+    signInEmail.mockResolvedValue({
+      data: { user: { id: "u1" } },
+      error: null,
+    } as never);
+    renderForm({ turnstileSiteKey: "site-key" });
+
+    // Activate without a token first: the wait notice shows (async
+    // resolver — findByText, not a synchronous query).
+    fillValidCredentials();
+    fireEvent.click(screen.getByRole("button", { name: "Masuk" }));
+    expect(await screen.findByText(CAPTCHA_WAIT_COPY)).toBeTruthy();
+
+    // The challenge passes: attribute and notice lift together.
+    fireEvent.click(screen.getByTestId("turnstile-widget"));
+    const submit = screen.getByRole("button", { name: "Masuk" });
+    expect(submit.getAttribute("aria-disabled")).toBeNull();
+    expect(screen.queryByText(CAPTCHA_WAIT_COPY)).toBeNull();
+
+    fireEvent.click(submit);
+    await waitFor(() => {
+      expect(signInEmail).toHaveBeenCalledTimes(1);
+    });
+    expect(signInEmail).toHaveBeenCalledWith(
+      { email: "rina@email.com", password: "binzi2026" },
+      { headers: { "x-captcha-response": "tok-123" } },
+    );
+  });
+
+  it("klik 'Kirim ulang tautan' tanpa token: tidak ada request, pesan tunggu di banner", async () => {
+    signInEmail.mockResolvedValue({
+      data: null,
+      error: { status: 403, code: "EMAIL_NOT_VERIFIED" } as never,
+    });
+    sendVerificationEmail.mockResolvedValue({ data: null, error: null });
+    renderForm({ turnstileSiteKey: "site-key" });
+
+    // Pass the challenge, sign in, land on the unverified banner — the
+    // submit consumed the token, so the resend starts unarmed.
+    fireEvent.click(screen.getByTestId("turnstile-widget"));
+    fillValidCredentials();
+    fireEvent.click(screen.getByRole("button", { name: "Masuk" }));
+
+    const resend = await screen.findByRole("button", {
+      name: "Kirim ulang tautan",
+    });
+    expect(resend.getAttribute("aria-disabled")).toBe("true");
+    expect((resend as HTMLButtonElement).disabled).toBe(false);
+    resend.focus();
+    expect(document.activeElement).toBe(resend);
+
+    // The handler guard holds the request; the SAME wait copy shows inside
+    // the banner, after the link (C-08 a3).
+    fireEvent.click(resend);
+    expect(sendVerificationEmail).not.toHaveBeenCalled();
+    expect(screen.getByText(CAPTCHA_WAIT_COPY)).toBeTruthy();
+
+    // Fresh challenge passes → the resend leaves with the new token.
+    fireEvent.click(screen.getByTestId("turnstile-widget"));
+    fireEvent.click(resend);
+    await waitFor(() => {
+      expect(sendVerificationEmail).toHaveBeenCalledTimes(1);
+    });
+    expect(sendVerificationEmail).toHaveBeenCalledWith(
+      { email: "rina@email.com", callbackURL: "/daftar/verifikasi" },
+      { headers: { "x-captcha-response": "tok-123" } },
+    );
+  });
+
+  // ------------------------------------------------- C-08 f: Google start
+
+  it("menampilkan banner generik bila awal Google gagal dimulai", async () => {
+    signInSocial.mockResolvedValue({
+      data: null,
+      error: { status: 500 } as never,
+    });
+    renderForm({ googleEnabled: true });
+    fireEvent.click(
+      screen.getByRole("button", { name: /Masuk dengan Google/ }),
+    );
+    expect(
+      await screen.findByText(
+        "Tidak bisa melanjutkan dengan Google. Coba lagi, atau lanjut dengan email.",
+      ),
     ).toBeTruthy();
   });
 });
