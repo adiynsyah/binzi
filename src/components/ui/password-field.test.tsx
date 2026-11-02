@@ -58,4 +58,18 @@ describe("PasswordField", () => {
       ).disabled,
     ).toBe(true);
   });
+
+  // Card C-08 e: the ref must land on the <input> so RHF can focus the
+  // field on a validation error.
+  it("forwards its ref to the underlying input (React 19 ref-as-prop)", () => {
+    let node: HTMLInputElement | null = null;
+    render(
+      <PasswordField
+        ref={(element) => {
+          node = element;
+        }}
+      />,
+    );
+    expect(node).toBe(screen.getByLabelText("Kata sandi"));
+  });
 });
