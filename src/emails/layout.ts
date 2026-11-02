@@ -144,7 +144,7 @@ function actionButton(
 
 /** Primary (brand red) action button. */
 export function primaryButton(label: string, url: string): string {
-  return actionButton(label, url, t("primary"));
+  return actionButton(label, url, t("primary-deep"));
 }
 
 /** Dark action button for security-critical actions (password reset). */

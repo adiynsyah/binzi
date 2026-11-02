@@ -11,7 +11,7 @@ export default function ForbiddenPage() {
       </p>
       <Link
         href="/"
-        className="mt-2 inline-flex min-h-11 items-center rounded-lg bg-primary px-4 font-bold text-primary-foreground"
+        className="mt-2 inline-flex min-h-11 items-center rounded-lg bg-primary-deep px-4 font-bold text-surface hover:bg-primary-deeper"
       >
         Kembali ke Beranda
       </Link>

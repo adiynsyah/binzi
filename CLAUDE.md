@@ -44,7 +44,7 @@ src/db  src/lib  src/config
 Modul berkomunikasi lewat `service.ts`; **tidak boleh** saling mengimpor `queries.ts`.
 
 ## Token ringkas (lengkap di TOKENS.md)
-- Warna: `text #1a1614` · `text-muted #5b554f` · `border #e7e2db` · `primary #f04030` · `primary-deep #c42d1e` · `primary-tint #ffeae6` · `success #157f5f` · `danger #b3261e`. Warna lain hanya dari TOKENS.md.
+- Warna: `text #1a1614` · `text-muted #5b554f` · `border #e7e2db` · `primary #f04030` · `primary-deep #c42d1e` · `primary-deeper #a8261a` · `primary-tint #ffeae6` · `success #157f5f` · `danger #b3261e`. Warna lain hanya dari TOKENS.md. **Teks tidak pernah memakai `primary`**, termasuk teks putih di atas latar `primary`. Tombol utama lewat komponen `Button` (latar `primary-deep`); teks dan tautan merah memakai `primary-deep`; `primary` hanya untuk elemen non-teks (progress, garis aktif, titik, kontrol tercentang). Aturan ini mengalahkan pemetaan `#f04030` di tabel warna layar.
 - Font: **Lato** 400/700/900 (jangan 500/600/800) · **IBM Plex Mono** 400/500 untuk label mono & angka.
 - Spasi kelipatan 4 · radius kartu 14, tombol 8–10, pil 999 · kartu tanpa bayangan · target sentuh ≥ 44px.
 - Mobile-first: gaya dasar untuk 360px, tambah dengan `min-width`. Ambang: < 640 hamburger & sheet · < 768 bottom nav area belajar · ≥ 1024 desktop. Prefiks Tailwind: `sm:` = 640 · `md:` = 768 (**hanya** bottom nav area belajar) · `lg:` = 1024 — ambang 640 selalu `sm:`, bukan `md:`.

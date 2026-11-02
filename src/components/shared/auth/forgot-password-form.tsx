@@ -98,7 +98,7 @@ export function ForgotPasswordForm({
         <button
           type="button"
           onClick={() => setSent(false)}
-          className="mt-4 text-sm font-bold text-primary underline underline-offset-2 transition-colors duration-200 ease-out hover:text-primary-deep"
+          className="mt-4 text-sm font-bold text-primary-deep underline underline-offset-2 transition-colors duration-200 ease-out hover:text-primary-deeper"
         >
           Kirim ulang ke alamat lain
         </button>
@@ -157,7 +157,7 @@ function GoogleInlineStart({ label }: { label: string }) {
     <button
       type="button"
       onClick={() => startGoogleSignIn("/", "/masuk")}
-      className="font-bold text-primary underline underline-offset-2 transition-colors duration-200 ease-out hover:text-primary-deep"
+      className="font-bold text-primary-deep underline underline-offset-2 transition-colors duration-200 ease-out hover:text-primary-deeper"
     >
       {label}
     </button>

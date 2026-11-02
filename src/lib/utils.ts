@@ -41,6 +41,7 @@ const COLORS = [
   "border-dashed",
   "primary",
   "primary-deep",
+  "primary-deeper",
   "primary-tint",
   "success",
   "success-tint",

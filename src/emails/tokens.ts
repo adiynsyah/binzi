@@ -18,6 +18,7 @@ export const EMAIL_TOKENS = {
   border: "#e7e2db",
   "border-soft": "#eeeae4",
   primary: "#f04030",
+  "primary-deep": "#c42d1e",
   "warning-tint": "#fff8ea",
   "warning-tint-text": "#6b5a2a",
   "warning-tint-line": "#f0dcae",
