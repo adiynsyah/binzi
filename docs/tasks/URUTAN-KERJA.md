@@ -114,8 +114,9 @@ Prasyarat Sprint 1 (tanpa tanggal tetap — sebelum S1-01, tanpa branch kartu la
 
 - [x] 🤖 [C-05](chore/C-05-db-lokal-dan-seed-demo.md) — DB lokal untuk development + seed demo · *✅ selesai 28 Okt (PR #84)*
 - [x] 🤖 [C-06](chore/C-06-fondasi-modul-fitur.md) — Fondasi modul fitur: alias `@/` di Vitest + batas impor DB · *✅ selesai 30 Okt (PR #92)*
-- [ ] 🤖 [C-07](chore/C-07-token-kontras.md) — Token kontras: tombol utama `primary-deep`, tautan merah, `text-subtle`
-- [ ] 🤖 [C-08](chore/C-08-ui-auth-aksesibilitas.md) — UI auth: aksesibilitas form & dua celah tata letak (setelah C-07)
+- [x] 🤖 [C-07](chore/C-07-token-kontras.md) — Token kontras: tombol utama `primary-deep`, tautan merah, `text-subtle` · *✅ selesai 2 Nov (PR #101)*
+- [ ] 🤖 [C-08](chore/C-08-ui-auth-aksesibilitas.md) — UI auth: tombol yang menunggu Turnstile, fokus ke isian salah, tombol Google · *merge ≤ Kam 5 Nov; bila tidak sempat, lanjut setelah C-04*
+- [ ] 🤖 [C-08b](chore/C-08b-ui-auth-tampilan.md) — UI auth: area sentuh, label tablet, tata letak verifikasi, chip kata sandi · *mulai ≥ Sen 9 Nov, setelah C-04 & C-08; bukan prasyarat S1*
 
 ## Sprint 1 — CMS kursus & materi
 
