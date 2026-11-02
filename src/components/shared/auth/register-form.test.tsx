@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { RegisterForm } from "./register-form";
 import { authClient } from "./auth-client";
+import { CAPTCHA_WAIT_COPY } from "./constants";
 
 // Card A-13: the registration form's 3a/3c states — the consent gate, the
 // per-field copy, the live password pills, and the anti-enumeration success
@@ -19,8 +20,19 @@ vi.mock("./auth-client", () => ({
   },
 }));
 
+// The widget mocks as a button whose click fires onVerify, standing in
+// for the real challenge passing (same contract as the other form tests —
+// C-08 exercises the unarmed→armed transition here).
 vi.mock("./turnstile-widget", () => ({
-  TurnstileWidget: () => <div data-testid="turnstile-widget" />,
+  TurnstileWidget: ({ onVerify }: { onVerify: (token: string) => void }) => (
+    <button
+      type="button"
+      data-testid="turnstile-widget"
+      onClick={() => onVerify("tok-123")}
+    >
+      turnstile
+    </button>
+  ),
 }));
 
 const signUpEmail = vi.mocked(authClient.signUp.email);
@@ -164,5 +176,102 @@ describe("RegisterForm", () => {
       screen.queryByRole("button", { name: /Daftar dengan Google/ }),
     ).toBeNull();
     expect(screen.queryByText(/Tanpa verifikasi email/)).toBeNull();
+  });
+
+  // ------------------------------------------------- C-08 e: focus on error
+
+  it("memindahkan fokus ke isian kata sandi yang salah", async () => {
+    renderForm();
+    fireEvent.change(screen.getByLabelText("Nama lengkap"), {
+      target: { value: "Rina Kusuma" },
+    });
+    fireEvent.change(screen.getByLabelText("Email"), {
+      target: { value: "rina@email.com" },
+    });
+    fireEvent.change(screen.getByLabelText("Password"), {
+      target: { value: "pendek" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Buat Akun Gratis" }));
+    // PasswordField now forwards its ref (C-08 e), so RHF's
+    // focus-first-error lands on the offending input.
+    await waitFor(() => {
+      expect(document.activeElement).toBe(screen.getByLabelText("Password"));
+    });
+    expect(signUpEmail).not.toHaveBeenCalled();
+  });
+
+  it("memindahkan fokus ke checkbox persetujuan yang kosong", async () => {
+    renderForm();
+    fillValidValues();
+    fireEvent.click(screen.getByRole("button", { name: "Buat Akun Gratis" }));
+    // The consent Checkbox receives field.ref (Radix forwards it to the
+    // root button), so the missing consent is focused, not just flagged.
+    await waitFor(() => {
+      expect(document.activeElement).toBe(screen.getByRole("checkbox"));
+    });
+    expect(signUpEmail).not.toHaveBeenCalled();
+  });
+
+  // ------------------------------------------------- C-08 a: captcha wait
+
+  it("Enter dan klik tanpa token: tidak ada request, tombol aria-disabled & pesan tunggu", async () => {
+    const { container } = renderForm({ turnstileSiteKey: "site-key" });
+    const submit = screen.getByRole("button", {
+      name: "Buat Akun Gratis",
+    }) as HTMLButtonElement;
+    expect(submit.getAttribute("aria-disabled")).toBe("true");
+    expect(submit.disabled).toBe(false);
+    expect(screen.getByRole("status").textContent).toBe("");
+
+    fillValidValues();
+    // Consent must pass validation FIRST — the card allows field validation
+    // to run; the guard only owns the request (C-08 a2).
+    fireEvent.click(screen.getByRole("checkbox"));
+    // Enter: RHF's resolver is async, so the guard runs after a microtask —
+    // findByText waits for the notice; only then is "no request" meaningful.
+    fireEvent.submit(container.querySelector("form") as HTMLFormElement);
+    expect(await screen.findByText(CAPTCHA_WAIT_COPY)).toBeTruthy();
+    expect(signUpEmail).not.toHaveBeenCalled();
+
+    // A direct click on the aria-disabled button hits the same guard.
+    fireEvent.click(submit);
+    await waitFor(() => {
+      expect(signUpEmail).not.toHaveBeenCalled();
+      expect(screen.getByText(CAPTCHA_WAIT_COPY)).toBeTruthy();
+    });
+
+    // The challenge passes: attribute and notice lift, the header carries
+    // the fresh token.
+    fireEvent.click(screen.getByTestId("turnstile-widget"));
+    expect(submit.getAttribute("aria-disabled")).toBeNull();
+    expect(screen.queryByText(CAPTCHA_WAIT_COPY)).toBeNull();
+    fireEvent.click(submit);
+    await waitFor(() => {
+      expect(signUpEmail).toHaveBeenCalledTimes(1);
+    });
+    expect(signUpEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ email: "rina@email.com" }),
+      {
+        headers: { "x-captcha-response": "tok-123" },
+      },
+    );
+  });
+
+  // ------------------------------------------------- C-08 f: Google start
+
+  it("menampilkan banner generik bila awal Google gagal dimulai", async () => {
+    signInSocial.mockResolvedValue({
+      data: null,
+      error: { status: 500 } as never,
+    });
+    renderForm({ googleEnabled: true });
+    fireEvent.click(
+      screen.getByRole("button", { name: /Daftar dengan Google/ }),
+    );
+    expect(
+      await screen.findByText(
+        "Tidak bisa melanjutkan dengan Google. Coba lagi, atau lanjut dengan email.",
+      ),
+    ).toBeTruthy();
   });
 });

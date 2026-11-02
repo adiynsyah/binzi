@@ -12,11 +12,20 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { PasswordField } from "@/components/ui/password-field";
+import { cn } from "@/lib/utils";
 import { signUpSchema } from "@/modules/auth/schema";
 
 import { authClient } from "./auth-client";
-import { mapSignUpError, type AuthNotice } from "./auth-errors";
-import { POST_LOGIN_DEFAULT_PATH, VERIFICATION_CALLBACK_PATH } from "./constants";
+import {
+  googleFailedNotice,
+  mapSignUpError,
+  type AuthNotice,
+} from "./auth-errors";
+import {
+  CAPTCHA_WAIT_COPY,
+  POST_LOGIN_DEFAULT_PATH,
+  VERIFICATION_CALLBACK_PATH,
+} from "./constants";
 import { GoogleButton } from "./google-button";
 import { TurnstileWidget } from "./turnstile-widget";
 
@@ -66,13 +75,28 @@ export function RegisterForm({
   const [registered, setRegistered] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [captchaKey, setCaptchaKey] = useState(0);
+  // C-08 a: wait notice, armed only by an activation without a token.
+  const [captchaWait, setCaptchaWait] = useState(false);
 
   const needsCaptcha = turnstileSiteKey !== null;
+
+  // A token arriving clears the wait notice (C-08 a3).
+  const handleCaptchaVerify = (token: string) => {
+    setCaptchaToken(token);
+    setCaptchaWait(false);
+  };
 
   const onSubmit = handleSubmit(async (values) => {
     // Fresh attempt: drop the old banner so a new failure remounts
     // role="alert" (re-announced) instead of mutating the old one.
     setNotice(null);
+    // Token guard in the HANDLER, not just the control (C-08 a2): Enter
+    // in any field and a click on the aria-disabled submit both land
+    // here — no request may leave without a token.
+    if (needsCaptcha && !captchaToken) {
+      setCaptchaWait(true);
+      return;
+    }
     const { error } = await authClient.signUp.email(
       {
         name: values.name,
@@ -137,7 +161,12 @@ export function RegisterForm({
     <form onSubmit={onSubmit} noValidate className="space-y-4">
       {googleEnabled ? (
         <>
-          <GoogleButton label="Daftar dengan Google" callbackURL={POST_LOGIN_DEFAULT_PATH} errorCallbackURL="/daftar" />
+          <GoogleButton
+            label="Daftar dengan Google"
+            callbackURL={POST_LOGIN_DEFAULT_PATH}
+            errorCallbackURL="/daftar"
+            onError={() => setNotice(googleFailedNotice())}
+          />
           <p className="text-sm text-text-muted">
             Tanpa verifikasi email — email Google sudah terverifikasi. Jika
             email itu sudah punya akun BINZI, akunnya ditautkan.
@@ -175,7 +204,8 @@ export function RegisterForm({
 
       {/* PasswordField is a controlled component (value + onChange); RHF's
           plain register() needs its ref to land in _fields, which a custom
-          component never forwards — Controller is the intended wiring. */}
+          component never forwards — Controller is the intended wiring.
+          C-08 e: the forwarded ref lets RHF focus the field on error. */}
       <Controller
         control={control}
         name="password"
@@ -188,6 +218,7 @@ export function RegisterForm({
             disabled={isSubmitting}
             loading={isSubmitting}
             error={errors.password ? PASSWORD_ERROR_COPY : undefined}
+            ref={field.ref}
           />
         )}
       />
@@ -196,7 +227,7 @@ export function RegisterForm({
         <TurnstileWidget
           key={captchaKey}
           siteKey={turnstileSiteKey as string}
-          onVerify={setCaptchaToken}
+          onVerify={handleCaptchaVerify}
           onExpire={() => setCaptchaToken(null)}
         />
       ) : null}
@@ -214,6 +245,9 @@ export function RegisterForm({
                 disabled={isSubmitting}
                 aria-invalid={errors.consent ? true : undefined}
                 aria-describedby={errors.consent ? "register-consent-error" : undefined}
+                // C-08 e: Radix forwards the ref to the root button, so RHF
+                // can focus the unchecked consent on a failed submit.
+                ref={field.ref}
               />
             )}
           />
@@ -242,15 +276,29 @@ export function RegisterForm({
         ) : null}
       </div>
 
-      <Button
-        type="submit"
-        className="w-full"
-        loading={isSubmitting}
-        loadingLabel="Mendaftarkan…"
-        disabled={needsCaptcha && !captchaToken}
-      >
-        Buat Akun Gratis
-      </Button>
+      <div>
+        <Button
+          type="submit"
+          className="w-full"
+          loading={isSubmitting}
+          loadingLabel="Mendaftarkan…"
+          softDisabled={needsCaptcha && !captchaToken}
+          aria-describedby={captchaWait ? "register-captcha-wait" : undefined}
+        >
+          Buat Akun Gratis
+        </Button>
+        {/* C-08 a3: mounted EMPTY from the start so the filled text is
+            announced (Enter happens in an input, not on the button). */}
+        {needsCaptcha ? (
+          <p
+            role="status"
+            id="register-captcha-wait"
+            className={cn("text-sm text-text-muted", captchaWait && "mt-2")}
+          >
+            {captchaWait ? CAPTCHA_WAIT_COPY : ""}
+          </p>
+        ) : null}
+      </div>
     </form>
   );
 }

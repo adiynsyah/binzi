@@ -9,11 +9,15 @@ import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 import { signInSchema } from "@/modules/auth/schema";
 
 import { authClient } from "./auth-client";
 import { mapEmailSendError, type AuthNotice } from "./auth-errors";
-import { PASSWORD_RESET_REDIRECT_PATH } from "./constants";
+import {
+  CAPTCHA_WAIT_COPY,
+  PASSWORD_RESET_REDIRECT_PATH,
+} from "./constants";
 import { startGoogleSignIn } from "./google-button";
 import { TurnstileWidget } from "./turnstile-widget";
 
@@ -51,6 +55,8 @@ export function ForgotPasswordForm({
   // Single-use tokens: remount the widget after every submit so the next
   // attempt gets a fresh challenge (the shared TurnstileWidget contract).
   const [captchaKey, setCaptchaKey] = useState(0);
+  // C-08 a: wait notice, armed only by an activation without a token.
+  const [captchaWait, setCaptchaWait] = useState(false);
 
   const needsCaptcha = turnstileSiteKey !== null;
 
@@ -60,10 +66,23 @@ export function ForgotPasswordForm({
     setCaptchaKey((key) => key + 1);
   };
 
+  // A token arriving clears the wait notice (C-08 a3).
+  const handleCaptchaVerify = (token: string) => {
+    setCaptchaToken(token);
+    setCaptchaWait(false);
+  };
+
   const onSubmit = handleSubmit(async (values) => {
     // Fresh attempt: drop the old banner so a new failure remounts
     // role="alert" (re-announced) instead of mutating the old one.
     setNotice(null);
+    // Token guard in the HANDLER, not just the control (C-08 a2): Enter
+    // in any field and a click on the aria-disabled submit both land
+    // here — no request may leave without a token.
+    if (needsCaptcha && !captchaToken) {
+      setCaptchaWait(true);
+      return;
+    }
     const { error } = await authClient.requestPasswordReset(
       {
         email: values.email,
@@ -125,20 +144,34 @@ export function ForgotPasswordForm({
         <TurnstileWidget
           key={captchaKey}
           siteKey={turnstileSiteKey as string}
-          onVerify={setCaptchaToken}
+          onVerify={handleCaptchaVerify}
           onExpire={() => setCaptchaToken(null)}
         />
       ) : null}
 
-      <Button
-        type="submit"
-        className="w-full"
-        loading={isSubmitting}
-        loadingLabel="Mengirim…"
-        disabled={needsCaptcha && !captchaToken}
-      >
-        Kirim tautan reset
-      </Button>
+      <div>
+        <Button
+          type="submit"
+          className="w-full"
+          loading={isSubmitting}
+          loadingLabel="Mengirim…"
+          softDisabled={needsCaptcha && !captchaToken}
+          aria-describedby={captchaWait ? "forgot-captcha-wait" : undefined}
+        >
+          Kirim tautan reset
+        </Button>
+        {/* C-08 a3: mounted EMPTY from the start so the filled text is
+            announced (Enter happens in an input, not on the button). */}
+        {needsCaptcha ? (
+          <p
+            role="status"
+            id="forgot-captcha-wait"
+            className={cn("text-sm text-text-muted", captchaWait && "mt-2")}
+          >
+            {captchaWait ? CAPTCHA_WAIT_COPY : ""}
+          </p>
+        ) : null}
+      </div>
 
       {googleEnabled ? (
         <p className="text-sm text-text-muted">
@@ -156,7 +189,11 @@ function GoogleInlineStart({ label }: { label: string }) {
   return (
     <button
       type="button"
-      onClick={() => startGoogleSignIn("/", "/masuk")}
+      // startGoogleSignIn now returns a promise (C-08 f) — this inline
+      // link has no state to manage, the flow's own redirects take over.
+      onClick={() => {
+        void startGoogleSignIn("/", "/masuk");
+      }}
       className="font-bold text-primary-deep underline underline-offset-2 transition-colors duration-200 ease-out hover:text-primary-deeper"
     >
       {label}

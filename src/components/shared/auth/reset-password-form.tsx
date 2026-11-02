@@ -112,7 +112,10 @@ export function ResetPasswordForm({ token }: { token: string }) {
 
       {notice ? <Banner tone="error" title={notice.message} /> : null}
 
-      {/* Controlled PasswordField → Controller (see register-form.tsx). */}
+      {/* Controlled PasswordField → Controller (see register-form.tsx).
+          C-08 e: the forwarded ref lets RHF focus the field on error —
+          /reset-password has no captcha, so the guard pattern doesn't
+          apply here, but the focus contract does. */}
       <Controller
         control={control}
         name="password"
@@ -125,6 +128,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
             disabled={isSubmitting}
             loading={isSubmitting}
             error={errors.password ? PASSWORD_ERROR_COPY : undefined}
+            ref={field.ref}
           />
         )}
       />
