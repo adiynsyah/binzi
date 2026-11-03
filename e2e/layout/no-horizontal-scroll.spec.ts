@@ -7,6 +7,8 @@
 // header (SessionHeader renders the guest header first). Open-menu states
 // (incl. the open account dropdown at 640+) are part of this card section,
 // so they are measured here too.
+import { randomBytes } from "node:crypto";
+
 import { createRoleAccount, expect, signInViaApi, test } from "../fixtures";
 import {
   GUEST_PAGES,
@@ -22,6 +24,28 @@ import {
   waitForMemberHeader,
   widthSpecOf,
 } from "./helpers";
+
+/**
+ * Card S1-01 layout data: one course whose title is EXACTLY 80 characters
+ * with no spaces — the worst case for the KURSUS column. The leading token
+ * (also in the slug) keeps width projects sharing the e2e database in one
+ * run from colliding on the unique slug or the similar-title rule.
+ */
+async function createNoSpaceTitleCourse(context: import("@playwright/test").BrowserContext): Promise<string> {
+  const token = `l${Date.now().toString(36)}${randomBytes(3).toString("hex")}`;
+  const title = `${token}x`.padEnd(80, "x").slice(0, 80);
+  const response = await context.request.post("/api/cms/courses", {
+    data: {
+      title,
+      slug: title,
+      level: "BEGINNER",
+      summary: "Ringkasan netral untuk tes e2e.",
+    },
+  });
+  expect(response.status(), await response.text()).toBe(201);
+  const json = (await response.json()) as { data: { id: string } };
+  return json.data.id;
+}
 
 test.describe("tanpa scroll horizontal", () => {
   test("tamu: 6 halaman publik + menu ponsel terbuka", async (
@@ -125,6 +149,42 @@ test.describe("tanpa scroll horizontal", () => {
         await maybeScreenshot(page, `editor${path}`, testInfo.project.name);
       });
     }
+
+    // Card S1-01: the LIST with rows and the BUILDER — at every width. One
+    // created course carries an 80-character no-space title (the worst case
+    // for the KURSUS column: break-words + the always-on overflow-x-auto
+    // wrapper must keep the PAGE from scrolling sideways).
+    const courseId = await createNoSpaceTitleCourse(page.context());
+    await test.step("EDITOR /cms/kursus berisi", async () => {
+      await page.goto("/cms/kursus");
+      await expect(
+        page.getByRole("link", { name: "Buka" }).first(),
+      ).toBeVisible();
+      await expectNoHorizontalScroll(
+        page,
+        `EDITOR /cms/kursus berisi @${testInfo.project.name}`,
+        true,
+      );
+      await maybeScreenshot(
+        page,
+        "editor-cms-kursus-berisi",
+        testInfo.project.name,
+      );
+    });
+    await test.step(`EDITOR /cms/kursus/{id} builder`, async () => {
+      await page.goto(`/cms/kursus/${courseId}`);
+      await expect(page.getByText("Belum ada materi")).toBeVisible();
+      await expectNoHorizontalScroll(
+        page,
+        `EDITOR builder @${testInfo.project.name}`,
+        true,
+      );
+      await maybeScreenshot(
+        page,
+        "editor-cms-kursus-builder",
+        testInfo.project.name,
+      );
+    });
 
     if (spec.cms === "bar") {
       await test.step("EDITOR /cms drawer CMS terbuka", async () => {

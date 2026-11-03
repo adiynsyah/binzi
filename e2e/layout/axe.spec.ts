@@ -169,6 +169,29 @@ test.describe("axe WCAG 2.1 A/AA", () => {
       await openCmsDrawer(page);
       await expectAxeClean(page, "drawer CMS terbuka", testInfo);
     }
+
+    // Card S1-01: the course list WITH a row (table + badge states) and the
+    // empty builder. A tokenized title/slug keeps width projects sharing
+    // the e2e database from colliding.
+    const token = `a${Date.now().toString(36)}${testInfo.project.name}`;
+    const response = await page.context().request.post("/api/cms/courses", {
+      data: {
+        title: `${token} kursus uji axe`,
+        slug: `${token}-kursus-uji-axe`,
+        level: "BEGINNER",
+        summary: "Ringkasan netral untuk tes e2e.",
+      },
+    });
+    expect(response.status(), await response.text()).toBe(201);
+    const courseId = ((await response.json()) as { data: { id: string } }).data.id;
+
+    await page.goto("/cms/kursus");
+    await expect(page.getByText(`${token} kursus uji axe`)).toBeVisible();
+    await expectAxeClean(page, "EDITOR /cms/kursus berisi", testInfo);
+
+    await page.goto(`/cms/kursus/${courseId}`);
+    await expect(page.getByText("Belum ada materi")).toBeVisible();
+    await expectAxeClean(page, "EDITOR /cms/kursus/{id} builder", testInfo);
   });
 
   test("tamu: menu ponsel terbuka (w360 saja)", async ({ page }, testInfo) => {
