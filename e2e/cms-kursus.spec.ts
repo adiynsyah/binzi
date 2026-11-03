@@ -171,7 +171,7 @@ test("dialog: slug otomatis bertabrakan tanpa “Ubah” → galat slug + fokus 
 
   await expect(dialog.getByText(/sudah dipakai kursus lain/)).toBeVisible();
   // Edit mode opened automatically and the now-visible slug input took focus.
-  const slugInput = dialog.getByLabel("Slug kursus");
+  const slugInput = dialog.getByLabel("Alamat kursus");
   await expect(slugInput).toBeVisible();
   await expect(slugInput).toBeFocused();
   await expect(slugInput).toHaveValue(`${t}-gizi-dasar`);

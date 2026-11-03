@@ -267,7 +267,16 @@ export function CreateCourseDialog({ open, onOpenChange }: CreateCourseDialogPro
 
           <div>
             <div className="flex items-baseline justify-between">
-              <span className="text-sm font-bold text-text">Alamat kursus</span>
+              {/* A real label in edit mode so the accessible name contains
+                  the visible text "Alamat kursus" (WCAG 2.5.3); preview
+                  mode has no input to point it at. */}
+              {slugEdited ? (
+                <label htmlFor="course-slug" className="text-sm font-bold text-text">
+                  Alamat kursus
+                </label>
+              ) : (
+                <span className="text-sm font-bold text-text">Alamat kursus</span>
+              )}
               <span className="font-mono text-xs text-text-meta">
                 {slug.length} / {COURSE_SLUG_MAX}
               </span>
@@ -279,7 +288,6 @@ export function CreateCourseDialog({ open, onOpenChange }: CreateCourseDialogPro
                 </span>
                 <Input
                   id="course-slug"
-                  aria-label="Slug kursus"
                   aria-invalid={errors.slug ? true : undefined}
                   aria-describedby={errors.slug ? "course-slug-error" : undefined}
                   ref={(element) => {
@@ -312,18 +320,22 @@ export function CreateCourseDialog({ open, onOpenChange }: CreateCourseDialogPro
             <FieldError id="course-slug-error" message={errors.slug?.message} />
           </div>
 
+          {/* Level as a segmented control (21f review item 3): native radios
+              stay (fieldset + legend + arrow-key navigation, focus pass
+              targets the checked one) but are sr-only inside pill labels —
+              the checked pill inverts (dark `text` token + surface text,
+              not primary), and the focus ring lands on the pill via
+              peer-focus-visible. Pills share the width equally and may wrap
+              on narrow viewports. */}
           <fieldset>
             <legend className="text-sm font-bold text-text">Level</legend>
-            <div className="mt-2 flex flex-col gap-2">
+            <div className="mt-2 flex flex-wrap gap-2 rounded-card border border-border bg-surface p-2">
               {COURSE_LEVELS.map((level) => (
-                <label
-                  key={level}
-                  className="flex min-h-11 items-center gap-3 text-sm text-text-body"
-                >
+                <label key={level} className="min-w-0 flex-1 cursor-pointer">
                   <input
                     type="radio"
                     value={level}
-                    className="size-4 accent-primary"
+                    className="peer sr-only"
                     ref={(element) => {
                       registerLevelRef(element);
                       if (element && !levelRef.current) {
@@ -332,7 +344,9 @@ export function CreateCourseDialog({ open, onOpenChange }: CreateCourseDialogPro
                     }}
                     {...levelProps}
                   />
-                  {COURSE_LEVEL_LABELS[level]}
+                  <span className="flex min-h-11 w-full items-center justify-center rounded-control px-2 text-center text-sm font-bold text-text-body transition-colors duration-200 ease-out hover:bg-surface-2 peer-checked:bg-text peer-checked:text-surface peer-checked:hover:bg-text peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-surface">
+                    {COURSE_LEVEL_LABELS[level]}
+                  </span>
                 </label>
               ))}
             </div>

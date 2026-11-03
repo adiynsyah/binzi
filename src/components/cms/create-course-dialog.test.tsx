@@ -71,7 +71,7 @@ describe("CreateCourseDialog", () => {
     expect(screen.getByText("/kursus/gizi-seimbang-trimester-ketiga")).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Ubah" }));
-    const slugInput = screen.getByLabelText("Slug kursus");
+    const slugInput = screen.getByLabelText("Alamat kursus");
     expect((slugInput as HTMLInputElement).value).toBe(
       "gizi-seimbang-trimester-ketiga",
     );
@@ -140,7 +140,7 @@ describe("CreateCourseDialog", () => {
 
     // Slug edit mode opened (the input exists) and took focus.
     const slugInput = await waitFor(() => {
-      const input = screen.getByLabelText("Slug kursus");
+      const input = screen.getByLabelText("Alamat kursus");
       expect(input).toBeTruthy();
       return input;
     });
