@@ -95,6 +95,10 @@ export function CreateCourseDialog({ open, onOpenChange }: CreateCourseDialogPro
   const router = useRouter();
   const [slugEdited, setSlugEdited] = useState(false);
   const [failed, setFailed] = useState(false);
+  // Set on 201 and NEVER reset: the button stays loading ("Membuat
+  // kursus…") until the route change lands, and the double-submit guard
+  // below stays held for the same window (review item 4).
+  const [navigating, setNavigating] = useState(false);
 
   const {
     register,
@@ -185,6 +189,10 @@ export function CreateCourseDialog({ open, onOpenChange }: CreateCourseDialogPro
 
       if (response.status === 201) {
         const json = (await response.json()) as { data: { id: string } };
+        // Hold the guard AND the loading state until navigation unmounts
+        // this dialog — no second POST can leave during that window
+        // (review item 4).
+        setNavigating(true);
         router.push(`/cms/kursus/${json.data.id}`);
         return;
       }
@@ -202,16 +210,16 @@ export function CreateCourseDialog({ open, onOpenChange }: CreateCourseDialogPro
           );
         }
         focusFirstInvalid(fields.map((field) => field.path));
-        return;
+      } else {
+        // Network failure / 5xx / anything else: banner, values kept.
+        setFailed(true);
       }
-
-      // Network failure / 5xx / anything else: generic banner, values kept.
-      setFailed(true);
     } catch {
       setFailed(true);
-    } finally {
-      endSubmit();
     }
+    // Every non-201 path lands here (201 returns above): only failures
+    // release the double-submit guard.
+    endSubmit();
   }
 
   // Client-side validation failed: the same 21f focus pass runs against the
@@ -387,9 +395,9 @@ export function CreateCourseDialog({ open, onOpenChange }: CreateCourseDialogPro
             <div className="flex flex-col gap-3 sm:flex-row-reverse">
               <Button
                 type="submit"
-                loading={isSubmitting}
+                loading={isSubmitting || navigating}
                 loadingLabel="Membuat kursus…"
-                softDisabled={isSubmitting}
+                softDisabled={isSubmitting || navigating}
               >
                 Buat &amp; lanjut isi materi →
               </Button>

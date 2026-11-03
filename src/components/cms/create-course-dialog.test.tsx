@@ -116,6 +116,33 @@ describe("CreateCourseDialog", () => {
     });
   });
 
+  it("keeps loading and the double-submit guard after 201 until navigation", async () => {
+    // Review item 4: jsdom never navigates, so this is exactly the window
+    // between 201 and the route change — the button must stay on its
+    // loading label and a further click must not send a second POST.
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ data: { id: "c-new" } }), { status: 201 }),
+    );
+    renderDialog();
+    fillValidForm("Kursu Unik Toka");
+    fireEvent.click(screen.getByRole("button", { name: "Buat & lanjut isi materi →" }));
+
+    await waitFor(() => {
+      expect(pushMock).toHaveBeenCalledWith("/cms/kursus/c-new");
+    });
+
+    expect(
+      screen.getByRole("button", { name: "Membuat kursus…" }),
+    ).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Membuat kursus…" }));
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+    expect(
+      screen.getByRole("button", { name: "Membuat kursus…" }),
+    ).toBeTruthy();
+  });
+
   it("attaches server field errors, opens slug edit mode, and focuses the slug", async () => {
     fetchMock.mockResolvedValue(
       new Response(
