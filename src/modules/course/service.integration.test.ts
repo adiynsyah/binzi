@@ -237,6 +237,26 @@ describe("createCourse — field errors (400 + fields shape)", () => {
     });
   });
 
+  it("identical title (auto-slug identical too) → path title, not slug", async () => {
+    // Review item 2: the same title produces the same auto-slug, so BOTH
+    // pre-checks would fire — the TITLE error must win (fixing the title
+    // fixes the auto-slug; the slug branch is for hand-edited slugs).
+    const first = await createCourse(EDITOR, inputFor("idt"));
+    const result = createCourse(EDITOR, {
+      title: first.title,
+      slug: first.slug,
+      level: "BEGINNER",
+      summary: "Ringkasan netral untuk tes.",
+    });
+    await expect(result).rejects.toBeInstanceOf(ZodError);
+    await expect(result).rejects.toMatchObject({
+      issues: [{ path: ["title"] }],
+    });
+    await expect(result).rejects.not.toMatchObject({
+      issues: [{ path: ["slug"] }],
+    });
+  });
+
   it("two concurrent creates with the same slug → one ok, one 400 slug (no 500)", async () => {
     const base = inputFor("cc");
     const a = { ...base, title: `${base.title} a` };
@@ -259,6 +279,13 @@ describe("createCourse — field errors (400 + fields shape)", () => {
     // Deterministic 23505: the queries-level transaction itself, with a slug
     // that already exists. This is the path a concurrent request takes.
     const first = await createCourse(EDITOR, inputFor("uq"));
+
+    // Rollback proof (review item 5): the FINAL quiz is inserted FIRST in
+    // the transaction, so a failing course insert must take the quiz row
+    // (and the audit row) down with it.
+    const quizzesBefore = await db.$count(quizzes);
+    const auditsBefore = await db.$count(auditLogs);
+
     const result = courseQueries.createCourseWithFinalQuiz(
       { ...inputFor("uq"), slug: first.slug },
       EDITOR.id,
@@ -267,6 +294,9 @@ describe("createCourse — field errors (400 + fields shape)", () => {
     await expect(result).rejects.toMatchObject({
       issues: [{ path: ["slug"], message: expect.stringContaining(first.slug) }],
     });
+
+    expect(await db.$count(quizzes)).toBe(quizzesBefore);
+    expect(await db.$count(auditLogs)).toBe(auditsBefore);
   });
 });
 

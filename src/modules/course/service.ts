@@ -74,15 +74,19 @@ export async function createCourse(
   assertCanManageCourses(actor);
   const parsed = createCourseInput.parse(input);
 
-  if (await courseQueries.slugExists(parsed.slug)) {
-    throw courseFieldError("slug", SLUG_TAKEN_MESSAGE(parsed.slug));
-  }
-
+  // Similar-title BEFORE the slug check: an identical title also produces
+  // an identical auto-slug, and the TITLE error is the one that must show
+  // (21f copy) — fixing the title fixes the auto-slug with it (review
+  // item 2). Only a hand-edited slug reaches the slug-taken branch.
   const similar = (await courseQueries.listCourseTitles()).find((course) =>
     isSimilarTitle(normalizeTitle(parsed.title), normalizeTitle(course.title)),
   );
   if (similar) {
     throw courseFieldError("title", SIMILAR_TITLE_MESSAGE(similar.title));
+  }
+
+  if (await courseQueries.slugExists(parsed.slug)) {
+    throw courseFieldError("slug", SLUG_TAKEN_MESSAGE(parsed.slug));
   }
 
   return courseQueries.createCourseWithFinalQuiz(parsed, actor.id);
