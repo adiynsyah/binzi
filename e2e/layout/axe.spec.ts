@@ -186,7 +186,12 @@ test.describe("axe WCAG 2.1 A/AA", () => {
     const courseId = ((await response.json()) as { data: { id: string } }).data.id;
 
     await page.goto("/cms/kursus");
-    await expect(page.getByText(`${token} kursus uji axe`)).toBeVisible();
+    // Scope to the title cell paragraph: the course title now also sits in
+    // an sr-only span inside the row's "Buka" link (unique accessible
+    // names), which a bare getByText would match twice.
+    await expect(
+      page.getByRole("paragraph").filter({ hasText: `${token} kursus uji axe` }),
+    ).toBeVisible();
     await expectAxeClean(page, "EDITOR /cms/kursus berisi", testInfo);
 
     await page.goto(`/cms/kursus/${courseId}`);

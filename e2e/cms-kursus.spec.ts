@@ -67,7 +67,11 @@ test("EDITOR: kursus baru lewat dialog → builder kosong", async ({
   // link with the same accessible name.
   await dialog.getByLabel("Judul kursus").fill(`${t} Gizi Seimbang Dasar`);
   await expect(dialog.getByText(`/kursus/${t}-gizi-seimbang-dasar`)).toBeVisible();
-  await dialog.getByLabel("Menengah", { exact: true }).check();
+  // The level radios are sr-only inside pill labels (review item 3): click
+  // the visible pill — check() would aim at the hidden input and the
+  // wrapping label intercepts the pointer.
+  await dialog.getByText("Menengah", { exact: true }).click();
+  await expect(dialog.getByLabel("Menengah", { exact: true })).toBeChecked();
   await dialog.getByLabel("Ringkasan").fill("Ringkasan netral untuk tes e2e.");
   await page
     .getByRole("button", { name: "Buat & lanjut isi materi →" })

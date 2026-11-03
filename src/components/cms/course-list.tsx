@@ -150,7 +150,12 @@ export function CourseList({ courses, counts }: CourseListProps) {
                 />
               </div>
             ) : (
-              <div className="mt-2 overflow-x-auto rounded-card border border-border bg-surface">
+              <div className="relative mt-2 overflow-x-auto rounded-card border border-border bg-surface">
+                {/* relative is load-bearing: the sr-only course-title span in
+                    the "Buka" link is position:absolute — without a positioned
+                    ancestor its containing block is the viewport and it escapes
+                    the overflow-x-auto clip, widening the PAGE (not the
+                    wrapper) at every width. */}
                 <table className="w-full min-w-[640px] text-left">
                   <thead>
                     <tr className="border-b border-border">
