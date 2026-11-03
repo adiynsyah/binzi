@@ -77,6 +77,10 @@ test("EDITOR: kursus baru lewat dialog → builder kosong", async ({
   await expect(
     page.getByRole("heading", { name: `${t} Gizi Seimbang Dasar` }),
   ).toBeVisible();
+  // The status pill beside the title renders real text — the STATUS_BADGE
+  // map must reach this server component as a value, not a client
+  // reference (review item 1).
+  await expect(page.getByText("Draf", { exact: true })).toBeVisible();
   await expect(page.getByText("Belum ada materi")).toBeVisible();
   await expect(
     page.getByText(/Sudah disiapkan kosong — minimum 10 soal/),

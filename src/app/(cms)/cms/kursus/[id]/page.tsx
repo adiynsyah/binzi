@@ -7,8 +7,8 @@
 // before the service, and its NotFoundError maps to notFound() too.
 import { notFound } from "next/navigation";
 
-import { STATUS_BADGE } from "@/components/cms/course-list";
 import { CMS_HEADING_CLASS } from "@/components/cms/cms-pages";
+import { STATUS_BADGE } from "@/components/cms/course-status";
 import { BadgeStatus } from "@/components/ui/badge-status";
 import { NotFoundError } from "@/lib/errors";
 import { requireRole } from "@/lib/rbac";

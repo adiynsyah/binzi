@@ -22,8 +22,9 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 
 import { CMS_HEADING_CLASS } from "@/components/cms/cms-pages";
+import { STATUS_BADGE } from "@/components/cms/course-status";
 import { CreateCourseDialog } from "@/components/cms/create-course-dialog";
-import { BadgeStatus, type BadgeStatusType } from "@/components/ui/badge-status";
+import { BadgeStatus } from "@/components/ui/badge-status";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
@@ -32,7 +33,7 @@ import { COURSE_LEVEL_LABELS } from "@/modules/course/schema";
 import type {
   CmsCourseListItemDTO,
   CourseStatusCounts,
-} from "@/modules/course/serializer";
+} from "@/modules/course/service";
 
 type ListTab = "ALL" | "DRAFT" | "IN_REVIEW" | "PUBLISHED" | "ARCHIVED";
 
@@ -47,17 +48,6 @@ const TABS: readonly {
   { value: "DRAFT", label: "Draf", countKey: "DRAFT" },
   { value: "ARCHIVED", label: "Arsip", countKey: "ARCHIVED" },
 ];
-
-/** Course status → BadgeStatus pill (21e/21g); shared with the builder page. */
-export const STATUS_BADGE: Record<
-  CmsCourseListItemDTO["status"],
-  BadgeStatusType
-> = {
-  DRAFT: "draf",
-  IN_REVIEW: "menunggu-persetujuan",
-  PUBLISHED: "terbit",
-  ARCHIVED: "arsip",
-};
 
 export type CourseListProps = {
   courses: CmsCourseListItemDTO[];
