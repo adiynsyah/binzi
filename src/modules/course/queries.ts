@@ -182,7 +182,23 @@ export async function createCourseWithFinalQuiz(
           createdBy: actorId,
           updatedBy: actorId,
         })
-        .returning();
+        // Explicit column list (src/modules/README.md): exactly what
+        // CourseDetailRow consumes, never the whole table.
+        .returning({
+          id: courses.id,
+          title: courses.title,
+          slug: courses.slug,
+          summary: courses.summary,
+          description: courses.description,
+          thumbnailUrl: courses.thumbnailUrl,
+          level: courses.level,
+          status: courses.status,
+          estimatedMinutes: courses.estimatedMinutes,
+          publishedAt: courses.publishedAt,
+          finalQuizId: courses.finalQuizId,
+          enrollmentCount: courses.enrollmentCount,
+          updatedAt: courses.updatedAt,
+        });
     } catch (error) {
       if (isUniqueViolation(error, "courses_slug_unique")) {
         throw courseFieldError("slug", SLUG_TAKEN_MESSAGE(input.slug));
