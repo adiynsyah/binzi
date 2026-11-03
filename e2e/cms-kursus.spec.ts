@@ -50,7 +50,10 @@ test("EDITOR: kursus baru lewat dialog → builder kosong", async ({
   await signInViaApi(page.context(), editor);
 
   await page.goto("/cms/kursus");
-  await expect(page.getByRole("heading", { name: "Kursus" })).toBeVisible();
+  // exact: the EmptyState h3 "Belum ada kursus." also contains "Kursus".
+  await expect(
+    page.getByRole("heading", { name: "Kursus", exact: true }),
+  ).toBeVisible();
   await expect(page.getByText("Belum ada kursus.")).toBeVisible();
   await maybeScreenshot(page, "cms-kursus-daftar-kosong", testInfo.project.name);
 
@@ -60,10 +63,12 @@ test("EDITOR: kursus baru lewat dialog → builder kosong", async ({
   await maybeScreenshot(page, "cms-kursus-dialog-normal", testInfo.project.name);
 
   const t = token("tk");
-  await page.getByLabel("Judul kursus").fill(`${t} Gizi Seimbang Dasar`);
+  // Label lookups stay dialog-scoped: the CMS nav also has a "Ringkasan"
+  // link with the same accessible name.
+  await dialog.getByLabel("Judul kursus").fill(`${t} Gizi Seimbang Dasar`);
   await expect(dialog.getByText(`/kursus/${t}-gizi-seimbang-dasar`)).toBeVisible();
-  await page.getByLabel("Menengah", { exact: true }).check();
-  await page.getByLabel("Ringkasan").fill("Ringkasan netral untuk tes e2e.");
+  await dialog.getByLabel("Menengah", { exact: true }).check();
+  await dialog.getByLabel("Ringkasan").fill("Ringkasan netral untuk tes e2e.");
   await page
     .getByRole("button", { name: "Buat & lanjut isi materi →" })
     .click();
@@ -92,15 +97,16 @@ test("dialog: ringkasan kosong → pesan 21f + fokus di Ringkasan", async ({
 
   await page.goto("/cms/kursus");
   await page.getByRole("button", { name: "+ Kursus baru" }).first().click();
-  await page.getByLabel("Judul kursus").fill(`${token("tk")} Judul Lengkap`);
-  await page
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("Judul kursus").fill(`${token("tk")} Judul Lengkap`);
+  await dialog
     .getByRole("button", { name: "Buat & lanjut isi materi →" })
     .click();
 
   await expect(
-    page.getByText("Ringkasan wajib diisi — tanpa ini kartu katalog kosong."),
+    dialog.getByText("Ringkasan wajib diisi — tanpa ini kartu katalog kosong."),
   ).toBeVisible();
-  await expect(page.getByLabel("Ringkasan")).toBeFocused();
+  await expect(dialog.getByLabel("Ringkasan")).toBeFocused();
 });
 
 test("dialog: judul mirip kursus lain → pesan 21f dari server + fokus di Judul", async ({
@@ -118,19 +124,20 @@ test("dialog: judul mirip kursus lain → pesan 21f dari server + fokus di Judul
 
   await page.goto("/cms/kursus");
   await page.getByRole("button", { name: "+ Kursus baru" }).first().click();
+  const dialog = page.getByRole("dialog");
   // The EXISTING title is a prefix of the new one (only this test pairs).
-  await page
+  await dialog
     .getByLabel("Judul kursus")
     .fill(`${t} Gizi Seimbang untuk Ibu Hamil Trimester Pertama`);
-  await page.getByLabel("Ringkasan").fill("Ringkasan netral untuk tes e2e.");
-  await page
+  await dialog.getByLabel("Ringkasan").fill("Ringkasan netral untuk tes e2e.");
+  await dialog
     .getByRole("button", { name: "Buat & lanjut isi materi →" })
     .click();
 
   await expect(
-    page.getByText(/Judul terlalu mirip dengan kursus/),
+    dialog.getByText(/Judul terlalu mirip dengan kursus/),
   ).toBeVisible();
-  await expect(page.getByLabel("Judul kursus")).toBeFocused();
+  await expect(dialog.getByLabel("Judul kursus")).toBeFocused();
   await maybeScreenshot(page, "cms-kursus-dialog-galat", testInfo.project.name);
 });
 
@@ -150,16 +157,17 @@ test("dialog: slug otomatis bertabrakan tanpa “Ubah” → galat slug + fokus 
 
   await page.goto("/cms/kursus");
   await page.getByRole("button", { name: "+ Kursus baru" }).first().click();
+  const dialog = page.getByRole("dialog");
   // …but their auto-slugs are identical — no "Ubah" click anywhere.
-  await page.getByLabel("Judul kursus").fill(`${t} Gizi - Dasar`);
-  await page.getByLabel("Ringkasan").fill("Ringkasan netral untuk tes e2e.");
-  await page
+  await dialog.getByLabel("Judul kursus").fill(`${t} Gizi - Dasar`);
+  await dialog.getByLabel("Ringkasan").fill("Ringkasan netral untuk tes e2e.");
+  await dialog
     .getByRole("button", { name: "Buat & lanjut isi materi →" })
     .click();
 
-  await expect(page.getByText(/sudah dipakai kursus lain/)).toBeVisible();
+  await expect(dialog.getByText(/sudah dipakai kursus lain/)).toBeVisible();
   // Edit mode opened automatically and the now-visible slug input took focus.
-  const slugInput = page.getByLabel("Slug kursus");
+  const slugInput = dialog.getByLabel("Slug kursus");
   await expect(slugInput).toBeVisible();
   await expect(slugInput).toBeFocused();
   await expect(slugInput).toHaveValue(`${t}-gizi-dasar`);

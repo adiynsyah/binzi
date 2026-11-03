@@ -43,8 +43,12 @@ export default async function CmsCourseBuilderPage({
 
   return (
     <div>
+      {/* min-w-0 on the heading and both grid children: an 80-char no-space
+          title/slug has a min-content wider than 360px, and break-words does
+          not reduce min-content — without this the PAGE would scroll sideways
+          (A-19b). */}
       <div className="flex flex-wrap items-center gap-3">
-        <h1 className={CMS_HEADING_CLASS}>{course.title}</h1>
+        <h1 className={`${CMS_HEADING_CLASS} min-w-0`}>{course.title}</h1>
         <BadgeStatus status={STATUS_BADGE[course.status]} />
       </div>
       {course.summary ? (
@@ -54,7 +58,7 @@ export default async function CmsCourseBuilderPage({
       ) : null}
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="flex flex-col gap-6">
+        <div className="min-w-0 flex flex-col gap-6">
           <section className="rounded-card border border-border bg-surface p-6">
             <div className="flex items-baseline justify-between gap-4">
               <h2 className="text-lg font-black text-text">Materi</h2>
@@ -79,7 +83,7 @@ export default async function CmsCourseBuilderPage({
           </section>
         </div>
 
-        <aside className="rounded-card border border-border bg-surface p-6">
+        <aside className="min-w-0 rounded-card border border-border bg-surface p-6">
           <h2 className="font-mono text-xs uppercase tracking-wide text-text-subtle">
             Pengaturan kursus
           </h2>
