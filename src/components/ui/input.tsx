@@ -1,4 +1,4 @@
-import type { InputHTMLAttributes } from "react";
+import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 
 /*
@@ -13,9 +13,12 @@ import { cn } from "@/lib/utils";
  * - disabled → solid disabled fill, no opacity
  * - loading  → the owning form locks fields while saving (screen 2b):
  *              render with `disabled` + `aria-busy`
+ *
+ * Props are `ComponentProps<"input">` so `ref` arrives as a regular prop
+ * (React 19) — dialogs focus fields through it (card S1-01).
  */
 
-export type InputProps = InputHTMLAttributes<HTMLInputElement>;
+export type InputProps = ComponentProps<"input">;
 
 export function Input({ className, type = "text", ...props }: InputProps) {
   return (

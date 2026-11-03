@@ -21,6 +21,19 @@ describe("BadgeStatus", () => {
     }
   });
 
+  it("renders the CMS content statuses (S1-01, screen 21e)", () => {
+    const cases = [
+      ["draf", "Draf"],
+      ["terbit", "Terbit"],
+      ["arsip", "Arsip"],
+    ] as const;
+    for (const [status, text] of cases) {
+      const { unmount } = render(<BadgeStatus status={status} />);
+      expect(screen.getByText(text)).toBeTruthy();
+      unmount();
+    }
+  });
+
   it("renders the cycle badge with its number", () => {
     render(<BadgeStatus status="siklus" cycle={2} />);
     expect(screen.getByText("Siklus ke-2")).toBeTruthy();
