@@ -22,7 +22,7 @@
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
@@ -99,31 +99,29 @@ export function CreateCourseDialog({ open, onOpenChange }: CreateCourseDialogPro
   const {
     register,
     handleSubmit,
-    watch,
+    control,
     setValue,
     setError,
     formState: { errors, isSubmitting },
   } = useForm<CreateCourseValues>({
     resolver: standardSchemaResolver(createCourseInput),
     defaultValues: { title: "", slug: "", level: "BEGINNER", summary: "" },
+    // The focus pass below owns focus movement (21f) — including opening
+    // slug edit mode first — so RHF's own focus-on-error stays off (it
+    // would try to focus the hidden preview-mode slug input).
+    shouldFocusError: false,
   });
 
   // 21f: the slug fills automatically from the title until "Ubah" is used.
-  const title = watch("title");
-  const slug = watch("slug");
-  const summary = watch("summary");
+  // useWatch (not formState/destructured watch) — safe to read per field.
+  const title = useWatch({ control, name: "title" });
+  const slug = useWatch({ control, name: "slug" });
+  const summary = useWatch({ control, name: "summary" });
   useEffect(() => {
     if (!slugEdited) {
       setValue("slug", slugifyCourseSlug(title), { shouldValidate: false });
     }
   }, [title, slugEdited, setValue]);
-
-  // A slug error while still in preview mode opens edit mode first (the
-  // control the error names does not exist yet); the focus pass below then
-  // reaches the newly rendered input.
-  useEffect(() => {
-    if (errors.slug && !slugEdited) setSlugEdited(true);
-  }, [errors.slug, slugEdited]);
 
   // Refs for the focus pass; each merges RHF's register ref.
   const titleRef = useRef<HTMLInputElement | null>(null);
@@ -165,9 +163,18 @@ export function CreateCourseDialog({ open, onOpenChange }: CreateCourseDialogPro
   // clickable (C-08), so the guard lives here, not on the control.
   const inFlight = useRef(false);
 
-  const onSubmit = handleSubmit(async (values) => {
-    if (inFlight.current) return;
+  function beginSubmit(): boolean {
+    if (inFlight.current) return false;
     inFlight.current = true;
+    return true;
+  }
+
+  function endSubmit(): void {
+    inFlight.current = false;
+  }
+
+  async function submitValidated(values: CreateCourseValues): Promise<void> {
+    if (!beginSubmit()) return;
     setFailed(false);
     try {
       const response = await fetch("/api/cms/courses", {
@@ -203,9 +210,16 @@ export function CreateCourseDialog({ open, onOpenChange }: CreateCourseDialogPro
     } catch {
       setFailed(true);
     } finally {
-      inFlight.current = false;
+      endSubmit();
     }
-  });
+  }
+
+  // Client-side validation failed: the same 21f focus pass runs against the
+  // field names (this is also what opens slug edit mode when the auto-slug
+  // itself is invalid).
+  function submitInvalid(clientErrors: Record<string, unknown>): void {
+    focusFirstInvalid(Object.keys(clientErrors));
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -219,7 +233,10 @@ export function CreateCourseDialog({ open, onOpenChange }: CreateCourseDialogPro
 
         <form
           onSubmit={(event) => {
-            void onSubmit(event);
+            // Called inside the event handler so the ref reads in
+            // submitValidated/beginSubmit are provably event-time (the
+            // react-hooks/refs rule cannot see through handleSubmit()).
+            void handleSubmit(submitValidated, submitInvalid)(event);
           }}
           className="mt-4 flex flex-col gap-5"
           noValidate
@@ -307,7 +324,6 @@ export function CreateCourseDialog({ open, onOpenChange }: CreateCourseDialogPro
                     type="radio"
                     value={level}
                     className="size-4 accent-primary"
-                    aria-invalid={errors.level ? true : undefined}
                     ref={(element) => {
                       registerLevelRef(element);
                       if (element && !levelRef.current) {

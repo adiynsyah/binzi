@@ -8,13 +8,14 @@
 // "23505"; postgres.js exposes the constraint as `constraint_name`, PGlite
 // as `constraint` — both shapes are checked.
 
+/** Any of the driver error shapes (postgres.js, PGlite) as a loose record. */
 type PgErrorLike = {
   code?: unknown;
   constraint?: unknown;
   constraint_name?: unknown;
 };
 
-function isObject(value: unknown): value is Record<string, unknown> {
+function isObject(value: unknown): value is PgErrorLike & Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
