@@ -155,7 +155,10 @@ test.describe("status per peran", () => {
       // a MEMBER never learns whether an id exists).
       let realCoursePath: string | null = null;
       if (role !== "MEMBER") {
-        const token = `${role.toLowerCase()}${Date.now().toString(36)}${randomBytes(3).toString("hex")}`;
+        // Underscores are not slug-legal (SLUG_PATTERN) — SUPER_ADMIN
+        // would otherwise 400 on its own setup row.
+        const roleSlug = role.toLowerCase().replace(/_/g, "-");
+        const token = `${roleSlug}${Date.now().toString(36)}${randomBytes(3).toString("hex")}`;
         const created = await context.request.post("/api/cms/courses", {
           data: {
             title: `${token} kursus rbac`,
