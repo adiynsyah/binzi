@@ -14,13 +14,16 @@ import { NotFoundError } from "@/lib/errors";
 import { courseFieldError, SIMILAR_TITLE_MESSAGE, SLUG_TAKEN_MESSAGE } from "./errors";
 import { assertCanManageCourses, type Actor } from "./policy";
 import * as courseQueries from "./queries";
-import type { CourseStatusCounts } from "./queries";
 import {
   createCourseInput,
   getCourseDetailInput,
   listCoursesInput,
 } from "./schema";
-import type { CmsCourseDetailDTO, CmsCourseListItemDTO } from "./serializer";
+import type {
+  CmsCourseDetailDTO,
+  CmsCourseListItemDTO,
+  CourseStatusCounts,
+} from "./serializer";
 import { toCmsCourseDetailDTO, toCmsCourseListItemDTO } from "./serializer";
 
 // DTO types for consumers: import these from service, not from serializer.

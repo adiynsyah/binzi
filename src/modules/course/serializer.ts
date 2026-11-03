@@ -47,6 +47,19 @@ export type CmsCourseListItemDTO = {
   updatedAt: string;
 };
 
+/**
+ * Totals per status across ALL courses (21e tab badges). Never affected by
+ * the active tab or search. Lives here — not in queries.ts — so the client
+ * list component can import it (queries is server-only).
+ */
+export type CourseStatusCounts = {
+  total: number;
+  DRAFT: number;
+  IN_REVIEW: number;
+  PUBLISHED: number;
+  ARCHIVED: number;
+};
+
 export function toCmsCourseListItemDTO(
   row: CourseListItemRow,
 ): CmsCourseListItemDTO {

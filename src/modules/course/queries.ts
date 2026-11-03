@@ -24,7 +24,11 @@ import { createEmptyFinalQuiz } from "@/modules/quiz/service";
 import { isUniqueViolation } from "./db-errors";
 import { courseFieldError, SLUG_TAKEN_MESSAGE } from "./errors";
 import { toCmsCourseDetailDTO } from "./serializer";
-import type { CourseListItemRow, CourseDetailRow } from "./serializer";
+import type {
+  CourseListItemRow,
+  CourseDetailRow,
+  CourseStatusCounts,
+} from "./serializer";
 import type { ContentStatus, CreateCourseInput } from "./schema";
 
 // Subquery aggregates (no N+1): correlated counts resolved inside the one
@@ -48,14 +52,6 @@ const ownerColumns = {
 function escapeLike(value: string): string {
   return value.replace(/[\\%_]/g, (char) => `\\${char}`);
 }
-
-export type CourseStatusCounts = {
-  total: number;
-  DRAFT: number;
-  IN_REVIEW: number;
-  PUBLISHED: number;
-  ARCHIVED: number;
-};
 
 /** CMS list (21e), default sort "terakhir diubah". */
 export async function listCourses(filter: {

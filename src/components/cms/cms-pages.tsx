@@ -9,8 +9,9 @@ import type { CmsUser } from "./cms-nav";
 
 /* CMS heading scale (19a): Lato 900, 28 / 1.16, letter-spacing -0.022em.
    break-words: a 40-character no-space name must never force horizontal
-   scroll at 360 (card "Selesai jika"). */
-const HEADING_CLASS =
+   scroll at 360 (card "Selesai jika"). Exported so feature pages (S1-01
+   /cms/kursus) render the exact same scale. */
+export const CMS_HEADING_CLASS =
   "break-words text-[28px] font-black leading-[1.16] tracking-[-0.022em] text-text";
 
 /**
@@ -24,7 +25,7 @@ export function CmsOverviewHeading({ user }: { user: CmsUser }) {
   const title =
     user.role === "EDITOR" ? (first ? `Halo, ${first}` : "Halo") : "Ringkasan";
 
-  return <h1 className={HEADING_CLASS}>{title}</h1>;
+  return <h1 className={CMS_HEADING_CLASS}>{title}</h1>;
 }
 
 /**
@@ -36,7 +37,7 @@ export function CmsOverviewHeading({ user }: { user: CmsUser }) {
 export function CmsPlaceholderPage({ title }: { title: string }) {
   return (
     <div>
-      <h1 className={HEADING_CLASS}>{title}</h1>
+      <h1 className={CMS_HEADING_CLASS}>{title}</h1>
       <p className="mt-3 text-[15px] text-text-muted">Segera hadir.</p>
     </div>
   );
