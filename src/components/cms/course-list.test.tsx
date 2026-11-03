@@ -8,7 +8,7 @@ import { CourseList } from "./course-list";
 import type {
   CmsCourseListItemDTO,
   CourseStatusCounts,
-} from "@/modules/course/serializer";
+} from "@/modules/course/service";
 
 // Card S1-01 (screen 21e): tabs, in-tab search, TOTAL tab badges, and the
 // completeness columns. Counts are plain data here — the server side is
@@ -79,7 +79,9 @@ describe("CourseList", () => {
       screen.getByText("2 terbit · 1 menunggu persetujuan · 1 draf"),
     ).toBeTruthy();
 
-    const row = screen.getByText("Menu Keluarga Sepekan").closest("tr");
+    const row = screen.getByText("Menu Keluarga Sepekan", {
+      selector: "p.break-words",
+    }).closest("tr");
     expect(row).toBeTruthy();
     expect(within(row as HTMLElement).getByText("Menengah · Pundra R.")).toBeTruthy();
     expect(within(row as HTMLElement).getByText("8 materi")).toBeTruthy();
@@ -93,14 +95,19 @@ describe("CourseList", () => {
     expect(screen.getByText("1.284")).toBeTruthy();
   });
 
-  it("links each row into the builder", () => {
+  it("links each row into the builder with a unique accessible name", () => {
     render(<CourseList courses={courses} counts={counts} />);
-    expect(screen.getAllByRole("link", { name: "Buka" })).toHaveLength(4);
+    // Each "Buka" link carries its course title (sr-only) — the accessible
+    // names must all differ (review item 9).
+    const links = screen.getAllByRole("link", { name: /^Buka / });
+    expect(links).toHaveLength(4);
     expect(
-      screen
-        .getAllByRole("link", { name: "Buka" })
-        .every((link) => /^\/cms\/kursus\/c\d$/.test(link.getAttribute("href") ?? "")),
+      links.every((link) =>
+        /^\/cms\/kursus\/c\d$/.test(link.getAttribute("href") ?? ""),
+      ),
     ).toBe(true);
+    const names = links.map((link) => link.textContent);
+    expect(new Set(names).size).toBe(4);
   });
 
   it("keeps tab badges at TOTAL counts while the table shows the active tab only", () => {
@@ -108,7 +115,9 @@ describe("CourseList", () => {
     fireEvent.mouseDown(screen.getByRole("tab", { name: /Terbit/ }));
 
     expect(screen.queryByText("Menu Keluarga Sepekan")).toBeNull();
-    expect(screen.getByText("Membaca Label Gizi Kemasan")).toBeTruthy();
+    expect(
+      screen.getAllByText("Membaca Label Gizi Kemasan").length,
+    ).toBeGreaterThan(0);
     // Badges still report totals (2 terbit · 1 menunggu · 1 draf · 0 arsip).
     expect(screen.getByRole("tab", { name: /Semua/ }).textContent).toContain("4");
     expect(screen.getByRole("tab", { name: /Draf/ }).textContent).toContain("1");
@@ -121,13 +130,20 @@ describe("CourseList", () => {
     });
 
     // "Semua" tab: two gizi courses…
-    expect(screen.getByText("Gizi Seimbang untuk Ibu Hamil Trimester Pertama")).toBeTruthy();
-    expect(screen.getByText("Gizi Seimbang Trimester Kedua")).toBeTruthy();
+    expect(
+      screen.getAllByText("Gizi Seimbang untuk Ibu Hamil Trimester Pertama")
+        .length,
+    ).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText("Gizi Seimbang Trimester Kedua").length,
+    ).toBeGreaterThan(0);
 
     // …but inside the "Draf" tab the same query finds only the draft one.
     fireEvent.mouseDown(screen.getByRole("tab", { name: /Draf/ }));
     expect(screen.queryByText("Gizi Seimbang untuk Ibu Hamil Trimester Pertama")).toBeNull();
-    expect(screen.getByText("Gizi Seimbang Trimester Kedua")).toBeTruthy();
+    expect(
+      screen.getAllByText("Gizi Seimbang Trimester Kedua").length,
+    ).toBeGreaterThan(0);
   });
 
   it("shows the not-found empty state when a filter matches nothing", () => {
@@ -138,7 +154,9 @@ describe("CourseList", () => {
 
     expect(screen.getByText("Tidak ada kursus yang cocok.")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Hapus pencarian" }));
-    expect(screen.getByText("Gizi Seimbang Trimester Kedua")).toBeTruthy();
+    expect(
+      screen.getAllByText("Gizi Seimbang Trimester Kedua").length,
+    ).toBeGreaterThan(0);
   });
 
   it("shows the empty state and opens the dialog when there are no courses", () => {

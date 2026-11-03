@@ -196,11 +196,15 @@ export function CourseList({ courses, counts }: CourseListProps) {
                             : "—"}
                         </td>
                         <td className="whitespace-nowrap px-4 py-4">
+                          {/* Course title in the accessible name so every
+                              row's link is unique (screen readers offer a
+                              link list; "Buka" ×N is useless there). */}
                           <Link
                             href={`/cms/kursus/${course.id}`}
                             className="font-bold text-primary-deep hover:underline"
                           >
-                            Buka
+                            Buka{" "}
+                            <span className="sr-only">{course.title}</span>
                           </Link>
                         </td>
                       </tr>
