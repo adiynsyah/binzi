@@ -280,6 +280,55 @@ describe("CourseBuilder", () => {
       expect(fetchMock).toHaveBeenCalledTimes(1);
     });
 
+    it("keeps focus on the first invalid field while a banner is showing (mutation 11)", async () => {
+      // One successful save first: the banner shows and focus returned
+      // to Simpan. RHF also toggles isSubmitting for submits that FAIL
+      // client validation, so an effect gated on the banner alone would
+      // fire on the next submit below and steal focus from the field.
+      fetchMock.mockResolvedValue(
+        new Response(JSON.stringify({ data: courseFixture() }), {
+          status: 200,
+        }),
+      );
+      renderBuilder();
+      fireEvent.submit(settingsForm());
+      await waitFor(() => {
+        expect(screen.getByText("Pengaturan tersimpan.")).toBeTruthy();
+      });
+      const save = screen.getByRole("button", { name: "Simpan" });
+      await waitFor(() => {
+        expect(save).toBe(document.activeElement);
+      });
+
+      // Clear the summary, then submit: client validation fails while
+      // the banner is still up. requestAnimationFrame runs SYNCHRONOUSLY
+      // here, so the focus pass lands on the field DURING the submit and
+      // any effect focus provably comes after it — the last writer is
+      // unambiguous (in real browsers the two orderings race, which is
+      // exactly why the effect must not ask for focus on this path).
+      const realRaf = globalThis.requestAnimationFrame.bind(globalThis);
+      vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => {
+        cb(performance.now());
+        return 0;
+      });
+      try {
+        fireEvent.change(screen.getByLabelText("Ringkasan"), {
+          target: { value: "" },
+        });
+        fireEvent.submit(settingsForm());
+        await new Promise((resolve) => setTimeout(resolve, 200));
+
+        expect(screen.getByLabelText("Ringkasan")).toBe(
+          document.activeElement,
+        );
+        expect(save).not.toBe(document.activeElement);
+        // Client-invalid submits never reach the server.
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+      } finally {
+        vi.stubGlobal("requestAnimationFrame", realRaf);
+      }
+    });
+
     it("attaches server field errors and focuses the first invalid field in form order", async () => {
       // Both summary and slug are invalid; the pass order is judul →
       // ringkasan → slug → level, so Ringkasan takes focus even though

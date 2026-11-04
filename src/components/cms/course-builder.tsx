@@ -117,17 +117,22 @@ export function CourseBuilder({ builder }: { builder: CourseBuilderDTO }) {
   }
 
   // Focus RETURN after responses that do not move focus to a field (card
-  // §2). An EFFECT, not a rAF inside the handler: `loading` sets the
-  // native disabled attribute, and the focus() call must run AFTER the
-  // commit that lifts it — against React's concurrent scheduler the
-  // frame can fire first and focus() no-ops on a disabled button with
-  // nothing retrying (the CI e2e caught the race).
+  // §2). Only the response paths that own it ASK for it — a ref set where
+  // the old focusSave() calls were (success, 409, generic, network). The
+  // EFFECT consumes the ref after the commit that lifts `loading`'s
+  // native disabled attribute (an in-handler rAF raced React's scheduler
+  // and no-opped on the still-disabled button — caught by the CI e2e).
+  // Gating on the banner alone would ALSO fire for client-invalid
+  // submits (RHF toggles isSubmitting there too) and steal focus from
+  // the first invalid field — the mutation-11 test pins that.
   const saveRef = useRef<HTMLButtonElement | null>(null);
+  const pendingSaveFocus = useRef(false);
   useEffect(() => {
-    if (banner !== null && !isSubmitting) {
+    if (pendingSaveFocus.current && !isSubmitting) {
+      pendingSaveFocus.current = false;
       saveRef.current?.focus();
     }
-  }, [banner, isSubmitting]);
+  }, [isSubmitting, banner]);
 
   // Handler-level double-submit guard: softDisabled stays clickable.
   const inFlight = useRef(false);
@@ -150,6 +155,7 @@ export function CourseBuilder({ builder }: { builder: CourseBuilderDTO }) {
         reset(settingsFrom(json.data));
         setBanner({ tone: "success", title: SAVED_BANNER });
         router.refresh();
+        pendingSaveFocus.current = true;
       } else if (response.status === 400) {
         const json = (await response.json()) as {
           error?: { fields?: ApiFieldError[] };
@@ -175,12 +181,14 @@ export function CourseBuilder({ builder }: { builder: CourseBuilderDTO }) {
         });
         // The refresh flips the page to its read-only shape (card §2).
         router.refresh();
+        pendingSaveFocus.current = true;
       } else {
         setBanner({
           tone: "error",
           title: GENERIC_ERROR_TITLE,
           description: GENERIC_ERROR_DESCRIPTION,
         });
+        pendingSaveFocus.current = true;
       }
     } catch {
       setBanner({
@@ -188,6 +196,7 @@ export function CourseBuilder({ builder }: { builder: CourseBuilderDTO }) {
         title: GENERIC_ERROR_TITLE,
         description: GENERIC_ERROR_DESCRIPTION,
       });
+      pendingSaveFocus.current = true;
     }
     // No navigation on this form: every path releases the guard.
     inFlight.current = false;
