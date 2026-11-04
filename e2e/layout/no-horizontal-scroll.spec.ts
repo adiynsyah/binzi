@@ -152,7 +152,7 @@ test.describe("tanpa scroll horizontal", () => {
 
     // Card S1-01: the LIST with rows and the BUILDER — at every width. One
     // created course carries an 80-character no-space title (the worst case
-    // for the KURSUS column: break-words + the always-on overflow-x-auto
+    // for the KURSUS column: wrap-anywhere + the always-on overflow-x-auto
     // wrapper must keep the PAGE from scrolling sideways).
     const courseId = await createNoSpaceTitleCourse(page.context());
     await test.step("EDITOR /cms/kursus berisi", async () => {
@@ -173,7 +173,10 @@ test.describe("tanpa scroll horizontal", () => {
     });
     await test.step(`EDITOR /cms/kursus/{id} builder`, async () => {
       await page.goto(`/cms/kursus/${courseId}`);
-      await expect(page.getByText("Belum ada materi")).toBeVisible();
+      await expect(
+        page.locator('section[aria-labelledby="builder-materi-heading"]')
+          .getByText("Belum ada materi")
+      ).toBeVisible();
       await expectNoHorizontalScroll(
         page,
         `EDITOR builder @${testInfo.project.name}`,

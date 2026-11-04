@@ -195,7 +195,10 @@ test.describe("axe WCAG 2.1 A/AA", () => {
     await expectAxeClean(page, "EDITOR /cms/kursus berisi", testInfo);
 
     await page.goto(`/cms/kursus/${courseId}`);
-    await expect(page.getByText("Belum ada materi")).toBeVisible();
+    await expect(
+      page.locator('section[aria-labelledby="builder-materi-heading"]')
+        .getByText("Belum ada materi")
+    ).toBeVisible();
     await expectAxeClean(page, "EDITOR /cms/kursus/{id} builder", testInfo);
   });
 

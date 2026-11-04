@@ -100,6 +100,8 @@ function sanitize(name: string): string {
 /**
  * Card §7: when E2E_SCREENSHOT_DIR is set, save a full-page screenshot for
  * the owner's visual review in Claude chat. Never committed; not a baseline.
+ * animations: "disabled" (card S1-02 §8): without it a just-opened dialog
+ * was captured mid-entrance — translucent and not yet in place.
  */
 export async function maybeScreenshot(
   page: Page,
@@ -113,6 +115,7 @@ export async function maybeScreenshot(
   await page.screenshot({
     path: join(dir, `${sanitize(name)}-${projectName}.png`),
     fullPage: true,
+    animations: "disabled",
   });
 }
 
