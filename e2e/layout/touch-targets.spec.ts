@@ -149,12 +149,14 @@ test.describe("target sentuh >= 44px @w360", () => {
     const editor = await createRoleAccount(request, "EDITOR");
     await signInViaApi(page.context(), editor);
     const t = randomToken("tt");
+    // Two NON-prefix-similar titles (the similar-title rule would 400 a
+    // "… Sentuh" → "… Sentuh Kosong" pair).
     const filledId = await createCourseViaApi(page.context(), {
-      title: `${t} Builder Sentuh`,
+      title: `${t} Sentuh Berisi`,
     });
     await createLessonViaApi(page.context(), filledId, `${t} Materi Sentuh`);
     const emptyId = await createCourseViaApi(page.context(), {
-      title: `${t} Builder Sentuh Kosong`,
+      title: `${t} Sentuh Polos`,
     });
 
     await page.goto(`/cms/kursus/${filledId}`);

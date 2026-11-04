@@ -231,6 +231,10 @@ test.describe("tanpa scroll horizontal", () => {
         `EDITOR builder dialog @${testInfo.project.name}`,
         true,
       );
+      // Close it: the dialog's scrim would intercept the account-menu
+      // click in the next step.
+      await page.keyboard.press("Escape");
+      await expect(page.getByRole("dialog")).toHaveCount(0);
     });
 
     if (spec.cms === "bar") {

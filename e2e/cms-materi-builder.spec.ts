@@ -32,7 +32,7 @@ test("EDITOR: simpan pengaturan → banner sukses, fokus kembali, reload bertaha
 
   // Change every editable field: judul, ringkasan, slug, level, urutan.
   await page.getByLabel("Judul kursus").fill(`${t} Gizi Ibu Hamil Diperbarui`);
-  await page.getByLabel("Ringkasan").fill("Ringkasan revisi untuk tes e2e.");
+  await page.getByRole("textbox", { name: "Ringkasan" }).fill("Ringkasan revisi untuk tes e2e.");
   await page.getByLabel("Slug").fill(`${t}-gizi-hamil-revisi`);
   // Level: the same segmented control as the 21f dialog — click the pill.
   await page.getByText("Lanjutan", { exact: true }).click();
@@ -56,7 +56,7 @@ test("EDITOR: simpan pengaturan → banner sukses, fokus kembali, reload bertaha
   await expect(page.getByLabel("Judul kursus")).toHaveValue(
     `${t} Gizi Ibu Hamil Diperbarui`,
   );
-  await expect(page.getByLabel("Ringkasan")).toHaveValue(
+  await expect(page.getByRole("textbox", { name: "Ringkasan" })).toHaveValue(
     "Ringkasan revisi untuk tes e2e.",
   );
   await expect(page.getByLabel("Slug")).toHaveValue(`${t}-gizi-hamil-revisi`);
@@ -75,13 +75,15 @@ test("simpan: ringkasan dikosongkan → pesan + fokus di Ringkasan", async ({
   });
 
   await page.goto(`/cms/kursus/${courseId}`);
-  await page.getByLabel("Ringkasan").fill("");
+  await page.getByRole("textbox", { name: "Ringkasan" }).fill("");
   await page.getByRole("button", { name: "Simpan" }).click();
 
   await expect(
     page.getByText("Ringkasan wajib diisi — tanpa ini kartu katalog kosong."),
   ).toBeVisible();
-  await expect(page.getByLabel("Ringkasan")).toBeFocused();
+  await expect(
+    page.getByRole("textbox", { name: "Ringkasan" }),
+  ).toBeFocused();
 });
 
 test("tambah materi pertama & kedua → placeholder editor → outline 21a", async ({

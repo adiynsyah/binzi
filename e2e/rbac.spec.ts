@@ -41,6 +41,9 @@ const PAGE_EXPECTATIONS: readonly {
   { path: "/cms/artikel", member: 403, editor: 200, admin: 200, superAdmin: 200 },
   { path: "/cms/kursus", member: 403, editor: 200, admin: 200, superAdmin: 200 },
   { path: "/cms/kursus/[id]", member: 403, editor: 200, admin: 200, superAdmin: 200 },
+  // S1-02: the (placeholder) lesson editor — same EDITOR+ matrix; real ids
+  // are substituted per role below (MEMBER hits the role gate first).
+  { path: "/cms/kursus/[id]/materi/[lessonId]", member: 403, editor: 200, admin: 200, superAdmin: 200 },
   { path: "/cms/quiz", member: 403, editor: 200, admin: 200, superAdmin: 200 },
   { path: "/cms/media", member: 403, editor: 200, admin: 200, superAdmin: 200 },
   // ADMIN+
@@ -154,6 +157,7 @@ test.describe("status per peran", () => {
       // the role check, which runs BEFORE the id is parsed (anti-IDOR:
       // a MEMBER never learns whether an id exists).
       let realCoursePath: string | null = null;
+      let realLessonPath: string | null = null;
       if (role !== "MEMBER") {
         // Underscores are not slug-legal (SLUG_PATTERN) — SUPER_ADMIN
         // would otherwise 400 on its own setup row.
@@ -173,14 +177,26 @@ test.describe("status per peran", () => {
         const courseId = ((await created.json()) as { data: { id: string } })
           .data.id;
         realCoursePath = `/cms/kursus/${courseId}`;
+        // The materi row needs a real lesson IN that course (S1-02).
+        const lesson = await context.request.post(
+          `/api/cms/courses/${courseId}/lessons`,
+          { data: { title: `${token} materi rbac` } },
+        );
+        expect(lesson.status(), `${role} create lesson for the materi row`).toBe(201);
+        const lessonId = ((await lesson.json()) as { data: { id: string } })
+          .data.id;
+        realLessonPath = `/cms/kursus/${courseId}/materi/${lessonId}`;
       }
 
       try {
         for (const row of PAGE_EXPECTATIONS) {
-          const path =
-            row.path === "/cms/kursus/[id]" && realCoursePath
+          const dynamicPath =
+            row.path === "/cms/kursus/[id]"
               ? realCoursePath
-              : row.path;
+              : row.path === "/cms/kursus/[id]/materi/[lessonId]"
+                ? realLessonPath
+                : null;
+          const path = dynamicPath ?? row.path;
           const response = await context.request.get(path, {
             maxRedirects: 0,
           });
