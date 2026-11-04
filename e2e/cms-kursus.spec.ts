@@ -85,7 +85,10 @@ test("EDITOR: kursus baru lewat dialog → builder kosong", async ({
   // map must reach this server component as a value, not a client
   // reference (review item 1).
   await expect(page.getByText("Draf", { exact: true })).toBeVisible();
-  await expect(page.getByText("Belum ada materi")).toBeVisible();
+  await expect(
+    page.locator('section[aria-labelledby="builder-materi-heading"]')
+      .getByText("Belum ada materi")
+  ).toBeVisible();
   await expect(
     page.getByText(/Sudah disiapkan kosong — minimum 10 soal/),
   ).toBeVisible();
@@ -221,7 +224,10 @@ test("builder: id bukan UUID / tidak dikenal → 404; kursus orang lain bagi MEM
     expect(response?.status()).toBe(404);
   }
   await page.goto(`/cms/kursus/${courseId}`);
-  await expect(page.getByText("Belum ada materi")).toBeVisible();
+  await expect(
+    page.locator('section[aria-labelledby="builder-materi-heading"]')
+      .getByText("Belum ada materi")
+  ).toBeVisible();
 
   await page.context().clearCookies();
   const member = await createRoleAccount(request, "MEMBER");

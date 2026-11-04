@@ -10,6 +10,7 @@
 //
 // Type-only db imports: serializer tests run without DATABASE_URL.
 import type { courses } from "@/db/schema";
+import { isDocEmpty } from "@/lib/content-doc";
 
 /** Owner display name: users.name trimmed, falling back to the email. */
 function ownerDisplayName(name: string, email: string): string {
@@ -137,6 +138,81 @@ export function toCmsCourseDetailDTO(row: CourseDetailRow): CmsCourseDetailDTO {
         : {
             id: row.finalQuizId,
             questionCount: row.finalQuizQuestionCount,
+          },
+  };
+}
+
+// ----------------------------------------------------------- builder (S1-02)
+
+export type CourseBuilderRow = Pick<
+  typeof courses.$inferSelect,
+  | "id"
+  | "title"
+  | "slug"
+  | "summary"
+  | "description"
+  | "level"
+  | "status"
+  | "isSequential"
+  | "updatedAt"
+  | "finalQuizId"
+> & {
+  ownerName: string;
+  ownerEmail: string;
+  finalQuizQuestionCount: number;
+  /** For the 21a "n soal · d menit · …" line once the quiz has questions. */
+  finalQuizDurationMinutes: number | null;
+};
+
+/**
+ * The builder/settings audience (card S1-02, review addition 2a): the
+ * builder PAGE, the PATCH response and the course.update audit before/after
+ * all use this DTO. Deliberately a NEW DTO, not a widened
+ * CmsCourseDetailDTO: the builder never edits the description here (S1-04
+ * owns it), so the TipTap document must not ride along — through client
+ * props it would land in the RSC payload. Only the computed
+ * isDescriptionEmpty crosses. isSequential must be here too, or a
+ * sequential-only PATCH would audit before === after.
+ */
+export type CmsCourseBuilderDTO = {
+  id: string;
+  title: string;
+  slug: string;
+  summary: string | null;
+  level: CourseBuilderRow["level"];
+  status: CourseBuilderRow["status"];
+  isSequential: boolean;
+  isDescriptionEmpty: boolean;
+  ownerName: string;
+  updatedAt: string;
+  finalQuiz: {
+    id: string;
+    questionCount: number;
+    durationMinutes: number;
+  } | null;
+};
+
+export function toCmsCourseBuilderDTO(
+  row: CourseBuilderRow,
+): CmsCourseBuilderDTO {
+  return {
+    id: row.id,
+    title: row.title,
+    slug: row.slug,
+    summary: row.summary,
+    level: row.level,
+    status: row.status,
+    isSequential: row.isSequential,
+    isDescriptionEmpty: isDocEmpty(row.description),
+    ownerName: ownerDisplayName(row.ownerName, row.ownerEmail),
+    updatedAt: row.updatedAt.toISOString(),
+    finalQuiz:
+      row.finalQuizId === null || row.finalQuizDurationMinutes === null
+        ? null
+        : {
+            id: row.finalQuizId,
+            questionCount: row.finalQuizQuestionCount,
+            durationMinutes: row.finalQuizDurationMinutes,
           },
   };
 }

@@ -14,6 +14,16 @@
 //   directly with an existing slug (pre-check bypassed).
 // - MEMBER → ForbiddenError BEFORE input parsing.
 // - DTO allowlist: no column outside the explicit list ever leaves.
+//
+// Card S1-02 additions:
+// - updateCourse (PATCH): every-field save with ONE course.update audit row
+//   carrying before/after builder DTOs; no-op save writes and audits
+//   nothing; similar-title/slug checks only fire when that field changed
+//   (own title extended or case-only → 200); other course's title/slug and
+//   forbidden slug → ZodError field errors; non-DRAFT → 409 with the row
+//   untouched; isSequential-only save audits before ≠ after.
+// - getCourseBuilder: course + outline + checklist + minQuestions in one
+//   call; the TipTap description never crosses (review addition 2a).
 import { fileURLToPath } from "node:url";
 
 import { PGlite } from "@electric-sql/pglite";
@@ -25,8 +35,8 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import type { Db } from "@/db/client";
 import * as schema from "@/db/schema";
-import { auditLogs, courses, quizzes, users } from "@/db/schema";
-import { ForbiddenError, NotFoundError } from "@/lib/errors";
+import { auditLogs, courses, quizzes, systemSettings, users } from "@/db/schema";
+import { ConflictError, ForbiddenError, NotFoundError } from "@/lib/errors";
 
 // queries.ts carries "server-only" and imports the singleton `db` from
 // "@/db". "server-only" throws outside a React Server bundle — stub it (same
@@ -60,7 +70,14 @@ vi.mock("@/db", () => ({
 }));
 
 import * as courseQueries from "./queries";
-import { createCourse, getCourseDetail, listCourses } from "./service";
+import type { UpdateCourseInput } from "./schema";
+import {
+  createCourse,
+  getCourseBuilder,
+  getCourseDetail,
+  listCourses,
+  updateCourse,
+} from "./service";
 
 vi.setConfig({ testTimeout: 120_000, hookTimeout: 120_000 });
 
@@ -95,6 +112,13 @@ beforeAll(async () => {
       role: "MEMBER",
     },
   ]);
+
+  // getCourseBuilder reads this fail-closed setting (card note: every
+  // integration file installs it).
+  await db
+    .insert(systemSettings)
+    .values({ key: "quiz.min_questions", value: 10 })
+    .onConflictDoNothing({ target: systemSettings.key });
 });
 
 afterAll(async () => {
@@ -343,5 +367,287 @@ describe("listCourses & getCourseDetail", () => {
     await expect(
       getCourseDetail(EDITOR, { courseId: "8f38a3b3-9999-4999-8999-999999999999" }),
     ).rejects.toBeInstanceOf(NotFoundError);
+  });
+});
+
+// ------------------------------------------------------ builder (card S1-02)
+
+type BuilderCourse = Awaited<ReturnType<typeof getCourseBuilder>>["course"];
+
+/** The settings form payload echoing a course's current values. */
+function settingsFrom(
+  course: BuilderCourse,
+  overrides: Partial<UpdateCourseInput> = {},
+): UpdateCourseInput {
+  return {
+    title: course.title,
+    slug: course.slug,
+    level: course.level,
+    summary: course.summary ?? "",
+    isSequential: course.isSequential,
+    ...overrides,
+  };
+}
+
+async function courseAudits(courseId: string) {
+  return db
+    .select()
+    .from(auditLogs)
+    .where(and(eq(auditLogs.entityType, "course"), eq(auditLogs.entityId, courseId)));
+}
+
+describe("updateCourse — PATCH builder settings (S1-02 §2)", () => {
+  it("changes every field, writes ONE audit row with before/after builder DTOs", async () => {
+    const created = await createCourse(EDITOR, inputFor("upd"));
+    const { course: before } = await getCourseBuilder(EDITOR, { courseId: created.id });
+    await expect(courseAudits(created.id)).resolves.toHaveLength(1); // just course.create
+
+    const dto = await updateCourse(EDITOR, created.id, {
+      title: `${before.title} revisi`,
+      slug: `${before.slug}-revisi`,
+      summary: "Ringkasan baru setelah simpan pengaturan.",
+      level: "ADVANCED",
+      // Column default is true (CRS-08) — flip to prove the field persists.
+      isSequential: false,
+    });
+
+    expect(dto.title).toBe(`${before.title} revisi`);
+    expect(dto.slug).toBe(`${before.slug}-revisi`);
+    expect(dto.summary).toBe("Ringkasan baru setelah simpan pengaturan.");
+    expect(dto.level).toBe("ADVANCED");
+    expect(dto.isSequential).toBe(false);
+    expect(dto.status).toBe("DRAFT");
+    // Review addition 2a: the PATCH response is a builder DTO — the TipTap
+    // description never crosses, only isDescriptionEmpty does.
+    expect("description" in dto).toBe(false);
+    expect(Object.keys(dto).sort()).toEqual(
+      [
+        "id",
+        "title",
+        "slug",
+        "summary",
+        "level",
+        "status",
+        "isSequential",
+        "isDescriptionEmpty",
+        "ownerName",
+        "updatedAt",
+        "finalQuiz",
+      ].sort(),
+    );
+
+    // updated_by moved to the actor.
+    const [row] = await db
+      .select({ updatedBy: courses.updatedBy })
+      .from(courses)
+      .where(eq(courses.id, created.id));
+    expect(row?.updatedBy).toBe(EDITOR.id);
+
+    // Exactly ONE new audit row; before/after are the builder DTOs (CMS-12).
+    const audits = await courseAudits(created.id);
+    expect(audits).toHaveLength(2);
+    const update = audits.find((a) => a.action === "course.update");
+    if (!update) throw new Error("course.update audit row missing");
+    expect(update.actorId).toBe(EDITOR.id);
+    expect(update.ip).toBeNull();
+    expect(update.before).toEqual(before);
+    expect(update.after).toEqual(dto);
+  });
+
+  it("no change → current DTO back, no write, no audit", async () => {
+    const created = await createCourse(EDITOR, inputFor("nc"));
+    await db
+      .update(courses)
+      .set({ updatedAt: new Date("2020-01-01T00:00:00Z") })
+      .where(eq(courses.id, created.id));
+
+    const { course } = await getCourseBuilder(EDITOR, { courseId: created.id });
+    const dto = await updateCourse(EDITOR, created.id, settingsFrom(course));
+
+    expect(dto).toEqual(course);
+    // Still only course.create — the no-op save audited nothing.
+    expect(await courseAudits(created.id)).toHaveLength(1);
+    const [row] = await db
+      .select({ updatedAt: courses.updatedAt, updatedBy: courses.updatedBy })
+      .from(courses)
+      .where(eq(courses.id, created.id));
+    expect(row?.updatedAt.getFullYear()).toBe(2020); // untouched
+    expect(row?.updatedBy).toBe(EDITOR.id);
+  });
+
+  it("own title extended → 200 (self excluded from the similar-title check)", async () => {
+    // Review addition 4: "judul-diem-diperpanjang" — the new title starts
+    // with the course's OWN title, which must never block the save.
+    const created = await createCourse(EDITOR, inputFor("own"));
+    const { course } = await getCourseBuilder(EDITOR, { courseId: created.id });
+    const dto = await updateCourse(
+      EDITOR,
+      created.id,
+      settingsFrom(course, { title: `${course.title} lanjutan` }),
+    );
+    expect(dto.title).toBe(`${course.title} lanjutan`);
+  });
+
+  it("case-only title change → 200 (normalized comparison, change still written)", async () => {
+    const created = await createCourse(EDITOR, inputFor("case"));
+    const { course } = await getCourseBuilder(EDITOR, { courseId: created.id });
+    const dto = await updateCourse(
+      EDITOR,
+      created.id,
+      settingsFrom(course, { title: course.title.toUpperCase() }),
+    );
+    expect(dto.title).toBe(course.title.toUpperCase());
+    const audits = await courseAudits(created.id);
+    expect(audits.some((a) => a.action === "course.update")).toBe(true);
+  });
+
+  it("another course's similar title → ZodError path title", async () => {
+    const other = await createCourse(EDITOR, inputFor("oth"));
+    const created = await createCourse(EDITOR, inputFor("tgt"));
+    const { course } = await getCourseBuilder(EDITOR, { courseId: created.id });
+    await expect(
+      updateCourse(
+        EDITOR,
+        created.id,
+        settingsFrom(course, { title: `${other.title} ekstra` }),
+      ),
+    ).rejects.toBeInstanceOf(ZodError);
+    await expect(
+      updateCourse(
+        EDITOR,
+        created.id,
+        settingsFrom(course, { title: `${other.title} ekstra` }),
+      ),
+    ).rejects.toMatchObject({ issues: [{ path: ["title"] }] });
+  });
+
+  it("another course's slug → ZodError path slug", async () => {
+    const other = await createCourse(EDITOR, inputFor("slg"));
+    const created = await createCourse(EDITOR, inputFor("slgt"));
+    const { course } = await getCourseBuilder(EDITOR, { courseId: created.id });
+    await expect(
+      updateCourse(EDITOR, created.id, settingsFrom(course, { slug: other.slug })),
+    ).rejects.toMatchObject({ issues: [{ path: ["slug"] }] });
+  });
+
+  it("forbidden slug → ZodError path slug (schema rule)", async () => {
+    const created = await createCourse(EDITOR, inputFor("forb2"));
+    const { course } = await getCourseBuilder(EDITOR, { courseId: created.id });
+    await expect(
+      updateCourse(EDITOR, created.id, settingsFrom(course, { slug: "nilai" })),
+    ).rejects.toMatchObject({
+      issues: [{ path: ["slug"], message: expect.stringContaining("nilai") }],
+    });
+  });
+
+  it("isSequential-only change → audit with before ≠ after", async () => {
+    // Review addition 2a: without isSequential in the DTO this save would
+    // audit before === after. Column default is true (CRS-08) — flip it off.
+    const created = await createCourse(EDITOR, inputFor("seq"));
+    const { course } = await getCourseBuilder(EDITOR, { courseId: created.id });
+    expect(course.isSequential).toBe(true);
+
+    const dto = await updateCourse(
+      EDITOR,
+      created.id,
+      settingsFrom(course, { isSequential: false }),
+    );
+    expect(dto.isSequential).toBe(false);
+
+    const update = (await courseAudits(created.id)).find(
+      (a) => a.action === "course.update",
+    );
+    if (!update) throw new Error("course.update audit row missing");
+    const before = update.before as Record<string, unknown>;
+    const after = update.after as Record<string, unknown>;
+    expect(before).not.toEqual(after);
+    // Everything except the switch (and the moved updated_at) is identical.
+    expect({ ...before, isSequential: false, updatedAt: after.updatedAt }).toEqual(after);
+  });
+
+  it("non-DRAFT → ConflictError and the row is untouched", async () => {
+    const created = await createCourse(EDITOR, inputFor("lock"));
+    await db
+      .update(courses)
+      .set({ status: "IN_REVIEW" })
+      .where(eq(courses.id, created.id));
+    const [pinned] = await db
+      .select({
+        title: courses.title,
+        updatedAt: courses.updatedAt,
+        updatedBy: courses.updatedBy,
+      })
+      .from(courses)
+      .where(eq(courses.id, created.id));
+    if (!pinned) throw new Error("course row missing");
+
+    const { course } = await getCourseBuilder(EDITOR, { courseId: created.id });
+    await expect(
+      updateCourse(EDITOR, created.id, settingsFrom(course, { summary: "Tidak tersimpan." })),
+    ).rejects.toBeInstanceOf(ConflictError);
+
+    const [after] = await db
+      .select({
+        title: courses.title,
+        updatedAt: courses.updatedAt,
+        updatedBy: courses.updatedBy,
+      })
+      .from(courses)
+      .where(eq(courses.id, created.id));
+    expect(after).toEqual(pinned);
+    expect(await courseAudits(created.id)).toHaveLength(1); // only course.create
+  });
+
+  it("unknown course → NotFoundError", async () => {
+    const other = await createCourse(EDITOR, inputFor("unk"));
+    const { course } = await getCourseBuilder(EDITOR, { courseId: other.id });
+    await expect(
+      updateCourse(EDITOR, "8f38a3b3-9999-4999-8999-999999999999", settingsFrom(course)),
+    ).rejects.toBeInstanceOf(NotFoundError);
+  });
+
+  it("MEMBER → ForbiddenError before the input is parsed", async () => {
+    const created = await createCourse(EDITOR, inputFor("mem"));
+    await expect(
+      updateCourse(MEMBER, created.id, { bukan: "kontrak" }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+  });
+});
+
+describe("getCourseBuilder — the whole page in one call (S1-02 §5)", () => {
+  it("returns course + outline + checklist + minQuestions, description never crossing", async () => {
+    const created = await createCourse(EDITOR, inputFor("bld"));
+    const builder = await getCourseBuilder(EDITOR, { courseId: created.id });
+
+    expect(builder.minQuestions).toBe(10);
+    expect(builder.outline).toEqual([]);
+    expect("description" in builder.course).toBe(false);
+    expect(builder.course.finalQuiz).toEqual({
+      id: expect.any(String),
+      questionCount: 0,
+      durationMinutes: 20,
+    });
+
+    // Wiring: the fresh course's rows feed the evaluator (CMS-06) — a new
+    // course meets exactly the three filled-at-create items.
+    expect(builder.checklist.total).toBe(6);
+    expect(builder.checklist.met).toBe(3);
+    expect(builder.checklist.missing).toEqual([
+      "Deskripsi kursus belum diisi",
+      "Belum ada materi",
+      "Final Quiz baru 0 dari 10 soal",
+    ]);
+    expect(builder.checklist.items.map((item) => item.label)).toContain(
+      "Final Quiz ≥ 10 soal",
+    );
+  });
+
+  it("unknown id → NotFoundError; MEMBER → ForbiddenError before parsing", async () => {
+    await expect(
+      getCourseBuilder(EDITOR, { courseId: "8f38a3b3-9999-4999-8999-999999999999" }),
+    ).rejects.toBeInstanceOf(NotFoundError);
+    await expect(getCourseBuilder(MEMBER, { bukan: "kontrak" })).rejects.toBeInstanceOf(
+      ForbiddenError,
+    );
   });
 });

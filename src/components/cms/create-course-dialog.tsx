@@ -24,14 +24,14 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 
+import { CourseLevelField } from "@/components/cms/course-level-field";
+import { FieldError, LabelRow } from "@/components/cms/form-fields";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  COURSE_LEVELS,
-  COURSE_LEVEL_LABELS,
   COURSE_SLUG_MAX,
   COURSE_SUMMARY_MAX,
   COURSE_TITLE_MAX,
@@ -52,39 +52,7 @@ type ApiFieldError = { path: string; message: string };
 // Agent copy (not from a design screen) — listed in the PR.
 const GENERIC_ERROR_TITLE = "Kursus belum bisa dibuat.";
 const GENERIC_ERROR_DESCRIPTION =
-  "Periksa koneksi Anda lalu coba lagi. Isian tetap tersimpan di formulir ini.";
-
-function LabelRow({
-  htmlFor,
-  label,
-  used,
-  max,
-}: {
-  htmlFor: string;
-  label: string;
-  used: number;
-  max: number;
-}) {
-  return (
-    <div className="flex items-baseline justify-between">
-      <label htmlFor={htmlFor} className="text-sm font-bold text-text">
-        {label}
-      </label>
-      <span className="font-mono text-xs text-text-meta">
-        {used} / {max}
-      </span>
-    </div>
-  );
-}
-
-function FieldError({ id, message }: { id: string; message?: string }) {
-  if (!message) return null;
-  return (
-    <p id={id} className="mt-2 text-sm text-danger">
-      {message}
-    </p>
-  );
-}
+  "Periksa koneksi Anda lalu coba lagi. Isian Anda masih ada di formulir ini.";
 
 export type CreateCourseDialogProps = {
   open: boolean;
@@ -136,7 +104,6 @@ export function CreateCourseDialog({ open, onOpenChange }: CreateCourseDialogPro
   const { ref: registerTitleRef, ...titleProps } = register("title");
   const { ref: registerSlugRef, ...slugProps } = register("slug");
   const { ref: registerSummaryRef, ...summaryProps } = register("summary");
-  const { ref: registerLevelRef, ...levelProps } = register("level");
 
   function focusFirstInvalid(paths: string[]) {
     const order = ["title", "slug", "level", "summary"];
@@ -328,40 +295,16 @@ export function CreateCourseDialog({ open, onOpenChange }: CreateCourseDialogPro
             <FieldError id="course-slug-error" message={errors.slug?.message} />
           </div>
 
-          {/* Level as a segmented control matching 21f: native radios stay
-              (fieldset + legend + arrow-key navigation, focus pass targets
-              the checked one) but are sr-only inside pill labels — the
-              checked pill inverts (dark `text` token + surface text, not
-              primary), and the focus ring lands on the pill via
-              peer-focus-visible (offset against the frame's surface-2).
-              Three pills share a fixed 3-column grid, one row at every
-              width. Pills are min-h-11 (44 px) — a deliberate deviation
-              from 21f's 38 px to honor the >= 44 px touch-target rule. */}
-          <fieldset>
-            <legend className="text-sm font-bold text-text">Level</legend>
-            <div className="mt-2 grid grid-cols-3 gap-1.5 rounded-control border border-border-strong bg-surface-2 p-1">
-              {COURSE_LEVELS.map((level) => (
-                <label key={level} className="cursor-pointer">
-                  <input
-                    type="radio"
-                    value={level}
-                    className="peer sr-only"
-                    ref={(element) => {
-                      registerLevelRef(element);
-                      if (element && !levelRef.current) {
-                        levelRef.current = element.closest("fieldset");
-                      }
-                    }}
-                    {...levelProps}
-                  />
-                  <span className="flex min-h-11 w-full items-center justify-center rounded-sm px-2 text-center text-sm font-bold text-text-nav transition-colors duration-200 ease-out hover:bg-fill peer-checked:bg-text peer-checked:text-surface peer-checked:hover:bg-text peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-surface-2">
-                    {COURSE_LEVEL_LABELS[level]}
-                  </span>
-                </label>
-              ))}
-            </div>
-            <FieldError id="course-level-error" message={errors.level?.message} />
-          </fieldset>
+          {/* Level segmented control — shared with the builder settings
+              panel since S1-02 (one source, identical appearance). */}
+          <CourseLevelField
+            errorId="course-level-error"
+            error={errors.level?.message}
+            registration={register("level")}
+            onFieldsetElement={(fieldset) => {
+              if (fieldset) levelRef.current = fieldset;
+            }}
+          />
 
           <div>
             <LabelRow htmlFor="course-summary" label="Ringkasan" used={summary.length} max={COURSE_SUMMARY_MAX} />

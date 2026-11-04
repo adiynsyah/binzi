@@ -1,6 +1,7 @@
-// The ONLY public door of the course module (card S1-01). Routes and other
-// modules import functions — and DTO types via `import type` — from here;
-// never queries.ts (ESLint-enforced), serializer.ts, or policy.ts.
+// The ONLY public door of the course module (cards S1-01, S1-02). Routes
+// and other modules import functions — and DTO types via `import type` —
+// from here; never queries.ts (ESLint-enforced), serializer.ts, or
+// policy.ts.
 //
 // Canonical guard order (src/modules/README.md): these are role-gated
 // endpoints, so the role is checked FIRST and input parsing comes after —
@@ -10,34 +11,47 @@
 // toErrorResponse() then answers 400 VALIDATION_ERROR + fields for schema
 // failures and service failures alike — one response shape for every form.
 import { NotFoundError } from "@/lib/errors";
+import { listLessonOutline, type LessonOutlineItemDTO } from "@/modules/lesson/service";
+import { getMinQuestions } from "@/modules/quiz/service";
 
 import { courseFieldError, SIMILAR_TITLE_MESSAGE, SLUG_TAKEN_MESSAGE } from "./errors";
+import { evaluatePublishChecklist, type PublishChecklist } from "./checklist";
 import { assertCanManageCourses, type Actor } from "./policy";
 import * as courseQueries from "./queries";
 import {
   createCourseInput,
   getCourseDetailInput,
   listCoursesInput,
+  updateCourseInput,
 } from "./schema";
 import type {
+  CmsCourseBuilderDTO,
   CmsCourseDetailDTO,
   CmsCourseListItemDTO,
   CourseStatusCounts,
 } from "./serializer";
-import { toCmsCourseDetailDTO, toCmsCourseListItemDTO } from "./serializer";
+import {
+  toCmsCourseBuilderDTO,
+  toCmsCourseDetailDTO,
+  toCmsCourseListItemDTO,
+} from "./serializer";
 
 // DTO types for consumers: import these from service, not from serializer.
-export type { CmsCourseDetailDTO, CmsCourseListItemDTO, CourseStatusCounts };
+export type {
+  CmsCourseBuilderDTO,
+  CmsCourseDetailDTO,
+  CmsCourseListItemDTO,
+  CourseStatusCounts,
+  PublishChecklist,
+};
 
-/** Lowercase + collapsed spaces — the similar-title comparison form (21f). */
-function normalizeTitle(title: string): string {
-  return title.toLowerCase().replace(/\s+/g, " ").trim();
-}
-
-/** Is one normalized title a prefix of the other (equal counts too)? */
-function isSimilarTitle(candidate: string, existing: string): boolean {
-  return existing.startsWith(candidate) || candidate.startsWith(existing);
-}
+/** Everything the builder page needs, from ONE call (card S1-02 §5). */
+export type CourseBuilderDTO = {
+  course: CmsCourseBuilderDTO;
+  outline: LessonOutlineItemDTO[];
+  checklist: PublishChecklist;
+  minQuestions: number;
+};
 
 export type CourseListDTO = {
   items: CmsCourseListItemDTO[];
@@ -79,7 +93,10 @@ export async function createCourse(
   // (21f copy) — fixing the title fixes the auto-slug with it (review
   // item 2). Only a hand-edited slug reaches the slug-taken branch.
   const similar = (await courseQueries.listCourseTitles()).find((course) =>
-    isSimilarTitle(normalizeTitle(parsed.title), normalizeTitle(course.title)),
+    courseQueries.isSimilarTitle(
+      courseQueries.normalizeTitle(parsed.title),
+      courseQueries.normalizeTitle(course.title),
+    ),
   );
   if (similar) {
     throw courseFieldError("title", SIMILAR_TITLE_MESSAGE(similar.title));
@@ -103,4 +120,66 @@ export async function getCourseDetail(
   const row = await courseQueries.findCourseById(courseId);
   if (!row) throw new NotFoundError("Kursus tidak ditemukan");
   return toCmsCourseDetailDTO(row);
+}
+
+/**
+ * The whole builder page in one call (card S1-02 §5): builder DTO + lesson
+ * outline + publish-checklist result + the min-questions setting. EDITOR+;
+ * unknown id → 404. A missing/invalid quiz.min_questions makes this fail
+ * closed (500 via getMinQuestions) — the checklist may never guess a
+ * number.
+ */
+export async function getCourseBuilder(
+  actor: Actor,
+  input: unknown,
+): Promise<CourseBuilderDTO> {
+  assertCanManageCourses(actor);
+  const { courseId } = getCourseDetailInput.parse(input);
+
+  const row = await courseQueries.findCourseBuilderById(courseId);
+  if (!row) throw new NotFoundError("Kursus tidak ditemukan");
+
+  const [outline, minQuestions] = await Promise.all([
+    listLessonOutline(courseId),
+    getMinQuestions(),
+  ]);
+
+  const course = toCmsCourseBuilderDTO(row);
+  const checklist = evaluatePublishChecklist({
+    title: course.title,
+    level: course.level,
+    summary: course.summary,
+    slug: course.slug,
+    isDescriptionEmpty: course.isDescriptionEmpty,
+    lessons: outline.map((lesson) => ({
+      orderIndex: lesson.orderIndex,
+      isContentEmpty: lesson.isContentEmpty,
+      quizQuestionCount: lesson.quizQuestionCount,
+    })),
+    finalQuizQuestionCount: course.finalQuiz?.questionCount ?? 0,
+    minQuestions,
+  });
+
+  return { course, outline, checklist, minQuestions };
+}
+
+/**
+ * Save the builder settings form (card S1-02 §2). EDITOR+; role before
+ * input parsing. The queries-level transaction re-checks DRAFT after the
+ * row lock (409), orders field errors like the form, maps the unique-race
+ * to the slug error, and skips both write and audit when nothing changed.
+ */
+export async function updateCourse(
+  actor: Actor,
+  courseId: string,
+  input: unknown,
+): Promise<CmsCourseBuilderDTO> {
+  assertCanManageCourses(actor);
+  const parsed = updateCourseInput.parse(input);
+  const { dto } = await courseQueries.updateCourseIfDraft({
+    courseId,
+    values: parsed,
+    actorId: actor.id,
+  });
+  return dto;
 }

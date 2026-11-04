@@ -13,9 +13,12 @@
  * must resolve), but only the active panel is mounted, so the table
  * exists once. The trigger strip scrolls sideways on very narrow
  * viewports (shrink-0) instead of stretching the page, and the table
- * wrapper is overflow-x-auto at ALL widths with a break-words title
- * cell: an 80-character no-space title must never force the PAGE to
- * scroll horizontally at 360 (A-19b).
+ * wrapper is overflow-x-auto at ALL widths with a wrap-anywhere title
+ * cell: break-words does not shrink a column's min-content width, so an
+ * 80-character no-space title pushed the PESERTA/AKSI columns out of the
+ * wrapper at w1280 (S1-01 screenshot check) — wrap-anywhere lets the
+ * cell wrap at any point and the PAGE must never scroll horizontally at
+ * 360 (A-19b).
  */
 
 import Link from "next/link";
@@ -179,7 +182,7 @@ export function CourseList({ courses, counts }: CourseListProps) {
                         className="border-b border-border-soft last:border-b-0"
                       >
                         <td className="px-4 py-4">
-                          <p className="break-words font-bold text-text">
+                          <p className="wrap-anywhere font-bold text-text">
                             {course.title}
                           </p>
                           <p className="mt-1 text-sm text-text-muted">

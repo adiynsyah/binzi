@@ -195,8 +195,49 @@ test.describe("axe WCAG 2.1 A/AA", () => {
     await expectAxeClean(page, "EDITOR /cms/kursus berisi", testInfo);
 
     await page.goto(`/cms/kursus/${courseId}`);
-    await expect(page.getByText("Belum ada materi")).toBeVisible();
+    await expect(
+      page.locator('section[aria-labelledby="builder-materi-heading"]')
+        .getByText("Belum ada materi")
+    ).toBeVisible();
     await expectAxeClean(page, "EDITOR /cms/kursus/{id} builder", testInfo);
+
+    // Card S1-02: the builder with two lessons — one 80-char no-space
+    // title — plus the open 21h dialog (A-19b additions).
+    const filledToken = `a${Date.now().toString(36)}${testInfo.project.name}b`;
+    const filledResponse = await page.context().request.post(
+      "/api/cms/courses",
+      {
+        data: {
+          title: `${filledToken} kursus uji axe berisi`,
+          slug: `${filledToken}-kursus-uji-axe-berisi`,
+          level: "BEGINNER",
+          summary: "Ringkasan netral untuk tes e2e.",
+        },
+      },
+    );
+    expect(filledResponse.status(), await filledResponse.text()).toBe(201);
+    const filledId = ((await filledResponse.json()) as { data: { id: string } })
+      .data.id;
+    for (const title of [
+      `${filledToken}${"x".padEnd(80, "x")}`.slice(0, 80),
+      `${filledToken} protein`,
+    ]) {
+      const lessonResponse = await page.context().request.post(
+        `/api/cms/courses/${filledId}/lessons`,
+        { data: { title } },
+      );
+      expect(lessonResponse.status(), await lessonResponse.text()).toBe(201);
+    }
+
+    await page.goto(`/cms/kursus/${filledId}`);
+    await expect(page.getByText("2 materi · wajib berurutan")).toBeVisible();
+    await expectAxeClean(page, "EDITOR builder dua materi", testInfo);
+
+    await page.getByRole("button", { name: "+ Tambah materi" }).click();
+    await expect(
+      page.getByRole("dialog").getByLabel("Judul materi"),
+    ).toBeVisible();
+    await expectAxeClean(page, "EDITOR builder dialog tambah materi", testInfo);
   });
 
   test("tamu: menu ponsel terbuka (w360 saja)", async ({ page }, testInfo) => {

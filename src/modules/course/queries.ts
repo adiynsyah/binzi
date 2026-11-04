@@ -9,7 +9,7 @@
 // door, called with this transaction's handle), and the audit row.
 import "server-only";
 
-import { and, count, desc, eq, ilike, sql, type SQL } from "drizzle-orm";
+import { and, count, desc, eq, ilike, ne, sql, type SQL } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -17,19 +17,35 @@ import {
   courses,
   lessons,
   questions,
+  quizzes,
   users,
 } from "@/db/schema";
+import { ConflictError, NotFoundError } from "@/lib/errors";
 import { createEmptyFinalQuiz } from "@/modules/quiz/service";
 
 import { isUniqueViolation } from "./db-errors";
-import { courseFieldError, SLUG_TAKEN_MESSAGE } from "./errors";
-import { toCmsCourseDetailDTO } from "./serializer";
+import {
+  courseFieldError,
+  NOT_DRAFT_MESSAGE,
+  SIMILAR_TITLE_MESSAGE,
+  SLUG_TAKEN_MESSAGE,
+} from "./errors";
+
+import {
+  toCmsCourseBuilderDTO,
+  toCmsCourseDetailDTO,
+  type CourseBuilderRow,
+} from "./serializer";
 import type {
   CourseListItemRow,
   CourseDetailRow,
   CourseStatusCounts,
 } from "./serializer";
-import type { ContentStatus, CreateCourseInput } from "./schema";
+import type {
+  ContentStatus,
+  CreateCourseInput,
+  UpdateCourseInput,
+} from "./schema";
 
 // Subquery aggregates (no N+1): correlated counts resolved inside the one
 // SELECT. mapWith(Number) — drivers hand back bigint counts as strings.
@@ -41,6 +57,13 @@ const finalQuizQuestionCountSql = sql<number>`(
   select count(*) from ${questions}
   where ${questions.quizId} = ${courses.finalQuizId}
 )`.mapWith(Number);
+
+// 21a "n soal · d menit · …": the FINAL quiz's duration rides the same
+// single SELECT.
+const finalQuizDurationSql = sql<number | null>`(
+  select ${quizzes.durationMinutes} from ${quizzes}
+  where ${quizzes.id} = ${courses.finalQuizId}
+)`;
 
 const ownerColumns = {
   ownerName: users.name,
@@ -237,5 +260,204 @@ export async function createCourseWithFinalQuiz(
     });
 
     return dto;
+  });
+}
+
+// ------------------------------------------------- builder & update (S1-02)
+
+/** Lowercase + collapsed spaces — the similar-title comparison form (21f). */
+export function normalizeTitle(title: string): string {
+  return title.toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+/** Is one normalized title a prefix of the other (equal counts too)? */
+export function isSimilarTitle(candidate: string, existing: string): boolean {
+  return existing.startsWith(candidate) || candidate.startsWith(existing);
+}
+
+/** Builder lookup (21a/21g): the settings audience's column set. */
+export async function findCourseBuilderById(
+  courseId: string,
+): Promise<CourseBuilderRow | undefined> {
+  const rows = await db
+    .select({
+      id: courses.id,
+      title: courses.title,
+      slug: courses.slug,
+      summary: courses.summary,
+      description: courses.description,
+      level: courses.level,
+      status: courses.status,
+      isSequential: courses.isSequential,
+      updatedAt: courses.updatedAt,
+      finalQuizId: courses.finalQuizId,
+      ...ownerColumns,
+      finalQuizQuestionCount: finalQuizQuestionCountSql,
+      finalQuizDurationMinutes: finalQuizDurationSql,
+    })
+    .from(courses)
+    .innerJoin(users, eq(courses.createdBy, users.id))
+    .where(eq(courses.id, courseId))
+    .limit(1);
+  return rows[0];
+}
+
+export type UpdateCourseResult = {
+  dto: ReturnType<typeof toCmsCourseBuilderDTO>;
+  /** false = nothing changed: no write, no audit (card §2 step 4). */
+  changed: boolean;
+};
+
+/**
+ * Update the builder settings of a DRAFT course in ONE transaction (card
+ * S1-02 §2). Order inside the lock:
+ *   1. SELECT … FOR UPDATE (unknown id → 404; status ≠ DRAFT → 409);
+ *   2. field errors in FORM order — similar title against OTHER courses
+ *      first, then slug taken by OTHER courses (the unique-violation catch
+ *      below maps the race to the same slug error);
+ *   3. no actual change → current DTO back, no write, no audit;
+ *   4. change → update + updated_by + ONE audit row with the before/after
+ *      builder DTOs.
+ *
+ * The similar-title and slug checks only run when that field actually
+ * changed: an untouched title is always "similar" to itself under the
+ * prefix rule, and that must never block saving the level or summary
+ * (review addition 4).
+ */
+export async function updateCourseIfDraft(input: {
+  courseId: string;
+  values: UpdateCourseInput;
+  actorId: string;
+}): Promise<UpdateCourseResult> {
+  return db.transaction(async (tx) => {
+    const lockedRows = await tx
+      .select({
+        id: courses.id,
+        title: courses.title,
+        slug: courses.slug,
+        summary: courses.summary,
+        description: courses.description,
+        level: courses.level,
+        status: courses.status,
+        isSequential: courses.isSequential,
+        updatedAt: courses.updatedAt,
+        finalQuizId: courses.finalQuizId,
+        ...ownerColumns,
+        finalQuizQuestionCount: finalQuizQuestionCountSql,
+        finalQuizDurationMinutes: finalQuizDurationSql,
+      })
+      .from(courses)
+      .innerJoin(users, eq(courses.createdBy, users.id))
+      .where(eq(courses.id, input.courseId))
+      .limit(1)
+      // Lock ONLY the courses row: without `of`, FOR UPDATE also locks the
+      // joined users row, stalling unrelated inserts that FK to that user
+      // (sessions, audit_logs) for the whole transaction.
+      .for("update", { of: courses });
+    const current = lockedRows[0];
+    if (!current) {
+      throw new NotFoundError("Kursus tidak ditemukan");
+    }
+    if (current.status !== "DRAFT") {
+      throw new ConflictError(NOT_DRAFT_MESSAGE);
+    }
+
+    const values = input.values;
+    const titleChanged =
+      normalizeTitle(values.title) !== normalizeTitle(current.title);
+    if (titleChanged) {
+      const similar = (
+        await tx
+          .select({ id: courses.id, title: courses.title })
+          .from(courses)
+          .where(ne(courses.id, input.courseId))
+      ).find((course) =>
+        isSimilarTitle(normalizeTitle(values.title), normalizeTitle(course.title)),
+      );
+      if (similar) {
+        throw courseFieldError("title", SIMILAR_TITLE_MESSAGE(similar.title));
+      }
+    }
+
+    if (values.slug !== current.slug) {
+      const clash = await tx
+        .select({ id: courses.id })
+        .from(courses)
+        .where(and(eq(courses.slug, values.slug), ne(courses.id, input.courseId)))
+        .limit(1);
+      if (clash.length > 0) {
+        throw courseFieldError("slug", SLUG_TAKEN_MESSAGE(values.slug));
+      }
+    }
+
+    const before = toCmsCourseBuilderDTO(current);
+
+    const changed =
+      values.title !== current.title ||
+      values.slug !== current.slug ||
+      values.summary !== current.summary ||
+      values.level !== current.level ||
+      values.isSequential !== current.isSequential;
+    if (!changed) {
+      return { dto: before, changed: false };
+    }
+
+    let updatedRows;
+    try {
+      updatedRows = await tx
+        .update(courses)
+        .set({
+          title: values.title,
+          slug: values.slug,
+          summary: values.summary,
+          level: values.level,
+          isSequential: values.isSequential,
+          updatedBy: input.actorId,
+        })
+        .where(eq(courses.id, input.courseId))
+        .returning({
+          id: courses.id,
+          title: courses.title,
+          slug: courses.slug,
+          summary: courses.summary,
+          description: courses.description,
+          level: courses.level,
+          status: courses.status,
+          isSequential: courses.isSequential,
+          updatedAt: courses.updatedAt,
+          finalQuizId: courses.finalQuizId,
+        });
+    } catch (error) {
+      if (isUniqueViolation(error, "courses_slug_unique")) {
+        throw courseFieldError("slug", SLUG_TAKEN_MESSAGE(values.slug));
+      }
+      throw error;
+    }
+    const updated = updatedRows[0];
+    if (!updated) {
+      throw new Error("updateCourseIfDraft: update returned no row");
+    }
+
+    const after = toCmsCourseBuilderDTO({
+      ...updated,
+      ownerName: current.ownerName,
+      ownerEmail: current.ownerEmail,
+      finalQuizQuestionCount: current.finalQuizQuestionCount,
+      finalQuizDurationMinutes: current.finalQuizDurationMinutes,
+    });
+
+    await tx.insert(auditLogs).values({
+      actorId: input.actorId,
+      action: "course.update",
+      entityType: "course",
+      entityId: updated.id,
+      // Builder DTOs on both sides (review addition 2a) — no TipTap
+      // document in the audit trail.
+      before,
+      after,
+      ip: null,
+    });
+
+    return { dto: after, changed: true };
   });
 }
