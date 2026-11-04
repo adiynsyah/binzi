@@ -9,6 +9,9 @@ import { cn } from "@/lib/utils";
  * Colors map to tokens. 16c draws "Selesai" on a slate blue that has no
  * token in TOKENS.md, so it uses the nearest neutral pair (noted in the
  * PR). Text on the solid "Lulus" green is `surface`, never text-white.
+ *
+ * draf/terbit/arsip (card S1-01, screen 21e) are the CMS content statuses —
+ * same one-pill shape, mapped onto the learn-area token pairs.
  */
 
 export type BadgeStatusType =
@@ -17,6 +20,9 @@ export type BadgeStatusType =
   | "selesai"
   | "lulus"
   | "menunggu-persetujuan"
+  | "draf"
+  | "terbit"
+  | "arsip"
   | "siklus";
 
 const badgeStyles = {
@@ -25,6 +31,9 @@ const badgeStyles = {
   selesai: "bg-fill text-text-muted",
   lulus: "bg-success text-surface",
   "menunggu-persetujuan": "bg-pending-tint text-pending-tint-text",
+  draf: "bg-surface-2 text-text-meta",
+  terbit: "bg-success-tint text-success-tint-text",
+  arsip: "bg-fill text-text-muted",
 } as const satisfies Record<Exclude<BadgeStatusType, "siklus">, string>;
 
 const badgeLabels = {
@@ -33,6 +42,9 @@ const badgeLabels = {
   selesai: "Selesai",
   lulus: "Lulus",
   "menunggu-persetujuan": "Menunggu persetujuan",
+  draf: "Draf",
+  terbit: "Terbit",
+  arsip: "Arsip",
 } as const satisfies Record<Exclude<BadgeStatusType, "siklus">, string>;
 
 export type BadgeStatusProps = {

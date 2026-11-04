@@ -24,4 +24,10 @@ describe("Input", () => {
       (screen.getByPlaceholderText("Email Anda") as HTMLInputElement).disabled,
     ).toBe(true);
   });
+
+  it("accepts ref as a prop (React 19) for dialog focus management", () => {
+    const ref = { current: null as HTMLInputElement | null };
+    render(<Input ref={ref} placeholder="Email Anda" />);
+    expect(ref.current).toBeInstanceOf(HTMLInputElement);
+  });
 });

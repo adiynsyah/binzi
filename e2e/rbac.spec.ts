@@ -4,6 +4,7 @@
 // v1.5) — it is deliberately NOT derived from ROUTE_RULES or cms-nav.ts: an
 // oracle that changes together with the code catches nothing. Page statuses
 // are read with cookie-carrying API requests that do NOT follow redirects.
+import { randomBytes } from "node:crypto";
 import { readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 
@@ -25,6 +26,8 @@ function guestRedirect(path: string): string {
 }
 
 // statusses: 200 | 403 (literal per PRD row). /belajar is MEMBER+.
+// "/cms/kursus/[id]" is requested with a REAL course id substituted per
+// role (MEMBER hits the role gate before the id is even parsed → 403).
 const PAGE_EXPECTATIONS: readonly {
   path: string;
   member: number;
@@ -37,6 +40,7 @@ const PAGE_EXPECTATIONS: readonly {
   { path: "/cms/konten", member: 403, editor: 200, admin: 200, superAdmin: 200 },
   { path: "/cms/artikel", member: 403, editor: 200, admin: 200, superAdmin: 200 },
   { path: "/cms/kursus", member: 403, editor: 200, admin: 200, superAdmin: 200 },
+  { path: "/cms/kursus/[id]", member: 403, editor: 200, admin: 200, superAdmin: 200 },
   { path: "/cms/quiz", member: 403, editor: 200, admin: 200, superAdmin: 200 },
   { path: "/cms/media", member: 403, editor: 200, admin: 200, superAdmin: 200 },
   // ADMIN+
@@ -143,9 +147,41 @@ test.describe("status per peran", () => {
       const account = await createRoleAccount(request, role);
       const { context } = await newCollectedContext(browser);
       await signInViaApi(context, account);
+
+      // The [id] row needs a real course for EDITOR+ roles: the builder
+      // page must actually RENDER (200), not merely pass the role gate.
+      // MEMBER is asserted with the literal "[id]" — its 403 comes from
+      // the role check, which runs BEFORE the id is parsed (anti-IDOR:
+      // a MEMBER never learns whether an id exists).
+      let realCoursePath: string | null = null;
+      if (role !== "MEMBER") {
+        // Underscores are not slug-legal (SLUG_PATTERN) — SUPER_ADMIN
+        // would otherwise 400 on its own setup row.
+        const roleSlug = role.toLowerCase().replace(/_/g, "-");
+        const token = `${roleSlug}${Date.now().toString(36)}${randomBytes(3).toString("hex")}`;
+        const created = await context.request.post("/api/cms/courses", {
+          data: {
+            title: `${token} kursus rbac`,
+            slug: `${token}-kursus-rbac`,
+            level: "BEGINNER",
+            summary: "Ringkasan netral untuk tes e2e.",
+          },
+        });
+        expect(created.status(), `${role} create course for the [id] row`).toBe(
+          201,
+        );
+        const courseId = ((await created.json()) as { data: { id: string } })
+          .data.id;
+        realCoursePath = `/cms/kursus/${courseId}`;
+      }
+
       try {
         for (const row of PAGE_EXPECTATIONS) {
-          const response = await context.request.get(row.path, {
+          const path =
+            row.path === "/cms/kursus/[id]" && realCoursePath
+              ? realCoursePath
+              : row.path;
+          const response = await context.request.get(path, {
             maxRedirects: 0,
           });
           expect(
