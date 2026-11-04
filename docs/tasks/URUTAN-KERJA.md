@@ -121,14 +121,15 @@ Prasyarat Sprint 1 (tanpa tanggal tetap — sebelum S1-01, tanpa branch kartu la
 
 ## Sprint 1 — CMS kursus & materi
 
-Kartu ditulis di Claude chat menjelang sesinya, terhadap kode `main` terbaru. Rencana lengkap, prasyarat, dan keputusan tertunda ada di `STATUS.md` (item "Rencana S1"). Sejak 3 Nov urutan dan lingkupnya mengikuti jadwal demo 20 Nov (bagian "Pembaruan 3 Nov" dan "Pembaruan 4 Nov" di `STATUS.md`).
+Kartu ditulis di Claude chat menjelang sesinya, terhadap kode `main` terbaru. Rencana lengkap, prasyarat, dan keputusan tertunda ada di `STATUS.md` (item "Rencana S1"). Sejak 3 Nov urutan dan lingkupnya mengikuti jadwal demo 20 Nov (bagian "Pembaruan 3 Nov", "Pembaruan 4 Nov", dan "Pembaruan 4 Nov malam" di `STATUS.md`).
 
 - [x] 🤖 [S1-01](sprint-1/S1-01-daftar-dan-kursus-baru.md) — Daftar kursus, kursus baru, builder kosong · *✅ PR #106*
 - [ ] 🤖 [S1-01b](sprint-1/S1-01b-daftar-kursus-lanjutan.md) — Daftar kursus lanjutan: kartu 19e tablet & ponsel, "Urut ▾", perapian dialog & kode S1-01 · *setelah demo 20 Nov*
-- [ ] 🤖 [S1-02](sprint-1/S1-02-builder-kursus.md) — Builder kursus: pengaturan, tambah materi, syarat terbit (lingkup demo, revisi 4 Nov) · *Rab 4 – Kam 5 Nov*
+- [x] 🤖 [S1-02](sprint-1/S1-02-builder-kursus.md) — Builder kursus: pengaturan, tambah materi, syarat terbit (lingkup demo, revisi 4 Nov) · *✅ PR #108*
 - [ ] 🤖 [S1-02b](sprint-1/S1-02b-builder-kursus-lanjutan.md) — Builder lanjutan: urutkan ulang, hapus materi & kursus, tablet & ponsel, kolom kuning daftar · *setelah demo 20 Nov*
-- [ ] 🤖 S1-03 — Dokumen konten: editor TipTap, validasi server, renderer · *Kam 5 Nov, selesai Sab 7* *(kartu belum ditulis)*
-- [ ] 🤖 S1-04 — Editor materi (teks) + deskripsi kursus, simpan manual (tanpa auto-save, keputusan 3 Nov) · *Sab 7 Nov* *(kartu belum ditulis)*
+- [ ] 🤖 [S1-03a](sprint-1/S1-03a-dokumen-konten.md) — Dokumen konten: validator server, renderer, tabel (tanpa dependensi baru) · *Kam 5 Nov, paling lambat Jum 6*
+- [ ] 🤖 S1-03b — Editor TipTap: toolbar inti (B, I, H2, list, tautan, tabel), dialog 20b · *Sab 7 Nov, setelah C-04 merge* *(kartu belum ditulis — ditulis bersama S1-04 pada Kam 5)*
+- [ ] 🤖 S1-04 — Editor materi (teks) + deskripsi kursus, simpan manual (tanpa auto-save, keputusan 3 Nov) · *Sab 7 Nov, setelah S1-03b* *(kartu belum ditulis — ditulis bersama S1-03b pada Kam 5)*
 - [ ] 🤖 S1-05 — Unggah video materi *(butuh A-17; kartu belum ditulis)* · *setelah demo — demo memakai satu video yang dimasukkan manual*
 - [ ] 🤖 S1-06 — Media library *(butuh A-17 + keputusan penyajian gambar; kartu belum ditulis)* · *setelah demo*
 - [ ] 🤖 S1-07 — Pemilih gambar, sampul, pemakaian aset *(kartu belum ditulis)* · *setelah demo; menyalakan lagi syarat sampul*
