@@ -13,13 +13,17 @@ import { createRoleAccount, expect, signInViaApi, test } from "../fixtures";
 import {
   GUEST_PAGES,
   LONG_NAME,
+  createCourseViaApi,
+  createLessonViaApi,
   expectNoHorizontalScroll,
   maybeScreenshot,
+  noSpaceTitle,
   openAccountDrawer,
   openAccountDropdown,
   openCmsAccountMenu,
   openCmsDrawer,
   openGuestMenu,
+  randomToken,
   visibleCmsAccountTrigger,
   waitForMemberHeader,
   widthSpecOf,
@@ -189,6 +193,46 @@ test.describe("tanpa scroll horizontal", () => {
       );
     });
 
+    // Card S1-02 A-19b: the builder WITH two lessons — one carrying an
+    // 80-char no-space title (the worst case for the outline row) — plus
+    // the open 21h dialog, at every width.
+    const filledId = await createCourseViaApi(page.context(), {
+      title: `${randomToken("l")} Builder Dua Materi`,
+    });
+    await createLessonViaApi(
+      page.context(),
+      filledId,
+      noSpaceTitle(randomToken("l")),
+    );
+    await createLessonViaApi(
+      page.context(),
+      filledId,
+      `${randomToken("l")} Protein`,
+    );
+    await test.step("EDITOR builder dua materi", async () => {
+      await page.goto(`/cms/kursus/${filledId}`);
+      await expect(page.getByText("2 materi · wajib berurutan")).toBeVisible();
+      await expectNoHorizontalScroll(
+        page,
+        `EDITOR builder dua materi @${testInfo.project.name}`,
+        true,
+      );
+      await maybeScreenshot(
+        page,
+        "editor-cms-kursus-builder-dua-materi",
+        testInfo.project.name,
+      );
+    });
+    await test.step("EDITOR builder dialog tambah materi", async () => {
+      await page.getByRole("button", { name: "+ Tambah materi" }).click();
+      await expect(page.getByRole("dialog").getByLabel("Judul materi")).toBeVisible();
+      await expectNoHorizontalScroll(
+        page,
+        `EDITOR builder dialog @${testInfo.project.name}`,
+        true,
+      );
+    });
+
     if (spec.cms === "bar") {
       await test.step("EDITOR /cms drawer CMS terbuka", async () => {
         await page.goto("/cms");
@@ -250,6 +294,46 @@ test.describe("tanpa scroll horizontal", () => {
         );
       });
     }
+  });
+
+  test("w1280: daftar dengan judul 80 karakter — tautan Buka terlihat", async ({
+    page,
+    request,
+  }, testInfo) => {
+    const spec = widthSpecOf(testInfo.project.name);
+    test.skip(spec.viewport.width !== 1280, "kartu S1-02 meminta w1280");
+    const editor = await createRoleAccount(request, "EDITOR");
+    await signInViaApi(page.context(), editor);
+
+    // The long-title course is created LAST: "Terakhir diubah" must put
+    // its row FIRST, so its "Buka" link being in the viewport proves the
+    // PESERTA/AKSI columns were not pushed out of the wrapper (the S1-01
+    // screenshot finding that motivated wrap-anywhere).
+    await createCourseViaApi(page.context(), {
+      title: `${randomToken("w")} Kursus Pengisi Baris`,
+    });
+    const longTitle = noSpaceTitle(randomToken("w"));
+    await createCourseViaApi(page.context(), { title: longTitle });
+
+    await page.goto("/cms/kursus");
+    // No scrollIntoViewIfNeeded anywhere: the assertion must hold as the
+    // page lands.
+    const buka = page.getByRole("link", { name: `Buka ${longTitle}` });
+    await expect(buka).toBeVisible();
+    await expect(buka).toBeInViewport();
+
+    // The table wrapper must not be internally overflowing either.
+    const wrapper = page.locator("div.overflow-x-auto:has(table)");
+    const { scrollWidth, clientWidth } = await wrapper.evaluate((el) => ({
+      scrollWidth: el.scrollWidth,
+      clientWidth: el.clientWidth,
+    }));
+    expect
+      .soft(
+        scrollWidth,
+        `w1280 tabel /cms/kursus: scrollWidth ${scrollWidth} <= clientWidth ${clientWidth}`,
+      )
+      .toBeLessThanOrEqual(clientWidth);
   });
 
   test("halaman 403 (MEMBER membuka /cms)", async (

@@ -9,11 +9,14 @@
 import { createRoleAccount, expect, signInViaApi, test } from "../fixtures";
 import type { Locator } from "@playwright/test";
 import {
+  createCourseViaApi,
+  createLessonViaApi,
   expectTouchTarget,
   measureTarget,
   openAccountDrawer,
   openCmsDrawer,
   openGuestMenu,
+  randomToken,
 } from "./helpers";
 
 /** Asserts every element of `locator` (must resolve to >= 1). */
@@ -132,6 +135,84 @@ test.describe("target sentuh >= 44px @w360", () => {
     await expectTouchTarget(
       drawer.getByRole("button", { name: "Keluar" }),
       "Keluar (drawer CMS)",
+    );
+  });
+
+  test("builder kursus: Simpan, tambah materi, Sunting, toggle urutan", async ({
+    page,
+    request,
+  }) => {
+    // Card S1-02 (A-19b addition 11): every builder control at w360. One
+    // course WITH a lesson (Sunting row, header add, panel, toggle) and
+    // one EMPTY course (the 21g first-add button) — then the open 21h
+    // dialog (submit + Batal + its ✕).
+    const editor = await createRoleAccount(request, "EDITOR");
+    await signInViaApi(page.context(), editor);
+    const t = randomToken("tt");
+    const filledId = await createCourseViaApi(page.context(), {
+      title: `${t} Builder Sentuh`,
+    });
+    await createLessonViaApi(page.context(), filledId, `${t} Materi Sentuh`);
+    const emptyId = await createCourseViaApi(page.context(), {
+      title: `${t} Builder Sentuh Kosong`,
+    });
+
+    await page.goto(`/cms/kursus/${filledId}`);
+    await expectTouchTarget(
+      page.getByRole("button", { name: "Simpan" }),
+      "Simpan",
+    );
+    await expectTouchTarget(
+      page.getByRole("button", { name: "+ Tambah materi" }),
+      "+ Tambah materi",
+    );
+    await expectTouchTarget(
+      page.getByRole("link", { name: `Sunting ${t} Materi Sentuh` }),
+      "Sunting (baris materi)",
+    );
+    // The Urutan switch's 44px hit area is a ::before that expands the
+    // 48×28 track (toggle.tsx) — boundingBox() cannot see pseudo-elements,
+    // so the hit area is asserted from the computed insets instead.
+    const sequential = page.getByRole("switch", { name: "Wajib berurutan" });
+    const hitArea = await sequential.evaluate((node) => {
+      const el = node instanceof HTMLElement ? node : null;
+      if (!el) return { width: 0, height: 0 };
+      const before = getComputedStyle(el, "::before");
+      const insetX = Math.abs(parseFloat(before.left));
+      const insetY = Math.abs(parseFloat(before.top));
+      return {
+        width: el.offsetWidth + insetX * 2,
+        height: el.offsetHeight + insetY * 2,
+      };
+    });
+    expect(
+      hitArea.width,
+      "toggle Wajib berurutan: hit area (incl. ::before) width >= 44",
+    ).toBeGreaterThanOrEqual(44);
+    expect(
+      hitArea.height,
+      "toggle Wajib berurutan: hit area (incl. ::before) height >= 44",
+    ).toBeGreaterThanOrEqual(44);
+
+    await page.getByRole("button", { name: "+ Tambah materi" }).click();
+    const dialog = page.getByRole("dialog");
+    await expectTouchTarget(
+      dialog.getByRole("button", { name: "Buat & buka editor →" }),
+      "Buat & buka editor → (dialog)",
+    );
+    await expectTouchTarget(
+      dialog.getByRole("button", { name: "Batal" }),
+      "Batal (dialog)",
+    );
+    await expectTouchTarget(
+      dialog.getByRole("button", { name: "Tutup" }),
+      "✕ Tutup (dialog tambah materi)",
+    );
+
+    await page.goto(`/cms/kursus/${emptyId}`);
+    await expectTouchTarget(
+      page.getByRole("button", { name: "+ Tambah materi pertama" }),
+      "+ Tambah materi pertama",
     );
   });
 

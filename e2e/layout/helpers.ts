@@ -1,10 +1,11 @@
 // Shared helpers for the A-19b layout specs. Everything here builds on the
 // A-19 harness fixtures (the CSP collector keeps watching every page load)
 // and the single per-width expectation table in e2e/layout/widths.ts.
+import { randomBytes } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 
-import type { Locator, Page } from "@playwright/test";
+import type { BrowserContext, Locator, Page } from "@playwright/test";
 
 import { expect } from "../fixtures";
 import { widthSpecOf } from "./widths";
@@ -252,3 +253,59 @@ export function visibleCmsNav(page: Page): Locator {
 
 /** widthSpecOf wrapper so specs never import widths.ts directly twice. */
 export { widthSpecOf };
+
+// --------------------------------------------------- S1-02 API fixtures
+
+/** Random lowercase token; shared by title and slug so they pair up. */
+export function randomToken(prefix: string): string {
+  return `${prefix}${Date.now().toString(36)}${randomBytes(3).toString("hex")}`;
+}
+
+/** An EXACTLY 80-character no-space title (worst case, cards S1-01/S1-02). */
+export function noSpaceTitle(prefix: string): string {
+  return `${prefix}x`.padEnd(80, "x").slice(0, 80);
+}
+
+/**
+ * POST /api/cms/courses with the signed-in context's cookies (card S1-02
+ * suites share this; the slug defaults to slugify(title) — a lowercase
+ * token in the title keeps the pair unique across projects sharing the
+ * e2e database in one run).
+ */
+export async function createCourseViaApi(
+  context: BrowserContext,
+  course: { title: string; slug?: string; summary?: string },
+): Promise<string> {
+  const slug =
+    course.slug ??
+    course.title
+      .normalize("NFD")
+      .replace(/\p{M}/gu, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+  const response = await context.request.post("/api/cms/courses", {
+    data: {
+      title: course.title,
+      slug,
+      level: "BEGINNER",
+      summary: course.summary ?? "Ringkasan netral untuk tes e2e.",
+    },
+  });
+  expect(response.status(), await response.text()).toBe(201);
+  return ((await response.json()) as { data: { id: string } }).data.id;
+}
+
+/** POST /api/cms/courses/{id}/lessons with the signed-in context's cookies. */
+export async function createLessonViaApi(
+  context: BrowserContext,
+  courseId: string,
+  title: string,
+): Promise<string> {
+  const response = await context.request.post(
+    `/api/cms/courses/${courseId}/lessons`,
+    { data: { title } },
+  );
+  expect(response.status(), await response.text()).toBe(201);
+  return ((await response.json()) as { data: { id: string } }).data.id;
+}
