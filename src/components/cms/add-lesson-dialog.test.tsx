@@ -55,9 +55,12 @@ describe("AddLessonDialog", () => {
     renderDialog(3);
 
     expect(screen.getByText("Tambah materi")).toBeTruthy();
-    expect(
-      screen.getByText("Dasar Gizi Ibu Hamil · Materi baru"),
-    ).toBeTruthy();
+    // The eyebrow is two spans (screenshot review): only the COURSE TITLE
+    // truncates; the "· Materi baru" suffix is shrink-0 so it never
+    // disappears — asserted separately (RTL does not match across child
+    // elements).
+    expect(screen.getByText("Dasar Gizi Ibu Hamil")).toBeTruthy();
+    expect(screen.getByText("· Materi baru")).toBeTruthy();
     expect(screen.getByLabelText("Judul materi")).toBeTruthy();
     expect(screen.getByText("0 / 80")).toBeTruthy();
     expect(screen.getByText("Letakkan")).toBeTruthy();

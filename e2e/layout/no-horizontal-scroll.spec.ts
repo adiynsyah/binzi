@@ -231,6 +231,31 @@ test.describe("tanpa scroll horizontal", () => {
         `EDITOR builder dialog @${testInfo.project.name}`,
         true,
       );
+      // Card S1-02 screenshot review: at w360 the eyebrow used to underlap
+      // the ✕ and clip to "…· MATE". The eyebrow hugs its text (w-fit), so
+      // boundingBox proves the layout: the "· Materi baru" suffix ends
+      // inside the eyebrow, and the eyebrow ends before the ✕'s 44px hit
+      // area begins.
+      if (spec.viewport.width === 360) {
+        const eyebrowBox = await page
+          .locator("#add-lesson-eyebrow")
+          .boundingBox();
+        const suffixBox = await page
+          .locator("#add-lesson-eyebrow-suffix")
+          .boundingBox();
+        const closeBox = await page
+          .getByRole("dialog")
+          .getByRole("button", { name: "Tutup" })
+          .boundingBox();
+        expect(
+          suffixBox!.x + suffixBox!.width,
+          "w360 eyebrow: sisi kanan suffix ≤ sisi kanan eyebrow",
+        ).toBeLessThanOrEqual(eyebrowBox!.x + eyebrowBox!.width + 0.5);
+        expect(
+          eyebrowBox!.x + eyebrowBox!.width,
+          "w360 eyebrow: sisi kanan eyebrow ≤ sisi kiri tombol tutup",
+        ).toBeLessThanOrEqual(closeBox!.x + 0.5);
+      }
       // Close it: the dialog's scrim would intercept the account-menu
       // click in the next step.
       await page.keyboard.press("Escape");

@@ -96,12 +96,12 @@ function ChecklistBlock({ checklist }: { checklist: PublishChecklist }) {
                 ✓
               </span>
             ) : (
+              /* Open circle on the same 20px footprint as the ✓ badge
+                 (21g) — a "○" text glyph sat low next to it. */
               <span
                 aria-hidden="true"
-                className="grid size-5 shrink-0 place-items-center text-sm font-bold text-text-subtle"
-              >
-                ○
-              </span>
+                className="size-5 shrink-0 rounded-pill border-2 border-border-strong"
+              />
             )}
             <span
               className={`text-[12.5px] leading-[1.45] ${

@@ -139,10 +139,26 @@ export function AddLessonDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent title="Tambah materi">
         {/* 21h eyebrow: course title · "Materi baru", mono uppercase, one
-            truncated line — never wraps into a tall block. */}
-        <p className="order-first truncate font-mono text-xs uppercase tracking-wide text-text-subtle">
-          {courseTitle} · Materi baru
-        </p>
+            truncated line — never wraps into a tall block. pr-11 on the
+            wrapper clears the absolute ✕ (right-3 + 44px) exactly like the
+            dialog Title; inside, only the COURSE TITLE truncates — the
+            suffix is shrink-0 (whitespace-pre keeps its leading space,
+            which a flex item would otherwise collapse). The ids anchor the
+            w360 e2e no-underlap assertion. */}
+        <div className="order-first pr-11">
+          <p
+            id="add-lesson-eyebrow"
+            className="flex w-fit min-w-0 max-w-full font-mono text-xs uppercase tracking-wide text-text-subtle"
+          >
+            <span className="min-w-0 truncate">{courseTitle}</span>
+            <span
+              id="add-lesson-eyebrow-suffix"
+              className="shrink-0 whitespace-pre"
+            >
+              {" · Materi baru"}
+            </span>
+          </p>
+        </div>
 
         <form
           onSubmit={(event) => {
@@ -187,9 +203,16 @@ export function AddLessonDialog({
 
           <div>
             <p className="text-sm font-bold text-text">Letakkan</p>
-            {/* Fixed placement, styled like the selected 21h option row.
-                "Setelah materi…" (placement chooser) is S1-02b. */}
-            <p className="mt-2 flex min-h-11 items-center rounded-control border-2 border-text px-3 text-sm font-bold text-text">
+            {/* Fixed placement, styled like the SELECTED 21h option row: a
+                thick radio-style dot at the left — NOT a bordered box,
+                which read as a focused input. "Setelah materi…"
+                (placement chooser) is S1-02b; the row stays
+                non-interactive. */}
+            <p className="mt-2 flex min-h-11 items-center gap-3 text-sm font-bold text-text">
+              <span
+                aria-hidden="true"
+                className="size-6 shrink-0 rounded-pill border-[5px] border-text"
+              />
               Di akhir — jadi materi {nextOrderIndex}
             </p>
           </div>
