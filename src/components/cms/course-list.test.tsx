@@ -80,7 +80,7 @@ describe("CourseList", () => {
     ).toBeTruthy();
 
     const row = screen.getByText("Menu Keluarga Sepekan", {
-      selector: "p.break-words",
+      selector: "p.wrap-anywhere",
     }).closest("tr");
     expect(row).toBeTruthy();
     expect(within(row as HTMLElement).getByText("Menengah · Pundra R.")).toBeTruthy();
