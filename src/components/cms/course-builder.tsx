@@ -24,7 +24,7 @@
 
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { useRouter } from "next/navigation";
-import { useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useForm, FormProvider } from "react-hook-form";
 
 import { CMS_HEADING_CLASS } from "@/components/cms/cms-pages";
@@ -117,9 +117,17 @@ export function CourseBuilder({ builder }: { builder: CourseBuilderDTO }) {
   }
 
   // Focus RETURN after responses that do not move focus to a field (card
-  // §2): loading set the native disabled attribute and dropped it.
+  // §2). An EFFECT, not a rAF inside the handler: `loading` sets the
+  // native disabled attribute, and the focus() call must run AFTER the
+  // commit that lifts it — against React's concurrent scheduler the
+  // frame can fire first and focus() no-ops on a disabled button with
+  // nothing retrying (the CI e2e caught the race).
   const saveRef = useRef<HTMLButtonElement | null>(null);
-  const focusSave = () => requestAnimationFrame(() => saveRef.current?.focus());
+  useEffect(() => {
+    if (banner !== null && !isSubmitting) {
+      saveRef.current?.focus();
+    }
+  }, [banner, isSubmitting]);
 
   // Handler-level double-submit guard: softDisabled stays clickable.
   const inFlight = useRef(false);
@@ -142,7 +150,6 @@ export function CourseBuilder({ builder }: { builder: CourseBuilderDTO }) {
         reset(settingsFrom(json.data));
         setBanner({ tone: "success", title: SAVED_BANNER });
         router.refresh();
-        focusSave();
       } else if (response.status === 400) {
         const json = (await response.json()) as {
           error?: { fields?: ApiFieldError[] };
@@ -168,14 +175,12 @@ export function CourseBuilder({ builder }: { builder: CourseBuilderDTO }) {
         });
         // The refresh flips the page to its read-only shape (card §2).
         router.refresh();
-        focusSave();
       } else {
         setBanner({
           tone: "error",
           title: GENERIC_ERROR_TITLE,
           description: GENERIC_ERROR_DESCRIPTION,
         });
-        focusSave();
       }
     } catch {
       setBanner({
@@ -183,7 +188,6 @@ export function CourseBuilder({ builder }: { builder: CourseBuilderDTO }) {
         title: GENERIC_ERROR_TITLE,
         description: GENERIC_ERROR_DESCRIPTION,
       });
-      focusSave();
     }
     // No navigation on this form: every path releases the guard.
     inFlight.current = false;
