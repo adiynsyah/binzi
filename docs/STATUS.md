@@ -1,7 +1,176 @@
 # Status Proyek BINZI — catatan untuk melanjutkan di chat baru
 
-> Terakhir diperbarui: 2 Nov 2026. File ini dikelola manual (bukan oleh agent) dan hanya untuk melanjutkan percakapan dengan Claude.
+> Terakhir diperbarui: 4 Nov 2026. File ini dikelola manual (bukan oleh agent) dan hanya untuk melanjutkan percakapan dengan Claude.
 > Untuk melanjutkan: buka chat baru, unggah file ini + `docs/tasks/URUTAN-KERJA.md`, lalu pakai prompt di bagian paling bawah.
+
+## Pembaruan 4 Nov 2026 — tinjauan #106, kartu S1-02 (baca ini dulu, lalu 3 Nov)
+
+Bagian "Pembaruan 3 Nov" di bawahnya tetap berlaku. Bagian ini mengubah atau menambahnya.
+
+### Keputusan pemilik, 4 Nov
+1. **S1-02 dipotong untuk demo.** Yang tetap: pengaturan kursus + simpan manual, tambah materi (selalu di akhir, dengan quiz LESSON kosong), penanda baris materi, syarat terbit `n / 6`, kunci DRAFT. Yang pindah ke **S1-02b** (setelah 20 Nov): urutkan ulang seret + keyboard (`@dnd-kit`), "Setelah materi…", hapus materi, hapus kursus, panel lipat tablet 21d, keterangan ponsel, kolom kuning daftar, tombol preview. Alasan: kartu penuh diperkirakan menggeser jadwal ±1 hari dan menghabiskan cadangan Sel 17.
+2. **Syarat terbit 6 = "Semua materi lengkap (teks + quiz)":** minimal satu materi, dan setiap materi punya teks isi dan quiz ≥ `quiz.min_questions`. Menyimpang dari 21g ("Minimal 1"), karena dengan "Wajib berurutan" (CRS-08) satu quiz tanpa soal membuat materi berikutnya tidak pernah terbuka.
+3. **Deskripsi kursus masuk S1-04**, memakai editor TipTap S1-03 yang sama. Tanpa itu kursus baru tidak pernah lolos syarat 4 dan tidak bisa dikirim Sel 10.
+4. **Syarat sampul disembunyikan**, bukan dihitung belum terpenuhi, sampai S1-07 — penerapan keputusan 3 Nov di kartu S1-02.
+
+### Posisi 4 Nov
+- **PR #106 (S1-01):** tinjauan Claude chat 4 Nov atas 7 commit perbaikan (`cf552cf..2dbb46c`).
+  - Kesembilan butir benar. Di sandbox: `tsc`, `eslint .`, `lint:hex` hijau, Vitest 560/560, lockfile 0 diff, tanpa atribusi AI. Klaim audit agent dicek ulang: 25 impor dari berkas non-client ke modul `"use client"`, semuanya komponen.
+  - Mutasi: tanpa `setNavigating` → merah; cek slug sebelum judul → merah; tanpa transaksi → merah (quizzes 10 vs 9); tanpa span sr-only → merah. **Guard klik-ganda dilepas setelah 201 → tes tetap hijau**, karena `Button` `loading` memasang `disabled` native sehingga klik kedua tidak melakukan apa-apa. Versi tes dengan `fireEvent.submit(form)` merah ("called 2 times").
+  - Kontrol segmen Level belum persis 21f (latar `surface-2`, garis `border-strong`, radius 10/8, padding 4, teks `text-nav`, grid sama lebar; tinggi 44 tetap).
+  - Diminta satu commit perbaikan kecil (tes guard + kelas 21f) dan cek screenshot S1-01 di Claude chat (folder dikosongkan sebelum run final) sebelum merge.
+  - Status CI tidak bisa dicek dari sandbox (API GitHub kena rate limit) — dicek pemilik.
+  - **Commit `55072fd`** menerapkan kedua perbaikan, persis sesuai instruksi. Dicek di sandbox: `tsc`, `eslint` hijau, 33 tes komponen CMS hijau, mutasi guard pasca-201 kini merah ("called 2 times").
+  - **Screenshot run final dicek** (81 berkas; satu berkas sisa 3 Nov, `cms-kursus-dialog-level-sebelum-*`, dikenali dari tanggal di zip):
+    - Pil "Draf" tampil di builder (w360, w1280).
+    - Kontrol Level cocok dengan 21f per piksel: bingkai `#fbfaf8`, garis `#dcd6ce`, padding 4 px, tinggi total 54 (pil 44), pil terpilih `#1a1614` + teks putih, pil lain `#3f3a35`. Teks galat `#b3261e`. Tiga pil satu baris di w360.
+    - Screenshot `cms-kursus-dialog-normal` dan `…-level-sesudah-*` terekam di tengah animasi masuk dialog, sehingga tembus pandang — artefak `page.screenshot` tanpa `animations: "disabled"`, bukan bug (dialog yang sama di screenshot galat buram penuh). Diperbaiki di S1-02 bagian 8.
+    - Di w1280, judul 80 karakter tanpa spasi (data uji A-19b) melebarkan tabel sampai kolom PESERTA dan AKSI tergeser keluar wadah. Dengan judul biasa semua kolom muat (screenshot galat). Diperbaiki di S1-02 bagian 8 (`wrap-anywhere`).
+- **Kartu S1-02 direvisi** (tinjauan terhadap `2dbb46c`) dan **S1-02b** ditulis — masuk lewat PR docs yang sama dengan pembaruan ini.
+- **`URUTAN-KERJA.md` disinkronkan** dengan jadwal demo.
+
+### Untuk kartu berikutnya
+- **S1-03:** validator dokumen wajib menerima `EMPTY_DOC` (`{ type: "doc", content: [{ type: "paragraph" }] }`, isi materi baru dari S1-02) dan memperluas `isDocEmpty` (`src/lib/content-doc.ts`) untuk gambar dan tabel. Dependensi TipTap/ProseMirror kena soak 14 hari untuk setiap entri lockfile, termasuk transitif: pin eksak, `--before`, tanggal rilis per entri di PR, gate sebelum dan sesudah.
+- **S1-04:** editor materi + **deskripsi kursus** (keputusan 4 Nov), simpan manual. Baris "Deskripsi" di panel S1-02 ("Belum diisi"/"Sudah diisi") menjadi pintu masuknya.
+- **Kartu player video (Jum 13), jalur R2:** presigned GET butuh sebagian lapisan storage A-17 dan domain R2 di `media-src` CSP (sekarang `'self'`).
+- **Komentar `password-field.tsx:110` basi** sejak `Input` menerima `ref` (S1-01). Spread `{...(ref ? { ref } : {})}` bisa diganti `ref` langsung di kartu berikutnya yang menyentuh berkas itu (C-08b).
+
+### Yang ditunda sampai setelah demo — tempat catatannya
+Daftar "Ditunda sampai setelah 20 Nov" di keputusan 3 Nov no. 5 tetap berlaku. Potongan kartu S1 dan temuan kecil tinjauan dicatat di sini, supaya tidak hilang:
+- **S1-01 → kartu [S1-01b](tasks/sprint-1/S1-01b-daftar-kursus-lanjutan.md):** pola kartu 19e untuk daftar `/cms/kursus` di bawah 1024, kontrol "Urut ▾" 21e (sekarang teks tetap), nama aksesibel tombol "Ubah" di dialog 21f, fokus kembali ke tombol kirim setelah gagal, daftar kolom `CourseDetailRow` yang ditulis dua kali, dan tes rollback yang hitungan audit-nya tidak bermakna.
+- **S1-02 → kartu [S1-02b](tasks/sprint-1/S1-02b-builder-kursus-lanjutan.md):** urutkan ulang, "Setelah materi…", hapus materi dan kursus, panel lipat tablet 21d, keterangan ponsel, kolom kuning dan "n kosong" di daftar, tombol preview, penjaga perubahan belum disimpan.
+- **Masuk C-08b:** `Button` dengan `loading` memasang `disabled` native, sehingga fokus keyboard bisa terlepas di semua form auth saat request berjalan; kembalikan fokus setelah respons. Juga spread `ref` dan komentar basi di `password-field.tsx`.
+- **Belum punya kartu:** "bobot 40% Nilai Akhir" di blok Final Quiz builder masih ditulis langsung di kode, padahal nilainya ada di `system_settings` `score.final_weight`. Kerjakan bersama kartu pertama yang membaca setting skor (hasil & nilai, Sen 16 Nov) atau setelah demo.
+- **Pintu masuk editor quiz** ("Sunting Final Quiz" di builder 21a/21g, dan quiz per materi) tidak dirender S1-01 maupun S1-02. Kartu editor quiz (Min 8 Nov) wajib menambahkannya.
+
+### Persiapan demo (tambahan)
+- [ ] **binzi-dev punya `quiz.min_questions`:** `select value from system_settings where key = 'quiz.min_questions';` di SQL Editor → `10`. Tanpa baris ini builder galat 500 di Production (S1-02 fail-closed).
+- [ ] **Jalur data demo ke binzi-dev belum ada.** `db:seed:demo` hanya menerima `binzi_local`/`binzi_e2e` (penjaga C-05), dan `db:seed:binzi-dev` belum ada. Putuskan cara mengisi data contoh + akun demo per peran paling lambat Sen 16 Nov (kartu atau langkah manual), bukan saat gladi resik Rab 18.
+- [ ] **Kursus demo yang dikirim harus lolos syarat:** setiap quiz materi dan Final Quiz ≥ 10 soal. Kursus satu materi berarti minimal 20 soal — disiapkan lewat impor CSV sebelum demo, bukan diketik saat demo.
+
+### Pelajaran 4 Nov
+- **`Button` dengan `loading` memasang `disabled` native.** Tes klik tidak bisa membuktikan guard di handler; pakai `fireEvent.submit(form)`. Akibat lain: fokus keyboard bisa terlepas saat tombol nonaktif, jadi form mengembalikan fokus setelah respons (diterapkan di S1-02).
+- **`waitFor` tidak cocok untuk asersi "tidak terjadi lagi"**: lulus di polling pertama. Pakai jeda tetap lalu asersi biasa.
+- **`sr-only` (position absolute) di dalam wadah `overflow-*` tanpa leluhur ber-posisi** lolos dari klip dan melebarkan halaman. Suite A-19b (tanpa scroll horizontal) yang menangkapnya — bukti suite itu bekerja.
+- **Tinjauan kartu membaca gambar desain, bukan hanya copy-nya.** "KOSONG" di 21a ternyata slot video kosong (kotak kiri baris tanpa video), bukan teks kosong seperti tafsiran kartu 24 Okt.
+- **Bila desain dan PRD bertentangan soal aturan, PRD menang**, dan penyimpangan copy disebut di PR (syarat 6).
+- **Perkiraan ukuran kartu diambil dari riwayat.** S1-01, yang lebih kecil dari S1-02 penuh, butuh satu sesi + satu putaran 9 temuan + satu commit perbaikan kecil (±1,5 hari kalender). Waktu tinjau pemilik tetap hambatan utama.
+
+## Pembaruan 3 Nov 2026 — target demo 20 Nov (baca ini dulu)
+
+### Target
+**Jumat 20 Nov 2026: demo alur utuh dengan data contoh.** Ini bukan rilis ke peserta penelitian atau publik. Alurnya:
+1. Ahli gizi membuat kursus di CMS, menambah materi teks dan satu video, lalu mengisi soal (editor satu per satu dan impor CSV).
+2. Ahli gizi mengirim kursus untuk disetujui; admin menyetujui dan kursus terbit.
+3. Peserta ikut kursus, belajar, mengerjakan quiz, lalu melihat nilai.
+
+Dasar keputusan: seluruh MVP (S1–S6, 240 soal, 18 video) tidak mungkin selesai 20 Nov. PRD §13.4 memperkirakan sekitar 6+2 minggu untuk kode dan 10 minggu untuk konten.
+
+### Keputusan pemilik, 3 Nov
+1. **Video: minimal satu, dimasukkan manual** (bukan fitur unggah), supaya pengalaman memutar video bisa dicoba.
+   - **Jalur 1 (utama): R2 sungguhan.** Syaratnya metode pembayaran Cloudflare beres paling lambat **Kamis 12 Nov**. Urutannya: H-04, lalu unggah manual lewat dashboard ke bucket privat, lalu player memutar lewat presigned GET 2 jam (PRD §10.3). Kode baca R2 ini dipakai lagi di S1-05.
+   - **Jalur 2 (cadangan, bila R2 belum aktif Kamis 12):** video contoh yang boleh publik ditaruh di `public/` (CSP `media-src 'self'` tetap). Diganti R2 setelah demo. Jangan pakai materi asli ahli gizi, karena berkasnya masuk riwayat git publik.
+   - Selain satu video itu: tanpa gambar dan sampul. Syarat "sampul kursus" di checklist terbit dimatikan sampai fitur gambar ada.
+2. **Alur persetujuan disederhanakan** menjadi "Kirim → Setujui & terbitkan". "Minta revisi" (`NEEDS_REVISION`) baru setelah demo, jadi PRD v1.6 bisa menunggu.
+3. **Soal quiz: editor satu per satu (22a/22b) dan impor CSV (22c).** Dua kartu, tapi aturan validasi soal dibangun sekali. Bila terlambat, impor CSV yang dipotong; editor manual yang tampil di demo.
+4. **Kartu demo hanya memuat jalur utama dan galat penting.** State lain menyusul setelah 20 Nov: layar kosong sekunder, pola kartu 19e untuk tablet & ponsel, dan sejenisnya.
+5. **Ditunda sampai setelah 20 Nov:** C-08b, C-09 (kecuali muncul advisory yang memblokir PR), sisa H-11, artikel, beranda, profil, media library, dan merapikan branch lama.
+6. **Urutan potong bila terlambat:** halaman "Nilai Saya" lebih dulu (nilai cukup tampil di halaman hasil quiz), lalu impor CSV (demo memakai soal dari data contoh).
+7. **Jalur konten tetap dimulai minggu ini** (K-01, K-02 bersama ahli gizi), karena rilis sungguhan tetap menunggu konten.
+
+### Jadwal
+Memakai setiap hari, termasuk Sabtu–Minggu. Kartu S1-03 dan seterusnya ditulis di Claude chat sambil agent mengerjakan kartu sebelumnya. Setiap kartu ditinjau terhadap `main` sebelum sesinya, dan rencana agent ditinjau di Claude chat sebelum disetujui.
+
+| Tanggal | Pekerjaan |
+|---|---|
+| Sel 3 ✅ | Kartu S1-01 direvisi (#105), sesi S1-01 → PR #106 |
+| Rab 4 | Perbaikan tinjauan #106 → merge · tinjau kartu S1-02 (matikan syarat sampul) → sesi S1-02 |
+| Kam 5 | S1-03: editor teks (TipTap) + validasi server + renderer. Bila Kamis malam belum selesai: branch dibiarkan, dilanjutkan setelah C-04 |
+| Jum 6 | **C-04** (mulai ≥ 07.00 WIB, merge ≤ Min 8) |
+| Sab 7 | S1-03 selesai · S1-04: editor materi (simpan manual, tanpa auto-save) |
+| Min 8 | Editor quiz CMS (22a daftar soal, 22b form satu soal) |
+| Sen 9 | Impor soal CSV (22c) |
+| Sel 10 | Kirim & terbitkan (S1-08 versi sederhana) |
+| Rab 11 | Peserta: daftar kursus terbit + ikut kursus |
+| Kam 12 | Peserta: halaman materi + progres · **batas keputusan R2** |
+| Jum 13 | Peserta: player video (satu video manual) |
+| Sab 14 – Min 15 | Peserta: mengerjakan quiz |
+| Sen 16 | Peserta: hasil & nilai |
+| Sel 17 | Cadangan |
+| Rab 18 – Kam 19 | Production (migrasi binzi-dev, akun demo per peran, data contoh) + gladi resik |
+| Jum 20 | Demo |
+
+### Posisi 3 Nov malam
+- **`main`:** `55eb06b` (#105, revisi kartu S1-01 terhadap `9fff118`).
+- **S1-01 — PR #106 terbuka**, CI hijau, 8 mutasi lulus. Tinjauan Claude chat 3 Nov menemukan 4 hal wajib dan 5 kecil; agent sedang memperbaikinya di branch yang sama.
+  - Wajib:
+    1. Badge "Draf" di builder kosong: `STATUS_BADGE` diimpor server component dari modul `"use client"`.
+    2. Cek judul mirip harus mendahului cek slug.
+    3. Level harus berupa pil berdampingan sesuai 21f, dengan radio native sr-only.
+    4. Tombol tidak boleh aktif lagi setelah 201.
+  - Kecil:
+    1. Tes rollback quiz/audit setelah 23505.
+    2. `.returning()` dengan kolom eksplisit.
+    3. Tipe DTO diimpor dari service.
+    4. `<label>` untuk isian slug.
+    5. Teks sr-only pada tautan "Buka".
+  - **Sebelum merge, cek sendiri:** screenshot `cms-kursus-builder-kosong` menampilkan "Draf"; screenshot dialog menampilkan Level sebagai pil; CI hijau.
+- **C-04: Jumat 6 Nov, mulai ≥ 07.00 WIB.**
+  - Versi terbaru di lockfile adalah baseline-browser-mapping 2.11.31 (rilis 22 Okt 18.30 UTC), yang genap 14 hari Jumat 01.30 WIB. Kartu menyebut body-parser (Kamis 18.39 WIB), tapi tanggal Jumat tetap benar.
+  - Gate di `main` per 3 Nov: 5 excused, 0 blocking, 31 info/low/moderate.
+  - Simulasi C-04: lockfile berubah tepat 14 entri, persis seperti kartu; setelah pengecualian `[]` → 0 excused, 0 blocking, 32 info/low/moderate.
+  - Jumat pagi sebelum sesi: `git pull --ff-only && node scripts/check-audit.mjs`. Bila hasilnya bukan 5/0, bawa ke Claude chat dulu.
+- **Memori agent:** tujuh berkas auto-memory diarsipkan 3 Nov ke `~/binzi-memori-arsip-3nov`. Empat isinya ganda dengan `CLAUDE.md`, tiga sudah basi (satu bertentangan dengan aturan port 3100). Ringkasan sesi C-04 yang dibatalkan 3 Nov keliru soal branch aktif dan jam soak — klaim agent tentang keadaan repo dicek sendiri.
+- **C-09 (penyederhanaan audit & Dependabot):** draf kartu ada di berkas terpisah `C-09-penyederhanaan-audit-dan-dependabot.md`, belum di repo.
+  - Disimulasikan di atas `main` + simulasi C-04:
+    - shadcn dipindah ke `devDependencies` (0 entri lockfile berubah versi);
+    - gate memakai `--omit=dev` (temuan turun dari 16 ke 7, semuanya moderate);
+    - Dependabot bulanan, satu grup per ekosistem, major di-ignore lewat `dependabot.yml`;
+    - `autoMemoryEnabled: false`;
+    - larangan baca ditambah untuk `.env.binzi-dev` dan `.env.local.*`;
+    - skrip `prepare` dihapus dan klaim hook atribusi diluruskan.
+  - Dua keputusan masih menunggu pemilik:
+    - (a) rantai low/moderate tetap fail-closed (mengubah rencana 2 Nov);
+    - (b) hook atribusi tidak dibuat, dokumen yang diluruskan.
+  - Ditunda sampai setelah demo, kecuali muncul advisory yang memblokir PR.
+- **Ignore Dependabot lewat komentar** (vitest 5.x, radix-ui 1.x, react-dom 19.x; PR #95, #97, #98) kemungkinan ikut menahan security update paket itu. Dibereskan dengan `@dependabot unignore *` di PR gabungan pertama setelah C-09. Sementara itu, gate tetap menangkap advisory high di radix-ui dan react-dom.
+
+### Pekerjaan kecil (kamu)
+- [ ] `rm .env.local.sebelum-c05` di folder repo — **segera**; berkas ini salinan secret Production.
+- [ ] Metode pembayaran Cloudflare, paling lambat Kamis 12 Nov: https://dash.cloudflare.com/?to=/:account/billing (kartu kredit atau PayPal). Setelah itu aktifkan R2, lalu kerjakan H-04. Kartu H-04 ditinjau dulu di Claude chat untuk kebutuhan player.
+- [ ] Hubungi ahli gizi untuk K-01 dan K-02.
+- [ ] Setelah C-04: masukkan draf kartu C-09 ke `docs/tasks/chore/` lewat PR docs.
+- [ ] Setelah demo: rapikan sekitar 40 branch lokal lama. Branch hasil squash-merge tidak bisa dihapus dengan `-d`, jadi cek dulu status PR-nya.
+
+### Teks tempel untuk C-04 (Jumat, saat menyetujui rencana agent)
+Sesuaikan angka di butir 4 bila baseline Jumat pagi berbeda.
+
+```text
+Rencana disetujui, dengan lima tambahan berikut (hasil tinjauan C-02/C-03, belum tertulis di kartu):
+
+1. Prasyarat e2e: jalankan `npm run e2e:db` (Docker menyala) sebelum `npm run e2e`. Bila container gagal naik, berhenti dan laporkan.
+
+2. `npm ls` dijalankan setelah `npm ci`, bukan setelah `npm install`/`npm update`, karena `npm ls` membaca node_modules, bukan lockfile. Lampirkan di PR output `npm ls zod`, `npm ls systeminformation`, dan `npm ls body-parser`. Harapan: tidak ada zod 3.x, systeminformation hanya 5.33.16, body-parser 2.4.0.
+
+3. Tanggal rilis di PR: tabel semua entri lockfile yang berubah (paket, versi lama → baru, tanggal rilis UTC dari field `time` di `npm view`). Semuanya harus ≤ 22 Okt 2026 UTC. Yang terbaru seharusnya baseline-browser-mapping 2.11.31 (22 Okt 18.30 UTC).
+
+4. Angka gate eksplisit di setiap tahap (`node scripts/check-audit.mjs`):
+   - Di main sebelum mengubah apa pun: 5 excused, 0 blocking, OK, 31 info/low/moderate.
+   - Setelah langkah 1, sebelum entri dihapus: 0 excused, 0 blocking, OK, plus catatan "exceptions not referenced".
+   - Setelah langkah 2 (`[]`): 0 excused, 0 blocking, OK, tanpa catatan "not referenced", 32 info/low/moderate.
+   Bila angka di tahap mana pun berbeda, atau muncul temuan blocking baru: berhenti dan tempel output lengkapnya, jangan diperbaiki sendiri. Jangan menambah pengecualian, jangan menjalankan `npm audit fix`, dan jangan mengikuti saran gate "update shadcn to 4.23.0" — shadcn tetap tepat 4.22.1 (lihat langkah 2 kartu).
+
+5. Staging per nama berkas: `git add package.json package-lock.json .github/audit-exceptions.json`, tanpa `git add -A` atau `git add .`. Sebelum commit, `git status` hanya menunjukkan ketiga berkas itu.
+```
+
+### Pelajaran 3 Nov
+- **Nilai yang diekspor dari modul `"use client"` tidak bisa dibaca server component.** Di server, ekspor itu menjadi client reference (fungsi), sehingga properti peta atau konstantanya bernilai `undefined`, tanpa error. Peta dan konstanta yang dipakai server dan klien harus tinggal di modul biasa, dan e2e harus memeriksa teks yang dihasilkannya.
+- **Instruksi tinjauan yang menyebut detail implementasi juga harus menyebut tampilan desain yang dipertahankan.** Agent menjalankannya secara harfiah: "input radio native" menghasilkan radio bawaan browser, bukan pil 21f.
+- **Galat isian dari server dicek mengikuti urutan isian di form.** Satu galat bisa menurunkan galat lain: slug otomatis berasal dari judul, jadi judul ganda harus dilaporkan sebagai galat judul.
+- **drizzle-orm ≥ 0.44 membungkus error driver dalam `DrizzleQueryError`.** Kode Postgres ada di `.cause`, dan nama constraint berbeda antar-driver (`constraint_name` di postgres.js, `constraint` di PGlite). Tes `Promise.all` di PGlite tidak menjamin jalur 23505 ikut teruji.
+- **Uji mutasi pada guard berlapis harus mematikan semua lapis.** Mematikan satu lapis saja memang tetap hijau, dan itu bukti pertahanan berlapis, bukan bukti tesnya bekerja.
+- **Auto-memory Claude Code menumpuk aturan yang tidak ter-versi.** Aturan agent hanya di `CLAUDE.md` (dikunci lewat C-09).
+- **Tiga hal tentang kecepatan:** hambatan utama adalah waktu pemilik meninjau setiap PR, bukan kecepatan agent. Sesi paralel tetap tidak disarankan. Kartu berikutnya ditulis di Claude chat selagi agent bekerja.
 
 ## Di mana semua keputusan tersimpan
 
@@ -85,7 +254,7 @@
   - ✅ C-07 token kontras (PR #101, di-merge 2 Nov, `40726fb`): `--primary-deeper` `#a8261a` baru, `--text-subtle` `#706a61`, varian `primary` `bg-primary-deep … hover:bg-primary-deeper` (+ `forbidden.tsx` warna saja), 8 tautan auth `text-primary-deep`, tombol email `primary-deep`, `KNOWN_CONTRAST_FINDINGS = {}`, aturan "teks tidak pernah memakai `primary`" di `CLAUDE.md` & `TOKENS.md`. Diff `src` identik baris per baris dengan simulasi (selisih hanya teks komentar `tokens.css`). Rencana agent ditinjau di Claude chat: hitungan 13 berkas, commit lokal sebelum mutasi (pelajaran (uuuu)), ekspektasi tes gagal per mutasi, screenshot hanya dari run final. M1 (`bg-primary`) merah tepat di [w1280] "halaman tamu (6)" + [w360] menu ponsel; M2 (`#8a8378`) tepat 4 tes; M3 tepat 1 tes; Vitest 474, e2e 2× 112/10, CI `ci` 2m18s / `e2e` 5m18s, gate 5/0. Verifikasi pemilik: 63 screenshot dianalisis per piksel di Claude chat (set A-19b tidak tersedia): `#c42d1e` di pil header (w1280), tombol menu ponsel, tombol 403, tautan auth; `#f04030` tersisa hanya di garis aktif menu (2 px) dan titik panel `/daftar`; `#8a8378` hanya tepi anti-alias (pelajaran (xxxx)); tombol "Masuk" disabled `/masuk` w360 jelas tidak aktif; tombol 403 174×44; hover Preview ✓. Pesan commit tanpa atribusi AI.
   - ✅ Tinjauan C-08 (2 Nov, Claude chat, terhadap `40726fb`): kartu **dipecah** — **C-08** (tombol menunggu Turnstile, fokus ke isian salah, tombol Google; komponen yang dipakai S1; merge ≤ Kam 5 Nov) dan **C-08b** baru (area sentuh, label tablet, `/daftar/verifikasi`, chip kata sandi, baris sesi; setelah C-04; bukan prasyarat S1). Temuan: handler keempat form ber-Turnstile mengirim `captchaToken ?? ""` tanpa penjaga — aman hanya karena `disabled` memblokir Enter di isian; 9 penantian `toBeEnabled()` di 4 spec e2e akan selalu lolos (kartu sempat menulis 10 — dikoreksi agent saat rencana: `email-flows.spec.ts:148` adalah tombol simpan `/reset-password`) setelah `aria-disabled` (pelajaran (vvvv)); tes keyboard "sebelum token" dibuat deterministik dengan memblokir skrip Turnstile; `/reset-password` tanpa Turnstile; `Checkbox` sudah meneruskan `ref`; error klien `signIn.social` tak ditangani + tombol macet saat back-forward cache; area sentuh "Lupa password?" simetris menutupi 4 px isian sandi (jarak hanya 8 px); chip error 3c = `primary-tint`/`primary-deep`, bukan tint bahaya; panel "Akun aktif" ada di `src/app/(auth)/daftar/verifikasi/page.tsx`, di luar berkas yang diizinkan kartu lama (pelajaran (yyyy)).
   - ✅ C-08 UI auth (PR #103, di-merge 2 Nov, `3a3725b`; 3 commit di atas `ae7a937`): (a) prop `softDisabled` di `Button` — `aria-disabled="true"` tanpa atribut `disabled`, gaya `aria-disabled:` identik dengan disabled termasuk hover (`aria-disabled:hover:bg-surface-disabled`, `brightness-100` untuk danger), tanpa `pointer-events-none`; JSDoc: tidak memblokir aktivasi, penjaga tanggung jawab pemanggil. Penjaga token di kelima handler (4 `onSubmit` + kirim ulang `/masuk`), setelah validasi RHF dan sebelum request; pesan "Tunggu sebentar — verifikasi keamanan belum selesai." (`CAPTCHA_WAIT_COPY` di `constants.ts`) di wadah `role="status"` yang terpasang kosong sejak awal, hilang saat token masuk. E2E: helper `waitForCaptchaArmed` (`e2e/fixtures.ts`) menggantikan 9 penantian; tes keyboard "sebelum token" deterministik (skrip Turnstile diblokir, tanpa request sign-in, warna hover). (e) `PasswordField` meneruskan `ref` (spread, karena tipe props `Input` belum punya `ref`); `Checkbox` tidak diubah. (f) `GoogleButton`: "Mengalihkan…", `onError` → `googleFailedNotice()` di banner form / teks di `LoginModal`, fokus kembali ke tombol saat gagal, pulih saat `pageshow` `persisted`. Tinjauan rencana di Claude chat menambah: wadah `role="status"`, kontrak & tes `softDisabled`, tes lama `.disabled` diganti dua asersi (`aria-disabled="true"` + `.disabled === false`), pemulihan fokus Google, ekspektasi mutasi. Agent mengoreksi dua kesalahan Claude chat: hitungan e2e (9, bukan 10) dan tes lama yang memeriksa properti `.disabled`. Hasil: Vitest 495 (474 + 21), e2e 2× 114 lolos / 10 skip, gate 5/0, M1–M5 merah sesuai ekspektasi. Review PR di Claude chat: `tsc`/`eslint`/`lint:hex`/Vitest 495 di sandbox, lockfile 0 diff, M1/M4/M5 dijalankan ulang + dua mutasi tambahan (tanpa pemulihan fokus Google, tanpa `role="status"` wadah "Masuk") → merah. Verifikasi pemilik: 65 screenshot vs set C-07 — 57/63 identik piksel demi piksel, 6 derau (email uji acak, kursor berkedip, anti-alias logo, ✕ drawer tersorot penunjuk); tombol "sebelum token" identik ukuran dengan tombol disabled C-07 (5 piksel anti-alias) dan bercincin fokus; Preview keyboard ✓; Safari lokal: jalur error Google (banner + tombol normal) dan Kembali dari halaman Google → tombol normal ✓. Sempat 500 di lokal karena container `binzi-local-db` mati — instruksi Claude chat lupa `npm run dev:db` (pelajaran (aaaaa)).
-  - ⏭️ Berikutnya: **C-04** (mulai Jum 6 Nov, merge ≤ Min 8 Nov; hapus 6 entri → `[]`; terlewat → gate merah Sen 9 Nov 07.00 WIB; jalankan gate terhadap `main` dulu, tempel lima butir tinjauan C-02 saat menyetujui rencana; kartu ditinjau ulang di Claude chat terhadap `main` sebelum sesi) → kartu **penyederhanaan audit & Dependabot** → **C-08b** (tinjau ulang terhadap `main` dulu — C-08 mengubah `register-form.tsx` dan `password-field.tsx`) → **S1-01** → **S1-02**. Sel–Kam 3–5 Nov tanpa kartu: H-11 sisa langkah lokal (pakai `npm run dev:db`) atau jalur konten K-01…K-06. H-04 R2 paralel.
+  - ⏭️ *(Digantikan jadwal "Pembaruan 3 Nov" di atas.)* Berikutnya: **C-04** (mulai Jum 6 Nov, merge ≤ Min 8 Nov; hapus 6 entri → `[]`; terlewat → gate merah Sen 9 Nov 07.00 WIB; jalankan gate terhadap `main` dulu, tempel lima butir tinjauan C-02 saat menyetujui rencana; kartu ditinjau ulang di Claude chat terhadap `main` sebelum sesi) → kartu **penyederhanaan audit & Dependabot** → **C-08b** (tinjau ulang terhadap `main` dulu — C-08 mengubah `register-form.tsx` dan `password-field.tsx`) → **S1-01** → **S1-02**. Sel–Kam 3–5 Nov tanpa kartu: H-11 sisa langkah lokal (pakai `npm run dev:db`) atau jalur konten K-01…K-06. H-04 R2 paralel.
 - ✅ Chore: Next 16.3.7 (PR #17). Dependabot: #6 & #7 (actions major) di-merge; #8–#10 (eslint 10, typescript 7, @types/node 26) di-ignore.
 
 ## Cara kerja yang sudah berjalan
@@ -116,12 +285,12 @@
   - Gate **tidak** gagal untuk entri yang tak lagi terpakai (hanya catatan "consider removing"), jadi setiap kartu menghapus entrinya sendiri dan PR-nya menunjukkan output gate tanpa catatan itu.
 - [ ] **Gate audit: advisory di bawah high pada rantai `via` ikut memblokir** (ditemukan 28 Okt). `evaluate()` di `scripts/check-audit.mjs` menuntut setiap `via` terekskusi tanpa melihat severity-nya, sedangkan komentar kepala berkas menyebut hanya advisory high lain pada rantai yang menggagalkan gate. Akibatnya deepmerge (low) memblokir shadcn (high karena zod yang sudah dikecualikan). Perilaku sekarang lebih ketat (fail-closed) dan sudah ditangani lewat entri; putuskan setelah C-04 apakah dibiarkan (luruskan komentarnya) atau rantai low/moderate diabaikan (kartu tersendiri, jangan di tengah tebing). Terulang 2 Nov (minimatch, moderate) → masuk kartu penyederhanaan di bawah.
 - [ ] **Kartu "penyederhanaan audit & Dependabot" — setelah C-04** (keputusan 2 Nov: waktu habis di advisory rantai CLI shadcn yang tidak pernah dikirim ke pengguna; dari ±8 PR/kartu audit sejak 23 Okt hanya bagian next #70, C-01, dan C-02 menyentuh kode yang berjalan untuk pengguna). Isi: (1) `shadcn` → `devDependencies` (buktikan impor `shadcn/tailwind.css` tetap jalan di build Vercel) dan gate hanya memblokir dependensi produksi — simulasi 2 Nov dengan `npm audit --omit=dev`: 0 high/critical, 7 moderate; alat dev diperbarui lewat PR bulanan; (2) Dependabot bulanan + `groups` (satu PR gabungan; PR keamanan tetap terpisah); (3) `@dependabot unignore vitest`, `@dependabot unignore radix-ui`, `@dependabot unignore react-dom` di PR gabungan pertama, cek dengan `@dependabot show react-dom ignore conditions`; (4) rantai low/moderate tidak lagi memblokir (item di atas; luruskan komentar `check-audit.mjs`); (5) `.claude/settings.json` `permissions.deny` menambah `.env.binzi-dev` dan pola `.env.local.*` (sekarang hanya `.env`, `.env.local`, `.env.*.local`); (6) `.githooks/commit-msg` tidak pernah di-commit — tambahkan, atau luruskan klaim "tiga lapis" di `docs/tasks/README.md`. Soak 14 hari tetap.
-- [ ] Tindak lanjut C-08 (2 Nov): (1) tautan inline "Google" di `/lupa-password` (`GoogleInlineStart`, `forgot-password-form.tsx`) masih `void startGoogleSignIn(...)` tanpa loading maupun umpan balik error — perilaku sama dengan sebelum C-08, di luar lingkup kartu; rapikan bersama copy `/lupa-password` "Masuk dengan Google sebelumnya?…". (2) Tipe props `Input` (`src/components/ui/input.tsx`) belum mendeklarasikan `ref` (React 19 ref-as-prop), sehingga `PasswordField` memakai spread `{...(ref ? { ref } : {})}`; ganti tipe props ke `ComponentProps<"input">` sebelum S1 banyak memakai `Input` dengan `ref`.
-- [ ] **PRD v1.6 — sebelum S1-08** (rename + `split-prd.py`): (1) Q36/§9.2 Next.js 16.3.x → 16.4.x — ketiga advisory next (rentang `>=16.0.0 <=16.4.0`) tidak punya backport 16.3.x, jadi C-02 (PR #87, 29 Okt) menyimpang dari Q36 atas keputusan pemilik 24 Okt; (2) "Perlu revisi": nilai `content_status` baru `NEEDS_REVISION` + kolom catatan revisi di `courses` & `articles` — penggarap mengedit saat `DRAFT`/`NEEDS_REVISION`, terkunci saat `IN_REVIEW`; kirim ulang → `IN_REVIEW` dan catatan dikosongkan; riwayat tiap putaran di `audit_logs` (keputusan 24 Okt; "kembali ke DRAFT + catatan" ditolak karena status jadi ambigu, tabel riwayat ditolak karena tumpang tindih dengan audit log); (3) §3.2: EDITOR melihat **dan** mengubah semua konten, siapa pun pembuatnya (keputusan 24 Okt; catatan desain 19a "ahli gizi hanya melihat konten miliknya" tidak berlaku); (4) keputusan "mengubah kursus yang sudah terbit" (item di bawah).
-- [ ] **Rencana S1** (24 Okt; layar dari tabel fase `docs/design/handoff/README.md`). Prasyarat: **C-05** DB lokal + seed demo ✅, **C-06** alias `@/` + batas impor DB ✅, **C-07** token kontras ✅ (PR #101), **C-08** UI auth ✅ (PR #103) (C-08b tampilan bukan prasyarat), PRD v1.6 (sebelum S1-08). Kartu: **S1-01** daftar kursus + dialog kursus baru + builder kosong (21e, 21f, 21g); **S1-02** builder: pengaturan, outline, tambah/urutkan/hapus materi, syarat terbit (21a, 21d, 21h); **S1-03** dokumen konten: editor TipTap, validasi struktur di server (tolak video/iframe, V-08), renderer HTML berdaftar-putih §12.3 (20a, 20b); **S1-04** editor materi bagian teks + deskripsi kursus, auto-save 20 detik dengan state menyimpan/tersimpan/gagal/konflik (21b, 21i, 20c, 20e); **S1-05** unggah video lewat presigned PUT + CSP `connect-src` R2 (21c) — butuh A-17 dan aturan CORS bucket; **S1-06** media library (24a, 24c, 24t) — butuh A-17 + keputusan penyajian gambar; **S1-07** pemilih gambar di editor, sampul kursus, "dipakai di", tolak hapus aset terpakai (24b, 24d); **S1-08** kirim untuk persetujuan, antrean `/cms/konten`, keputusan terbit (pratinjau, checklist, Setujui & terbitkan / Minta revisi; "jadwalkan" disembunyikan, CMS-15), migrasi `NEEDS_REVISION`, audit, tinjau ulang CSP opsi (d) (19c, 19d, 19e, 20d). Tanpa A-17: 01 → 02 → 03 → 04 → 08, lalu 05–07. **Kursus baru benar-benar bisa terbit setelah S3** (CRS-06/07 mewajibkan quiz); di S1 alur terbit dites dengan quiz dari seed demo — K-03 (kerangka 3 kursus) menentukan kapan CMS mulai diisi kursus sungguhan.
+- [ ] Tindak lanjut C-08 (2 Nov): (1) tautan inline "Google" di `/lupa-password` (`GoogleInlineStart`, `forgot-password-form.tsx`) masih `void startGoogleSignIn(...)` tanpa loading maupun umpan balik error — perilaku sama dengan sebelum C-08, di luar lingkup kartu; rapikan bersama copy `/lupa-password` "Masuk dengan Google sebelumnya?…". (2) ✅ sebagian di S1-01 (PR #106): tipe props `Input` kini `ComponentProps<"input">`; sisa: `PasswordField` masih memakai spread dan komentarnya basi (Pembaruan 4 Nov). Catatan asli: tipe props `Input` (`src/components/ui/input.tsx`) belum mendeklarasikan `ref` (React 19 ref-as-prop), sehingga `PasswordField` memakai spread `{...(ref ? { ref } : {})}`; ganti tipe props ke `ComponentProps<"input">` sebelum S1 banyak memakai `Input` dengan `ref`.
+- [ ] **PRD v1.6 — sebelum S1-08 versi lengkap** *(3 Nov: ditunda sampai setelah demo; S1-08 demo tanpa `NEEDS_REVISION`)* (rename + `split-prd.py`): (1) Q36/§9.2 Next.js 16.3.x → 16.4.x — ketiga advisory next (rentang `>=16.0.0 <=16.4.0`) tidak punya backport 16.3.x, jadi C-02 (PR #87, 29 Okt) menyimpang dari Q36 atas keputusan pemilik 24 Okt; (2) "Perlu revisi": nilai `content_status` baru `NEEDS_REVISION` + kolom catatan revisi di `courses` & `articles` — penggarap mengedit saat `DRAFT`/`NEEDS_REVISION`, terkunci saat `IN_REVIEW`; kirim ulang → `IN_REVIEW` dan catatan dikosongkan; riwayat tiap putaran di `audit_logs` (keputusan 24 Okt; "kembali ke DRAFT + catatan" ditolak karena status jadi ambigu, tabel riwayat ditolak karena tumpang tindih dengan audit log); (3) §3.2: EDITOR melihat **dan** mengubah semua konten, siapa pun pembuatnya (keputusan 24 Okt; catatan desain 19a "ahli gizi hanya melihat konten miliknya" tidak berlaku); (4) keputusan "mengubah kursus yang sudah terbit" (item di bawah).
+- [ ] **Rencana S1** (24 Okt; layar dari tabel fase `docs/design/handoff/README.md`). *Sejak 3–4 Nov urutan dan lingkupnya mengikuti jadwal demo (Pembaruan 3 & 4 Nov): S1-02 dipotong, S1-02b baru, S1-04 tanpa auto-save + deskripsi kursus, S1-08 versi sederhana.* Prasyarat: **C-05** DB lokal + seed demo ✅, **C-06** alias `@/` + batas impor DB ✅, **C-07** token kontras ✅ (PR #101), **C-08** UI auth ✅ (PR #103) (C-08b tampilan bukan prasyarat), PRD v1.6 (sebelum S1-08). Kartu: **S1-01** daftar kursus + dialog kursus baru + builder kosong (21e, 21f, 21g); **S1-02** builder: pengaturan, outline, tambah/urutkan/hapus materi, syarat terbit (21a, 21d, 21h); **S1-03** dokumen konten: editor TipTap, validasi struktur di server (tolak video/iframe, V-08), renderer HTML berdaftar-putih §12.3 (20a, 20b); **S1-04** editor materi bagian teks + deskripsi kursus, auto-save 20 detik dengan state menyimpan/tersimpan/gagal/konflik (21b, 21i, 20c, 20e); **S1-05** unggah video lewat presigned PUT + CSP `connect-src` R2 (21c) — butuh A-17 dan aturan CORS bucket; **S1-06** media library (24a, 24c, 24t) — butuh A-17 + keputusan penyajian gambar; **S1-07** pemilih gambar di editor, sampul kursus, "dipakai di", tolak hapus aset terpakai (24b, 24d); **S1-08** kirim untuk persetujuan, antrean `/cms/konten`, keputusan terbit (pratinjau, checklist, Setujui & terbitkan / Minta revisi; "jadwalkan" disembunyikan, CMS-15), migrasi `NEEDS_REVISION`, audit, tinjau ulang CSP opsi (d) (19c, 19d, 19e, 20d). Tanpa A-17: 01 → 02 → 03 → 04 → 08, lalu 05–07. **Kursus baru benar-benar bisa terbit setelah S3** (CRS-06/07 mewajibkan quiz); di S1 alur terbit dites dengan quiz dari seed demo — K-03 (kerangka 3 kursus) menentukan kapan CMS mulai diisi kursus sungguhan.
 - [ ] **Keputusan sebelum S1-06 — penyajian gambar dari R2.** PRD §10.3 hanya mengatur video (presigned GET 2 jam); gambar di halaman ISR akan memegang URL yang kedaluwarsa. Opsi: rute `/media/{id}` yang mengalihkan ke presigned URL baru (cocok dengan `next/image` & CDN Vercel), atau bucket publik khusus gambar (domain kustom R2 butuh zona DNS di Cloudflare, padahal DNS di Vercel; `r2.dev` bukan untuk produksi).
 - [ ] **Keputusan sebelum S1-08 — mengubah kursus yang sudah terbit.** Desain 21h menjanjikan "kursus yang sudah terbit tidak ikut berubah sampai materi baru lengkap & disetujui", tetapi versioning (CMS-14) di luar MVP dan PRD belum mengatur cara mengubah kursus terbit yang punya peserta. S1-02 mengunci builder di luar `DRAFT` sampai ini diputuskan.
-- [ ] **Sebelum S1-08 — kasus lolos checklist terbit.** Syarat no. 5 S1-02 (sampul + teks alternatif) baru bisa terpenuhi setelah S1-07, padahal urutan tanpa A-17 menaruh S1-08 sebelum S1-05…S1-07. Akibatnya di S1-08 tidak ada kursus yang lolos checklist — termasuk kursus demo `IN_REVIEW` (C-05), yang memenuhi semua syarat kecuali sampul. Putuskan saat menulis kartu S1-08: tunda S1-08 setelah S1-07, uji "Setujui & terbitkan" lewat tes dengan sampul tiruan, atau cara lain.
+- [x] *Diputuskan 3 Nov: syarat sampul dimatikan sampai S1-07 (diterapkan di kartu S1-02, 4 Nov) — kursus demo `IN_REVIEW` C-05 kini bisa lolos.* **Sebelum S1-08 — kasus lolos checklist terbit.** Syarat no. 5 S1-02 (sampul + teks alternatif) baru bisa terpenuhi setelah S1-07, padahal urutan tanpa A-17 menaruh S1-08 sebelum S1-05…S1-07. Akibatnya di S1-08 tidak ada kursus yang lolos checklist — termasuk kursus demo `IN_REVIEW` (C-05), yang memenuhi semua syarat kecuali sampul. Putuskan saat menulis kartu S1-08: tunda S1-08 setelah S1-07, uji "Setujui & terbitkan" lewat tes dengan sampul tiruan, atau cara lain.
 - [ ] **`db:seed:binzi-dev` belum ada.** Pembungkus `scripts/binzi-dev.ts` hanya punya `migrate` dan `set-role`, sementara pesan galat `src/db/seed.ts` menyebut pemilik bisa mengarahkan seed ke binzi-dev. Bila kartu berikutnya menambah baris `system_settings` (seed non-destruktif), tambahkan subperintah `seed` di pembungkus yang sama di kartu itu.
 - [ ] **Segera:** hapus `.env.local.sebelum-c05` — berkas ini tidak tercakup larangan baca `.claude/settings.json` maupun aturan `CLAUDE.md` (dicek 2 Nov). Catatan asli: hapus `.env.local.sebelum-c05` (salinan secret Production sebelum C-05, ter-ignore) bila DB lokal terbukti stabil — C-02 sudah selesai 29 Okt: `rm .env.local.sebelum-c05`.
 - [ ] **Prettier belum ditegakkan** (ditemukan 30 Okt saat tinjauan C-06): `prettier --list-different src` dengan Prettier 3.9.10 → 80 berkas, dan CI tidak menjalankan `prettier --check` (`npm run check` = typecheck + lint + test + lint:hex). Kartu yang menyentuh banyak berkas melarang `npm run format` supaya diff tetap sebatas lingkup. Putuskan setelah S1-02 atau di sela kartu tanpa branch terbuka: satu PR format massal (tanpa perubahan lain) + `prettier --check` di CI, atau dibiarkan. Format massal bentrok dengan branch kartu yang terbuka.
@@ -169,7 +338,7 @@
 - [x] Saat H-08/H-10: set **`MAIL_TRANSPORT=log`** dan **`NEXT_PUBLIC_APP_URL=https://<project>.vercel.app`** di Vercel (Preview & Production) — keduanya wajib di luar development, tanpa itu deploy gagal start. ⚠️ PR #39 menunjukkan `NEXT_PUBLIC_APP_URL` belum ada di Preview — lihat item env Vercel di atas.
 - [x] Uji Production setelah env (selesai 10 Okt): masuk dengan akunmu di `https://binzi.vercel.app/masuk` (membuktikan pasangan site key & `TURNSTILE_SECRET_KEY` asli), lalu lupa password → tautan di Vercel Logs harus mengarah ke `https://binzi.vercel.app`. Buka juga URL Preview: Turnstile berlabel "For testing only", tombol Google tersembunyi.
 - [ ] Copy /lupa-password "Masuk dengan Google sebelumnya? Akun itu tidak punya password — lanjutkan dengan Google" tidak akurat: verifikasi 10 Okt membuktikan reset bisa membuatkan password untuk akun yang hanya memakai Google. Putuskan copy baru (atau biarkan) — tidak mendesak, bisa digabung dengan perubahan copy lain.
-- [ ] H-04 R2 (bucket dev & prod, token dev) sebelum mulai A-17; lalu isi `R2_*` di `.env.local` dan Vercel. **Tertahan per 24 Okt:** belum ada metode pembayaran untuk Cloudflare. Tidak mendesak — S1-01…S1-04 dan S1-08 tidak butuh R2. **Titik cek setelah S1-04:** bila masih tertahan, bahas alternatif penyimpanan (keputusan level PRD §9.2/§10.3).
+- [ ] H-04 R2 (bucket dev & prod, token dev) sebelum mulai A-17; lalu isi `R2_*` di `.env.local` dan Vercel. **Tertahan per 24 Okt:** belum ada metode pembayaran untuk Cloudflare. *(3 Nov: batas keputusan Kam 12 Nov untuk video demo — jalur cadangan `public/` bila R2 belum aktif.)* Tidak mendesak — S1-01…S1-04 dan S1-08 tidak butuh R2. **Titik cek setelah S1-04:** bila masih tertahan, bahas alternatif penyimpanan (keputusan level PRD §9.2/§10.3).
 - [ ] Kunci versi Node: `.nvmrc` + `engines.node` di package.json, sama dengan CI & Vercel. Node lokal sudah dinaikkan ke 24 (sebelumnya v20.19, sudah EOL → peringatan EBADENGINE dari vitest). `npm run user:role` butuh Node ≥ 22.9 (`--env-file-if-exists`) — alasan tambahan mengisi `engines.node`.
 - [ ] Kartu "pembaruan toolchain" setelah Fase 0: TypeScript 7, ESLint 10, `@types/node` (major yang di-ignore Dependabot) + penguncian versi Node.
 - [ ] Kartu "pembaruan token": tambah `success-tint-line` (garis banner sukses sementara `border-success`, usulan A-06) + warna garis di atas `ink-surface` (pil "Ditinjau ahli gizi ber-STR aktif" dan pemisah footer tidak terlihat karena garis & latar sama-sama dipetakan ke `ink-surface`; ditemukan di A-14a, PR #46) + temuan desain lain.
@@ -353,6 +522,9 @@
 Saya sedang membangun BINZI (platform belajar gizi) dengan Next.js 16 +
 AI coding agent (Claude Code). Terlampir docs/STATUS.md dan
 docs/tasks/URUTAN-KERJA.md dari repo saya — baca keduanya sebagai konteks.
+Baca bagian "Pembaruan 4 Nov" dan "Pembaruan 3 Nov 2026 — target demo
+20 Nov" di STATUS.md lebih dulu; jadwal dan keputusan di sana mengalahkan
+rencana sprint lama.
 Spesifikasi lengkap ada di docs/prd/PRD-v1.5.md dan aturan agent di
 CLAUDE.md; minta saya unggah bagian yang kamu butuhkan.
 Posisi terakhir saya (2 Nov): C-07 token kontras (PR #101) dan C-08 UI auth

@@ -109,6 +109,7 @@ Tanggal mulai mengikuti soak 14 hari; tenggat mengikuti `expires` pengecualian a
 - [x] 🤖 [C-02](chore/C-02-next-16-4-1.md) — next 16.4.1 · *✅ selesai 29 Okt (PR #87)*
 - [x] 🤖 [C-03](chore/C-03-undici-7-30-1.md) — undici 7.30.1 · *✅ selesai 30 Okt (PR #89)*
 - [ ] 🤖 [C-04](chore/C-04-shadcn-4-22-1-dan-body-parser-2-4-0.md) — shadcn 4.22.1 + body-parser 2.4.0 · *mulai Jum 6 Nov, merge ≤ Min 8 Nov*
+- [ ] 🤖 C-09 — penyederhanaan audit & Dependabot · *draf di luar repo, masuk lewat PR docs setelah C-04; dikerjakan setelah demo 20 Nov kecuali advisory memblokir PR*
 
 Prasyarat Sprint 1 (tanpa tanggal tetap — sebelum S1-01, tanpa branch kartu lain yang terbuka):
 
@@ -116,20 +117,38 @@ Prasyarat Sprint 1 (tanpa tanggal tetap — sebelum S1-01, tanpa branch kartu la
 - [x] 🤖 [C-06](chore/C-06-fondasi-modul-fitur.md) — Fondasi modul fitur: alias `@/` di Vitest + batas impor DB · *✅ selesai 30 Okt (PR #92)*
 - [x] 🤖 [C-07](chore/C-07-token-kontras.md) — Token kontras: tombol utama `primary-deep`, tautan merah, `text-subtle` · *✅ selesai 2 Nov (PR #101)*
 - [x] 🤖 [C-08](chore/C-08-ui-auth-aksesibilitas.md) — UI auth: tombol yang menunggu Turnstile, fokus ke isian salah, tombol Google · *✅ selesai 2 Nov (PR #103)*
-- [ ] 🤖 [C-08b](chore/C-08b-ui-auth-tampilan.md) — UI auth: area sentuh, label tablet, tata letak verifikasi, chip kata sandi · *mulai ≥ Sen 9 Nov, setelah C-04 & C-08; bukan prasyarat S1*
+- [ ] 🤖 [C-08b](chore/C-08b-ui-auth-tampilan.md) — UI auth: area sentuh, label tablet, tata letak verifikasi, chip kata sandi · *ditunda sampai setelah demo 20 Nov (keputusan 3 Nov); bukan prasyarat S1*
 
 ## Sprint 1 — CMS kursus & materi
 
-Kartu ditulis di Claude chat menjelang sesinya, terhadap kode `main` terbaru. Rencana lengkap, prasyarat, dan keputusan tertunda ada di `STATUS.md` (item "Rencana S1").
+Kartu ditulis di Claude chat menjelang sesinya, terhadap kode `main` terbaru. Rencana lengkap, prasyarat, dan keputusan tertunda ada di `STATUS.md` (item "Rencana S1"). Sejak 3 Nov urutan dan lingkupnya mengikuti jadwal demo 20 Nov (bagian "Pembaruan 3 Nov" dan "Pembaruan 4 Nov" di `STATUS.md`).
 
-- [ ] 🤖 [S1-01](sprint-1/S1-01-daftar-dan-kursus-baru.md) — Daftar kursus, kursus baru, builder kosong
-- [ ] 🤖 [S1-02](sprint-1/S1-02-builder-kursus.md) — Builder kursus: pengaturan, outline materi, syarat terbit
-- [ ] 🤖 S1-03 — Dokumen konten: editor TipTap, validasi server, renderer *(kartu belum ditulis)*
-- [ ] 🤖 S1-04 — Editor materi (teks) + deskripsi kursus, auto-save *(kartu belum ditulis)*
-- [ ] 🤖 S1-05 — Unggah video materi *(butuh A-17; kartu belum ditulis)*
-- [ ] 🤖 S1-06 — Media library *(butuh A-17 + keputusan penyajian gambar; kartu belum ditulis)*
-- [ ] 🤖 S1-07 — Pemilih gambar, sampul, pemakaian aset *(kartu belum ditulis)*
-- [ ] 🤖 S1-08 — Kirim persetujuan & keputusan terbit *(butuh PRD v1.6; kartu belum ditulis)*
+- [x] 🤖 [S1-01](sprint-1/S1-01-daftar-dan-kursus-baru.md) — Daftar kursus, kursus baru, builder kosong · *✅ PR #106*
+- [ ] 🤖 [S1-01b](sprint-1/S1-01b-daftar-kursus-lanjutan.md) — Daftar kursus lanjutan: kartu 19e tablet & ponsel, "Urut ▾", perapian dialog & kode S1-01 · *setelah demo 20 Nov*
+- [ ] 🤖 [S1-02](sprint-1/S1-02-builder-kursus.md) — Builder kursus: pengaturan, tambah materi, syarat terbit (lingkup demo, revisi 4 Nov) · *Rab 4 – Kam 5 Nov*
+- [ ] 🤖 [S1-02b](sprint-1/S1-02b-builder-kursus-lanjutan.md) — Builder lanjutan: urutkan ulang, hapus materi & kursus, tablet & ponsel, kolom kuning daftar · *setelah demo 20 Nov*
+- [ ] 🤖 S1-03 — Dokumen konten: editor TipTap, validasi server, renderer · *Kam 5 Nov, selesai Sab 7* *(kartu belum ditulis)*
+- [ ] 🤖 S1-04 — Editor materi (teks) + deskripsi kursus, simpan manual (tanpa auto-save, keputusan 3 Nov) · *Sab 7 Nov* *(kartu belum ditulis)*
+- [ ] 🤖 S1-05 — Unggah video materi *(butuh A-17; kartu belum ditulis)* · *setelah demo — demo memakai satu video yang dimasukkan manual*
+- [ ] 🤖 S1-06 — Media library *(butuh A-17 + keputusan penyajian gambar; kartu belum ditulis)* · *setelah demo*
+- [ ] 🤖 S1-07 — Pemilih gambar, sampul, pemakaian aset *(kartu belum ditulis)* · *setelah demo; menyalakan lagi syarat sampul*
+- [ ] 🤖 S1-08 — Kirim & terbitkan, versi demo "Kirim → Setujui & terbitkan" tanpa `NEEDS_REVISION` · *Sel 10 Nov* *(kartu belum ditulis; versi lengkap butuh PRD v1.6, setelah demo)*
+
+## Jalur demo 20 Nov — kartu menyusul
+
+Jadwal dan keputusannya di `STATUS.md` (bagian "Pembaruan 3 Nov"). Kartu ditulis di Claude chat selagi agent mengerjakan kartu sebelumnya. Urutan potong bila terlambat: halaman "Nilai Saya" lebih dulu, lalu impor CSV.
+
+- [ ] 🤖 Editor quiz CMS: daftar soal (22a) + form satu soal (22b) · *Min 8 Nov*
+- [ ] 🤖 Impor soal CSV (22c) · *Sen 9 Nov*
+- [ ] 🤖 Peserta: daftar kursus terbit + ikut kursus · *Rab 11 Nov*
+- [ ] 🤖 Peserta: halaman materi + progres · *Kam 12 Nov*
+- [ ] 👤 Keputusan video: metode pembayaran Cloudflare + H-04 (R2), atau jalur cadangan `public/` · *batas Kam 12 Nov*
+- [ ] 🤖 Peserta: player video (satu video yang dimasukkan manual) · *Jum 13 Nov*
+- [ ] 🤖 Peserta: mengerjakan quiz · *Sab 14 – Min 15 Nov*
+- [ ] 🤖 Peserta: hasil & nilai · *Sen 16 Nov*
+- [ ] 👤 Cadangan · *Sel 17 Nov*
+- [ ] 👤 Production: migrasi binzi-dev, akun demo per peran, data contoh, gladi resik · *Rab 18 – Kam 19 Nov*
+- [ ] 👤 Demo alur utuh dengan data contoh · *Jum 20 Nov*
 
 ---
 
@@ -148,3 +167,4 @@ Dikerjakan kamu bersama ahli gizi, **tidak menunggu** tahap di atas. Konten, buk
 ## Keputusan yang masih kamu tunggu
 
 - [x] **Proposal CSP** — diputuskan 17 Okt: opsi (b+) (PRD v1.5 Q45), diterapkan di [A-16b](fase-0/A-16b-penegakan-csp.md).
+- [ ] **Jalur data demo ke binzi-dev** (data contoh + akun demo per peran) — putuskan paling lambat Sen 16 Nov (`STATUS.md`, "Pembaruan 4 Nov").
