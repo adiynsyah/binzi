@@ -8,9 +8,18 @@
 // are rejected instead of silently stripped.
 import { z } from "zod";
 
+import { slugify } from "@/lib/slug";
+
 export const COURSE_TITLE_MAX = 80;
 export const COURSE_SLUG_MAX = 80;
 export const COURSE_SUMMARY_MAX = 160;
+
+/**
+ * Route-param shape check shared by the API routes and the pages (card
+ * S1-02): a non-UUID must answer 404, never a 500 from Postgres parsing.
+ */
+export const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // Keep in sync with courseLevelEnum (src/db/schema/course.ts); spelled out
 // here so the contract stays importable from a client bundle.
@@ -51,57 +60,76 @@ const SLUG_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
 /**
  * Title → slug suggestion (21f: filled automatically, editable via "Ubah").
- * NFD-normalize and drop diacritics first, everything outside a–z0–9 becomes
- * "-", runs collapse, edges are trimmed, the result is cut to the max length
- * and trailing "-" produced by that cut is trimmed again. A title made only
- * of punctuation yields "" (the schema then demands a manual slug).
+ * The rule itself lives in @/lib/slug (shared with the lesson module since
+ * card S1-02); only the course max length is decided here.
  */
 export function slugifyCourseSlug(title: string): string {
-  return title
-    .normalize("NFD")
-    .replace(/\p{M}/gu, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, COURSE_SLUG_MAX)
-    .replace(/-+$/g, "");
+  return slugify(title, COURSE_SLUG_MAX);
+}
+
+// One source for the course field rules: createCourseInput (S1-01) and
+// updateCourseInput (S1-02) are the SAME rules — "memakai ulang aturan
+// isian … satu sumber aturan; tidak ada salinan" (card §2) — so the builder
+// panel form and the server apply exactly what the 21f dialog applied.
+const courseTitle = z
+  .string()
+  .trim()
+  .min(1, "Judul kursus wajib diisi.")
+  .max(COURSE_TITLE_MAX, `Judul kursus maksimal ${COURSE_TITLE_MAX} karakter.`);
+
+const courseSlug = z
+  .string()
+  .trim()
+  .min(1, "Slug wajib diisi — ubah judul atau ketik manual lewat “Ubah”.")
+  .max(COURSE_SLUG_MAX, `Slug maksimal ${COURSE_SLUG_MAX} karakter.`)
+  .regex(SLUG_PATTERN, "Slug hanya boleh huruf kecil, angka, dan tanda hubung.");
+
+const courseLevel = z.enum(COURSE_LEVELS);
+
+const courseSummary = z
+  .string()
+  .trim()
+  .min(1, "Ringkasan wajib diisi — tanpa ini kartu katalog kosong.")
+  .max(COURSE_SUMMARY_MAX, `Ringkasan maksimal ${COURSE_SUMMARY_MAX} karakter.`);
+
+/** Shared superRefine: runs after the per-field chain, so the slug is well-formed. */
+function rejectForbiddenSlug(input: { slug: string }, ctx: z.RefinementCtx): void {
+  if (FORBIDDEN_COURSE_SLUGS.includes(input.slug)) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["slug"],
+      message: `Slug “${input.slug}” dipakai halaman lain — ketik slug yang berbeda.`,
+    });
+  }
 }
 
 export const createCourseInput = z
   .strictObject({
-    title: z
-      .string()
-      .trim()
-      .min(1, "Judul kursus wajib diisi.")
-      .max(COURSE_TITLE_MAX, `Judul kursus maksimal ${COURSE_TITLE_MAX} karakter.`),
-    slug: z
-      .string()
-      .trim()
-      .min(1, "Slug wajib diisi — ubah judul atau ketik manual lewat “Ubah”.")
-      .max(COURSE_SLUG_MAX, `Slug maksimal ${COURSE_SLUG_MAX} karakter.`)
-      .regex(SLUG_PATTERN, "Slug hanya boleh huruf kecil, angka, dan tanda hubung."),
-    level: z.enum(COURSE_LEVELS),
-    summary: z
-      .string()
-      .trim()
-      .min(1, "Ringkasan wajib diisi — tanpa ini kartu katalog kosong.")
-      .max(
-        COURSE_SUMMARY_MAX,
-        `Ringkasan maksimal ${COURSE_SUMMARY_MAX} karakter.`,
-      ),
+    title: courseTitle,
+    slug: courseSlug,
+    level: courseLevel,
+    summary: courseSummary,
   })
-  .superRefine((input, ctx) => {
-    // Runs after the per-field chain above, so the slug is well-formed.
-    if (FORBIDDEN_COURSE_SLUGS.includes(input.slug)) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["slug"],
-        message: `Slug “${input.slug}” dipakai halaman lain — ketik slug yang berbeda.`,
-      });
-    }
-  });
+  .superRefine(rejectForbiddenSlug);
 
 export type CreateCourseInput = z.infer<typeof createCourseInput>;
+
+/**
+ * Builder settings form (card S1-02 §2): the create rules plus the
+ * sequential-materials switch (CRS-08). Client-safe — the settings panel
+ * resolves this same schema, so both ends enforce one contract.
+ */
+export const updateCourseInput = z
+  .strictObject({
+    title: courseTitle,
+    slug: courseSlug,
+    level: courseLevel,
+    summary: courseSummary,
+    isSequential: z.boolean(),
+  })
+  .superRefine(rejectForbiddenSlug);
+
+export type UpdateCourseInput = z.infer<typeof updateCourseInput>;
 
 /**
  * List contract: filter by status, search by title (1–80 chars after
