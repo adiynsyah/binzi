@@ -22,7 +22,7 @@
  * see the PR).
  */
 
-import { standardSchemaResolver } from "@/components/cms/form-resolver";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { useRouter } from "next/navigation";
 import { useRef, useState, type FormEvent } from "react";
 import { useForm, FormProvider } from "react-hook-form";

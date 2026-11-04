@@ -19,7 +19,7 @@
  * silently disabled.
  */
 
-import { standardSchemaResolver } from "@/components/cms/form-resolver";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
