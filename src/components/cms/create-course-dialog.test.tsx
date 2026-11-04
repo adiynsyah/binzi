@@ -119,7 +119,7 @@ describe("CreateCourseDialog", () => {
   it("keeps loading and the double-submit guard after 201 until navigation", async () => {
     // Review item 4: jsdom never navigates, so this is exactly the window
     // between 201 and the route change — the button must stay on its
-    // loading label and a further click must not send a second POST.
+    // loading label and a second submission must not send another POST.
     fetchMock.mockResolvedValue(
       new Response(JSON.stringify({ data: { id: "c-new" } }), { status: 201 }),
     );
@@ -134,10 +134,19 @@ describe("CreateCourseDialog", () => {
     expect(
       screen.getByRole("button", { name: "Membuat kursus…" }),
     ).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Membuat kursus…" }));
-    await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledTimes(1);
-    });
+    // A click proves nothing here: the loading button is natively disabled,
+    // so it blocks the second POST on its own. Dispatch submit on the FORM
+    // to bypass the disabled attribute and exercise the handler-level
+    // double-submit guard directly.
+    const form = screen
+      .getByRole("button", { name: "Membuat kursus…" })
+      .closest("form") as HTMLFormElement;
+    fireEvent.submit(form);
+    // Give a potential second POST ample time to fire, then assert flat —
+    // waitFor(toHaveBeenCalledTimes(1)) would pass on its first poll even
+    // if the guard were broken.
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(
       screen.getByRole("button", { name: "Membuat kursus…" }),
     ).toBeTruthy();

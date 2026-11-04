@@ -328,18 +328,20 @@ export function CreateCourseDialog({ open, onOpenChange }: CreateCourseDialogPro
             <FieldError id="course-slug-error" message={errors.slug?.message} />
           </div>
 
-          {/* Level as a segmented control (21f review item 3): native radios
-              stay (fieldset + legend + arrow-key navigation, focus pass
-              targets the checked one) but are sr-only inside pill labels —
-              the checked pill inverts (dark `text` token + surface text,
-              not primary), and the focus ring lands on the pill via
-              peer-focus-visible. Pills share the width equally and may wrap
-              on narrow viewports. */}
+          {/* Level as a segmented control matching 21f: native radios stay
+              (fieldset + legend + arrow-key navigation, focus pass targets
+              the checked one) but are sr-only inside pill labels — the
+              checked pill inverts (dark `text` token + surface text, not
+              primary), and the focus ring lands on the pill via
+              peer-focus-visible (offset against the frame's surface-2).
+              Three pills share a fixed 3-column grid, one row at every
+              width. Pills are min-h-11 (44 px) — a deliberate deviation
+              from 21f's 38 px to honor the >= 44 px touch-target rule. */}
           <fieldset>
             <legend className="text-sm font-bold text-text">Level</legend>
-            <div className="mt-2 flex flex-wrap gap-2 rounded-card border border-border bg-surface p-2">
+            <div className="mt-2 grid grid-cols-3 gap-1.5 rounded-control border border-border-strong bg-surface-2 p-1">
               {COURSE_LEVELS.map((level) => (
-                <label key={level} className="min-w-0 flex-1 cursor-pointer">
+                <label key={level} className="cursor-pointer">
                   <input
                     type="radio"
                     value={level}
@@ -352,7 +354,7 @@ export function CreateCourseDialog({ open, onOpenChange }: CreateCourseDialogPro
                     }}
                     {...levelProps}
                   />
-                  <span className="flex min-h-11 w-full items-center justify-center rounded-control px-2 text-center text-sm font-bold text-text-body transition-colors duration-200 ease-out hover:bg-surface-2 peer-checked:bg-text peer-checked:text-surface peer-checked:hover:bg-text peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-surface">
+                  <span className="flex min-h-11 w-full items-center justify-center rounded-sm px-2 text-center text-sm font-bold text-text-nav transition-colors duration-200 ease-out hover:bg-fill peer-checked:bg-text peer-checked:text-surface peer-checked:hover:bg-text peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-surface-2">
                     {COURSE_LEVEL_LABELS[level]}
                   </span>
                 </label>
