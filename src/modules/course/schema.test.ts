@@ -6,6 +6,7 @@ import {
   createCourseInput,
   listCoursesInput,
   slugifyCourseSlug,
+  updateCourseInput,
   FORBIDDEN_COURSE_SLUGS,
 } from "./schema";
 
@@ -152,5 +153,45 @@ describe("slugifyCourseSlug", () => {
     expect(slug).toHaveLength(80);
     expect(slug.endsWith("-")).toBe(false);
     expect(slug.startsWith("abc-")).toBe(true);
+  });
+});
+
+describe("updateCourseInput (S1-02 settings panel)", () => {
+  const validUpdate = {
+    ...validInput,
+    isSequential: true,
+  };
+
+  it("accepts a valid payload with the switch either way", () => {
+    expect(updateCourseInput.parse(validUpdate)).toEqual(validUpdate);
+    expect(updateCourseInput.parse({ ...validUpdate, isSequential: false })).toEqual({
+      ...validUpdate,
+      isSequential: false,
+    });
+  });
+
+  it("applies the create rules unchanged (one source, card §2)", () => {
+    const missingTitle = updateCourseInput.safeParse({ ...validUpdate, title: "  " });
+    expect(missingTitle.success).toBe(false);
+    if (!missingTitle.success) {
+      expect(missingTitle.error.issues[0]?.message).toBe("Judul kursus wajib diisi.");
+    }
+
+    const forbiddenSlug = updateCourseInput.safeParse({ ...validUpdate, slug: "nilai" });
+    expect(forbiddenSlug.success).toBe(false);
+
+    const badLevel = updateCourseInput.safeParse({ ...validUpdate, level: "AHli" });
+    expect(badLevel.success).toBe(false);
+  });
+
+  it("requires a real boolean isSequential and rejects unknown keys", () => {
+    // validInput has no isSequential — exactly the missing-switch payload.
+    expect(updateCourseInput.safeParse({ ...validInput }).success).toBe(false);
+    expect(
+      updateCourseInput.safeParse({ ...validUpdate, isSequential: "true" }).success,
+    ).toBe(false);
+    expect(
+      updateCourseInput.safeParse({ ...validUpdate, description: "bocor" }).success,
+    ).toBe(false);
   });
 });
