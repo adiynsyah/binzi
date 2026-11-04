@@ -161,7 +161,7 @@ describe("CourseBuilder", () => {
         screen.getByText(/Sudah disiapkan kosong — minimum 3 soal/),
       ).toBeTruthy();
       expect(screen.getByText("3 / 6")).toBeTruthy();
-      expect(screen.getByText("3 syarat belum lengkap")).toBeTruthy();
+      expect(screen.getByText("3 hal perlu dilengkapi")).toBeTruthy();
     });
 
     it("keeps the slug when the title is edited (no auto-follow)", () => {

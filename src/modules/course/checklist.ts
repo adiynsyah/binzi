@@ -45,7 +45,7 @@ export type PublishChecklist = {
   /** How many items are met ("m" of the "m / 6" header). */
   met: number;
   total: number;
-  /** Human-readable shortage lines (the "n syarat belum lengkap" block). */
+  /** Human-readable shortage lines (the "n hal perlu dilengkapi" block). */
   missing: string[];
 };
 

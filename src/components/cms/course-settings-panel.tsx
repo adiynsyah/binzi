@@ -120,7 +120,7 @@ function ChecklistBlock({ checklist }: { checklist: PublishChecklist }) {
       {checklist.missing.length > 0 ? (
         <div className="mt-3 rounded-control bg-surface p-3">
           <p className="text-sm font-bold text-text">
-            {checklist.missing.length} syarat belum lengkap
+            {checklist.missing.length} hal perlu dilengkapi
           </p>
           <ul className="mt-2 grid gap-1.5">
             {checklist.missing.map((line) => (

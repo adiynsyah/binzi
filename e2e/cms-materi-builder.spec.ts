@@ -101,7 +101,7 @@ test("tambah materi pertama & kedua → placeholder editor → outline 21a", asy
   await page.goto(`/cms/kursus/${courseId}`);
   // Fresh course checklist: the three creation fields met (card §5).
   await expect(page.getByText("3 / 6")).toBeVisible();
-  await expect(page.getByText("3 syarat belum lengkap")).toBeVisible();
+  await expect(page.getByText("3 hal perlu dilengkapi")).toBeVisible();
 
   // First lesson: only the empty state offers it (review item 8).
   await page.getByRole("button", { name: "+ Tambah materi pertama" }).click();
