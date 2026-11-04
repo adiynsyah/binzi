@@ -350,7 +350,10 @@ export async function updateCourseIfDraft(input: {
       .innerJoin(users, eq(courses.createdBy, users.id))
       .where(eq(courses.id, input.courseId))
       .limit(1)
-      .for("update");
+      // Lock ONLY the courses row: without `of`, FOR UPDATE also locks the
+      // joined users row, stalling unrelated inserts that FK to that user
+      // (sessions, audit_logs) for the whole transaction.
+      .for("update", { of: courses });
     const current = lockedRows[0];
     if (!current) {
       throw new NotFoundError("Kursus tidak ditemukan");
