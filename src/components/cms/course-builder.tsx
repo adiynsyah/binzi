@@ -57,7 +57,7 @@ type ApiFieldError = { path: string; message: string };
 // Agent copy (not from a design screen) — listed in the PR.
 const GENERIC_ERROR_TITLE = "Pengaturan belum tersimpan.";
 const GENERIC_ERROR_DESCRIPTION =
-  "Periksa koneksi Anda lalu coba lagi. Isian tetap tersimpan di formulir ini.";
+  "Periksa koneksi Anda lalu coba lagi. Isian Anda masih ada di formulir ini.";
 const SAVED_BANNER = "Pengaturan tersimpan."; // card §2 copy usulan
 
 /** Panel defaults from the builder DTO — also the reset target on 200. */

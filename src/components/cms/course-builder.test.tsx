@@ -352,7 +352,7 @@ describe("CourseBuilder", () => {
       expect(await screen.findByText("Pengaturan belum tersimpan.")).toBeTruthy();
       expect(
         screen.getByText(
-          "Periksa koneksi Anda lalu coba lagi. Isian tetap tersimpan di formulir ini.",
+          "Periksa koneksi Anda lalu coba lagi. Isian Anda masih ada di formulir ini.",
         ),
       ).toBeTruthy();
       expect((titleInput as HTMLInputElement).value).toBe("Judul Offline Toka");
