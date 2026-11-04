@@ -1,9 +1,67 @@
 # Status Proyek BINZI — catatan untuk melanjutkan di chat baru
 
-> Terakhir diperbarui: 4 Nov 2026. File ini dikelola manual (bukan oleh agent) dan hanya untuk melanjutkan percakapan dengan Claude.
+> Terakhir diperbarui: 4 Nov 2026 (malam). File ini dikelola manual (bukan oleh agent) dan hanya untuk melanjutkan percakapan dengan Claude.
 > Untuk melanjutkan: buka chat baru, unggah file ini + `docs/tasks/URUTAN-KERJA.md`, lalu pakai prompt di bagian paling bawah.
 
-## Pembaruan 4 Nov 2026 — tinjauan #106, kartu S1-02 (baca ini dulu, lalu 3 Nov)
+## Pembaruan 4 Nov 2026 (malam) — S1-02 di-merge, S1-03 dipecah (baca ini dulu, lalu 4 Nov dan 3 Nov)
+
+Bagian "Pembaruan 4 Nov" dan "Pembaruan 3 Nov" di bawahnya tetap berlaku. Bagian ini mengubah atau menambahnya.
+
+### Keputusan pemilik, 4 Nov malam
+1. **S1-03 dipecah menurut kebutuhan dependensi.** S1-03a (validator dokumen + renderer, tanpa dependensi baru) dikerjakan Kamis. S1-03b (editor TipTap) dikerjakan setelah C-04 merge. Alasan: C-04 (Jumat) dan TipTap sama-sama mengubah `package-lock.json`; dengan pemisahan ini lockfile hanya disentuh sekali, di atas `main` pasca-C-04.
+2. **Tabel masuk lingkup demo.** Validator + renderer tabel di S1-03a; tombol dan perintah tabel (sisip, tambah/hapus baris & kolom, hapus tabel) di S1-03b.
+3. **Toolbar editor untuk demo (S1-03b):** B, I, H2, list poin, list bernomor, tautan, tabel. Ekstensi underline, H3–H4, blockquote, dan horizontalRule tetap menyala tanpa tombol (konten tempelan dan pintasan tetap jalan; validator S1-03a menerimanya).
+4. **Menu "/" (21i) ditunda.** Placeholder editor menjadi "Mulai menulis…". Menu "/" butuh `@tiptap/suggestion`, yang tidak ada di simulasi dependensi.
+5. **Dialog 20b ikut demo:** muncul saat menempel tautan video atau HTML berisi `iframe`/`video`/`embed`/`script`. Copy 20b ditulis untuk artikel, jadi kartu memuat copy versi materi (usulan, disetujui saat tinjau kartu); tombol "Buat materi kursus dari video ini" tidak dipakai di editor materi. Penanda merah untuk node terlarang di dokumen lama ditunda (server memvalidasi sejak penyimpanan pertama, jadi dokumen seperti itu tidak bisa ada). Bila S1-03b terlalu besar untuk Sabtu bersama S1-04, dialog 20b menjadi kartu kecil sendiri sebelum demo (paling akhir Sel 17).
+6. **Renderer ditulis sendiri** (elemen React di atas daftar putih), tanpa `@tiptap/html` yang versi servernya butuh `happy-dom`. Daftar putih dimulai sempit (callout dan gambar menyusul; menambah node tidak merusak dokumen tersimpan). Tautan yang diterima: `https://`, `http://`, `mailto:`, path internal `/…`.
+7. **Kartu S1-03b dan S1-04 ditulis bersamaan** pada Kamis (komponen editor dirancang dari kebutuhan S1-04), ditinjau pemilik Jumat, sesi Sabtu.
+
+### Posisi 4 Nov malam
+- **PR #108 (S1-02) di-merge (squash) → `main` `e7612b5`.** Isi akhir: 6 commit sesi, lalu perbaikan dari tiga putaran tinjauan Claude chat:
+  - Tinjauan kode: judul blok kekurangan "{n} hal perlu dilengkapi" (sebelumnya "{n} syarat belum lengkap" bertentangan dengan "m / 6"); `SELECT … FOR UPDATE` diberi `{ of: courses }` (tanpa itu baris `users` pembuat ikut terkunci); mutasi 9–10 dilaporkan; pembungkus `form-resolver.ts` dihapus (diagnosis TS2307 tidak terulang di sandbox; TypeScript di repo 5.9.3, bukan 5.9.1 seperti klaim agent); kalimat kedua galat umum "Isian Anda masih ada di formulir ini." (juga di dialog "Kursus baru" S1-01).
+  - Tinjauan screenshot: eyebrow dialog tambah materi tidak lagi menabrak tombol tutup (hanya judul kursus yang terpotong, " · Materi baru" utuh; asersi boundingBox di w360); ikon syarat belum terpenuhi jadi lingkaran kosong 20 px (21g); "Letakkan" memakai titik tebal 21h, bukan kotak yang mirip isian.
+  - Fokus Simpan: e2e CI menangkap race (`requestAnimationFrame` di handler jalan sebelum React melepas `disabled`). Diperbaiki dengan efek pasca-commit yang hanya jalan bila jalur respons memintanya (ref `pendingSaveFocus`); submit yang gagal validasi klien tidak lagi kehilangan fokus dari isian yang salah (mutasi 11).
+  - Mutasi 11/11 merah. CI hijau di `cf8bad8`. Verifikasi manual pemilik (keyboard saja + `db:studio`) oke. Kelimabelas screenshot (5 state × w360/w768/w1280) dicek terhadap 21a/21g/21h.
+- **Gate audit `main`:** 5 excused / 0 blocking / 31 info-low-moderate (S1-02 tanpa perubahan dependensi).
+- **Kartu S1-03a** ditulis di Claude chat dan ditinjau ulang terhadap `e7612b5`; masuk lewat PR docs bersama pembaruan ini.
+- **Simulasi dependensi S1-03b (4 Nov):** TipTap tepat **3.32.0** (rilis 13 Okt; 3.32.1 rilis 28 Okt baru lolos soak 11 Nov, 3.32.2 rilis 30 Okt → 13 Nov) untuk `@tiptap/react`, `@tiptap/pm`, `@tiptap/starter-kit`, `@tiptap/extension-table`, `@tiptap/extensions`, dengan `--before=2026-10-24` → 49 entri baru, nol entri lama berubah, entri terbaru `fast-equals` 5.4.5 (14 Okt), gate tidak berubah. Tanpa `@tiptap/extension-image` (gambar ikut S1-07). Ulangi di atas `main` pasca-C-04 sebelum kartu disahkan.
+- **Fakta TipTap 3.32.0 yang dicek** (`getSchema()`/`toJSON()`): `link` selalu membawa `href`, `target`, `rel`, `class`, `title`; `orderedList` membawa `start`, `type`; sel tabel membawa `colspan`, `rowspan`, `colwidth`, dan `align` (baru di v3: `left`/`center`/`right`/`null`). `colwidth` diisi `parseInt` dari `<colgroup>`, jadi tabel tempelan dengan `<col width="auto">` menghasilkan `NaN`.
+- **`rm .env.local.sebelum-c05` sudah dijalankan.**
+
+### Untuk kartu berikutnya
+- **S1-03a (Kam 5):** kartu terlampir. Bila belum selesai saat C-04 harus mulai (Jum 07.00 WIB): commit + push, akhiri sesi; C-04 dari `main`; setelah C-04 merge lanjutkan di branch S1-03a dengan `git merge origin/main && npm ci` (bukan rebase). Harapan gate setelah penggabungan itu: 0 excused / 0 blocking / 32.
+- **S1-03b (kartu belum ditulis).** Yang sudah pasti, selain keputusan 4 Nov malam no. 2–5:
+  - StarterKit heading level 2–4, `code`/`codeBlock`/`strike` mati; `TableKit.configure({ table: { resizable: false } })`; Placeholder dari `@tiptap/extensions`.
+  - Ekstensi Link hanya menerima protokol yang sama dengan validator S1-03a (`protocols`/`isAllowedUri`).
+  - Tes bolak-balik: keluaran `getJSON()` setiap fitur toolbar lolos `validateContentDoc`. Bila ada beda, tabel daftar putih S1-03a yang diperbarui per node, bukan validator yang dilonggarkan.
+  - Perintah sisip tabel nonaktif saat kursor di dalam sel; `colwidth` tempelan yang tidak sah dinormalkan ke `null` sebelum disimpan.
+- **S1-04:**
+  - Editor materi wajib punya jalan kembali ke builder (placeholder S1-02 tidak punya).
+  - Outline builder memuat isi TipTap semua materi hanya untuk menghitung `isContentEmpty`. Aman untuk demo; pikirkan saat isi materi panjang (hitung di SQL atau kolom turunan).
+  - Batas ukuran body request untuk PATCH konten (validator S1-03a membatasi node dan teks, tetapi body tetap dibaca utuh lebih dulu).
+- **S1-08 (Sel 10):** setelah `router.refresh()` pada 409, tombol Simpan hilang sehingga fokus jatuh ke `body`; dialog tambah materi menjawab 409 dengan "periksa koneksi". Keduanya baru bisa terjadi setelah S1-08 membuat status non-DRAFT tercapai — perbaiki di kartu itu.
+- **Editor quiz (Min 8):** setiap materi baru sudah punya quiz `LESSON` kosong (10 menit / 70% / 1 kesempatan / `ALWAYS`), dibuat dalam transaksi yang sama dengan materinya.
+
+### Ditunda — tambahan daftar 4 Nov
+- **S1-02b:**
+  - Baris materi terlalu sempit: di w360 kolom judul ±105 px, dan di lebar 1024–1100 (awal tata letak dua kolom) ±108 px. Lebar itu tidak termasuk lebar uji A-19b (360, 700, 768, 1280, 1440). Tata ulang baris di bawah ±1280 (mis. "Sunting" di bawah judul) dan tambah lebar uji ±1024.
+  - Baris penanda patah di tengah segmen ("QUIZ / BELUM DIBUAT"), bahkan di w1280. Perbaiki SETELAH tata letak baris: `whitespace-nowrap` per segmen meluber di kolom 105 px.
+  - Tombol Simpan jauh dari form di ponsel dan tablet (±1.000 px). Perlu bilah simpan menempel atau tombol kedua di akhir panel.
+  - Dialog tambah materi tidak mereset isian dan galat saat ditutup lalu dibuka lagi.
+- **S1-01b:**
+  - Tes daftar kosong di `cms-kursus.spec.ts` bergantung pada urutan berkas — itulah alasan berkas baru dinamai `cms-materi-builder.spec.ts`. Buat tes itu mandiri.
+  - `UUID_PATTERN` kini diekspor dari `modules/course/schema.ts`, tetapi kedua `page.tsx` (builder dan placeholder materi) masih menyimpan salinan sendiri.
+
+### Pelajaran 4 Nov malam
+- **Fokus setelah `loading`:** `requestAnimationFrame` di handler bisa jalan sebelum React melepas `disabled`, sehingga `focus()` tidak berefek. Pakai ref "permintaan fokus" yang dikonsumsi efek pasca-commit. React Hook Form juga menyalakan `isSubmitting` untuk submit yang gagal validasi klien, jadi banner atau `isSubmitting` saja bukan pemicu fokus yang aman.
+- **`SELECT … FOR UPDATE` dengan JOIN tanpa `OF`** mengunci baris di semua tabel `FROM`. Selalu `.for("update", { of: tabel })` bila query punya join.
+- **Klaim "bug alat" dari agent dicek ulang di sandbox sebelum diterima.** TS2307 `form-resolver` tidak terulang, dan versi TypeScript yang disebut agent pun salah.
+- **PGlite sudah mem-parse jsonb, lalu mapping jsonb drizzle mem-parse lagi** — string `"10"` lolos sebagai angka 10. Setting dibaca sebagai `::text` dan di-parse sekali (temuan agent S1-02).
+- **Screenshot halaman penuh menampilkan elemen fixed/sticky relatif ke viewport yang sedang tergulir:** sidebar berhenti di ±800 px, skip link muncul di tengah halaman, isi halaman tanpa scrim di bawah sheet dialog. Bukan bug.
+- **Lebar uji perlu mencakup awal tata letak dua kolom (±1024)**, bukan hanya lebar perangkat umum — kolom paling sempit justru ada di sana.
+- **Tinjau juga commit yang muncul setelah tinjauan terakhir**, walau CI hijau: `535f86c` (fokus via efek) benar arahnya tetapi pemicunya terlalu lebar.
+
+## Pembaruan 4 Nov 2026 — tinjauan #106, kartu S1-02 (lalu 3 Nov)
 
 Bagian "Pembaruan 3 Nov" di bawahnya tetap berlaku. Bagian ini mengubah atau menambahnya.
 
@@ -30,7 +88,7 @@ Bagian "Pembaruan 3 Nov" di bawahnya tetap berlaku. Bagian ini mengubah atau men
 - **`URUTAN-KERJA.md` disinkronkan** dengan jadwal demo.
 
 ### Untuk kartu berikutnya
-- **S1-03:** validator dokumen wajib menerima `EMPTY_DOC` (`{ type: "doc", content: [{ type: "paragraph" }] }`, isi materi baru dari S1-02) dan memperluas `isDocEmpty` (`src/lib/content-doc.ts`) untuk gambar dan tabel. Dependensi TipTap/ProseMirror kena soak 14 hari untuk setiap entri lockfile, termasuk transitif: pin eksak, `--before`, tanggal rilis per entri di PR, gate sebelum dan sesudah.
+- **S1-03** *(digantikan kartu S1-03a/S1-03b — lihat "Pembaruan 4 Nov malam")*: validator dokumen wajib menerima `EMPTY_DOC` (`{ type: "doc", content: [{ type: "paragraph" }] }`, isi materi baru dari S1-02) dan memperluas `isDocEmpty` (`src/lib/content-doc.ts`) untuk gambar dan tabel. Dependensi TipTap/ProseMirror kena soak 14 hari untuk setiap entri lockfile, termasuk transitif: pin eksak, `--before`, tanggal rilis per entri di PR, gate sebelum dan sesudah.
 - **S1-04:** editor materi + **deskripsi kursus** (keputusan 4 Nov), simpan manual. Baris "Deskripsi" di panel S1-02 ("Belum diisi"/"Sudah diisi") menjadi pintu masuknya.
 - **Kartu player video (Jum 13), jalur R2:** presigned GET butuh sebagian lapisan storage A-17 dan domain R2 di `media-src` CSP (sekarang `'self'`).
 - **Komentar `password-field.tsx:110` basi** sejak `Input` menerima `ref` (S1-01). Spread `{...(ref ? { ref } : {})}` bisa diganti `ref` langsung di kartu berikutnya yang menyentuh berkas itu (C-08b).
@@ -84,10 +142,10 @@ Memakai setiap hari, termasuk Sabtu–Minggu. Kartu S1-03 dan seterusnya ditulis
 | Tanggal | Pekerjaan |
 |---|---|
 | Sel 3 ✅ | Kartu S1-01 direvisi (#105), sesi S1-01 → PR #106 |
-| Rab 4 | Perbaikan tinjauan #106 → merge · tinjau kartu S1-02 (matikan syarat sampul) → sesi S1-02 |
-| Kam 5 | S1-03: editor teks (TipTap) + validasi server + renderer. Bila Kamis malam belum selesai: branch dibiarkan, dilanjutkan setelah C-04 |
-| Jum 6 | **C-04** (mulai ≥ 07.00 WIB, merge ≤ Min 8) |
-| Sab 7 | S1-03 selesai · S1-04: editor materi (simpan manual, tanpa auto-save) |
+| Rab 4 ✅ | #106 merge · kartu S1-02 revisi (#107) · sesi S1-02 → PR #108 → merge (`e7612b5`) · kartu S1-03a ditulis |
+| Kam 5 | PR docs (kartu S1-03a, URUTAN-KERJA, STATUS) → sesi **S1-03a** (validator + renderer + tabel, tanpa dependensi) · Claude chat menulis kartu S1-03b + S1-04 |
+| Jum 6 | **C-04** (mulai ≥ 07.00 WIB, merge ≤ Min 8; tebing gate Sen 9 07.00 WIB) · S1-03a selesai · pemilik meninjau kartu S1-03b + S1-04 |
+| Sab 7 | **S1-03b** editor TipTap (setelah C-04 merge) · **S1-04** editor materi + deskripsi (simpan manual) |
 | Min 8 | Editor quiz CMS (22a daftar soal, 22b form satu soal) |
 | Sen 9 | Impor soal CSV (22c) |
 | Sel 10 | Kirim & terbitkan (S1-08 versi sederhana) |
@@ -136,7 +194,7 @@ Memakai setiap hari, termasuk Sabtu–Minggu. Kartu S1-03 dan seterusnya ditulis
 - **Ignore Dependabot lewat komentar** (vitest 5.x, radix-ui 1.x, react-dom 19.x; PR #95, #97, #98) kemungkinan ikut menahan security update paket itu. Dibereskan dengan `@dependabot unignore *` di PR gabungan pertama setelah C-09. Sementara itu, gate tetap menangkap advisory high di radix-ui dan react-dom.
 
 ### Pekerjaan kecil (kamu)
-- [ ] `rm .env.local.sebelum-c05` di folder repo — **segera**; berkas ini salinan secret Production.
+- [x] `rm .env.local.sebelum-c05` di folder repo — sudah dijalankan 4 Nov.
 - [ ] Metode pembayaran Cloudflare, paling lambat Kamis 12 Nov: https://dash.cloudflare.com/?to=/:account/billing (kartu kredit atau PayPal). Setelah itu aktifkan R2, lalu kerjakan H-04. Kartu H-04 ditinjau dulu di Claude chat untuk kebutuhan player.
 - [ ] Hubungi ahli gizi untuk K-01 dan K-02.
 - [ ] Setelah C-04: masukkan draf kartu C-09 ke `docs/tasks/chore/` lewat PR docs.
@@ -522,23 +580,27 @@ Rencana disetujui, dengan lima tambahan berikut (hasil tinjauan C-02/C-03, belum
 Saya sedang membangun BINZI (platform belajar gizi) dengan Next.js 16 +
 AI coding agent (Claude Code). Terlampir docs/STATUS.md dan
 docs/tasks/URUTAN-KERJA.md dari repo saya — baca keduanya sebagai konteks.
-Baca bagian "Pembaruan 4 Nov" dan "Pembaruan 3 Nov 2026 — target demo
-20 Nov" di STATUS.md lebih dulu; jadwal dan keputusan di sana mengalahkan
-rencana sprint lama.
-Spesifikasi lengkap ada di docs/prd/PRD-v1.5.md dan aturan agent di
-CLAUDE.md; minta saya unggah bagian yang kamu butuhkan.
-Posisi terakhir saya (2 Nov): C-07 token kontras (PR #101) dan C-08 UI auth
-(PR #103 — softDisabled, penjaga token di handler, fokus, tombol Google)
-sudah di-merge. Gate audit di main 5 excused / 0 blocking (entri minimatch,
-PR #99). Berikutnya: C-04 shadcn + body-parser (mulai Jum 6 Nov, merge
-≤ Min 8 Nov, hapus 6 entri → []; tebing gate Sen 9 Nov 07.00 WIB) — tinjau
-kartunya terhadap main di Claude chat dan jalankan gate dulu; lalu kartu
-penyederhanaan audit & Dependabot → C-08b (tampilan auth, tinjau ulang
-dulu) → S1-01, S1-02. Dependabot: vitest 5.x, radix-ui 1.x, react-dom 19.x
-masih ter-ignore (unignore di PR gabungan). Uji lokal selalu dengan
-npm run dev:db. A-17 menunggu H-04 R2 (tertahan metode pembayaran).
-Branch main diproteksi (wajib PR, check ci + e2e, tanpa bypass) — docs
-juga lewat PR. Login Google di Production ditunda ke H-03. Repo publik di
-github.com/adiynsyah/binzi — kamu bisa clone untuk membaca kode dan
-meninjau PR.
+Baca bagian "Pembaruan 4 Nov malam" di STATUS.md lebih dulu, lalu
+"Pembaruan 4 Nov" dan "Pembaruan 3 Nov 2026 — target demo 20 Nov";
+jadwal dan keputusan di sana mengalahkan rencana sprint lama.
+Spesifikasi lengkap ada di docs/prd/ dan aturan agent di CLAUDE.md;
+repo publik di github.com/adiynsyah/binzi — clone untuk membaca kode,
+kartu, desain, dan meninjau PR (API GitHub sering kena rate limit;
+git fetch pull/N/head tetap jalan).
+Posisi terakhir (4 Nov malam): S1-02 (PR #108) di-merge → main e7612b5.
+Kartu S1-03a (validator + renderer + tabel, tanpa dependensi) sudah
+ditulis dan masuk lewat PR docs bersama STATUS ini. Berikutnya:
+- Kam 5: sesi S1-03a — tinjau rencana agent di chat sebelum disetujui.
+  Sambil itu tulis kartu S1-03b (editor TipTap; keputusan toolbar, menu
+  "/", dialog 20b, dan dependensi 3.32.0 sudah di STATUS) dan S1-04
+  (editor materi + deskripsi, simpan manual) BERSAMAAN.
+- Jum 6: C-04 (mulai ≥ 07.00 WIB; teks tempel di "Pembaruan 3 Nov";
+  jalankan gate dulu, harapan 5/0/31). Setelah C-04 merge, simulasi
+  ulang dependensi S1-03b di atas main baru.
+- Sab 7: sesi S1-03b lalu S1-04.
+Gate audit main: 5 excused / 0 blocking / 31 info-low-moderate. Uji
+lokal selalu dengan npm run dev:db. Branch main diproteksi (wajib PR,
+check ci + e2e) — docs juga lewat PR. Setiap kartu ditinjau terhadap
+main sebelum sesinya; rencana agent ditinjau di chat; PR ditinjau dari
+branch-nya (git fetch origin pull/N/head).
 ```
