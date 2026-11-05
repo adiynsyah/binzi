@@ -25,6 +25,8 @@ import {
   RemovableChipDemo,
   SkeletonDemo,
 } from "./demos";
+import { RichContent } from "@/components/shared/rich-content";
+import { CONTENT_DOC_SHOWCASE } from "@/lib/content-doc-fixtures";
 
 /*
  * /dev/ui — control gallery (card A-05), mimicking screen 17b.
@@ -100,6 +102,20 @@ const buttonRows: {
   { name: "Hantu", variant: "ghost", label: "Salin", loadingLabel: "Menyalin…" },
   { name: "Bahaya", variant: "danger", label: "Hapus akun", loadingLabel: "Menghapus…" },
 ];
+
+// Dev-only invalid document for the fallback demo (card S1-03a §7). An
+// iframe must never survive to render (V-08): RichContent replaces the
+// whole document with one muted paragraph and logs codes + paths.
+const INVALID_DOC_WITH_EMBED = {
+  type: "doc",
+  content: [
+    {
+      type: "paragraph",
+      content: [{ type: "text", text: "Paragraf sebelum sematan [CONTOH]." }],
+    },
+    { type: "iframe", attrs: { src: "https://example.com/embed" } },
+  ],
+} as const;
 
 export default function DevUiPage() {
   if (process.env.NODE_ENV !== "development") notFound();
@@ -475,6 +491,28 @@ export default function DevUiPage() {
             <span className="text-sm text-text-muted">
               Foto (placeholder hanya ada di halaman ini)
             </span>
+          </div>
+        </div>
+      </Section>
+
+      <Section title="Konten kaya (RichContent)">
+        <div className="flex flex-col gap-6">
+          <div>
+            <p className="mb-3 font-mono text-xs uppercase tracking-wide text-text-subtle">
+              Showcase — semua node &amp; mark yang diizinkan (S1-03a)
+            </p>
+            <RichContent doc={CONTENT_DOC_SHOWCASE} />
+          </div>
+          <div>
+            <p className="mb-3 font-mono text-xs uppercase tracking-wide text-text-subtle">
+              Dokumen tidak valid (sematan iframe) → fallback
+            </p>
+            <RichContent doc={INVALID_DOC_WITH_EMBED} />
+            <p className="mt-3 text-xs text-text-meta">
+              Dokumen dengan sematan ditolak utuh: satu paragraf pengganti, dan
+              konsol dev hanya menerima kode + jalur masalah — bukan teks
+              dokumennya.
+            </p>
           </div>
         </div>
       </Section>
