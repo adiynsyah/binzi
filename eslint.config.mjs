@@ -120,6 +120,17 @@ const eslintConfig = defineConfig([
       "react-hooks/rules-of-hooks": "off",
     },
   },
+  // Content rendering (card S1-03a §6 / PRD §12.3 V-08): rich-content
+  // documents are rendered as React elements
+  // (src/components/shared/rich-content.tsx) — text enters as children and
+  // is escaped. dangerouslySetInnerHTML is therefore banned everywhere
+  // under src/**, not just warned about.
+  {
+    files: ["src/**/*.{js,jsx,ts,tsx}"],
+    rules: {
+      "react/no-danger": "error",
+    },
+  },
   globalIgnores([
     ".next/**",
     "out/**",
