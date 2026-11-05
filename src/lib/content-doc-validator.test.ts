@@ -182,6 +182,23 @@ describe("validateContentDoc · node dan mark tak dikenal", () => {
     expect(result.issues[0]?.path).toStrictEqual(["content", 0, "type"]);
   });
 
+  // PR 110 item 1: "type" as an Object.prototype property name used to
+  // find an inherited NODE_SPECS entry and crash on spec.keys.
+  it.each(["constructor", "__proto__", "toString", "hasOwnProperty", "valueOf"])(
+    "type %s (properti warisan Object.prototype) → UNKNOWN_NODE tanpa melempar",
+    (name) => {
+      const input = JSON.parse(
+        `{"type":"doc","content":[{"type":"${name}","content":[]}]}`,
+      );
+      const result = validateContentDoc(input);
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.issues).toHaveLength(1);
+      expect(result.issues[0]?.code).toBe("UNKNOWN_NODE");
+      expect(result.issues[0]?.path).toStrictEqual(["content", 0, "type"]);
+    },
+  );
+
   it.each(["strike", "code"])("mark %s → UNKNOWN_MARK", (type) => {
     const result = validateContentDoc(
       doc([para([text("a", [{ type }])])]),

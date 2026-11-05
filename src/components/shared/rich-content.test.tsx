@@ -69,10 +69,9 @@ describe("RichContent — showcase", () => {
     expect(screen.getByText(/Kutipan contoh/).closest("blockquote")).toBeTruthy();
     expect(container.querySelector("hr")).toBeTruthy();
 
-    const richErrors = errorSpy.mock.calls.filter((call) =>
-      String(call[0]).includes("RichContent"),
-    );
-    expect(richErrors).toHaveLength(0);
+    // No filter: React key warnings used to hide behind a "RichContent"
+    // filter here (PR 110 item 2). Anything logged fails this test.
+    expect(errorSpy).not.toHaveBeenCalled();
   });
 
   it("renders lists: bullets, nested ordered start=3, a third mixed level with a line break, and type a", () => {
@@ -151,6 +150,9 @@ describe("RichContent — showcase", () => {
       .getByText("Baris satu [CONTOH]")
       .closest("th");
     expect(bodyHeader?.getAttribute("scope")).toBe("row");
+    // align null means left for th and td alike (PR 110 item 4).
+    expect(headCells?.[0]?.className).toContain("text-left");
+    expect(bodyHeader?.className).toContain("text-left");
 
     const spanCell = screen
       .getByText("Sel gabungan dua kolom [CONTOH]")
@@ -298,6 +300,52 @@ describe("RichContent — tables", () => {
       screen.getByText("Kepala [CONTOH]").closest("th")?.getAttribute("scope"),
     ).toBe("row");
   });
+
+  // PR 110 item 3: a table inside a blockquote inside a cell is valid
+  // (cell blocks exclude table directly, not indirectly) and must still
+  // get a numbered label in document order.
+  it("tabel di dalam blockquote di dalam sel → Tabel 1 dan Tabel 2 sesuai urutan dokumen", () => {
+    const { container } = render(
+      <RichContent
+        doc={docOf([
+          {
+            type: "table",
+            content: [
+              {
+                type: "tableRow",
+                content: [
+                  cell("tableCell", [
+                    para([text("Sel luar [CONTOH]")]),
+                    {
+                      type: "blockquote",
+                      content: [
+                        {
+                          type: "table",
+                          content: [
+                            {
+                              type: "tableRow",
+                              content: [cellText("Sel dalam [CONTOH]")],
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                  ]),
+                ],
+              },
+            ],
+          },
+        ])}
+      />,
+    );
+
+    const regions = container.querySelectorAll('[role="region"]');
+    expect(regions).toHaveLength(2);
+    expect(regions[0]?.getAttribute("aria-label")).toBe("Tabel 1");
+    expect(regions[1]?.getAttribute("aria-label")).toBe("Tabel 2");
+    // The inner table really lives inside the outer table's cell.
+    expect(regions[1]?.closest("td")).toBeTruthy();
+  });
 });
 
 describe("RichContent — escaping & fallback", () => {
@@ -314,6 +362,18 @@ describe("RichContent — escaping & fallback", () => {
     expect(screen.getByText("<script>alert(1)</script>")).toBeTruthy();
     expect(screen.getByText("<img src=x onerror=alert(1)>")).toBeTruthy();
     expect(container.querySelector("script, img, iframe")).toBeNull();
+  });
+
+  it("type bernama properti warisan Object.prototype → fallback, tanpa melempar", () => {
+    // PR 110 item 1: the validator used to throw on these, taking the
+    // whole render down with it.
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const input = JSON.parse(
+      '{"type":"doc","content":[{"type":"toString","content":[]}]}',
+    );
+    expect(() => render(<RichContent doc={input} />)).not.toThrow();
+    expect(screen.getByText("Konten ini belum bisa ditampilkan.")).toBeTruthy();
+    errorSpy.mockRestore();
   });
 
   it("invalid document (iframe) → fallback paragraph and ONE console.error with codes and paths only", () => {

@@ -543,7 +543,16 @@ export function validateContentDoc(input: unknown): ContentDocResult {
       fail([...basePath, "type"], "FORBIDDEN_EMBED");
       return undefined;
     }
-    const spec = NODE_SPECS[rawType as NodeTypeName];
+    // Object.hasOwn, not a bare lookup: rawType comes from the input, and
+    // "constructor"/"__proto__"/"toString"/… would find inherited
+    // properties, pass the undefined check, then crash on spec.keys.
+    // Audit note (PR 110 item 1): every other plain-object lookup keyed
+    // by input (spec[key] in validateAttrs, the renderer's class maps)
+    // only ever uses post-whitelist values or spec-own keys, so this is
+    // the only spot that needs the guard.
+    const spec = Object.hasOwn(NODE_SPECS, rawType)
+      ? NODE_SPECS[rawType as NodeTypeName]
+      : undefined;
     if (spec === undefined) {
       fail([...basePath, "type"], "UNKNOWN_NODE");
       return undefined;

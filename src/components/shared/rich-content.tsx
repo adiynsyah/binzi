@@ -14,7 +14,7 @@
  * per render inside the component closure, never in module state.
  */
 
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 
 import type {
   ContentDocBlock,
@@ -99,7 +99,10 @@ function wrapMarks(
 
 function renderInline(node: ContentDocInline, key: ReactNodeKey): ReactNode {
   if (node.type === "hardBreak") return <br key={key} />;
-  return wrapMarks(node.text, node.marks);
+  // Keyed Fragment: this element lands in a children array (renderInlines
+  // output, link groups), so a bare <strong>/<em>/<u> triggers React's
+  // "unique key prop" warning (PR 110 item 2).
+  return <Fragment key={key}>{wrapMarks(node.text, node.marks)}</Fragment>;
 }
 
 /**
@@ -157,9 +160,10 @@ function renderLinkGroup(
  * Numbers every table in document order (1-based) in a pre-render walk.
  * Reassigning a closure counter inside the render helpers trips
  * react-hooks/immutability, and a module-level counter would leak across
- * renders — a fresh per-render WeakMap does neither. Tables can nest
- * inside list items and blockquotes, never inside cells (cell blocks
- * exclude table), so the walk covers exactly those containers.
+ * renders — a fresh per-render WeakMap does neither. Tables nest inside
+ * list items and blockquotes, and INDIRECTLY inside cells (a cell holds
+ * no table itself, but its blockquote or list may) — so the walk also
+ * descends rows → cells → cell content (PR 110 item 3).
  */
 function numberTables(
   blocks: readonly ContentDocBlock[],
@@ -170,7 +174,12 @@ function numberTables(
     if (block.type === "table") {
       numbers.set(block, counter.value);
       counter.value += 1;
-      continue; // cells cannot contain tables
+      for (const row of block.content) {
+        for (const cell of row.content) {
+          numberTables(cell.content, counter, numbers);
+        }
+      }
+      continue;
     }
     if (block.type === "bulletList" || block.type === "orderedList") {
       for (const item of block.content) {
@@ -232,7 +241,14 @@ export function RichContent({
         className={cn(
           CELL_CLASS,
           isHeader ? HEADER_CELL_CLASS : undefined,
-          cell.attrs.align ? CELL_ALIGN_CLASSES[cell.attrs.align] : undefined,
+          cell.attrs.align
+            ? CELL_ALIGN_CLASSES[cell.attrs.align]
+            : // Browsers text-center th by default; align null must mean
+              // the same left alignment as td (owner decision, PR 110
+              // item 4).
+              isHeader
+              ? CELL_ALIGN_CLASSES.left
+              : undefined,
         )}
         scope={isHeader ? scope : undefined}
         colSpan={cell.attrs.colspan > 1 ? cell.attrs.colspan : undefined}
