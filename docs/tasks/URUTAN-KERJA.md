@@ -103,13 +103,13 @@ Kerjakan kapan saja sebelum peserta penelitian atau publik mulai memakai BINZI �
 
 ## Chore terjadwal — upgrade audit Okt–Nov 2026
 
-Tanggal mulai mengikuti soak 14 hari; tenggat mengikuti `expires` pengecualian audit. Melewati tenggat membuat gate audit merah dan semua PR terblokir (detail di `STATUS.md`).
+Tanggal mulai mengikuti soak 14 hari; tenggat mengikuti `expires` pengecualian audit. Melewati tenggat membuat gate audit merah dan semua PR terblokir (detail di `STATUS.md`). Sejak C-04 (6 Nov) `.github/audit-exceptions.json` kosong, jadi tidak ada tenggat aktif.
 
 - [x] 🤖 [C-01](chore/C-01-zod-4-6-6-dan-kebersihan-soak.md) — zod 4.6.6 + kebersihan soak · *✅ selesai 26 Okt (PR #77)*
 - [x] 🤖 [C-02](chore/C-02-next-16-4-1.md) — next 16.4.1 · *✅ selesai 29 Okt (PR #87)*
 - [x] 🤖 [C-03](chore/C-03-undici-7-30-1.md) — undici 7.30.1 · *✅ selesai 30 Okt (PR #89)*
-- [ ] 🤖 [C-04](chore/C-04-shadcn-4-22-1-dan-body-parser-2-4-0.md) — shadcn 4.22.1 + body-parser 2.4.0 · *mulai Jum 6 Nov, merge ≤ Min 8 Nov*
-- [ ] 🤖 C-09 — penyederhanaan audit & Dependabot · *draf di luar repo, masuk lewat PR docs setelah C-04; dikerjakan setelah demo 20 Nov kecuali advisory memblokir PR*
+- [x] 🤖 [C-04](chore/C-04-shadcn-4-22-1-dan-body-parser-2-4-0.md) — shadcn 4.22.1 + body-parser 2.4.0 · *✅ selesai 6 Nov (PR #111)*
+- [ ] 🤖 [C-09](chore/C-09-penyederhanaan-audit-dan-dependabot.md) — penyederhanaan audit & Dependabot · *setelah demo 20 Nov kecuali advisory memblokir PR; kartu ditinjau ulang terhadap `main` sebelum sesi*
 
 Prasyarat Sprint 1 (tanpa tanggal tetap — sebelum S1-01, tanpa branch kartu lain yang terbuka):
 
@@ -121,15 +121,15 @@ Prasyarat Sprint 1 (tanpa tanggal tetap — sebelum S1-01, tanpa branch kartu la
 
 ## Sprint 1 — CMS kursus & materi
 
-Kartu ditulis di Claude chat menjelang sesinya, terhadap kode `main` terbaru. Rencana lengkap, prasyarat, dan keputusan tertunda ada di `STATUS.md` (item "Rencana S1"). Sejak 3 Nov urutan dan lingkupnya mengikuti jadwal demo 20 Nov (bagian "Pembaruan 3 Nov", "Pembaruan 4 Nov", dan "Pembaruan 4 Nov malam" di `STATUS.md`).
+Kartu ditulis di Claude chat menjelang sesinya, terhadap kode `main` terbaru. Rencana lengkap, prasyarat, dan keputusan tertunda ada di `STATUS.md` (item "Rencana S1"). Sejak 3 Nov urutan dan lingkupnya mengikuti jadwal demo 20 Nov (bagian "Pembaruan 3 Nov", "Pembaruan 4 Nov", "Pembaruan 4 Nov malam", dan "Pembaruan 6 Nov" di `STATUS.md`).
 
 - [x] 🤖 [S1-01](sprint-1/S1-01-daftar-dan-kursus-baru.md) — Daftar kursus, kursus baru, builder kosong · *✅ PR #106*
 - [ ] 🤖 [S1-01b](sprint-1/S1-01b-daftar-kursus-lanjutan.md) — Daftar kursus lanjutan: kartu 19e tablet & ponsel, "Urut ▾", perapian dialog & kode S1-01 · *setelah demo 20 Nov*
 - [x] 🤖 [S1-02](sprint-1/S1-02-builder-kursus.md) — Builder kursus: pengaturan, tambah materi, syarat terbit (lingkup demo, revisi 4 Nov) · *✅ PR #108*
 - [ ] 🤖 [S1-02b](sprint-1/S1-02b-builder-kursus-lanjutan.md) — Builder lanjutan: urutkan ulang, hapus materi & kursus, tablet & ponsel, kolom kuning daftar · *setelah demo 20 Nov*
-- [ ] 🤖 [S1-03a](sprint-1/S1-03a-dokumen-konten.md) — Dokumen konten: validator server, renderer, tabel (tanpa dependensi baru) · *Kam 5 Nov, paling lambat Jum 6*
-- [ ] 🤖 S1-03b — Editor TipTap: toolbar inti (B, I, H2, list, tautan, tabel), dialog 20b · *Sab 7 Nov, setelah C-04 merge* *(kartu belum ditulis — ditulis bersama S1-04 pada Kam 5)*
-- [ ] 🤖 S1-04 — Editor materi (teks) + deskripsi kursus, simpan manual (tanpa auto-save, keputusan 3 Nov) · *Sab 7 Nov, setelah S1-03b* *(kartu belum ditulis — ditulis bersama S1-03b pada Kam 5)*
+- [x] 🤖 [S1-03a](sprint-1/S1-03a-dokumen-konten.md) — Dokumen konten: validator server, renderer, tabel (tanpa dependensi baru) · *✅ PR #110*
+- [ ] 🤖 [S1-03b](sprint-1/S1-03b-editor-tiptap.md) — Editor TipTap: toolbar inti (B, I, H2, list, tautan, tabel), panel penolakan tempel 20b · *Sab 7 Nov (C-04 sudah merge)*
+- [ ] 🤖 [S1-04](sprint-1/S1-04-editor-materi-dan-deskripsi.md) — Editor materi (teks) + deskripsi kursus, simpan manual (tanpa auto-save, keputusan 3 Nov) · *Sab 7 Nov, setelah S1-03b merge; kartu ditinjau sekali lagi sebelum sesi*
 - [ ] 🤖 S1-05 — Unggah video materi *(butuh A-17; kartu belum ditulis)* · *setelah demo — demo memakai satu video yang dimasukkan manual*
 - [ ] 🤖 S1-06 — Media library *(butuh A-17 + keputusan penyajian gambar; kartu belum ditulis)* · *setelah demo*
 - [ ] 🤖 S1-07 — Pemilih gambar, sampul, pemakaian aset *(kartu belum ditulis)* · *setelah demo; menyalakan lagi syarat sampul*

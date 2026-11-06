@@ -1,7 +1,74 @@
 # Status Proyek BINZI — catatan untuk melanjutkan di chat baru
 
-> Terakhir diperbarui: 4 Nov 2026 (malam). File ini dikelola manual (bukan oleh agent) dan hanya untuk melanjutkan percakapan dengan Claude.
+> Terakhir diperbarui: 6 Nov 2026. File ini dikelola manual (bukan oleh agent) dan hanya untuk melanjutkan percakapan dengan Claude.
 > Untuk melanjutkan: buka chat baru, unggah file ini + `docs/tasks/URUTAN-KERJA.md`, lalu pakai prompt di bagian paling bawah.
+
+## Pembaruan 6 Nov 2026 — S1-03a dan C-04 di-merge, kartu S1-03b + S1-04 + C-09 masuk (baca ini dulu, lalu 4 Nov malam, 4 Nov, dan 3 Nov)
+
+Bagian "Pembaruan 4 Nov malam", "Pembaruan 4 Nov", dan "Pembaruan 3 Nov" di bawahnya tetap berlaku. Bagian ini mengubah atau menambahnya.
+
+### Keputusan pemilik, 5 Nov (tinjauan kartu S1-03b dan S1-04)
+1. **S1-03b:**
+   - panel 20b inline seperti desain, bukan dialog modal;
+   - semua copy usulan kartu disetujui (tiga varian 20b, dialog tautan, menu tabel, nama tombol toolbar);
+   - semua `colwidth` hasil tempel dijadikan `null`, bukan hanya yang tidak sah;
+   - bagian 7 (20b) tetap di kartu. Baru dipisah menjadi S1-03c (paling akhir Sel 17) bila pemilik memintanya saat sesi.
+2. **S1-04:**
+   - tanpa cek versi untuk demo (simpan terakhir yang menang);
+   - deskripsi kursus di halaman sendiri (`/cms/kursus/{id}/deskripsi`), bukan dialog;
+   - Ctrl+S / ⌘S menyimpan;
+   - semua copy bertanda *(usulan)* dan daftar "Bukan lingkup tugas ini" disetujui.
+
+### Posisi 6 Nov
+- **PR #110 (S1-03a) di-merge 5 Nov → `main` `2e9a44f`.** Kartu S1-03b dan S1-04 ditulis di Claude chat dan ditinjau terhadap commit ini.
+- **PR #111 (C-04) di-merge (squash) 6 Nov → `main` `d3eab7f`.** Satu commit, tiga berkas:
+  - shadcn 4.22.1 + body-parser 2.4.0, lockfile tepat 14 entri. Versi, `integrity`, dan `resolved` identik per entri dengan simulasi Claude chat pagi itu. Semua versi baru rilis ≤ 22 Okt UTC; yang terbaru baseline-browser-mapping 2.11.31.
+  - `.github/audit-exceptions.json` = `[]`. Tidak ada pengecualian aktif, dan tebing gate Sen 9 Nov hilang.
+  - `shadcn/dist/tailwind.css` identik (sha256 `4c371f7a…db2f0fae`).
+  - Rencana agent disetujui dengan teks tempel 11 butir: lima butir tinjauan C-02/C-03, ditambah `npm ci` sebelum snapshot, entri lockfile di luar daftar → berhenti (bukan "dijelaskan di PR"), `resolved` ikut dibandingkan, folder screenshot baru, dan env build CI ditulis persis.
+  - Verifikasi agent: `npm run check` 770 tes, e2e 129 passed / 14 skipped, CI `ci` + `e2e` hijau.
+  - Screenshot: 96 berkas C-04 dibandingkan dengan 96 berkas run `main` di mesin pemilik pada hari yang sama. 55 identik per byte, termasuk `/`, `/masuk`, `/belajar`, dan `/cms` di semua lebar. 41 berbeda, semuanya teks data acak e2e (email akun uji, judul dan slug bertoken) beserta ikutannya (badge bergeser, baris terbungkus berbeda), ditambah derau rasterisasi ≤ 8/255 di sudut membulat.
+  - Pasca-merge di mesin pemilik: `npm ci` + gate → 0 excused / 0 blocking / OK / 23.
+- **Gate audit `main`:** 0 excused / 0 blocking / 23 info-low-moderate (2 low, 21 moderate). Baseline `main` 6 Nov pagi sebelum C-04 ternyata 5 / 0 / **22**, padahal teks tempel 3 Nov menulis 31.
+- **Simulasi dependensi S1-03b diulang di atas `d3eab7f`:** 49 entri baru, 0 entri lama berubah, entri terbaru `linkifyjs` 4.4.0 (23 Okt 01.40 UTC), `@tiptap/core` satu versi 3.32.0, gate 0 / 0 / 23. Bagian 1 kartu S1-03b berlaku apa adanya.
+- **Kartu S1-03b, S1-04, dan C-09 masuk lewat PR docs bersama pembaruan ini.**
+  - S1-03b: catatan tinjauan diperbarui ke `d3eab7f`, dan kalimat "formulir react-hook-form" di bagian 3 diluruskan (S1-04 memakai formulir satu isian tanpa react-hook-form).
+  - S1-04: catatan tinjauan dan angka gate diperbarui ke `d3eab7f`.
+  - C-09: draf 3 Nov, ditinjau ulang di atas `d3eab7f`. `npm audit --omit=dev` tetap 16 → 7; audit penuh kini 23, bukan 32 (angka M1 disesuaikan). Jadwal: setelah demo, kecuali advisory memblokir PR.
+- **Lokasi repo di mesin pemilik:** `~/Project/React/binzi-new`.
+
+### Untuk kartu berikutnya
+- **S1-03b (Sab 7):** mulai dari `main` terbaru (setelah PR docs ini). Gate harapan 0 / 0 / 23 di awal sesi, setelah pemasangan, dan sebelum PR. Rencana agent ditinjau di Claude chat. Butir tinjauan C-04 yang dibawa ke teks persetujuannya:
+  - lockfile dibandingkan per entri termasuk `resolved`;
+  - entri di luar harapan → berhenti, bukan dijelaskan di PR;
+  - `npm ls` setelah `npm ci`;
+  - `npm run e2e:db` sebelum e2e.
+- **S1-04 (Sab 7, setelah S1-03b merge):** tinjau kartu sekali lagi terhadap props `RichTextEditor` yang benar-benar di-merge.
+- **Editor quiz (Min 8):** kartu belum ditulis; ditulis di Claude chat selagi S1-03b dan S1-04 berjalan. Bahan yang sudah ada:
+  - setiap materi punya quiz `LESSON` kosong (4 Nov malam);
+  - pintu masuk "Sunting Final Quiz" dan quiz per materi belum dirender (4 Nov);
+  - tautan "Sunting quiz" dari halaman editor materi masuk kartu ini (S1-04, "Bukan lingkup").
+- **C-09:** setelah demo, kecuali advisory memblokir PR. Tinjau ulang terhadap `main` sebelum sesi.
+
+### Pekerjaan kecil (kamu)
+- [ ] **Peringatan `install-scripts` npm** (muncul saat `npm ci` pasca-C-04 di mesin pemilik): lima paket punya skrip instal yang belum tercakup `allowScripts` — esbuild 0.18.20, 0.25.12, dan 0.28.2, fsevents 2.3.3, unrs-resolver 1.12.2. Bukan dari C-04: kelimanya tidak termasuk 14 entri yang berubah. Sekarang baru peringatan. Bila npm mulai memblokir skrip yang belum disetujui, esbuild (dipakai tsx dan Vite) bisa terdampak. Tangani di C-09 atau kartu toolchain, tidak sebelum demo.
+- [ ] Folder `~/binzi-c04-screenshots` dan `~/binzi-main-screenshots` boleh dihapus; verifikasi C-04 sudah selesai.
+- Tetap berlaku dari 3–4 Nov: metode pembayaran Cloudflare (≤ Kam 12), K-01 dan K-02 bersama ahli gizi, `quiz.min_questions` di binzi-dev, dan jalur data demo ke binzi-dev (≤ Sen 16).
+
+### Pelajaran 6 Nov
+- **Angka gate di bawah high bergeser tanpa commit.** Baseline `main` turun dari 31 (3 Nov) ke 22 (6 Nov pagi). Teks tempel berangka dari hari sebelumnya dijalankan ulang terhadap `main` di hari sesi, lalu angkanya diganti sebelum ditempel (lanjutan (eeee)).
+- **Simulasi di hari sesi menjadi pembanding PR dependensi.** Clone repo publik + `npm install --package-lock-only` di sandbox Claude chat memberi lockfile yang dicocokkan per entri dengan PR (C-04: 0 beda versi, `integrity`, dan `resolved`). npm 10 di sandbox membuang field `libc` di 26 paket biner, dan flag `dev` bisa berbeda dari npm 11. Saat membandingkan, kedua field itu diabaikan (lanjutan (nnn)).
+- **Rencana agent yang "tidak ada yang ambigu" tetap ditinjau.** Rencana C-04 menjalankan gate sekali saja, menaruh `npm ls` langsung setelah `npm install`, tidak menyebut `e2e:db` maupun staging per nama berkas, dan berniat "menjelaskan di PR" entri lockfile yang tidak terduga. Semuanya tertangkap sebelum kode ditulis (lanjutan (s)).
+- **Baseline screenshot kartu dependensi diambil dari `main`, di mesin dan hari yang sama.** Set A-19b (24 Okt) sudah tidak cocok sebagai pembanding: C-07, C-08, dan S1 mengubah tampilan secara sah, dan perbedaan itu akan menutupi pergeseran dari browserslist. Urutannya:
+  1. `cmp` per byte;
+  2. hanya untuk berkas yang berbeda: hitung beda piksel, pisahkan derau ≤ 8/255 dari yang substantif;
+  3. potong setiap pita substantif dan lihat berdampingan.
+
+  E2E memakai data acak (`uniqueEmail`, `randomToken`), jadi screenshot yang memuat email atau judul tes selalu berbeda (41/96 di C-04). Kalau target build bergeser, efeknya akan terlihat juga di halaman tanpa data acak.
+- **Dugaan diberi label dugaan sampai diukur.** Claude chat menduga beda `tamu-daftar-w768` berasal dari widget Turnstile. Pengukuran membantahnya: 11 piksel dengan selisih 1/255 di sudut isian, dan slot Turnstile putih polos di kedua run.
+- **`#n` di deskripsi PR menjadi tautan** ke PR atau issue bernomor sama, dan menambah jejak "mentioned this" di sana. Nomor baris tabel ditulis "baris n".
+- **Blok perintah yang diawali `cd ~` meninggalkan terminal di folder home**, sehingga blok berikutnya gagal dengan "not a git repository". Blok dari Claude chat yang berjalan di repo diawali `cd ~/Project/React/binzi-new` (lanjutan (rrrr)).
+- **Klaim waktu dari agent dicek.** Pesan akhir agent C-04 menyebut gate merah "Senin 09.00 WIB". Yang benar 07.00 WIB, karena gate memakai tanggal UTC runner.
 
 ## Pembaruan 4 Nov 2026 (malam) — S1-02 di-merge, S1-03 dipecah (baca ini dulu, lalu 4 Nov dan 3 Nov)
 
@@ -197,7 +264,7 @@ Memakai setiap hari, termasuk Sabtu–Minggu. Kartu S1-03 dan seterusnya ditulis
 - [x] `rm .env.local.sebelum-c05` di folder repo — sudah dijalankan 4 Nov.
 - [ ] Metode pembayaran Cloudflare, paling lambat Kamis 12 Nov: https://dash.cloudflare.com/?to=/:account/billing (kartu kredit atau PayPal). Setelah itu aktifkan R2, lalu kerjakan H-04. Kartu H-04 ditinjau dulu di Claude chat untuk kebutuhan player.
 - [ ] Hubungi ahli gizi untuk K-01 dan K-02.
-- [ ] Setelah C-04: masukkan draf kartu C-09 ke `docs/tasks/chore/` lewat PR docs.
+- [x] Setelah C-04: masukkan draf kartu C-09 ke `docs/tasks/chore/` lewat PR docs. *(6 Nov, bersama STATUS 6 Nov)*
 - [ ] Setelah demo: rapikan sekitar 40 branch lokal lama. Branch hasil squash-merge tidak bisa dihapus dengan `-d`, jadi cek dulu status PR-nya.
 
 ### Teks tempel untuk C-04 (Jumat, saat menyetujui rencana agent)
@@ -333,16 +400,16 @@ Rencana disetujui, dengan lima tambahan berikut (hasil tinjauan C-02/C-03, belum
 
 ## Pekerjaan kecil yang masih terbuka
 
-- [ ] **Jadwal upgrade audit — tebing gate** (kartu di `docs/tasks/chore/`, semua hasil disimulasikan 24 Okt). `expires` inklusif dan dibandingkan dalam tanggal UTC runner, jadi gate merah pukul 07.00 WIB sehari setelah `expires` — dan semua PR, termasuk docs, ikut terblokir.
+- [x] **Jadwal upgrade audit — tebing gate** *(selesai 6 Nov: C-04 PR #111, `audit-exceptions.json` = `[]`)* (kartu di `docs/tasks/chore/`, semua hasil disimulasikan 24 Okt). `expires` inklusif dan dibandingkan dalam tanggal UTC runner, jadi gate merah pukul 07.00 WIB sehari setelah `expires` — dan semua PR, termasuk docs, ikut terblokir.
   - ✅ **C-01** selesai 26 Okt (PR #77): zod langsung 4.6.6, ESLint mengabaikan `.claude/**`, override vite dilepas, cooldown Dependabot 14 hari. Entri zod sengaja tetap sampai C-04.
   - ✅ **C-02** selesai 29 Okt (PR #87): `next` + `eslint-config-next` tepat 16.4.1, 3 entri next dihapus.
   - ✅ **Chore 29 Okt** (PR #86): 2 entri systeminformation (`soakUntil` 2026-11-02, `expires` 2026-11-08), dihapus di C-04.
   - ✅ **C-03** selesai 30 Okt (PR #89): undici 7.30.1, kedelapan entri undici dihapus. Tebing Sen 2 Nov hilang.
   - ✅ **Chore 2 Nov** (PR #99): entri minimatch GHSA-g3hv-75wg-m249 (moderate, tanpa tambalan dalam rentang), `expires` 2026-11-08, dihapus di C-04.
-  - **C-04** (mulai Jum 6 Nov, merge ≤ Min 8 Nov): shadcn 4.22.1 + body-parser 2.4.0 (systeminformation ikut naik ke 5.33.16), hapus entri zod, body-parser, deepmerge (ditambahkan 28 Okt), 2× systeminformation (ditambahkan 29 Okt) & minimatch (ditambahkan 2 Nov) → `audit-exceptions.json` = `[]`. Terlewat → gate merah Sen 9 Nov 07.00 WIB. Kartu belum memuat lima butir tinjauan rencana C-02 (`e2e:db`, `npm ls` setelah `npm ci`, tanggal rilis di PR, angka gate + berhenti bila ada temuan blocking baru, staging per nama berkas) — tempelkan saat menyetujui rencana (pelajaran (kkkk)).
+  - ✅ **C-04** selesai 6 Nov (PR #111): shadcn 4.22.1 + body-parser 2.4.0 (systeminformation ikut naik ke 5.33.16), hapus entri zod, body-parser, deepmerge (ditambahkan 28 Okt), 2× systeminformation (ditambahkan 29 Okt) & minimatch (ditambahkan 2 Nov) → `audit-exceptions.json` = `[]`. Terlewat → gate merah Sen 9 Nov 07.00 WIB. Kartu belum memuat lima butir tinjauan rencana C-02 (`e2e:db`, `npm ls` setelah `npm ci`, tanggal rilis di PR, angka gate + berhenti bila ada temuan blocking baru, staging per nama berkas) — tempelkan saat menyetujui rencana (pelajaran (kkkk)).
   - Gate **tidak** gagal untuk entri yang tak lagi terpakai (hanya catatan "consider removing"), jadi setiap kartu menghapus entrinya sendiri dan PR-nya menunjukkan output gate tanpa catatan itu.
 - [ ] **Gate audit: advisory di bawah high pada rantai `via` ikut memblokir** (ditemukan 28 Okt). `evaluate()` di `scripts/check-audit.mjs` menuntut setiap `via` terekskusi tanpa melihat severity-nya, sedangkan komentar kepala berkas menyebut hanya advisory high lain pada rantai yang menggagalkan gate. Akibatnya deepmerge (low) memblokir shadcn (high karena zod yang sudah dikecualikan). Perilaku sekarang lebih ketat (fail-closed) dan sudah ditangani lewat entri; putuskan setelah C-04 apakah dibiarkan (luruskan komentarnya) atau rantai low/moderate diabaikan (kartu tersendiri, jangan di tengah tebing). Terulang 2 Nov (minimatch, moderate) → masuk kartu penyederhanaan di bawah.
-- [ ] **Kartu "penyederhanaan audit & Dependabot" — setelah C-04** (keputusan 2 Nov: waktu habis di advisory rantai CLI shadcn yang tidak pernah dikirim ke pengguna; dari ±8 PR/kartu audit sejak 23 Okt hanya bagian next #70, C-01, dan C-02 menyentuh kode yang berjalan untuk pengguna). Isi: (1) `shadcn` → `devDependencies` (buktikan impor `shadcn/tailwind.css` tetap jalan di build Vercel) dan gate hanya memblokir dependensi produksi — simulasi 2 Nov dengan `npm audit --omit=dev`: 0 high/critical, 7 moderate; alat dev diperbarui lewat PR bulanan; (2) Dependabot bulanan + `groups` (satu PR gabungan; PR keamanan tetap terpisah); (3) `@dependabot unignore vitest`, `@dependabot unignore radix-ui`, `@dependabot unignore react-dom` di PR gabungan pertama, cek dengan `@dependabot show react-dom ignore conditions`; (4) rantai low/moderate tidak lagi memblokir (item di atas; luruskan komentar `check-audit.mjs`); (5) `.claude/settings.json` `permissions.deny` menambah `.env.binzi-dev` dan pola `.env.local.*` (sekarang hanya `.env`, `.env.local`, `.env.*.local`); (6) `.githooks/commit-msg` tidak pernah di-commit — tambahkan, atau luruskan klaim "tiga lapis" di `docs/tasks/README.md`. Soak 14 hari tetap.
+- [ ] **Kartu "penyederhanaan audit & Dependabot" — setelah C-04** *(→ kartu [C-09](tasks/chore/C-09-penyederhanaan-audit-dan-dependabot.md), masuk repo 6 Nov; isinya mengikuti keputusan 3 Nov, bukan daftar di bawah ini — mis. rantai low/moderate tetap fail-closed dan hook atribusi diluruskan, tidak dibuat)* (keputusan 2 Nov: waktu habis di advisory rantai CLI shadcn yang tidak pernah dikirim ke pengguna; dari ±8 PR/kartu audit sejak 23 Okt hanya bagian next #70, C-01, dan C-02 menyentuh kode yang berjalan untuk pengguna). Isi: (1) `shadcn` → `devDependencies` (buktikan impor `shadcn/tailwind.css` tetap jalan di build Vercel) dan gate hanya memblokir dependensi produksi — simulasi 2 Nov dengan `npm audit --omit=dev`: 0 high/critical, 7 moderate; alat dev diperbarui lewat PR bulanan; (2) Dependabot bulanan + `groups` (satu PR gabungan; PR keamanan tetap terpisah); (3) `@dependabot unignore vitest`, `@dependabot unignore radix-ui`, `@dependabot unignore react-dom` di PR gabungan pertama, cek dengan `@dependabot show react-dom ignore conditions`; (4) rantai low/moderate tidak lagi memblokir (item di atas; luruskan komentar `check-audit.mjs`); (5) `.claude/settings.json` `permissions.deny` menambah `.env.binzi-dev` dan pola `.env.local.*` (sekarang hanya `.env`, `.env.local`, `.env.*.local`); (6) `.githooks/commit-msg` tidak pernah di-commit — tambahkan, atau luruskan klaim "tiga lapis" di `docs/tasks/README.md`. Soak 14 hari tetap.
 - [ ] Tindak lanjut C-08 (2 Nov): (1) tautan inline "Google" di `/lupa-password` (`GoogleInlineStart`, `forgot-password-form.tsx`) masih `void startGoogleSignIn(...)` tanpa loading maupun umpan balik error — perilaku sama dengan sebelum C-08, di luar lingkup kartu; rapikan bersama copy `/lupa-password` "Masuk dengan Google sebelumnya?…". (2) ✅ sebagian di S1-01 (PR #106): tipe props `Input` kini `ComponentProps<"input">`; sisa: `PasswordField` masih memakai spread dan komentarnya basi (Pembaruan 4 Nov). Catatan asli: tipe props `Input` (`src/components/ui/input.tsx`) belum mendeklarasikan `ref` (React 19 ref-as-prop), sehingga `PasswordField` memakai spread `{...(ref ? { ref } : {})}`; ganti tipe props ke `ComponentProps<"input">` sebelum S1 banyak memakai `Input` dengan `ref`.
 - [ ] **PRD v1.6 — sebelum S1-08 versi lengkap** *(3 Nov: ditunda sampai setelah demo; S1-08 demo tanpa `NEEDS_REVISION`)* (rename + `split-prd.py`): (1) Q36/§9.2 Next.js 16.3.x → 16.4.x — ketiga advisory next (rentang `>=16.0.0 <=16.4.0`) tidak punya backport 16.3.x, jadi C-02 (PR #87, 29 Okt) menyimpang dari Q36 atas keputusan pemilik 24 Okt; (2) "Perlu revisi": nilai `content_status` baru `NEEDS_REVISION` + kolom catatan revisi di `courses` & `articles` — penggarap mengedit saat `DRAFT`/`NEEDS_REVISION`, terkunci saat `IN_REVIEW`; kirim ulang → `IN_REVIEW` dan catatan dikosongkan; riwayat tiap putaran di `audit_logs` (keputusan 24 Okt; "kembali ke DRAFT + catatan" ditolak karena status jadi ambigu, tabel riwayat ditolak karena tumpang tindih dengan audit log); (3) §3.2: EDITOR melihat **dan** mengubah semua konten, siapa pun pembuatnya (keputusan 24 Okt; catatan desain 19a "ahli gizi hanya melihat konten miliknya" tidak berlaku); (4) keputusan "mengubah kursus yang sudah terbit" (item di bawah).
 - [ ] **Rencana S1** (24 Okt; layar dari tabel fase `docs/design/handoff/README.md`). *Sejak 3–4 Nov urutan dan lingkupnya mengikuti jadwal demo (Pembaruan 3 & 4 Nov): S1-02 dipotong, S1-02b baru, S1-04 tanpa auto-save + deskripsi kursus, S1-08 versi sederhana.* Prasyarat: **C-05** DB lokal + seed demo ✅, **C-06** alias `@/` + batas impor DB ✅, **C-07** token kontras ✅ (PR #101), **C-08** UI auth ✅ (PR #103) (C-08b tampilan bukan prasyarat), PRD v1.6 (sebelum S1-08). Kartu: **S1-01** daftar kursus + dialog kursus baru + builder kosong (21e, 21f, 21g); **S1-02** builder: pengaturan, outline, tambah/urutkan/hapus materi, syarat terbit (21a, 21d, 21h); **S1-03** dokumen konten: editor TipTap, validasi struktur di server (tolak video/iframe, V-08), renderer HTML berdaftar-putih §12.3 (20a, 20b); **S1-04** editor materi bagian teks + deskripsi kursus, auto-save 20 detik dengan state menyimpan/tersimpan/gagal/konflik (21b, 21i, 20c, 20e); **S1-05** unggah video lewat presigned PUT + CSP `connect-src` R2 (21c) — butuh A-17 dan aturan CORS bucket; **S1-06** media library (24a, 24c, 24t) — butuh A-17 + keputusan penyajian gambar; **S1-07** pemilih gambar di editor, sampul kursus, "dipakai di", tolak hapus aset terpakai (24b, 24d); **S1-08** kirim untuk persetujuan, antrean `/cms/konten`, keputusan terbit (pratinjau, checklist, Setujui & terbitkan / Minta revisi; "jadwalkan" disembunyikan, CMS-15), migrasi `NEEDS_REVISION`, audit, tinjau ulang CSP opsi (d) (19c, 19d, 19e, 20d). Tanpa A-17: 01 → 02 → 03 → 04 → 08, lalu 05–07. **Kursus baru benar-benar bisa terbit setelah S3** (CRS-06/07 mewajibkan quiz); di S1 alur terbit dites dengan quiz dari seed demo — K-03 (kerangka 3 kursus) menentukan kapan CMS mulai diisi kursus sungguhan.
@@ -580,25 +647,25 @@ Rencana disetujui, dengan lima tambahan berikut (hasil tinjauan C-02/C-03, belum
 Saya sedang membangun BINZI (platform belajar gizi) dengan Next.js 16 +
 AI coding agent (Claude Code). Terlampir docs/STATUS.md dan
 docs/tasks/URUTAN-KERJA.md dari repo saya — baca keduanya sebagai konteks.
-Baca bagian "Pembaruan 4 Nov malam" di STATUS.md lebih dulu, lalu
-"Pembaruan 4 Nov" dan "Pembaruan 3 Nov 2026 — target demo 20 Nov";
-jadwal dan keputusan di sana mengalahkan rencana sprint lama.
+Baca bagian "Pembaruan 6 Nov" di STATUS.md lebih dulu, lalu
+"Pembaruan 4 Nov malam", "Pembaruan 4 Nov", dan "Pembaruan 3 Nov 2026 —
+target demo 20 Nov"; jadwal dan keputusan di sana mengalahkan rencana
+sprint lama.
 Spesifikasi lengkap ada di docs/prd/ dan aturan agent di CLAUDE.md;
 repo publik di github.com/adiynsyah/binzi — clone untuk membaca kode,
 kartu, desain, dan meninjau PR (API GitHub sering kena rate limit;
-git fetch pull/N/head tetap jalan).
-Posisi terakhir (4 Nov malam): S1-02 (PR #108) di-merge → main e7612b5.
-Kartu S1-03a (validator + renderer + tabel, tanpa dependensi) sudah
-ditulis dan masuk lewat PR docs bersama STATUS ini. Berikutnya:
-- Kam 5: sesi S1-03a — tinjau rencana agent di chat sebelum disetujui.
-  Sambil itu tulis kartu S1-03b (editor TipTap; keputusan toolbar, menu
-  "/", dialog 20b, dan dependensi 3.32.0 sudah di STATUS) dan S1-04
-  (editor materi + deskripsi, simpan manual) BERSAMAAN.
-- Jum 6: C-04 (mulai ≥ 07.00 WIB; teks tempel di "Pembaruan 3 Nov";
-  jalankan gate dulu, harapan 5/0/31). Setelah C-04 merge, simulasi
-  ulang dependensi S1-03b di atas main baru.
-- Sab 7: sesi S1-03b lalu S1-04.
-Gate audit main: 5 excused / 0 blocking / 31 info-low-moderate. Uji
+git fetch pull/N/head tetap jalan). Repo di mesin saya ada di
+~/Project/React/binzi-new.
+Posisi terakhir (6 Nov): S1-03a (PR #110) dan C-04 (PR #111) di-merge →
+main d3eab7f; pengecualian audit kosong. Kartu S1-03b, S1-04, dan C-09
+masuk lewat PR docs bersama STATUS ini. Berikutnya:
+- Sab 7: sesi S1-03b (TipTap 3.32.0; simulasi dependensi sudah diulang
+  di atas d3eab7f) — tinjau rencana agent di chat sebelum disetujui.
+  Setelah S1-03b merge: tinjau ulang kartu S1-04 terhadap props
+  RichTextEditor yang di-merge, lalu sesi S1-04.
+- Sambil itu tulis kartu editor quiz (Min 8: 22a daftar soal, 22b form
+  satu soal).
+Gate audit main: 0 excused / 0 blocking / 23 info-low-moderate. Uji
 lokal selalu dengan npm run dev:db. Branch main diproteksi (wajib PR,
 check ci + e2e) — docs juga lewat PR. Setiap kartu ditinjau terhadap
 main sebelum sesinya; rencana agent ditinjau di chat; PR ditinjau dari
