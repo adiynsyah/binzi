@@ -81,6 +81,59 @@ const LEAVE_DIALOG_DESCRIPTION = "Perubahan sejak simpan terakhir akan hilang.";
 export const CONTENT_DOC_HEADING_CLASS =
   "break-words text-[28px] font-black leading-[1.18] tracking-[-0.022em] text-text";
 
+/**
+ * The 21i breadcrumb (Kursus / course / current page). Exported so the
+ * LOCKED and unreadable variants of both pages render the same breadcrumb
+ * — there, `onBreadcrumbClick` is absent: plain anchor navigation, no
+ * leave guard (nothing is editable, so nothing can be lost).
+ */
+export function ContentDocBreadcrumb({
+  items,
+  onBreadcrumbClick,
+}: {
+  items: { label: string; href: string | null }[];
+  /** Set only by ContentDocForm — opens the A-06 leave dialog while dirty. */
+  onBreadcrumbClick?: (
+    event: ReactMouseEvent<HTMLAnchorElement>,
+    href: string,
+  ) => void;
+}) {
+  return (
+    <nav aria-label="Breadcrumb" className="min-w-0">
+      <ol className="flex flex-wrap items-center gap-x-2 font-mono text-[11.5px] uppercase tracking-[0.1em] text-text-subtle">
+        {items.map((segment, index) => {
+          const isLink = segment.href !== null;
+          return (
+            <li key={segment.label} className="flex items-center gap-x-2">
+              {index > 0 ? (
+                <span aria-hidden="true" className="text-border-strong">
+                  /
+                </span>
+              ) : null}
+              {isLink ? (
+                <a
+                  href={segment.href ?? undefined}
+                  onClick={
+                    onBreadcrumbClick
+                      ? (event) =>
+                          onBreadcrumbClick(event, segment.href ?? "/")
+                      : undefined
+                  }
+                  className="transition-colors duration-200 ease-out hover:text-text"
+                >
+                  {segment.label}
+                </a>
+              ) : (
+                <span aria-current="page">{segment.label}</span>
+              )}
+            </li>
+          );
+        })}
+      </ol>
+    </nav>
+  );
+}
+
 /** 24-hour HH:MM with a colon (20c "12:04"). Manual on purpose: no
  *  toLocaleTimeString — id-ID renders "12.04" and other locales add
  *  AM/PM (review D5). */
@@ -250,7 +303,9 @@ export function ContentDocForm({
     if (!dirty) return;
     function onBeforeUnload(event: BeforeUnloadEvent): void {
       event.preventDefault();
-      event.returnValue = "";
+      // LegacyChromium/WebKit trigger on a non-empty returnValue (Firefox
+      // only needs preventDefault) — true is truthy on both paths.
+      event.returnValue = true;
     }
     window.addEventListener("beforeunload", onBeforeUnload);
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
@@ -297,42 +352,24 @@ export function ContentDocForm({
 
   return (
     <form onSubmit={onFormSubmit} noValidate>
-      {/* Header bar (21i): breadcrumb + save indicator + Simpan. */}
-      <header className="flex min-h-[60px] flex-wrap items-center gap-x-4 gap-y-2 border-b border-border-soft px-6">
-        <nav aria-label="Breadcrumb" className="min-w-0">
-          <ol className="flex flex-wrap items-center gap-x-2 font-mono text-[11.5px] uppercase tracking-[0.1em] text-text-subtle">
-            {breadcrumb.map((segment, index) => {
-              const isLink = segment.href !== null;
-              return (
-                <li key={segment.label} className="flex items-center gap-x-2">
-                  {index > 0 ? (
-                    <span aria-hidden="true" className="text-border-strong">
-                      /
-                    </span>
-                  ) : null}
-                  {isLink ? (
-                    <a
-                      href={segment.href ?? undefined}
-                      onClick={(event) =>
-                        onBreadcrumbClick(event, segment.href ?? "/")
-                      }
-                      className="transition-colors duration-200 ease-out hover:text-text"
-                    >
-                      {segment.label}
-                    </a>
-                  ) : (
-                    <span aria-current="page">{segment.label}</span>
-                  )}
-                </li>
-              );
-            })}
-          </ol>
-        </nav>
-        {indicator ? (
-          <p role="status" className={`font-mono text-[11px] ${indicator.className}`}>
-            {indicator.text}
-          </p>
-        ) : null}
+      {/* Header row (21i): breadcrumb + save indicator + Simpan. No own
+          bar/border/padding — CmsTopbar above is the one bar, and the CMS
+          layout already insets page content (review correction of the
+          card's §4 header bar). */}
+      <header className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <ContentDocBreadcrumb
+          items={breadcrumb}
+          onBreadcrumbClick={onBreadcrumbClick}
+        />
+        {/* Rendered from the start and empty until the first state, so
+            screen readers get a STABLE live region — one that existed
+            before the announcement (review item). */}
+        <p
+          role="status"
+          className={`font-mono text-[11px] ${indicator?.className ?? "text-text-meta"}`}
+        >
+          {indicator?.text}
+        </p>
         <Button
           ref={saveRef}
           type="submit"
@@ -344,7 +381,7 @@ export function ContentDocForm({
         </Button>
       </header>
 
-      <div className="px-6 pb-8 pt-[26px]">
+      <div className="pb-8 pt-3">
         <h1 className={CONTENT_DOC_HEADING_CLASS}>{heading}</h1>
         {intro ? (
           <p className="mt-2 max-w-(--width-measure) text-[15px] text-text-muted">

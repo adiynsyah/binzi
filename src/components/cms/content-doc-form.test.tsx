@@ -160,8 +160,9 @@ describe("ContentDocForm chrome", () => {
     expect(screen.getByText("Teks materi")).toBeTruthy();
     expect(screen.getByText("WAJIB")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Simpan" })).toBeTruthy();
-    // No changes since load → no indicator node at all.
-    expect(screen.queryByRole("status")).toBeNull();
+    // The status region exists from load and is EMPTY before the first
+    // edit — a stable live region for screen readers (review item).
+    expect(screen.getByRole("status").textContent).toBe("");
   });
 
   it("labels the description variant 'Deskripsi'", () => {
@@ -315,6 +316,16 @@ describe("ContentDocForm Ctrl+S / ⌘S", () => {
     editValid();
 
     expect(fireEvent.keyDown(window, { key: "s", ctrlKey: true })).toBe(false);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+  });
+
+  it("saves through Ctrl+S with a capital S (Caps Lock) as well", async () => {
+    // Pin the toLowerCase() branch: deleting it must turn this red.
+    fetchMock.mockResolvedValue(okResponse());
+    renderForm();
+    editValid();
+
+    expect(fireEvent.keyDown(window, { key: "S", ctrlKey: true })).toBe(false);
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
   });
 

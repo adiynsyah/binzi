@@ -320,6 +320,13 @@ test("kursus bukan DRAFT → kedua halaman terkunci tanpa tombol Simpan", async 
   ).toBeVisible();
   await expect(page.getByText(LESSON_TEXT)).toBeVisible();
   await expect(page.getByRole("button", { name: "Simpan" })).toHaveCount(0);
+  // The locked page keeps the SAME breadcrumb (minus the guard) — the way
+  // back to the builder stays (review item).
+  const lockedBreadcrumb = page.getByRole("navigation", { name: "Breadcrumb" });
+  await expect(lockedBreadcrumb).toContainText("Materi 1");
+  await expect(
+    lockedBreadcrumb.getByRole("link", { name: `${t} Kursus Terkunci` }),
+  ).toBeVisible();
 
   await page.goto(`/cms/kursus/${courseId}/deskripsi`);
   await expect(
@@ -330,6 +337,10 @@ test("kursus bukan DRAFT → kedua halaman terkunci tanpa tombol Simpan", async 
   ).toBeVisible();
   await expect(page.getByText("Belum diisi.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Simpan" })).toHaveCount(0);
+  await expect(lockedBreadcrumb).toContainText("Deskripsi");
+  await expect(
+    lockedBreadcrumb.getByRole("link", { name: `${t} Kursus Terkunci` }),
+  ).toBeVisible();
 });
 
 // Owner review (card "Sebelum membuka PR"): both pages at w1280 and

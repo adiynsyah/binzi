@@ -8,6 +8,7 @@
 import { notFound } from "next/navigation";
 
 import {
+  ContentDocBreadcrumb,
   ContentDocForm,
   CONTENT_DOC_HEADING_CLASS,
 } from "@/components/cms/content-doc-form";
@@ -45,21 +46,36 @@ export default async function CmsLessonEditorPage({
 
   const { course, lesson } = editor;
 
+  // The SAME breadcrumb in every variant (review item) — the locked and
+  // unreadable views render it without the leave guard (nothing is
+  // editable, so nothing can be lost), keeping the way back to the
+  // builder instead of a dead end.
+  const breadcrumb = [
+    { label: "Kursus", href: "/cms/kursus" },
+    { label: course.title, href: `/cms/kursus/${course.id}` },
+    { label: `Materi ${lesson.orderIndex}`, href: null },
+  ];
+
   if (course.status !== "DRAFT") {
     // Locked view (card §7): no editor, no Simpan — the notice plus the
     // stored text (or "Belum diisi." when it is empty).
     return (
       <div>
-        <h1 className={CONTENT_DOC_HEADING_CLASS}>{lesson.title}</h1>
-        <div className="mt-4">
-          <Banner tone="info" title={LOCKED_NOTICE} />
-        </div>
-        <div className="mt-6">
-          {lesson.content !== null && !isDocEmpty(lesson.content) ? (
-            <RichContent doc={lesson.content} />
-          ) : (
-            <p className="text-[15px] text-text-muted">Belum diisi.</p>
-          )}
+        <header className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <ContentDocBreadcrumb items={breadcrumb} />
+        </header>
+        <div className="pb-8 pt-3">
+          <h1 className={CONTENT_DOC_HEADING_CLASS}>{lesson.title}</h1>
+          <div className="mt-4">
+            <Banner tone="info" title={LOCKED_NOTICE} />
+          </div>
+          <div className="mt-6">
+            {lesson.content !== null && !isDocEmpty(lesson.content) ? (
+              <RichContent doc={lesson.content} />
+            ) : (
+              <p className="text-[15px] text-text-muted">Belum diisi.</p>
+            )}
+          </div>
         </div>
       </div>
     );
@@ -70,10 +86,15 @@ export default async function CmsLessonEditorPage({
     // never shows the document's text back (§12.3).
     return (
       <div>
-        <h1 className={CONTENT_DOC_HEADING_CLASS}>{lesson.title}</h1>
-        <p className="mt-4 text-[15px] text-text-muted">
-          Isi materi ini tidak bisa dibuka editor.
-        </p>
+        <header className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <ContentDocBreadcrumb items={breadcrumb} />
+        </header>
+        <div className="pb-8 pt-3">
+          <h1 className={CONTENT_DOC_HEADING_CLASS}>{lesson.title}</h1>
+          <p className="mt-4 text-[15px] text-text-muted">
+            Isi materi ini tidak bisa dibuka editor.
+          </p>
+        </div>
       </div>
     );
   }
@@ -85,11 +106,7 @@ export default async function CmsLessonEditorPage({
       method="PATCH"
       bodyKey="content"
       labelId="lesson-content-label"
-      breadcrumb={[
-        { label: "Kursus", href: "/cms/kursus" },
-        { label: course.title, href: `/cms/kursus/${course.id}` },
-        { label: `Materi ${lesson.orderIndex}`, href: null },
-      ]}
+      breadcrumb={breadcrumb}
       heading={lesson.title}
     />
   );

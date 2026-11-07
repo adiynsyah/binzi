@@ -8,6 +8,7 @@
 import { notFound } from "next/navigation";
 
 import {
+  ContentDocBreadcrumb,
   ContentDocForm,
   CONTENT_DOC_HEADING_CLASS,
 } from "@/components/cms/content-doc-form";
@@ -53,20 +54,34 @@ export default async function CmsCourseDescriptionPage({
     throw error;
   }
 
+  // The SAME breadcrumb in every variant (review item) — the locked and
+  // unreadable views render it without the leave guard, keeping the way
+  // back to the builder instead of a dead end.
+  const breadcrumb = [
+    { label: "Kursus", href: "/cms/kursus" },
+    { label: editor.title, href: `/cms/kursus/${editor.id}` },
+    { label: "Deskripsi", href: null },
+  ];
+
   if (editor.status !== "DRAFT") {
     // Locked view (card §7): notice + the stored text (or "Belum diisi.").
     return (
       <div>
-        <h1 className={CONTENT_DOC_HEADING_CLASS}>Deskripsi lengkap</h1>
-        <div className="mt-4">
-          <Banner tone="info" title={LOCKED_NOTICE} />
-        </div>
-        <div className="mt-6">
-          {editor.description !== null && !isDocEmpty(editor.description) ? (
-            <RichContent doc={editor.description} />
-          ) : (
-            <p className="text-[15px] text-text-muted">Belum diisi.</p>
-          )}
+        <header className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <ContentDocBreadcrumb items={breadcrumb} />
+        </header>
+        <div className="pb-8 pt-3">
+          <h1 className={CONTENT_DOC_HEADING_CLASS}>Deskripsi lengkap</h1>
+          <div className="mt-4">
+            <Banner tone="info" title={LOCKED_NOTICE} />
+          </div>
+          <div className="mt-6">
+            {editor.description !== null && !isDocEmpty(editor.description) ? (
+              <RichContent doc={editor.description} />
+            ) : (
+              <p className="text-[15px] text-text-muted">Belum diisi.</p>
+            )}
+          </div>
         </div>
       </div>
     );
@@ -75,10 +90,15 @@ export default async function CmsCourseDescriptionPage({
   if (editor.description === null) {
     return (
       <div>
-        <h1 className={CONTENT_DOC_HEADING_CLASS}>Deskripsi lengkap</h1>
-        <p className="mt-4 text-[15px] text-text-muted">
-          {UNREADABLE_DESCRIPTION}
-        </p>
+        <header className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <ContentDocBreadcrumb items={breadcrumb} />
+        </header>
+        <div className="pb-8 pt-3">
+          <h1 className={CONTENT_DOC_HEADING_CLASS}>Deskripsi lengkap</h1>
+          <p className="mt-4 text-[15px] text-text-muted">
+            {UNREADABLE_DESCRIPTION}
+          </p>
+        </div>
       </div>
     );
   }
@@ -90,11 +110,7 @@ export default async function CmsCourseDescriptionPage({
       method="PUT"
       bodyKey="description"
       labelId="course-description-label"
-      breadcrumb={[
-        { label: "Kursus", href: "/cms/kursus" },
-        { label: editor.title, href: `/cms/kursus/${editor.id}` },
-        { label: "Deskripsi", href: null },
-      ]}
+      breadcrumb={breadcrumb}
       heading="Deskripsi lengkap"
       intro={DESCRIPTION_INTRO}
     />

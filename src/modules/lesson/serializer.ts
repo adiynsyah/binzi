@@ -169,9 +169,10 @@ export function toLessonEditorDTO(
   course: LessonEditorCourseRow,
   lesson: LessonEditorLessonRow,
 ): LessonEditorDTO {
-  // A never-written lesson (null content since createLessonWithQuiz) opens
-  // with the same blank canvas as a new lesson (card §5 placeholder
-  // default); a description-style EMPTY_DOC mapping, not an error state.
+  // Defensive branch: no known writer stores NULL content
+  // (createLessonWithQuiz writes EMPTY_DOC), but the column is nullable —
+  // NULL opens with the same blank canvas as a new lesson (card §5), not
+  // an error state.
   if (lesson.content === null) {
     return {
       course: { id: course.id, title: course.title, status: course.status },

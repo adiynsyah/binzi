@@ -177,7 +177,7 @@ describe("toLessonEditorDTO (card S1-04)", () => {
     });
   });
 
-  it("null content (a lesson never written) opens with EMPTY_DOC", () => {
+  it("null content (defensive; no known writer stores null) opens with EMPTY_DOC", () => {
     const dto = toLessonEditorDTO(course, lessonRow({ content: null }));
     expect(dto.lesson.content).toEqual(EMPTY_DOC);
   });
