@@ -427,6 +427,49 @@ describe("CourseBuilder", () => {
     });
   });
 
+  describe("Deskripsi row (card S1-04 §6)", () => {
+    it("DRAFT + empty: the '+ Tulis deskripsi lengkap' link to the description page", () => {
+      renderBuilder(builderFixture({ course: courseFixture() }));
+
+      const link = screen.getByRole("link", {
+        name: "+ Tulis deskripsi lengkap",
+      });
+      expect(link.getAttribute("href")).toBe("/cms/kursus/c-1/deskripsi");
+    });
+
+    it("DRAFT + filled: 'Sudah diisi · Ubah' with the same destination", () => {
+      renderBuilder(
+        builderFixture({
+          course: courseFixture({ isDescriptionEmpty: false }),
+        }),
+      );
+
+      // RTL does not match across child elements: the text run and the
+      // link are asserted separately (same as the S1-02 dialog note).
+      expect(screen.getByText("Sudah diisi ·")).toBeTruthy();
+      expect(
+        screen.getByRole("link", { name: "Ubah" }).getAttribute("href"),
+      ).toBe("/cms/kursus/c-1/deskripsi");
+    });
+
+    it("outside DRAFT: plain text both ways, never a link", () => {
+      const empty = renderBuilder(
+        builderFixture({ course: courseFixture({ status: "IN_REVIEW" }) }),
+      );
+      expect(screen.getByText("Belum diisi")).toBeTruthy();
+      expect(screen.queryByRole("link", { name: /deskripsi lengkap|Ubah/ })).toBeNull();
+      empty.unmount();
+
+      renderBuilder(
+        builderFixture({
+          course: courseFixture({ status: "IN_REVIEW", isDescriptionEmpty: false }),
+        }),
+      );
+      expect(screen.getByText("Sudah diisi")).toBeTruthy();
+      expect(screen.queryByRole("link", { name: /deskripsi lengkap|Ubah/ })).toBeNull();
+    });
+  });
+
   describe("outside DRAFT (card §6)", () => {
     it("renders read-only: no Simpan, no add, no Sunting — but the outline and checklist stay", () => {
       renderBuilder(
