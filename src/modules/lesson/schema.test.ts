@@ -76,16 +76,16 @@ describe("updateLessonContentInput (card S1-04)", () => {
     });
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error.issues[0]?.path).toEqual([
-        "content",
-        "content",
-        0,
-        "type",
-      ]);
-      expect(result.error.issues[0]?.params?.code).toBe("FORBIDDEN_EMBED");
-      expect(result.error.issues[0]?.message).toBe(
-        CONTENT_DOC_MESSAGES.FORBIDDEN_EMBED,
-      );
+      // $ZodIssue does not declare `params` (zod 4.6.6) — the cast is the
+      // repo idiom (content-doc-validator.test.ts).
+      const issue = result.error.issues[0] as {
+        path: PropertyKey[];
+        message: string;
+        params?: unknown;
+      };
+      expect(issue.path).toEqual(["content", "content", 0, "type"]);
+      expect(issue.params).toStrictEqual({ code: "FORBIDDEN_EMBED" });
+      expect(issue.message).toBe(CONTENT_DOC_MESSAGES.FORBIDDEN_EMBED);
     }
   });
 
