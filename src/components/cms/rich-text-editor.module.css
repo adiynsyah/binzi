@@ -1,0 +1,223 @@
+/*
+ * Canvas typography for RichTextEditor (card S1-03b §3). Every value is
+ * copied from src/components/shared/rich-text-editor.tsx (RichContent,
+ * card S1-03a) so an author sees exactly what a participant will read;
+ * that file stays the source of truth — update both together.
+ *
+ * Colors enter ONLY through var(--…) tokens. ProseMirror-controlled
+ * class names (.ProseMirror, p.is-editor-empty, .selectedCell) are global
+ * and must stay wrapped in :global(…) or CSS modules would hash them and
+ * the rules would never match the DOM.
+ *
+ * Deliberate differences from the renderer: empty paragraphs stay
+ * visible (a place to type), the placeholder pseudo-element, the
+ * selected-cell tint, and scroll inside the canvas for wide tables.
+ */
+
+/* Clickable canvas: padding and minimum height live on the editable
+ * element itself, so a click in the empty area below the text focuses
+ * the editor. The pre-ready spacer below reuses the same box. */
+.canvasPlaceholder,
+.canvas :global(.ProseMirror) {
+  padding: 18px 20px 60px;
+  min-height: 108px;
+}
+
+.canvas :global(.ProseMirror) {
+  /* RichContent ROOT_CLASS: flex column, 16px gaps between blocks, 17px
+   * body text, wrapping anywhere, capped at the 68ch measure (padding
+   * included, so the text column matches the renderer's max-width). */
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: calc(var(--width-measure) + 40px);
+  font-size: 17px;
+  line-height: 1.75;
+  color: var(--text-body);
+  overflow-wrap: anywhere;
+  outline: none; /* the focus ring lives on the frame instead */
+  overflow-x: auto; /* wide tables scroll inside the canvas */
+}
+
+/* Focus ring on the frame while the canvas is focused (global ring
+ * values from globals.css; the canvas itself suppresses its own). */
+.frame:has(:global(.ProseMirror):focus) {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 3px;
+}
+
+.canvas :global(.ProseMirror) p {
+  margin: 0;
+  text-wrap: pretty;
+}
+
+/* Heading margins stack on top of the 16px block gap (h2 32 / h3 24 /
+ * h4 20 below a preceding block), matching RichContent's gap-4 + mt-*,
+ * and collapse to nothing as the first block. */
+.canvas :global(.ProseMirror) h2 {
+  margin-top: 16px;
+  font-size: 24px;
+  line-height: 1.28;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  text-wrap: balance;
+}
+
+.canvas :global(.ProseMirror) h3 {
+  margin-top: 8px;
+  font-size: 19px;
+  line-height: 1.3;
+  font-weight: 900;
+  letter-spacing: -0.015em;
+  color: var(--text);
+  text-wrap: balance;
+}
+
+.canvas :global(.ProseMirror) h4 {
+  margin-top: 4px;
+  font-size: 17px;
+  line-height: 1.4;
+  font-weight: 700;
+  color: var(--text);
+  text-wrap: balance;
+}
+
+.canvas :global(.ProseMirror) > :first-child {
+  margin-top: 0;
+}
+
+.canvas :global(.ProseMirror) hr {
+  margin: 16px 0; /* 16px own margin + 16px gap = 32px, as rendered */
+  border: 0;
+  border-top: 1px solid var(--border);
+}
+
+.canvas :global(.ProseMirror) hr:first-child {
+  margin-top: 0;
+}
+
+.canvas :global(.ProseMirror) hr:last-child {
+  margin-bottom: 0;
+}
+
+.canvas :global(.ProseMirror) ul {
+  margin: 0;
+  padding-left: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  list-style-type: disc;
+}
+
+.canvas :global(.ProseMirror) ol {
+  margin: 0;
+  padding-left: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  list-style-type: decimal;
+}
+
+/* Same ol[type] mapping as RichContent's OL_TYPE_CLASSES (its <ol type>
+ * attribute would lose to list-style utilities there). */
+.canvas :global(.ProseMirror) ol[type="a"] {
+  list-style-type: lower-alpha;
+}
+
+.canvas :global(.ProseMirror) ol[type="A"] {
+  list-style-type: upper-alpha;
+}
+
+.canvas :global(.ProseMirror) ol[type="i"] {
+  list-style-type: lower-roman;
+}
+
+.canvas :global(.ProseMirror) ol[type="I"] {
+  list-style-type: upper-roman;
+}
+
+/* space-y-2 inside a list item (the nested list sits 8px below its
+ * paragraph). */
+.canvas :global(.ProseMirror) li > * + * {
+  margin-top: 8px;
+}
+
+.canvas :global(.ProseMirror) blockquote {
+  margin: 0;
+  padding-left: 20px;
+  border-left: 2px solid var(--text);
+  font-size: 18px;
+  line-height: 1.7;
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.canvas :global(.ProseMirror) table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.canvas :global(.ProseMirror) th,
+.canvas :global(.ProseMirror) td {
+  border: 1px solid var(--border);
+  padding: 8px 12px;
+  vertical-align: top;
+  min-width: 120px;
+  overflow-wrap: anywhere;
+}
+
+/* th without an explicit alignment stays LEFT (owner decision, PR 110
+ * item 4); an aligned cell renders style="text-align: …", which wins. */
+.canvas :global(.ProseMirror) th {
+  background: var(--surface-2);
+  font-weight: 700;
+  color: var(--text);
+  text-align: left;
+}
+
+/* Cell content blocks keep 8px apart (RichContent's gap-2 wrapper). */
+.canvas :global(.ProseMirror) th > * + *,
+.canvas :global(.ProseMirror) td > * + * {
+  margin-top: 8px;
+}
+
+.canvas :global(.ProseMirror) strong {
+  font-weight: 700;
+}
+
+.canvas :global(.ProseMirror) em {
+  font-style: italic;
+}
+
+.canvas :global(.ProseMirror) u {
+  text-decoration: underline;
+}
+
+.canvas :global(.ProseMirror) a {
+  color: var(--primary-deep);
+  text-decoration: underline;
+}
+
+.canvas :global(.ProseMirror) a:hover {
+  color: var(--primary-deeper);
+}
+
+/* Editor-only — placeholder on the first node of an empty document
+ * (Placeholder sets data-placeholder and is-empty is-editor-empty). */
+.canvas :global(p.is-editor-empty:first-child)::before {
+  content: attr(data-placeholder);
+  color: var(--text-subtle);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+/* Editor-only — selected table cells tint with fill. */
+.canvas :global(.selectedCell) {
+  background: var(--fill);
+}
