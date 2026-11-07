@@ -112,12 +112,14 @@ test("tambah materi pertama & kedua → placeholder editor → outline 21a", asy
   await dialog.getByLabel("Judul materi").fill(`${t} Energi dan Porsi`);
   await dialog.getByRole("button", { name: "Buat & buka editor →" }).click();
 
-  // Lands in the S1-04 placeholder editor named after the lesson.
+  // Lands in the S1-04 lesson editor named after the lesson.
   await page.waitForURL(/\/cms\/kursus\/[0-9a-f-]{36}\/materi\/[0-9a-f-]{36}$/);
   await expect(
     page.getByRole("heading", { name: `${t} Energi dan Porsi` }),
   ).toBeVisible();
-  await expect(page.getByText("Segera hadir.")).toBeVisible();
+  await expect(
+    page.getByRole("textbox", { name: "Teks materi" }),
+  ).toBeVisible();
 
   // Back to the builder (fresh load — the outline must reflect the DB).
   await page.goto(`/cms/kursus/${courseId}`);
