@@ -7,7 +7,11 @@
 | **Target** | Sabtu 7 Nov, sebelum sesi S1-04. Langkah keempat jalur demo 20 Nov |
 | **Branch** | `s1/s1-03b-editor-tiptap` |
 
-> **Dibuat 5 Nov 2026** di Claude chat. **Ditinjau ulang terhadap `main` `2e9a44f`** (S1-03a, PR #110) pada hari yang sama: semua nama ekspor S1-03a yang dirujuk kartu ini ada dengan nama yang sama. **Ditinjau terakhir 6 Nov terhadap `main` `d3eab7f`** (C-04, PR #111): simulasi dependensi bagian 1 diulang di atas lockfile `main` yang sebenarnya, dan angkanya sama (49 entri baru, 0 entri lama berubah, entri terbaru `linkifyjs` 4.4.0, gate 0 / 0 / 23). C-04 tidak menyentuh `src/`, jadi rujukan kode tetap berlaku.
+> **Dibuat 5 Nov 2026** di Claude chat. **Ditinjau ulang terhadap `main` `2e9a44f`** (S1-03a, PR #110) pada hari yang sama: semua nama ekspor S1-03a yang dirujuk kartu ini ada dengan nama yang sama. **Ditinjau 6 Nov terhadap `main` `d3eab7f`** (C-04, PR #111): simulasi dependensi bagian 1 diulang di atas lockfile `main` yang sebenarnya, dan angkanya sama (49 entri baru, 0 entri lama berubah, entri terbaru `linkifyjs` 4.4.0, gate 0 / 0 / 23). C-04 tidak menyentuh `src/`, jadi rujukan kode tetap berlaku.
+>
+> **Ditinjau ulang 7 Nov terhadap `main` `822d0ce`** (PR docs #112, tanpa perubahan `src/`). Simulasi bagian 1 diulang dan angkanya sama. Komponen editor diuji dengan React Testing Library di jsdom 29.1.1, dan ada dua koreksi:
+> - jsdom tidak punya `Range.prototype.getClientRects`, sehingga tes komponen butuh polyfill (bagian "Selesai jika", lingkungan jsdom);
+> - `aria-invalid` lewat `editor.setOptions` di efek hilang pada render berikutnya, jadi atribut kanvas kini dibangun di opsi `useEditor` (bagian 3, mutasi 11).
 >
 > **Disetujui pemilik 5 Nov:**
 > - panel 20b inline seperti desain;
@@ -105,7 +109,9 @@ export type RichTextEditorProps = {
   - Suntingan berikutnya membawa paragraf penutup itu bersama perubahannya.
 - **Atribut kanvas (`contenteditable`):**
   - `role="textbox"`, `aria-multiline="true"`, ditambah `aria-labelledby`, `aria-describedby`, dan `aria-invalid` dari props.
-  - Perubahan props setelah mount diteruskan lewat `editor.setOptions({ editorProps: { attributes } })` di efek, karena S1-04 menyalakan `aria-invalid` setelah validasi.
+  - `editorProps.attributes` dibangun dari props **terkini di opsi `useEditor` pada setiap render**, bersama `handlePaste` (bagian 7). S1-04 menyalakan `aria-invalid` setelah validasi, dan nilainya harus bertahan.
+  - Jangan memanggil `editor.setOptions` dari komponen. `useEditor` 3.32.0 membandingkan opsinya dengan `editor.options` di setiap render dan menerapkan ulang opsinya sendiri bila berbeda, sehingga atribut yang dipasang terpisah lewat `setOptions` di efek hilang pada render berikutnya. Diuji 7 Nov: `aria-invalid` `"true"` setelah prop berubah, lalu hilang setelah re-render karena prop lain.
+  - Tes komponen S1-04 memakai stub `RichTextEditor`, jadi hanya tes di kartu ini yang menjaga perilaku tersebut.
 - **`ref.focus()`** memanggil `editor.commands.focus()`.
 - **Di dalam `<form>` S1-04:**
   - Setiap tombol toolbar dan panel `type="button"`.
@@ -271,7 +277,7 @@ Tanpa migrasi, tanpa `src/db`, dan tanpa dependensi selain lima paket di bagian 
 Rencana memuat:
 - daftar berkas yang akan dibuat atau diubah;
 - signature setiap ekspor (`createEditorExtensions`, `canInsertTable`, `detectBlockedPaste`, `RichTextEditor` + props + handle);
-- cara aturan suntingan (bagian 3) dan penjaga tabel (bagian 6) diterapkan;
+- cara aturan suntingan dan atribut kanvas (bagian 3) serta penjaga tabel (bagian 6) diterapkan;
 - kelas Tailwind dan selektor CSS module per bagian bingkai, toolbar, kanvas, dan panel;
 - daftar tes per bagian "Selesai jika";
 - untuk setiap mutasi: tes yang diharapkan merah, beserta tes yang diperkirakan tetap hijau karena tertutup lapis lain.
@@ -289,6 +295,7 @@ Rencana memuat:
     - sisip tabel → tambah baris → tambah kolom → hapus baris → hapus kolom → hapus tabel;
     - undo dan redo.
   - **Bolak-balik muat:** `CONTENT_DOC_SHOWCASE`, `EMPTY_DOC`, dan bentuk seed demo dimuat → `getJSON()` lolos validator dan **idempoten** (dimuat ulang → `toStrictEqual` keluaran pertama).
+    - Bentuk seed demo (doc → paragraph → text) ditulis inline di tes. Jangan mengimpor `src/db/seed-demo.ts`: `tipTapDoc` di sana tidak diekspor, dan berkas itu menjalankan `main()` (koneksi DB) saat diimpor.
     - Bukan sama dengan fixture: TipTap mengurutkan ulang mark (link lebih dulu) dan membuang `content: []` (diuji).
   - **Tempel** (`view.pasteHTML(html, new Event("paste"))`; jsdom 29 tidak punya konstruktor `ClipboardEvent`, jadi event dibuat sendiri). Semua hasil lolos validator:
     - HTML ala Google Docs: pembungkus `<b style="font-weight:normal">`, h1, h5, `<s>`, `<code>`, `<pre>`, `<mark>`, `<span style>`, `<img>`;
@@ -306,6 +313,12 @@ Rencana memuat:
   - `https://contoh.id/video.MP4?x=1` → `video-link`;
   - `https://contoh.id/artikel`, URL video di tengah kalimat, `notyoutube.com`, dan HTML Google Docs tanpa sematan → `null`.
 - [ ] **Tes komponen** (`rich-text-editor.test.tsx`, jsdom, RTL):
+  - **Lingkungan jsdom** (diuji 7 Nov dengan TipTap 3.32.0, jsdom 29.1.1):
+    - jsdom tidak punya `Range.prototype.getClientRects` dan `getBoundingClientRect`. Setiap `chain().focus()…run()` pada editor yang terpasang di DOM memicu `scrollToSelection` ProseMirror, lalu unhandled `TypeError: target.getClientRects is not a function`. Vitest keluar dengan kode 1 walau semua tes lulus, sehingga `npm run check` merah.
+    - Pasang polyfill di kepala `rich-text-editor.test.tsx`: `getClientRects` mengembalikan daftar kosong, `getBoundingClientRect` mengembalikan rect bernilai nol. Bukan di `test-env.ts` (setup bersama, di luar daftar berkas). Tes headless `editor-extensions.test.ts` tanpa elemen DOM tidak membutuhkannya (diuji).
+    - Seleksi: fokus kanvas, `document.getSelection().setBaseAndExtent(…)` pada node teks di kanvas, lalu `document.dispatchEvent(new Event("selectionchange"))`.
+    - Ketikan: `fireEvent.keyPress` tidak menyisipkan teks. Ubah `data` node teks di kanvas lalu pindahkan seleksi ke ujungnya; DOMObserver ProseMirror membacanya sebagai satu suntingan. `@testing-library/user-event` tidak ada di repo dan tidak ditambahkan.
+    - Membuka `DropdownMenu`: `fireEvent.pointerDown(trigger, { button: 0 })`, seperti `src/components/ui/dropdown-menu.test.tsx`.
   - **Toolbar:**
     - nama `toolbar` "Format teks";
     - ketujuh nama tombol sesuai tabel bagian 4;
@@ -314,7 +327,10 @@ Rencana memuat:
   - **Aturan suntingan:**
     - dokumen berakhir dengan tabel, kanvas difokus → `onChange` tidak dipanggil;
     - lalu satu ketikan → `onChange` dipanggil sekali dan dokumennya lolos validator.
-  - **Atribut kanvas:** `role`, `aria-multiline`, `aria-labelledby` ada; mengganti prop `aria-invalid` mengubah atributnya; `ref.focus()` memfokuskan kanvas.
+  - **Atribut kanvas:**
+    - `role`, `aria-multiline`, `aria-labelledby` ada;
+    - mengganti prop `aria-invalid` mengubah atributnya, **lalu re-render dengan prop lain berubah (mis. `className`) → `aria-invalid` tetap**;
+    - `ref.focus()` memfokuskan kanvas.
   - **Di dalam `<form onSubmit={spy}>`:** klik setiap tombol toolbar dan kirim dialog tautan → `spy` tidak dipanggil.
   - **Tautan:**
     - `javascript:x` → pesan `INVALID_LINK` tampil dan isian `aria-invalid`;
@@ -342,6 +358,7 @@ Rencana memuat:
   8. Dialog tautan tidak memeriksa `classifyHref`.
   9. Roving tabindex dihapus (semua tombol `tabIndex={0}`).
   10. `stopPropagation` di submit dialog tautan dihapus.
+  11. `aria-invalid` diteruskan lewat `editor.setOptions` di efek, bukan lewat opsi `useEditor`. Harapan: tes "re-render dengan prop lain → `aria-invalid` tetap" merah, sedangkan tes "mengganti prop mengubah atributnya" tetap hijau.
 
 ## Sebelum membuka PR
 - **Prasyarat:** Docker menyala, `npm run dev:db` dan `npm run e2e:db`. `main` sudah memuat C-04 dan S1-03a; mulai dari `git switch main && git pull --ff-only && npm ci`.
@@ -404,6 +421,13 @@ Rencana memuat:
   - Memuat dokumen mengurutkan ulang mark dan membuang `content: []`.
   - `<col width="auto">` → `colwidth: [NaN]`.
   - `useEditor` tidak me-render ulang per transaksi, dan memaksa `immediatelyRender: false` di Next.js sambil memperingatkan.
+- **Fakta tambahan yang diuji 7 Nov** (komponen dengan `useEditor` + `EditorContent`, RTL, jsdom 29.1.1, di atas `822d0ce` + simulasi bagian 1):
+  - Tanpa polyfill `Range.prototype.getClientRects`, toolbar yang memanggil `chain().focus()` memicu unhandled `TypeError` dan Vitest keluar dengan kode 1. Dengan polyfill, kode 0. Editor headless tanpa elemen tidak terdampak.
+  - `useEditor` (opsi tanpa `deps`) menerapkan ulang opsinya lewat `setOptions` setiap kali opsi berbeda dari `editor.options`. Atribut dari `setOptions` di efek komponen hilang setelah re-render berikutnya; atribut di opsi `useEditor` bertahan.
+  - `editor.setOptions({ editorProps })` mengganti seluruh `editor.options.editorProps`, bukan menggabungkan per kunci.
+  - Seleksi DOM + `selectionchange` dipetakan ke seleksi ProseMirror. Mengubah teks node di kanvas memicu tepat satu `onChange`. `fireEvent.keyPress` tidak menyisipkan teks.
+  - Fokus pada dokumen yang berakhir dengan tabel menambah paragraf penutup tanpa memanggil `onChange` (aturan suntingan bagian 3).
+  - `renderToString` komponen dengan `useEditorState` tidak melempar.
 - **Panel 20b inline, mengikuti desain**, bukan dialog modal. Copy netral karena komponen dipakai di dua konteks; tiga varian karena kode sematan yang disalin sebagai teks tidak punya "sisa tulisan" untuk ditempel.
 - **Semua `colwidth` hasil tempel menjadi `null`**, tidak hanya yang tidak sah. Renderer mengabaikan lebar kolom, jadi editor dan halaman peserta tampil sama, dan tidak ada nilai yang bisa lolos ke validator dalam bentuk `NaN`.
 - **Tipografi kanvas menyalin nilai `RichContent`** di CSS module, karena node ProseMirror tidak bisa diberi kelas per level heading. Sumber nilainya tetap `rich-content.tsx`; screenshot `/dev/ui` (editor dan pratinjau berdampingan) menjadi pemeriksa kesamaannya.
