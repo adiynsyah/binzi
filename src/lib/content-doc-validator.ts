@@ -60,7 +60,9 @@ export type ContentDocResult =
   | { readonly ok: true; readonly doc: ContentDoc }
   | { readonly ok: false; readonly issues: readonly ContentDocIssue[] };
 
-const MESSAGES: Record<ContentDocIssueCode, string> = {
+// Exported for the S1-03b link dialog, which shows INVALID_LINK with
+// the exact message the server-side validator reports.
+export const CONTENT_DOC_MESSAGES: Record<ContentDocIssueCode, string> = {
   FORBIDDEN_EMBED:
     "Video, iframe, embed, dan script tidak bisa dipasang di dalam teks.",
   UNKNOWN_NODE: "Format teks ini tidak didukung editor.",
@@ -364,7 +366,7 @@ export function validateContentDoc(input: unknown): ContentDocResult {
     code: ContentDocIssueCode,
   ): void => {
     if (aborted) return;
-    issues.push({ path, code, message: MESSAGES[code] });
+    issues.push({ path, code, message: CONTENT_DOC_MESSAGES[code] });
     if (
       issues.length >= MAX_ISSUES ||
       code === "TOO_DEEP" ||
@@ -637,7 +639,7 @@ export function validateContentDoc(input: unknown): ContentDocResult {
     return {
       ok: false,
       issues: [
-        { path: [], code: "INVALID_STRUCTURE", message: MESSAGES.INVALID_STRUCTURE },
+        { path: [], code: "INVALID_STRUCTURE", message: CONTENT_DOC_MESSAGES.INVALID_STRUCTURE },
       ],
     };
   }
