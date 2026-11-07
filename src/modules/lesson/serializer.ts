@@ -15,7 +15,7 @@
 // Type-only db imports + the pure @/lib/content-doc: serializer tests run
 // without DATABASE_URL.
 import type { courses, lessons } from "@/db/schema";
-import { isDocEmpty, type ContentDoc } from "@/lib/content-doc";
+import { EMPTY_DOC, isDocEmpty, type ContentDoc } from "@/lib/content-doc";
 import { validateContentDoc } from "@/lib/content-doc-validator";
 
 export type LessonOutlineRow = Pick<
@@ -169,6 +169,20 @@ export function toLessonEditorDTO(
   course: LessonEditorCourseRow,
   lesson: LessonEditorLessonRow,
 ): LessonEditorDTO {
+  // A never-written lesson (null content since createLessonWithQuiz) opens
+  // with the same blank canvas as a new lesson (card §5 placeholder
+  // default); a description-style EMPTY_DOC mapping, not an error state.
+  if (lesson.content === null) {
+    return {
+      course: { id: course.id, title: course.title, status: course.status },
+      lesson: {
+        id: lesson.id,
+        title: lesson.title,
+        orderIndex: lesson.orderIndex,
+        content: EMPTY_DOC,
+      },
+    };
+  }
   // Re-validate the stored document (§12.3 "sanitasi ulang saat render"):
   // codes and paths only in the log, never the document's text.
   const result = validateContentDoc(lesson.content);

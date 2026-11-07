@@ -51,7 +51,13 @@ vi.mock("@/db", () => ({
 }));
 
 import { createCourse } from "@/modules/course/service";
-import { createLesson, getLessonInCourse, listLessonOutline } from "./service";
+import {
+  createLesson,
+  getLessonEditor,
+  getLessonInCourse,
+  listLessonOutline,
+  updateLessonContent,
+} from "./service";
 
 vi.setConfig({ testTimeout: 120_000, hookTimeout: 120_000 });
 
@@ -327,6 +333,240 @@ describe("listLessonOutline & getLessonInCourse", () => {
     ).rejects.toBeInstanceOf(NotFoundError);
     await expect(
       getLessonInCourse(EDITOR, {
+        courseId: courseIdA,
+        lessonId: "8f38a3b3-9999-4999-8999-999999999999",
+      }),
+    ).rejects.toBeInstanceOf(NotFoundError);
+  });
+});
+
+describe("updateLessonContent & getLessonEditor (card S1-04)", () => {
+  const FILLED_DOC = {
+    type: "doc",
+    content: [
+      {
+        type: "paragraph",
+        content: [{ type: "text", text: "Isi materi pertama." }],
+      },
+    ],
+  };
+
+  /** Same document with every object's keys in reverse order — jsonb
+   *  re-orders keys, so the no-change compare must be structural. */
+  const REORDERED_DOC = {
+    content: [
+      {
+        content: [{ text: "Isi materi pertama.", type: "text" }],
+        type: "paragraph",
+      },
+    ],
+    type: "doc",
+  };
+
+  async function pinTo2020(courseId: string, lessonId?: string): Promise<void> {
+    await db
+      .update(courses)
+      .set({ updatedAt: new Date("2020-01-01T00:00:00Z") })
+      .where(eq(courses.id, courseId));
+    if (lessonId) {
+      await db
+        .update(lessons)
+        .set({ updatedAt: new Date("2020-01-01T00:00:00Z") })
+        .where(eq(lessons.id, lessonId));
+    }
+  }
+
+  it("saves the validator-rebuilt doc, touches the course, writes ONE summary-only audit row", async () => {
+    const courseId = await newDraftCourse();
+    const lesson = await createLesson(EDITOR, courseId, { title: "Les konten" });
+    await pinTo2020(courseId, lesson.id);
+
+    const dto = await updateLessonContent(
+      EDITOR,
+      { courseId, lessonId: lesson.id },
+      { content: FILLED_DOC },
+    );
+
+    // 200 DTO: id/updatedAt/isContentEmpty — the document never echoes.
+    expect(Object.keys(dto).sort()).toEqual(["id", "isContentEmpty", "updatedAt"]);
+    expect(dto.id).toBe(lesson.id);
+    expect(dto.isContentEmpty).toBe(false);
+    expect(new Date(dto.updatedAt).getFullYear()).toBeGreaterThanOrEqual(2025);
+
+    // Stored content = the validated document.
+    const [row] = await db
+      .select({ content: lessons.content })
+      .from(lessons)
+      .where(eq(lessons.id, lesson.id));
+    expect(row?.content).toEqual(FILLED_DOC);
+
+    // Course touch: updated_by + updated_at moved off 2020.
+    const [courseRow] = await db
+      .select({ updatedBy: courses.updatedBy, updatedAt: courses.updatedAt })
+      .from(courses)
+      .where(eq(courses.id, courseId));
+    expect(courseRow?.updatedBy).toBe(EDITOR.id);
+    expect(courseRow?.updatedAt.getFullYear()).toBeGreaterThanOrEqual(2025);
+
+    // Exactly ONE audit row for the save (lesson.create made its own),
+    // summaries only, no document text anywhere.
+    const audits = await db
+      .select()
+      .from(auditLogs)
+      .where(
+        and(
+          eq(auditLogs.entityType, "lesson"),
+          eq(auditLogs.entityId, lesson.id),
+          eq(auditLogs.action, "lesson.update_content"),
+        ),
+      );
+    expect(audits).toHaveLength(1);
+    expect(audits[0]?.action).toBe("lesson.update_content");
+    expect(audits[0]?.before).toEqual({ isContentEmpty: true });
+    expect(audits[0]?.after).toEqual({ isContentEmpty: false });
+    expect(JSON.stringify(audits[0])).not.toContain("Isi materi pertama.");
+  });
+
+  it("no change (same doc, different key order) → no write, no audit", async () => {
+    const courseId = await newDraftCourse();
+    const lesson = await createLesson(EDITOR, courseId, { title: "Les sama" });
+    await updateLessonContent(
+      EDITOR,
+      { courseId, lessonId: lesson.id },
+      { content: FILLED_DOC },
+    );
+    await pinTo2020(courseId, lesson.id);
+    const auditsBefore = await db.$count(auditLogs);
+
+    const dto = await updateLessonContent(
+      EDITOR,
+      { courseId, lessonId: lesson.id },
+      { content: REORDERED_DOC },
+    );
+
+    expect(dto.isContentEmpty).toBe(false);
+    const [row] = await db
+      .select({ updatedAt: lessons.updatedAt })
+      .from(lessons)
+      .where(eq(lessons.id, lesson.id));
+    expect(row?.updatedAt.getFullYear()).toBe(2020);
+    const [courseRow] = await db
+      .select({ updatedAt: courses.updatedAt })
+      .from(courses)
+      .where(eq(courses.id, courseId));
+    expect(courseRow?.updatedAt.getFullYear()).toBe(2020);
+    expect(await db.$count(auditLogs)).toBe(auditsBefore);
+  });
+
+  it("IN_REVIEW course → 409 and nothing is written", async () => {
+    const courseId = await newDraftCourse();
+    const lesson = await createLesson(EDITOR, courseId, { title: "Les kunci" });
+    await db
+      .update(courses)
+      .set({ status: "IN_REVIEW" })
+      .where(eq(courses.id, courseId));
+    const auditsBefore = await db.$count(auditLogs);
+
+    await expect(
+      updateLessonContent(EDITOR, { courseId, lessonId: lesson.id }, {
+        content: FILLED_DOC,
+      }),
+    ).rejects.toBeInstanceOf(ConflictError);
+
+    const [row] = await db
+      .select({ content: lessons.content })
+      .from(lessons)
+      .where(eq(lessons.id, lesson.id));
+    expect(row?.content).toEqual({ type: "doc", content: [{ type: "paragraph" }] });
+    expect(await db.$count(auditLogs)).toBe(auditsBefore);
+  });
+
+  it("a lesson of ANOTHER course → 404 (anti-IDOR); unknown ids → 404", async () => {
+    const courseIdA = await newDraftCourse();
+    const courseIdB = await newDraftCourse();
+    const lesson = await createLesson(EDITOR, courseIdA, { title: "Les milik A2" });
+
+    await expect(
+      updateLessonContent(EDITOR, { courseId: courseIdB, lessonId: lesson.id }, {
+        content: FILLED_DOC,
+      }),
+    ).rejects.toBeInstanceOf(NotFoundError);
+    await expect(
+      updateLessonContent(
+        EDITOR,
+        { courseId: courseIdA, lessonId: "8f38a3b3-9999-4999-8999-999999999999" },
+        { content: FILLED_DOC },
+      ),
+    ).rejects.toBeInstanceOf(NotFoundError);
+    await expect(
+      updateLessonContent(
+        EDITOR,
+        { courseId: "8f38a3b3-9999-4999-8999-999999999999", lessonId: lesson.id },
+        { content: FILLED_DOC },
+      ),
+    ).rejects.toBeInstanceOf(NotFoundError);
+  });
+
+  it("MEMBER → 403 BEFORE the input is parsed", async () => {
+    const courseId = await newDraftCourse();
+    const lesson = await createLesson(EDITOR, courseId, { title: "Les peran" });
+    // Garbage input proves parsing never ran: a ZodError would mean it did.
+    await expect(
+      updateLessonContent(MEMBER, { courseId, lessonId: lesson.id }, { bukan: "kontrak" }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+  it("V-08: an iframe document → ZodError on content.content.0.type, DB untouched", async () => {
+    const courseId = await newDraftCourse();
+    const lesson = await createLesson(EDITOR, courseId, { title: "Les v08" });
+    const auditsBefore = await db.$count(auditLogs);
+
+    const attempt = updateLessonContent(
+      EDITOR,
+      { courseId, lessonId: lesson.id },
+      { content: { type: "doc", content: [{ type: "iframe" }] } },
+    );
+    await expect(attempt).rejects.toBeInstanceOf(ZodError);
+    // The ZodError itself carries the field path (asserted before the
+    // reject rewrote it).
+    await attempt.catch((error: unknown) => {
+      if (error instanceof ZodError) {
+        expect(error.issues[0]?.path).toEqual(["content", "content", 0, "type"]);
+      }
+    });
+
+    const [row] = await db
+      .select({ content: lessons.content })
+      .from(lessons)
+      .where(eq(lessons.id, lesson.id));
+    expect(row?.content).toEqual({ type: "doc", content: [{ type: "paragraph" }] });
+    expect(await db.$count(auditLogs)).toBe(auditsBefore);
+  });
+
+  it("getLessonEditor: fresh lesson → EMPTY_DOC; cross-course → 404", async () => {
+    const courseIdA = await newDraftCourse();
+    const courseIdB = await newDraftCourse();
+    const lesson = await createLesson(EDITOR, courseIdA, { title: "Les editor" });
+
+    const dto = await getLessonEditor(EDITOR, {
+      courseId: courseIdA,
+      lessonId: lesson.id,
+    });
+    expect(dto).toEqual({
+      course: { id: courseIdA, title: expect.any(String), status: "DRAFT" },
+      lesson: {
+        id: lesson.id,
+        title: "Les editor",
+        orderIndex: 1,
+        content: { type: "doc", content: [{ type: "paragraph" }] },
+      },
+    });
+
+    await expect(
+      getLessonEditor(EDITOR, { courseId: courseIdB, lessonId: lesson.id }),
+    ).rejects.toBeInstanceOf(NotFoundError);
+    await expect(
+      getLessonEditor(EDITOR, {
         courseId: courseIdA,
         lessonId: "8f38a3b3-9999-4999-8999-999999999999",
       }),

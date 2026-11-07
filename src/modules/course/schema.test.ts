@@ -1,11 +1,15 @@
-// Unit tests for the course input contract (card S1-01). Pure Zod — no db,
-// no server imports — mirroring the user module's schema tests.
+// Unit tests for the course input contract (cards S1-01, S1-04). Pure
+// Zod — no db, no server imports — mirroring the user module's schema
+// tests.
 import { describe, expect, it } from "vitest";
+
+import { CONTENT_DOC_MESSAGES } from "@/lib/content-doc-validator";
 
 import {
   createCourseInput,
   listCoursesInput,
   slugifyCourseSlug,
+  updateCourseDescriptionInput,
   updateCourseInput,
   FORBIDDEN_COURSE_SLUGS,
 } from "./schema";
@@ -192,6 +196,49 @@ describe("updateCourseInput (S1-02 settings panel)", () => {
     ).toBe(false);
     expect(
       updateCourseInput.safeParse({ ...validUpdate, description: "bocor" }).success,
+    ).toBe(false);
+  });
+});
+
+describe("updateCourseDescriptionInput (card S1-04)", () => {
+  const VALID_DOC = {
+    type: "doc",
+    content: [
+      { type: "paragraph", content: [{ type: "text", text: "Deskripsi." }] },
+    ],
+  };
+
+  it("accepts a valid document and outputs the validator-rebuilt doc", () => {
+    expect(updateCourseDescriptionInput.parse({ description: VALID_DOC })).toEqual({
+      description: VALID_DOC,
+    });
+  });
+
+  it("reports an iframe at index 0 on the node's type path with FORBIDDEN_EMBED", () => {
+    const result = updateCourseDescriptionInput.safeParse({
+      description: { type: "doc", content: [{ type: "iframe" }] },
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0]?.path).toEqual([
+        "description",
+        "content",
+        0,
+        "type",
+      ]);
+      expect(result.error.issues[0]?.params?.code).toBe("FORBIDDEN_EMBED");
+      expect(result.error.issues[0]?.message).toBe(
+        CONTENT_DOC_MESSAGES.FORBIDDEN_EMBED,
+      );
+    }
+  });
+
+  it("is strict: unknown keys are rejected, not stripped", () => {
+    expect(
+      updateCourseDescriptionInput.safeParse({
+        description: VALID_DOC,
+        title: "bocor",
+      }).success,
     ).toBe(false);
   });
 });
