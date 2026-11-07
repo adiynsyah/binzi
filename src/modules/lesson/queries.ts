@@ -11,20 +11,26 @@
 // Every query selects an explicit column allowlist (never select *).
 import "server-only";
 
+import { isDeepStrictEqual } from "node:util";
 import { and, asc, eq, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { auditLogs, courses, lessons, questions } from "@/db/schema";
-import { EMPTY_DOC } from "@/lib/content-doc";
+import { EMPTY_DOC, type ContentDoc } from "@/lib/content-doc";
 import { ConflictError, NotFoundError } from "@/lib/errors";
 import { slugify, uniquifySlug } from "@/lib/slug";
 import { createEmptyLessonQuiz } from "@/modules/quiz/service";
 
 import {
+  contentAuditSummary,
   toCreatedLessonDTO,
+  toLessonEditorDTO,
   toLessonOutlineItemDTO,
+  toUpdatedLessonContentDTO,
   type CreatedLessonDTO,
+  type LessonEditorDTO,
   type LessonOutlineItemDTO,
+  type UpdatedLessonContentDTO,
 } from "./serializer";
 
 // Correlated count resolved inside the one SELECT (no N+1) — same shape as
@@ -181,4 +187,139 @@ export async function createLessonWithQuiz(input: {
 
     return dto;
   });
+}
+
+// -------------------------------------------------- content save (card S1-04)
+
+/**
+ * Save the lesson text of a DRAFT course in ONE transaction (card S1-04
+ * §2). Same lock order as createLessonWithQuiz:
+ *   1. SELECT … FOR UPDATE the course row → 404 / 409 NOT_DRAFT;
+ *   2. SELECT … FOR UPDATE the lesson row scoped `id AND course_id` →
+ *      404, including a lesson that belongs to another course (the
+ *      anti-IDOR shape of the page);
+ *   3. no change (deep-structural compare — jsonb re-orders keys, so
+ *      stringifying is never the test) → current DTO back, no write, no
+ *      audit;
+ *   4. change → content = the VALIDATOR-REBUILT document (never the raw
+ *      input), one course touch so "terakhir diubah" moves, ONE audit row
+ *      whose before/after are { isContentEmpty } summaries only.
+ */
+export async function updateLessonContentIfDraft(input: {
+  courseId: string;
+  lessonId: string;
+  values: { content: ContentDoc };
+  actorId: string;
+}): Promise<{ dto: UpdatedLessonContentDTO; changed: boolean }> {
+  return db.transaction(async (tx) => {
+    // 1. Lock + status gate.
+    const lockedCourses = await tx
+      .select({ id: courses.id, status: courses.status })
+      .from(courses)
+      .where(eq(courses.id, input.courseId))
+      .limit(1)
+      .for("update");
+    const course = lockedCourses[0];
+    if (!course) {
+      throw new NotFoundError("Kursus tidak ditemukan");
+    }
+    if (course.status !== "DRAFT") {
+      throw new ConflictError(NOT_DRAFT_MESSAGE);
+    }
+
+    // 2. Lock the lesson row — scoped to this course.
+    const lockedLessons = await tx
+      .select({
+        id: lessons.id,
+        content: lessons.content,
+        updatedAt: lessons.updatedAt,
+      })
+      .from(lessons)
+      .where(
+        and(eq(lessons.id, input.lessonId), eq(lessons.courseId, input.courseId)),
+      )
+      .limit(1)
+      .for("update");
+    const current = lockedLessons[0];
+    if (!current) {
+      throw new NotFoundError("Materi tidak ditemukan");
+    }
+
+    // 3. Nothing actually changed → no write, no audit (card §2 step 3).
+    if (isDeepStrictEqual(current.content, input.values.content)) {
+      return { dto: toUpdatedLessonContentDTO(current), changed: false };
+    }
+
+    // 4. Write the validated document, touch the course, audit summaries.
+    const before = contentAuditSummary(current.content);
+    const updatedRows = await tx
+      .update(lessons)
+      .set({ content: input.values.content })
+      .where(eq(lessons.id, input.lessonId))
+      .returning({
+        id: lessons.id,
+        content: lessons.content,
+        updatedAt: lessons.updatedAt,
+      });
+    const updated = updatedRows[0];
+    if (!updated) {
+      throw new Error("updateLessonContentIfDraft: update returned no row");
+    }
+
+    // Same touch as createLessonWithQuiz: updated_by moves updated_at via
+    // $onUpdate, so the course list's "terakhir diubah" follows the edit.
+    await tx
+      .update(courses)
+      .set({ updatedBy: input.actorId })
+      .where(eq(courses.id, input.courseId));
+
+    await tx.insert(auditLogs).values({
+      actorId: input.actorId,
+      action: "lesson.update_content",
+      entityType: "lesson",
+      entityId: input.lessonId,
+      // { isContentEmpty } only — no TipTap document in the audit trail
+      // (review rule 2a).
+      before,
+      after: contentAuditSummary(updated.content),
+      ip: null,
+    });
+
+    return { dto: toUpdatedLessonContentDTO(updated), changed: true };
+  });
+}
+
+/**
+ * The editor page's lookup (card S1-04 §5): one joined row — the lesson
+ * scoped to the course (anti-IDOR 404) plus the course's title/status.
+ */
+export async function findLessonEditorById(
+  courseId: string,
+  lessonId: string,
+): Promise<LessonEditorDTO | undefined> {
+  const rows = await db
+    .select({
+      courseId: courses.id,
+      courseTitle: courses.title,
+      courseStatus: courses.status,
+      lessonId: lessons.id,
+      lessonTitle: lessons.title,
+      orderIndex: lessons.orderIndex,
+      content: lessons.content,
+    })
+    .from(lessons)
+    .innerJoin(courses, eq(lessons.courseId, courses.id))
+    .where(and(eq(lessons.id, lessonId), eq(lessons.courseId, courseId)))
+    .limit(1);
+  const row = rows[0];
+  if (!row) return undefined;
+  return toLessonEditorDTO(
+    { id: row.courseId, title: row.courseTitle, status: row.courseStatus },
+    {
+      id: row.lessonId,
+      title: row.lessonTitle,
+      orderIndex: row.orderIndex,
+      content: row.content,
+    },
+  );
 }

@@ -9,6 +9,7 @@
 // door, called with this transaction's handle), and the audit row.
 import "server-only";
 
+import { isDeepStrictEqual } from "node:util";
 import { and, count, desc, eq, ilike, ne, sql, type SQL } from "drizzle-orm";
 
 import { db } from "@/db";
@@ -21,6 +22,7 @@ import {
   users,
 } from "@/db/schema";
 import { ConflictError, NotFoundError } from "@/lib/errors";
+import type { ContentDoc } from "@/lib/content-doc";
 import { createEmptyFinalQuiz } from "@/modules/quiz/service";
 
 import { isUniqueViolation } from "./db-errors";
@@ -32,9 +34,14 @@ import {
 } from "./errors";
 
 import {
+  descriptionAuditSummary,
   toCmsCourseBuilderDTO,
   toCmsCourseDetailDTO,
+  toCourseDescriptionEditorDTO,
+  toUpdatedCourseDescriptionDTO,
   type CourseBuilderRow,
+  type CourseDescriptionEditorDTO,
+  type UpdatedCourseDescriptionDTO,
 } from "./serializer";
 import type {
   CourseListItemRow,
@@ -460,4 +467,106 @@ export async function updateCourseIfDraft(input: {
 
     return { dto: after, changed: true };
   });
+}
+
+// ------------------------------------------------- description (card S1-04)
+
+/**
+ * Save the description of a DRAFT course in ONE transaction (card S1-04
+ * §3). Steps inside the lock:
+ *   1. SELECT … FOR UPDATE the course row → 404 / 409 NOT_DRAFT;
+ *   2. no change → current DTO back, no write, no audit. The compare is
+ *      deep-structural (jsonb re-orders keys) and a stored null is never
+ *      deep-equal to any document, so a first save from "belum diisi"
+ *      always writes;
+ *   3. change → description = the VALIDATOR-REBUILT document (never the
+ *      raw input) + updated_by + ONE audit row with { isDescriptionEmpty }
+ *      summaries only.
+ */
+export async function updateCourseDescriptionIfDraft(input: {
+  courseId: string;
+  values: { description: ContentDoc };
+  actorId: string;
+}): Promise<{ dto: UpdatedCourseDescriptionDTO; changed: boolean }> {
+  return db.transaction(async (tx) => {
+    const lockedRows = await tx
+      .select({
+        id: courses.id,
+        description: courses.description,
+        status: courses.status,
+        updatedAt: courses.updatedAt,
+      })
+      .from(courses)
+      .where(eq(courses.id, input.courseId))
+      .limit(1)
+      .for("update");
+    const current = lockedRows[0];
+    if (!current) {
+      throw new NotFoundError("Kursus tidak ditemukan");
+    }
+    if (current.status !== "DRAFT") {
+      throw new ConflictError(NOT_DRAFT_MESSAGE);
+    }
+
+    if (isDeepStrictEqual(current.description, input.values.description)) {
+      return {
+        dto: toUpdatedCourseDescriptionDTO(current),
+        changed: false,
+      };
+    }
+
+    const before = descriptionAuditSummary(current.description);
+    const updatedRows = await tx
+      .update(courses)
+      .set({
+        description: input.values.description,
+        updatedBy: input.actorId,
+      })
+      .where(eq(courses.id, input.courseId))
+      .returning({
+        id: courses.id,
+        description: courses.description,
+        updatedAt: courses.updatedAt,
+      });
+    const updated = updatedRows[0];
+    if (!updated) {
+      throw new Error("updateCourseDescriptionIfDraft: update returned no row");
+    }
+
+    await tx.insert(auditLogs).values({
+      actorId: input.actorId,
+      action: "course.update_description",
+      entityType: "course",
+      entityId: updated.id,
+      // { isDescriptionEmpty } only — no TipTap document in the audit
+      // trail (review rule 2a).
+      before,
+      after: descriptionAuditSummary(updated.description),
+      ip: null,
+    });
+
+    return {
+      dto: toUpdatedCourseDescriptionDTO(updated),
+      changed: true,
+    };
+  });
+}
+
+/** The description editor page's lookup (card S1-04 §6). */
+export async function findCourseDescriptionEditorById(
+  courseId: string,
+): Promise<CourseDescriptionEditorDTO | undefined> {
+  const rows = await db
+    .select({
+      id: courses.id,
+      title: courses.title,
+      status: courses.status,
+      description: courses.description,
+    })
+    .from(courses)
+    .where(eq(courses.id, courseId))
+    .limit(1);
+  const row = rows[0];
+  if (!row) return undefined;
+  return toCourseDescriptionEditorDTO(row);
 }
