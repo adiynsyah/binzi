@@ -140,7 +140,7 @@ Kartu ditulis di Claude chat menjelang sesinya, terhadap kode `main` terbaru. Re
 
 Jadwal dan keputusannya di `STATUS.md` (bagian "Pembaruan 3 Nov"). Kartu ditulis di Claude chat selagi agent mengerjakan kartu sebelumnya. Urutan potong bila terlambat: halaman "Nilai Saya" lebih dulu, lalu impor CSV.
 
-- [ ] 🤖 Editor quiz CMS: daftar soal (22a) + form satu soal (22b) · *Min 8 Nov*
+- [ ] 🤖 [S1-09](sprint-1/S1-09-editor-quiz.md) — Editor quiz CMS: daftar soal (22a) + form satu soal (22b) · *Min 8 Nov; usulan disetujui 7 Nov; kartu ditinjau terhadap `main` sebelum sesi*
 - [ ] 🤖 Impor soal CSV (22c) · *Sen 9 Nov*
 - [ ] 🤖 Peserta: daftar kursus terbit + ikut kursus · *Rab 11 Nov*
 - [ ] 🤖 Peserta: halaman materi + progres, termasuk `POST /api/progress/video` dan posisi terakhir ([rencana video](../decisions/video-sumber.md) bagian 2) · *Kam 12 Nov*
