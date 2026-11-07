@@ -74,6 +74,16 @@ export class ConflictError extends AppError {
   }
 }
 
+/**
+ * Body over the byte budget (card S1-04 §1). Same copy as the validator's
+ * TOO_LARGE message so the writer sees one sentence in both places.
+ */
+export class PayloadTooLargeError extends AppError {
+  constructor(message = "Teks terlalu panjang.") {
+    super(413, "PAYLOAD_TOO_LARGE", message);
+  }
+}
+
 export function isAppError(error: unknown): error is AppError {
   return error instanceof AppError;
 }
