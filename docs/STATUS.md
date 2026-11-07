@@ -1,9 +1,72 @@
 # Status Proyek BINZI — catatan untuk melanjutkan di chat baru
 
-> Terakhir diperbarui: 6 Nov 2026. File ini dikelola manual (bukan oleh agent) dan hanya untuk melanjutkan percakapan dengan Claude.
+> Terakhir diperbarui: 7 Nov 2026. File ini dikelola manual (bukan oleh agent) dan hanya untuk melanjutkan percakapan dengan Claude.
 > Untuk melanjutkan: buka chat baru, unggah file ini + `docs/tasks/URUTAN-KERJA.md`, lalu pakai prompt di bagian paling bawah.
 
-## Pembaruan 6 Nov 2026 — S1-03a dan C-04 di-merge, kartu S1-03b + S1-04 + C-09 masuk (baca ini dulu, lalu 4 Nov malam, 4 Nov, dan 3 Nov)
+## Pembaruan 7 Nov 2026 — S1-03b dan S1-04 di-merge, keputusan video demo (baca ini dulu, lalu 6 Nov, 4 Nov malam, 4 Nov, dan 3 Nov)
+
+Bagian-bagian di bawahnya tetap berlaku. Bagian ini mengubah atau menambahnya.
+
+### Yang di-merge hari ini
+
+| PR | Isi |
+|---|---|
+| #113 | Revisi kartu S1-03b sebelum sesi: polyfill `Range.getClientRects` untuk tes jsdom, atribut kanvas lewat opsi `useEditor` (bukan `setOptions` di efek) |
+| #114 | **S1-03b** — `RichTextEditor` (TipTap 3.32.0, 49 entri lockfile baru), toolbar, dialog tautan, menu tabel, panel 20b |
+| #115 | Revisi kartu S1-04 sebelum sesi: lebar bingkai editor = kolom baca peserta, E2E API memeriksa path + pesan, tes integrasi PGlite |
+| #116 | **S1-04** — `ContentDocForm`, `PATCH …/lessons/{lessonId}`, `PUT …/description`, halaman editor materi & deskripsi, `readJsonBody` 1 MiB |
+
+`main` sekarang `5e13a0f`. Gate audit tetap 0 excused / 0 blocking / 23.
+
+### Keputusan pemilik 7 Nov — video
+
+Rinciannya di `docs/decisions/video-sumber.md` (masuk PRD v1.6 sebagai Q46):
+
+1. **Demo 20 Nov memakai YouTube** (unlisted, IFrame API lewat `youtube-nocookie.com`), video contoh saja, dipasang lewat skrip.
+2. **Pemutar memakai kontrol 29a sejak demo**, di atas antarmuka `PlayerEngine`: mesin YouTube untuk demo, mesin `<video>` R2 menyusul di S1-05. Tampilan tidak berubah saat pindah sumber.
+3. **Produksi tetap R2.** Urutan setelah demo: H-04 → A-17 → S1-05 → **C-10** (migrasi YouTube → R2). C-10 wajib selesai sebelum peserta penelitian atau publik memakai BINZI.
+4. Jalur cadangan `public/` (3 Nov) tidak dipakai. Batas pembayaran Cloudflare Kam 12 Nov tidak lagi memblokir demo, tetapi tetap memblokir S1-05.
+5. **Tugas tim konten mulai sekarang:** akun YouTube milik proyek (Brand Account), satu video contoh *unlisted*, dan **berkas master** setiap video (MP4 H.264 720p, ≤ 5 menit, ≤ 60 MB) di drive bersama dengan nama = slug materi. Berkas master inilah yang diunggah ke R2 saat C-10.
+6. Gladi resik dan hari demo: pastikan video demo terputar tanpa iklan YouTube (kontrol 29a bisa menghalangi tombol iklan).
+
+### Jadwal demo setelah hari ini
+
+| Hari | Kartu |
+|---|---|
+| Min 8 | Editor quiz CMS: daftar soal (22a) + form satu soal (22b) — kartu ditulis di chat, ditinjau terhadap `5e13a0f` |
+| Sen 9 | Impor soal CSV (22c) |
+| Sel 10 | S1-08 kirim & terbitkan (versi demo) |
+| Rab 11 | Peserta: daftar kursus terbit + ikut kursus |
+| Kam 12 | Peserta: halaman materi + progres, termasuk `POST /api/progress/video` (rencana video bagian 2) |
+| Jum 13 | Peserta: player video — kontrol 29a + mesin YouTube + migrasi kolom sumber video (rencana video bagian 1, 3, 4, 5). Perkiraan 1,5–2 hari: **memakai cadangan Sel 17**. Garis potong: kontrol bawaan YouTube |
+| Sab 14 – Min 15 | Peserta: mengerjakan quiz |
+| Sen 16 | Peserta: hasil & nilai |
+| Sel 17 | (dipakai player video) |
+| Rab 18 – Kam 19 | Production, akun demo, data contoh, gladi resik |
+
+### Pelajaran 7 Nov (dipakai di kartu dan tinjauan berikutnya)
+
+1. **Tinjauan kartu menjalankan kode, bukan hanya membaca.** Dua cacat kartu S1-03b ketemu karena TipTap dijalankan di jsdom sebelum sesi (`getClientRects` tidak ada di jsdom; `aria-invalid` lewat `setOptions` di efek hilang saat re-render).
+2. **Claude kini bisa menguji tampilan di Chromium sandbox.** Chromium 153 headless (`@sparticuz/chromium` + `playwright-core` dari repo) dan `next dev` dengan env dummy e2e. Bisa: `/dev/ui` dan halaman uji sementara yang meniru tata letak CMS. Belum bisa: halaman yang butuh login/DB, font Lato (diganti font cadangan), YouTube, Safari, dan dialog `beforeunload`. Temuan hari ini lewat cara ini: "Tabel ▾" turun baris, seluruh kanvas menggulir ke samping (S1-03b), dan bar kepala ganda (S1-04).
+3. **Mutasi hanya di atas commit.** `git restore` saat mengembalikan mutasi menghapus perbaikan yang belum di-commit **tiga kali** hari ini (dua di S1-03b, satu di S1-04). Hasil akhirnya diperiksa ulang dan lengkap, tetapi aturan kartu harus ditegakkan: commit dulu, `git status` bersih, baru mutasi.
+4. **Tes harus memanggil kode produksi.** Tes `unsetMark("link")` menyalin rantai perintahnya sendiri; menghapusnya dari `insertOrSetLink` tidak membuat apa pun merah.
+5. **jsdom tidak memindahkan fokus saat `fireEvent.click`.** Tes "fokus tetap di isian" lulus semu; fokuskan tombolnya dulu seperti browser.
+6. **Tombol `loading` memasang `disabled` native**, jadi tes klik ganda tidak menguji penjaga `inFlight`; picu simpan kedua lewat jalur lain (Ctrl+S, submit formulir).
+7. **Kartu harus memperhitungkan elemen tata letak yang sudah ada.** Kartu S1-04 meminta bar kepala 21i tanpa melihat `CmsTopbar`; hasilnya dua bar bertumpuk. Kartu juga meminta `overflow-x` di kanvas (S1-03b), yang ternyata menggulir seluruh dokumen.
+8. **Saat tinjau kartu: cari tes yang mengasersi perilaku lama** (`"Segera hadir."`) dan tabel cakupan RBAC (`e2e/rbac.spec.ts` meminta baris untuk setiap `page.tsx` CMS baru).
+9. **Satuan `ch` dihitung dari ukuran huruf elemennya sendiri.** Pembungkus editor memakai `max-w-[calc(var(--width-measure)+42px)] text-[17px]` agar kolom teks editor sama dengan `RichContent`.
+10. **Perbandingan lockfile menyebut field yang diabaikan.** Klaim "0 entri lama berubah" di S1-03b benar untuk version/resolved/integrity; 3 entri kehilangan `devOptional` karena peer `@types/react` dari `@tiptap/react`.
+11. **Screenshot e2e lokal saja** (konvensi A-19b, `E2E_SCREENSHOT_DIR`); CI mengunggah artefak hanya saat gagal. Kartu tidak lagi menulis "artefak CI".
+
+### Antrean setelah demo (dari tinjauan hari ini)
+
+- Penanda gulir untuk tabel lebar (bayangan tepi atau scrollbar tipis) di `RichContent` dan editor. Sampai itu ada: **tabel materi demo maksimal 4 kolom**.
+- Tempelan `<h1>`/`<h5>` dari Google Docs menjadi paragraf → petakan ke H2/H4.
+- 401 (sesi berakhir) tampil sebagai "koneksi terputus" di `ContentDocForm`.
+- Navigasi sidebar CMS tidak dijaga penjaga perubahan.
+- Komentar kecil yang keliru: `lesson/serializer.ts` menyebut kolom isi "nullable" (skema `NOT NULL`); dua komentar CSS menyebut `.tableWrapper` berasal dari `renderWrapper` (sebenarnya dari node view `TableView`).
+
+## Pembaruan 6 Nov 2026 — S1-03a dan C-04 di-merge, kartu S1-03b + S1-04 + C-09 masuk (lalu 4 Nov malam, 4 Nov, dan 3 Nov)
 
 Bagian "Pembaruan 4 Nov malam", "Pembaruan 4 Nov", dan "Pembaruan 3 Nov" di bawahnya tetap berlaku. Bagian ini mengubah atau menambahnya.
 
@@ -417,7 +480,7 @@ Rencana disetujui, dengan lima tambahan berikut (hasil tinjauan C-02/C-03, belum
 - [ ] **Keputusan sebelum S1-08 — mengubah kursus yang sudah terbit.** Desain 21h menjanjikan "kursus yang sudah terbit tidak ikut berubah sampai materi baru lengkap & disetujui", tetapi versioning (CMS-14) di luar MVP dan PRD belum mengatur cara mengubah kursus terbit yang punya peserta. S1-02 mengunci builder di luar `DRAFT` sampai ini diputuskan.
 - [x] *Diputuskan 3 Nov: syarat sampul dimatikan sampai S1-07 (diterapkan di kartu S1-02, 4 Nov) — kursus demo `IN_REVIEW` C-05 kini bisa lolos.* **Sebelum S1-08 — kasus lolos checklist terbit.** Syarat no. 5 S1-02 (sampul + teks alternatif) baru bisa terpenuhi setelah S1-07, padahal urutan tanpa A-17 menaruh S1-08 sebelum S1-05…S1-07. Akibatnya di S1-08 tidak ada kursus yang lolos checklist — termasuk kursus demo `IN_REVIEW` (C-05), yang memenuhi semua syarat kecuali sampul. Putuskan saat menulis kartu S1-08: tunda S1-08 setelah S1-07, uji "Setujui & terbitkan" lewat tes dengan sampul tiruan, atau cara lain.
 - [ ] **`db:seed:binzi-dev` belum ada.** Pembungkus `scripts/binzi-dev.ts` hanya punya `migrate` dan `set-role`, sementara pesan galat `src/db/seed.ts` menyebut pemilik bisa mengarahkan seed ke binzi-dev. Bila kartu berikutnya menambah baris `system_settings` (seed non-destruktif), tambahkan subperintah `seed` di pembungkus yang sama di kartu itu.
-- [ ] **Segera:** hapus `.env.local.sebelum-c05` — berkas ini tidak tercakup larangan baca `.claude/settings.json` maupun aturan `CLAUDE.md` (dicek 2 Nov). Catatan asli: hapus `.env.local.sebelum-c05` (salinan secret Production sebelum C-05, ter-ignore) bila DB lokal terbukti stabil — C-02 sudah selesai 29 Okt: `rm .env.local.sebelum-c05`.
+- [x] **Segera:** hapus `.env.local.sebelum-c05` — ✅ sudah dijalankan 4 Nov (lihat "Pembaruan 4 Nov malam"). Catatan sebelumnya: berkas ini tidak tercakup larangan baca `.claude/settings.json` maupun aturan `CLAUDE.md` (dicek 2 Nov). Catatan asli: hapus `.env.local.sebelum-c05` (salinan secret Production sebelum C-05, ter-ignore) bila DB lokal terbukti stabil — C-02 sudah selesai 29 Okt: `rm .env.local.sebelum-c05`.
 - [ ] **Prettier belum ditegakkan** (ditemukan 30 Okt saat tinjauan C-06): `prettier --list-different src` dengan Prettier 3.9.10 → 80 berkas, dan CI tidak menjalankan `prettier --check` (`npm run check` = typecheck + lint + test + lint:hex). Kartu yang menyentuh banyak berkas melarang `npm run format` supaya diff tetap sebatas lingkup. Putuskan setelah S1-02 atau di sela kartu tanpa branch terbuka: satu PR format massal (tanpa perubahan lain) + `prettier --check` di CI, atau dibiarkan. Format massal bentrok dengan branch kartu yang terbuka.
 - [ ] Komentar `next.config.ts` baris 93–94 masih menyebut `authInterrupts` "still experimental in Next 16.3.7" (C-02 tidak boleh menyentuh berkas itu). Ganti ke 16.4.1 di kartu berikutnya yang menyentuh `next.config.ts` (mis. domain R2 di CSP).
 - [x] → **C-07** (PR #101, 2 Nov). **Chore token kontras — sebelum S1.** Diputuskan 24 Okt (pratinjau di Claude chat): **opsi A** — tombol merah bertuliskan putih memakai `primary-deep` `#c42d1e` (5,61), hover token baru `primary-deeper` `#a8261a` (7,10); tautan & teks merah kecil `text-primary` → `primary-deep`; nilai `text-subtle` `#8a8378` → `#706a61` (≥ 4,5 di semua latar terang, termasuk `primary-tint` 4,63 — `#726c63` di pratinjau hanya 4,495 di sana); `primary` `#f04030` tetap untuk elemen non-teks; tombol email ikut `primary-deep`. Aturan anti-regresi masuk `CLAUDE.md` & `TOKENS.md` (tabel warna layar memetakan `#f04030` → `primary`). Opsi B (token tombol baru `#d83525`, 4,71) ditolak pemilik. Temuan asal: kontras teks kecil di bawah 4,5 — `primary` vs putih 3,83, di atas `#f7f5f2` 3,52, `text-subtle` vs putih 3,75; `KNOWN_CONTRAST_FINDINGS` dikosongkan di C-07.
@@ -647,8 +710,9 @@ Rencana disetujui, dengan lima tambahan berikut (hasil tinjauan C-02/C-03, belum
 Saya sedang membangun BINZI (platform belajar gizi) dengan Next.js 16 +
 AI coding agent (Claude Code). Terlampir docs/STATUS.md dan
 docs/tasks/URUTAN-KERJA.md dari repo saya — baca keduanya sebagai konteks.
-Baca bagian "Pembaruan 6 Nov" di STATUS.md lebih dulu, lalu
-"Pembaruan 4 Nov malam", "Pembaruan 4 Nov", dan "Pembaruan 3 Nov 2026 —
+Baca bagian "Pembaruan 7 Nov" di STATUS.md lebih dulu, lalu
+"Pembaruan 6 Nov", "Pembaruan 4 Nov malam", "Pembaruan 4 Nov", dan
+"Pembaruan 3 Nov 2026 —
 target demo 20 Nov"; jadwal dan keputusan di sana mengalahkan rencana
 sprint lama.
 Spesifikasi lengkap ada di docs/prd/ dan aturan agent di CLAUDE.md;
@@ -656,15 +720,15 @@ repo publik di github.com/adiynsyah/binzi — clone untuk membaca kode,
 kartu, desain, dan meninjau PR (API GitHub sering kena rate limit;
 git fetch pull/N/head tetap jalan). Repo di mesin saya ada di
 ~/Project/React/binzi-new.
-Posisi terakhir (6 Nov): S1-03a (PR #110) dan C-04 (PR #111) di-merge →
-main d3eab7f; pengecualian audit kosong. Kartu S1-03b, S1-04, dan C-09
-masuk lewat PR docs bersama STATUS ini. Berikutnya:
-- Sab 7: sesi S1-03b (TipTap 3.32.0; simulasi dependensi sudah diulang
-  di atas d3eab7f) — tinjau rencana agent di chat sebelum disetujui.
-  Setelah S1-03b merge: tinjau ulang kartu S1-04 terhadap props
-  RichTextEditor yang di-merge, lalu sesi S1-04.
-- Sambil itu tulis kartu editor quiz (Min 8: 22a daftar soal, 22b form
-  satu soal).
+Posisi terakhir (7 Nov): S1-03b (PR #114) dan S1-04 (PR #116) di-merge →
+main 5e13a0f. Keputusan video demo (YouTube + kontrol 29a, produksi tetap
+R2) ada di docs/decisions/video-sumber.md. Berikutnya:
+- Min 8: tulis dan tinjau kartu editor quiz (22a daftar soal, 22b form
+  satu soal) terhadap main, lalu sesi agent.
+- Kartu Kam 12 (halaman materi + progres) dan Jum 13 (player video 29a +
+  mesin YouTube) ditulis dari rencana video.
+- Untuk tinjauan tampilan, Claude bisa menjalankan Chromium headless di
+  sandbox (lihat pelajaran 7 Nov no. 2).
 Gate audit main: 0 excused / 0 blocking / 23 info-low-moderate. Uji
 lokal selalu dengan npm run dev:db. Branch main diproteksi (wajib PR,
 check ci + e2e) — docs juga lewat PR. Setiap kartu ditinjau terhadap

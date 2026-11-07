@@ -110,6 +110,7 @@ Tanggal mulai mengikuti soak 14 hari; tenggat mengikuti `expires` pengecualian a
 - [x] 🤖 [C-03](chore/C-03-undici-7-30-1.md) — undici 7.30.1 · *✅ selesai 30 Okt (PR #89)*
 - [x] 🤖 [C-04](chore/C-04-shadcn-4-22-1-dan-body-parser-2-4-0.md) — shadcn 4.22.1 + body-parser 2.4.0 · *✅ selesai 6 Nov (PR #111)*
 - [ ] 🤖 [C-09](chore/C-09-penyederhanaan-audit-dan-dependabot.md) — penyederhanaan audit & Dependabot · *setelah demo 20 Nov kecuali advisory memblokir PR; kartu ditinjau ulang terhadap `main` sebelum sesi*
+- [ ] 🤖 C-10 — migrasi video YouTube → R2 + pembersihan *(kartu belum ditulis; runbook di [rencana video](../decisions/video-sumber.md) bagian 9)* · *setelah S1-05; wajib sebelum peserta penelitian atau publik memakai BINZI*
 
 Prasyarat Sprint 1 (tanpa tanggal tetap — sebelum S1-01, tanpa branch kartu lain yang terbuka):
 
@@ -121,16 +122,16 @@ Prasyarat Sprint 1 (tanpa tanggal tetap — sebelum S1-01, tanpa branch kartu la
 
 ## Sprint 1 — CMS kursus & materi
 
-Kartu ditulis di Claude chat menjelang sesinya, terhadap kode `main` terbaru. Rencana lengkap, prasyarat, dan keputusan tertunda ada di `STATUS.md` (item "Rencana S1"). Sejak 3 Nov urutan dan lingkupnya mengikuti jadwal demo 20 Nov (bagian "Pembaruan 3 Nov", "Pembaruan 4 Nov", "Pembaruan 4 Nov malam", dan "Pembaruan 6 Nov" di `STATUS.md`).
+Kartu ditulis di Claude chat menjelang sesinya, terhadap kode `main` terbaru. Rencana lengkap, prasyarat, dan keputusan tertunda ada di `STATUS.md` (item "Rencana S1"). Sejak 3 Nov urutan dan lingkupnya mengikuti jadwal demo 20 Nov (bagian "Pembaruan 3 Nov", "Pembaruan 4 Nov", "Pembaruan 4 Nov malam", "Pembaruan 6 Nov", dan "Pembaruan 7 Nov" di `STATUS.md`).
 
 - [x] 🤖 [S1-01](sprint-1/S1-01-daftar-dan-kursus-baru.md) — Daftar kursus, kursus baru, builder kosong · *✅ PR #106*
 - [ ] 🤖 [S1-01b](sprint-1/S1-01b-daftar-kursus-lanjutan.md) — Daftar kursus lanjutan: kartu 19e tablet & ponsel, "Urut ▾", perapian dialog & kode S1-01 · *setelah demo 20 Nov*
 - [x] 🤖 [S1-02](sprint-1/S1-02-builder-kursus.md) — Builder kursus: pengaturan, tambah materi, syarat terbit (lingkup demo, revisi 4 Nov) · *✅ PR #108*
 - [ ] 🤖 [S1-02b](sprint-1/S1-02b-builder-kursus-lanjutan.md) — Builder lanjutan: urutkan ulang, hapus materi & kursus, tablet & ponsel, kolom kuning daftar · *setelah demo 20 Nov*
 - [x] 🤖 [S1-03a](sprint-1/S1-03a-dokumen-konten.md) — Dokumen konten: validator server, renderer, tabel (tanpa dependensi baru) · *✅ PR #110*
-- [ ] 🤖 [S1-03b](sprint-1/S1-03b-editor-tiptap.md) — Editor TipTap: toolbar inti (B, I, H2, list, tautan, tabel), panel penolakan tempel 20b · *Sab 7 Nov (C-04 sudah merge)*
-- [ ] 🤖 [S1-04](sprint-1/S1-04-editor-materi-dan-deskripsi.md) — Editor materi (teks) + deskripsi kursus, simpan manual (tanpa auto-save, keputusan 3 Nov) · *Sab 7 Nov, setelah S1-03b merge; kartu ditinjau sekali lagi sebelum sesi*
-- [ ] 🤖 S1-05 — Unggah video materi *(butuh A-17; kartu belum ditulis)* · *setelah demo — demo memakai satu video yang dimasukkan manual*
+- [x] 🤖 [S1-03b](sprint-1/S1-03b-editor-tiptap.md) — Editor TipTap: toolbar inti (B, I, H2, list, tautan, tabel), panel penolakan tempel 20b · *✅ PR #114*
+- [x] 🤖 [S1-04](sprint-1/S1-04-editor-materi-dan-deskripsi.md) — Editor materi (teks) + deskripsi kursus, simpan manual (tanpa auto-save, keputusan 3 Nov) · *✅ PR #116*
+- [ ] 🤖 S1-05 — Unggah video materi ke R2 + mesin file untuk kontrol 29a *(butuh H-04 + A-17; kartu belum ditulis)* · *setelah demo — demo memakai video YouTube ([rencana](../decisions/video-sumber.md))*
 - [ ] 🤖 S1-06 — Media library *(butuh A-17 + keputusan penyajian gambar; kartu belum ditulis)* · *setelah demo*
 - [ ] 🤖 S1-07 — Pemilih gambar, sampul, pemakaian aset *(kartu belum ditulis)* · *setelah demo; menyalakan lagi syarat sampul*
 - [ ] 🤖 S1-08 — Kirim & terbitkan, versi demo "Kirim → Setujui & terbitkan" tanpa `NEEDS_REVISION` · *Sel 10 Nov* *(kartu belum ditulis; versi lengkap butuh PRD v1.6, setelah demo)*
@@ -142,9 +143,9 @@ Jadwal dan keputusannya di `STATUS.md` (bagian "Pembaruan 3 Nov"). Kartu ditulis
 - [ ] 🤖 Editor quiz CMS: daftar soal (22a) + form satu soal (22b) · *Min 8 Nov*
 - [ ] 🤖 Impor soal CSV (22c) · *Sen 9 Nov*
 - [ ] 🤖 Peserta: daftar kursus terbit + ikut kursus · *Rab 11 Nov*
-- [ ] 🤖 Peserta: halaman materi + progres · *Kam 12 Nov*
-- [ ] 👤 Keputusan video: metode pembayaran Cloudflare + H-04 (R2), atau jalur cadangan `public/` · *batas Kam 12 Nov*
-- [ ] 🤖 Peserta: player video (satu video yang dimasukkan manual) · *Jum 13 Nov*
+- [ ] 🤖 Peserta: halaman materi + progres, termasuk `POST /api/progress/video` dan posisi terakhir ([rencana video](../decisions/video-sumber.md) bagian 2) · *Kam 12 Nov*
+- [x] 👤 Keputusan video demo: **YouTube unlisted** · *✅ diputuskan 7 Nov; R2 tetap jalur produksi, H-04 tetap wajib sebelum S1-05 — [rencana](../decisions/video-sumber.md)*
+- [ ] 🤖 Peserta: player video — kolom sumber video, `LessonVideoPlayer` dengan kontrol 29a di atas mesin YouTube, CSP, skrip pasang video demo ([rencana](../decisions/video-sumber.md) bagian 1, 3, 4, 5) · *Jum 13 Nov, memakai cadangan Sel 17; garis potong: kontrol bawaan YouTube*
 - [ ] 🤖 Peserta: mengerjakan quiz · *Sab 14 – Min 15 Nov*
 - [ ] 🤖 Peserta: hasil & nilai · *Sen 16 Nov*
 - [ ] 👤 Cadangan · *Sel 17 Nov*
