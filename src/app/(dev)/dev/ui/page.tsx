@@ -25,6 +25,7 @@ import {
   RemovableChipDemo,
   SkeletonDemo,
 } from "./demos";
+import { EditorDemo } from "./editor-demo";
 import { RichContent } from "@/components/shared/rich-content";
 import { CONTENT_DOC_SHOWCASE } from "@/lib/content-doc-fixtures";
 
@@ -514,6 +515,16 @@ export default function DevUiPage() {
               dokumennya.
             </p>
           </div>
+        </div>
+      </Section>
+
+      <Section title="Editor teks">
+        <div className="flex flex-col gap-4">
+          <EditorDemo />
+          <p className="text-xs text-text-meta">
+            Toolbar B/I/H2/daftar/tautan/tabel dengan roving tabindex;
+            tempelan video atau sematan memunculkan panel penjelasan 20b.
+          </p>
         </div>
       </Section>
     </main>
