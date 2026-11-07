@@ -20,7 +20,8 @@
  * Field ids are stable ("settings-title" …) because course-builder's
  * focus pass targets them by id across the component boundary.
  */
-import type { FormEventHandler } from "react";
+import type { FormEventHandler, ReactNode } from "react";
+import Link from "next/link";
 import { useWatch, useFormContext } from "react-hook-form";
 
 import { CourseLevelField } from "@/components/cms/course-level-field";
@@ -52,22 +53,55 @@ export type CourseSettingsPanelProps = {
   onBannerDismissed: () => void;
 };
 
-// Agent copy (not from a design screen) — listed in the PR.
-const LOCKED_NOTICE =
+// Agent copy (not from a design screen) — listed in the PR. Exported for
+// the S1-04 editor pages, which show the same notice when locking (§7).
+export const LOCKED_NOTICE =
   "Kursus sudah bukan draf — pengaturan dan materi terkunci.";
+
+/**
+ * The "Deskripsi" row (card S1-04 §6): in a DRAFT it is the door to the
+ * description editor page — "+ Tulis deskripsi lengkap" (21g) while empty,
+ * "Sudah diisi · Ubah" once filled; outside DRAFT it stays the plain
+ * read-only text.
+ */
+function descriptionRow(
+  course: CmsCourseBuilderDTO,
+  editable: boolean,
+): { label: string; value: ReactNode } {
+  const href = `/cms/kursus/${course.id}/deskripsi`;
+  if (editable) {
+    return {
+      label: "Deskripsi",
+      value: course.isDescriptionEmpty ? (
+        <Link href={href} className="text-primary-deep underline hover:text-primary-deeper">
+          + Tulis deskripsi lengkap
+        </Link>
+      ) : (
+        <>
+          {"Sudah diisi · "}
+          <Link href={href} className="text-primary-deep underline hover:text-primary-deeper">
+            Ubah
+          </Link>
+        </>
+      ),
+    };
+  }
+  return {
+    label: "Deskripsi",
+    value: course.isDescriptionEmpty ? "Belum diisi" : "Sudah diisi",
+  };
+}
 
 /** The rows that never change from the panel, both modes (card §2). */
 function readonlyRows(
   course: CmsCourseBuilderDTO,
-): readonly { label: string; value: string }[] {
+  editable: boolean,
+): readonly { label: string; value: ReactNode }[] {
   return [
     { label: "Preview", value: "Materi 1 gratis" },
     { label: "Durasi", value: "Dihitung otomatis dari video" },
     { label: "Penggarap", value: course.ownerName },
-    {
-      label: "Deskripsi",
-      value: course.isDescriptionEmpty ? "Belum diisi" : "Sudah diisi",
-    },
+    descriptionRow(course, editable),
   ];
 }
 
@@ -280,7 +314,7 @@ export function CourseSettingsPanel({
           </div>
 
           <dl className="flex flex-col gap-4 border-t border-border-soft pt-5">
-            {readonlyRows(course).map((row) => (
+            {readonlyRows(course, editable).map((row) => (
               <div key={row.label}>
                 <dt className="text-sm font-bold text-text">{row.label}</dt>
                 <dd className="mt-1 text-sm text-text-muted">{row.value}</dd>
@@ -326,7 +360,7 @@ export function CourseSettingsPanel({
                   : "Tidak wajib berurutan"}
               </dd>
             </div>
-            {readonlyRows(course).map((row) => (
+            {readonlyRows(course, editable).map((row) => (
               <div key={row.label}>
                 <dt className="text-sm font-bold text-text">{row.label}</dt>
                 <dd className="mt-1 text-sm text-text-muted">{row.value}</dd>
