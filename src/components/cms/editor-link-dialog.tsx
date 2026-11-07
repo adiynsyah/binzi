@@ -28,6 +28,30 @@ export type EditorLinkDialogProps = {
   onOpenChange: (open: boolean) => void;
 };
 
+/**
+ * Shared by the dialog's Simpan/Pasang and the blocked-paste panel's
+ * "Sisipkan sebagai tautan teks" (card §5 and §7): apply href to the
+ * selection, or — with a collapsed cursor — insert the address itself as
+ * linked text and drop the stored link mark so the very next keystroke is
+ * plain text.
+ */
+export function insertOrSetLink(editor: Editor, href: string): void {
+  if (editor.state.selection.empty) {
+    editor
+      .chain()
+      .focus()
+      .insertContent({
+        type: "text",
+        text: href,
+        marks: [{ type: "link", attrs: { href } }],
+      })
+      .unsetMark("link")
+      .run();
+  } else {
+    editor.chain().focus().setLink({ href }).run();
+  }
+}
+
 export function EditorLinkDialog({
   editor,
   open,
@@ -47,24 +71,7 @@ export function EditorLinkDialog({
       return;
     }
     onOpenChange(false);
-    if (!editor) return;
-    if (editor.state.selection.empty) {
-      // Empty selection outside a link: insert the address itself as
-      // linked text, then drop the stored link mark so the very next
-      // keystroke is plain text (owner decision).
-      editor
-        .chain()
-        .focus()
-        .insertContent({
-          type: "text",
-          text: href,
-          marks: [{ type: "link", attrs: { href } }],
-        })
-        .unsetMark("link")
-        .run();
-    } else {
-      editor.chain().focus().setLink({ href }).run();
-    }
+    if (editor) insertOrSetLink(editor, href);
   }
 
   function removeLink(): void {

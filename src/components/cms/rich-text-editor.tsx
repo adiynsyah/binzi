@@ -7,10 +7,13 @@ import {
   type Ref,
 } from "react";
 import { EditorContent, useEditor, type JSONContent } from "@tiptap/react";
+import type { Slice } from "@tiptap/pm/model";
 
-import { EditorLinkDialog } from "./editor-link-dialog";
+import { EditorBlockedPastePanel } from "./editor-blocked-paste";
+import { EditorLinkDialog, insertOrSetLink } from "./editor-link-dialog";
 import { EditorToolbar } from "./editor-toolbar";
 import { createEditorExtensions } from "./editor-extensions";
+import { detectBlockedPaste, type BlockedPaste } from "./editor-paste";
 import styles from "./rich-text-editor.module.css";
 import type { ContentDoc } from "@/lib/content-doc";
 import { cn } from "@/lib/utils";
@@ -35,9 +38,20 @@ import { cn } from "@/lib/utils";
  *
  * defaultValue is read ONCE at mount; resetting the field means
  * remounting with a new key.
+ *
+ * Pasting video/embed content never lands silently: handlePaste (card §7)
+ * catches it before the Link plugin turns URLs into links and the 20b
+ * panel explains what to do instead (CRS-05).
  */
 
 export type RichTextEditorHandle = { focus: () => void };
+
+/** What handlePaste caught: the detection result plus ProseMirror's parsed
+ *  slice, kept for "Tempel tanpa bagian itu" (card §7). */
+type BlockedPasteState = {
+  result: BlockedPaste;
+  slice: Slice;
+};
 
 export type RichTextEditorProps = {
   defaultValue: ContentDoc;
@@ -76,6 +90,9 @@ export function RichTextEditor({
   // Bumped on every open; the dialog remounts with a fresh field and no
   // leftover error (instead of resetting state from an effect).
   const [linkDialogKey, setLinkDialogKey] = useState(0);
+  const [blockedPaste, setBlockedPaste] = useState<BlockedPasteState | null>(
+    null,
+  );
 
   const editor = useEditor({
     // Written explicitly: without it SSR throws; 3.32.0 also forces it
@@ -87,6 +104,20 @@ export function RichTextEditor({
       if (transaction.docChanged) onChange(instance.getJSON());
     },
     editorProps: {
+      // Runs BEFORE the Link and prosemirror-tables plugins (card §7), so
+      // a video URL is still plain text here and never becomes a link.
+      handlePaste: (_view, event, slice) => {
+        const clipboard = event.clipboardData;
+        const blocked = detectBlockedPaste({
+          html: clipboard?.getData("text/html") ?? null,
+          text: clipboard?.getData("text/plain") ?? null,
+        });
+        if (blocked === null) return false;
+        // Swallow the paste: the document only changes once the writer
+        // picks an action on the 20b panel.
+        setBlockedPaste({ result: blocked, slice });
+        return true;
+      },
       attributes: {
         id: canvasId,
         role: "textbox",
@@ -120,6 +151,33 @@ export function RichTextEditor({
     setLinkDialogOpen(true);
   }
 
+  /** Every panel exit path lands here: hide it, back to the canvas. */
+  function closeBlockedPanel(): void {
+    setBlockedPaste(null);
+    editor?.commands.focus();
+  }
+
+  function insertBlockedAsLink(): void {
+    const url =
+      blockedPaste?.result.kind === "video-link"
+        ? blockedPaste.result.url
+        : null;
+    closeBlockedPanel();
+    if (editor && url !== null) insertOrSetLink(editor, url);
+  }
+
+  function pasteWithoutBlocked(): void {
+    const slice = blockedPaste?.slice ?? null;
+    closeBlockedPanel();
+    if (!editor || slice === null) return;
+    editor.commands.focus();
+    // ProseMirror already dropped the forbidden elements while parsing
+    // the paste and normalized colwidth (headless tests), so this slice
+    // is the sanitized remainder (card §7).
+    const { state, dispatch } = editor.view;
+    dispatch(state.tr.replaceSelection(slice).scrollIntoView());
+  }
+
   return (
     // No overflow-hidden: it would clip the frame's focus ring (card §3).
     <div className={cn(styles.frame, "rounded-card border border-border", className)}>
@@ -129,6 +187,14 @@ export function RichTextEditor({
         canvasId={editor ? canvasId : undefined}
         onOpenLinkDialog={openLinkDialog}
       />
+      {blockedPaste ? (
+        <EditorBlockedPastePanel
+          result={blockedPaste.result}
+          onInsertAsLink={insertBlockedAsLink}
+          onPasteWithoutBlocked={pasteWithoutBlocked}
+          onDismiss={closeBlockedPanel}
+        />
+      ) : null}
       {editor ? (
         <EditorContent editor={editor} className={styles.canvas} />
       ) : (

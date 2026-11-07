@@ -553,6 +553,122 @@ describe("menu tabel", () => {
   });
 });
 
+describe("penolakan tempel 20b", () => {
+  const YOUTUBE_URL = "https://www.youtube.com/watch?v=abc123";
+
+  /** Synthetic clipboard for fireEvent.paste — the canvas takes the paste
+   *  like a real one would, focused (card "Ketahui"). */
+  function pasteClipboard(data: Record<string, string>): void {
+    const canvas = getCanvas();
+    canvas.focus();
+    fireEvent.paste(canvas, {
+      clipboardData: {
+        getData: (type: string) => data[type] ?? "",
+      },
+    });
+  }
+
+  function docText(doc: JSONContent | undefined): string {
+    let text = "";
+    walkDoc(doc, (node) => {
+      if (typeof node.text === "string") text += node.text;
+    });
+    return text;
+  }
+
+  it("URL YouTube: panel video-link tampil, fokus di tombol utama, dokumen belum berubah; Batal membiarkannya", async () => {
+    const { onChange } = renderEditor();
+    pasteClipboard({ "text/plain": YOUTUBE_URL });
+    const panel = screen.getByRole("group", {
+      name: "Video tidak bisa dipasang di dalam teks",
+    });
+    expect(document.activeElement).toBe(
+      within(panel).getByRole("button", { name: "Sisipkan sebagai tautan teks" }),
+    );
+    expect(onChange).not.toHaveBeenCalled();
+    fireEvent.click(within(panel).getByRole("button", { name: "Batal" }));
+    await waitFor(() => {
+      expect(screen.queryByRole("group")).toBeNull();
+    });
+    expect(onChange).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(document.activeElement).toBe(getCanvas());
+    });
+  });
+
+  it("Sisipkan sebagai tautan teks → URL menjadi teks bertautan yang sah, fokus ke kanvas", async () => {
+    const { onChange } = renderEditor({ defaultValue: EMPTY_DOC });
+    pasteClipboard({ "text/plain": YOUTUBE_URL });
+    fireEvent.click(screen.getByRole("button", { name: "Sisipkan sebagai tautan teks" }));
+    await waitFor(() => {
+      expect(screen.queryByRole("group")).toBeNull();
+    });
+    const doc = onChange.mock.lastCall?.[0];
+    expect(linkHrefs(doc)).toEqual([YOUTUBE_URL]);
+    expect(validateContentDoc(doc).ok).toBe(true);
+    await waitFor(() => {
+      expect(document.activeElement).toBe(getCanvas());
+    });
+  });
+
+  it("HTML berisi iframe: Tempel tanpa bagian itu menempel teks di sekitarnya tanpa iframe", async () => {
+    const { onChange } = renderEditor();
+    pasteClipboard({
+      "text/html":
+        'sebelum<iframe src="https://example.com/e"></iframe>di tengah',
+    });
+    const panel = screen.getByRole("group", {
+      name: "Sebagian isi tempelan tidak bisa dipasang",
+    });
+    expect(document.activeElement).toBe(
+      within(panel).getByRole("button", { name: "Tempel tanpa bagian itu" }),
+    );
+    fireEvent.click(within(panel).getByRole("button", { name: "Tempel tanpa bagian itu" }));
+    await waitFor(() => {
+      expect(screen.queryByRole("group")).toBeNull();
+    });
+    const doc = onChange.mock.lastCall?.[0];
+    expect(validateContentDoc(doc).ok).toBe(true);
+    const text = docText(doc);
+    expect(text).toContain("sebelum");
+    expect(text).toContain("di tengah");
+  });
+
+  it("kode sematan sebagai teks: hanya tombol Tutup, dokumen tidak berubah", async () => {
+    const { onChange } = renderEditor();
+    pasteClipboard({
+      "text/plain": '<iframe src="https://www.youtube.com/embed/abc123"></iframe>',
+    });
+    const panel = screen.getByRole("group", {
+      name: "Kode sematan tidak bisa dipasang di dalam teks",
+    });
+    expect(within(panel).getAllByRole("button")).toHaveLength(1);
+    fireEvent.click(within(panel).getByRole("button", { name: "Tutup" }));
+    await waitFor(() => {
+      expect(screen.queryByRole("group")).toBeNull();
+    });
+    expect(onChange).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(document.activeElement).toBe(getCanvas());
+    });
+  });
+
+  it("Esc di panel sama dengan Batal", async () => {
+    const { onChange } = renderEditor();
+    pasteClipboard({ "text/plain": YOUTUBE_URL });
+    fireEvent.keyDown(screen.getByRole("group", { name: "Video tidak bisa dipasang di dalam teks" }), {
+      key: "Escape",
+    });
+    await waitFor(() => {
+      expect(screen.queryByRole("group")).toBeNull();
+    });
+    expect(onChange).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(document.activeElement).toBe(getCanvas());
+    });
+  });
+});
+
 describe("render server", () => {
   it("renderToString tidak melempar dan memuat toolbar yang tombolnya nonaktif", () => {
     const html = renderToString(
