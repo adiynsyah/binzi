@@ -8,11 +8,25 @@ import { NotFoundError } from "@/lib/errors";
 
 import { assertCanManageLessons, type Actor } from "./policy";
 import * as lessonQueries from "./queries";
-import { createLessonInput, getLessonInput } from "./schema";
-import type { CreatedLessonDTO, LessonOutlineItemDTO } from "./serializer";
+import {
+  createLessonInput,
+  getLessonInput,
+  updateLessonContentInput,
+} from "./schema";
+import type {
+  CreatedLessonDTO,
+  LessonEditorDTO,
+  LessonOutlineItemDTO,
+  UpdatedLessonContentDTO,
+} from "./serializer";
 
 // DTO types for consumers: import these from service, not from serializer.
-export type { CreatedLessonDTO, LessonOutlineItemDTO };
+export type {
+  CreatedLessonDTO,
+  LessonEditorDTO,
+  LessonOutlineItemDTO,
+  UpdatedLessonContentDTO,
+};
 
 /**
  * "Tambah materi" (21h, card §4). EDITOR+; the transaction in
@@ -59,4 +73,45 @@ export async function getLessonInCourse(
   const row = await lessonQueries.findLessonTitleInCourse(courseId, lessonId);
   if (!row) throw new NotFoundError("Materi tidak ditemukan");
   return row;
+}
+
+/**
+ * The lesson editor page's data (card S1-04 §5): EDITOR+; unknown lesson,
+ * unknown course, or a lesson belonging to another course → 404. The
+ * stored document is validated in the serializer — a row that somehow
+ * fails the validator comes back with lesson.content null and the page
+ * answers "Isi materi ini tidak bisa dibuka editor." instead of opening
+ * the editor.
+ */
+export async function getLessonEditor(
+  actor: Actor,
+  input: unknown,
+): Promise<LessonEditorDTO> {
+  assertCanManageLessons(actor);
+  const { courseId, lessonId } = getLessonInput.parse(input);
+
+  const row = await lessonQueries.findLessonEditorById(courseId, lessonId);
+  if (!row) throw new NotFoundError("Materi tidak ditemukan");
+  return row;
+}
+
+/**
+ * Save the lesson text (card S1-04 §2). EDITOR+; role before input
+ * parsing. The parsed value IS the validator-rebuilt document — exactly
+ * what updateLessonContentIfDraft stores (never the raw request input).
+ */
+export async function updateLessonContent(
+  actor: Actor,
+  ids: { courseId: string; lessonId: string },
+  input: unknown,
+): Promise<UpdatedLessonContentDTO> {
+  assertCanManageLessons(actor);
+  const parsed = updateLessonContentInput.parse(input);
+  const { dto } = await lessonQueries.updateLessonContentIfDraft({
+    courseId: ids.courseId,
+    lessonId: ids.lessonId,
+    values: parsed,
+    actorId: actor.id,
+  });
+  return dto;
 }

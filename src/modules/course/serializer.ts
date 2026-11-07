@@ -10,7 +10,8 @@
 //
 // Type-only db imports: serializer tests run without DATABASE_URL.
 import type { courses } from "@/db/schema";
-import { isDocEmpty } from "@/lib/content-doc";
+import { EMPTY_DOC, isDocEmpty, type ContentDoc } from "@/lib/content-doc";
+import { validateContentDoc } from "@/lib/content-doc-validator";
 
 /** Owner display name: users.name trimmed, falling back to the email. */
 function ownerDisplayName(name: string, email: string): string {
@@ -214,5 +215,85 @@ export function toCmsCourseBuilderDTO(
             questionCount: row.finalQuizQuestionCount,
             durationMinutes: row.finalQuizDurationMinutes,
           },
+  };
+}
+
+// ------------------------------------------------- description (card S1-04)
+
+/** What the description-save transaction reads and answers (card §3). */
+export type CourseDescriptionRow = Pick<
+  typeof courses.$inferSelect,
+  "id" | "description" | "updatedAt"
+>;
+
+/** 200 response of PUT …/description: no document comes back. */
+export type UpdatedCourseDescriptionDTO = {
+  id: string;
+  updatedAt: string;
+  isDescriptionEmpty: boolean;
+};
+
+export function toUpdatedCourseDescriptionDTO(
+  row: CourseDescriptionRow,
+): UpdatedCourseDescriptionDTO {
+  return {
+    id: row.id,
+    updatedAt: row.updatedAt.toISOString(),
+    isDescriptionEmpty: isDocEmpty(row.description),
+  };
+}
+
+/** Audit summaries (card §3 step 3): emptiness only, never the document. */
+export function descriptionAuditSummary(
+  description: unknown,
+): { isDescriptionEmpty: boolean } {
+  return { isDescriptionEmpty: isDocEmpty(description) };
+}
+
+/** The description editor page's columns (card §6). */
+export type CourseDescriptionEditorRow = Pick<
+  typeof courses.$inferSelect,
+  "id" | "title" | "status" | "description"
+>;
+
+export type CourseDescriptionEditorDTO = {
+  id: string;
+  title: string;
+  status: CourseDescriptionEditorRow["status"];
+  /**
+   * null in the DB ("belum diisi") maps to EMPTY_DOC so the editor opens
+   * with the same blank canvas a new lesson gets. null OUT means the
+   * STORED document failed the validator — never expected; the page then
+   * answers "Deskripsi ini tidak bisa dibuka editor." (card §6).
+   */
+  description: ContentDoc | null;
+};
+
+export function toCourseDescriptionEditorDTO(
+  row: CourseDescriptionEditorRow,
+): CourseDescriptionEditorDTO {
+  if (row.description === null) {
+    return {
+      id: row.id,
+      title: row.title,
+      status: row.status,
+      description: EMPTY_DOC,
+    };
+  }
+  // Re-validate the stored document (§12.3): codes and paths only in the
+  // log, never the document's text.
+  const result = validateContentDoc(row.description);
+  if (!result.ok) {
+    console.error(
+      "deskripsi kursus: dokumen tidak lolos validasi",
+      result.issues.map((issue) => ({ code: issue.code, path: issue.path })),
+    );
+    return { id: row.id, title: row.title, status: row.status, description: null };
+  }
+  return {
+    id: row.id,
+    title: row.title,
+    status: row.status,
+    description: result.doc,
   };
 }

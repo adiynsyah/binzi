@@ -74,9 +74,11 @@ import type { UpdateCourseInput } from "./schema";
 import {
   createCourse,
   getCourseBuilder,
+  getCourseDescriptionEditor,
   getCourseDetail,
   listCourses,
   updateCourse,
+  updateCourseDescription,
 } from "./service";
 
 vi.setConfig({ testTimeout: 120_000, hookTimeout: 120_000 });
@@ -649,5 +651,186 @@ describe("getCourseBuilder — the whole page in one call (S1-02 §5)", () => {
     await expect(getCourseBuilder(MEMBER, { bukan: "kontrak" })).rejects.toBeInstanceOf(
       ForbiddenError,
     );
+  });
+});
+
+describe("updateCourseDescription & getCourseDescriptionEditor (card S1-04)", () => {
+  const FILLED_DOC = {
+    type: "doc",
+    content: [
+      {
+        type: "paragraph",
+        content: [{ type: "text", text: "Untuk ahli gizi baru." }],
+      },
+    ],
+  };
+
+  /** Same document with every object's keys in reverse order — jsonb
+   *  re-orders keys, so the no-change compare must be structural. */
+  const REORDERED_DOC = {
+    content: [
+      {
+        content: [{ text: "Untuk ahli gizi baru.", type: "text" }],
+        type: "paragraph",
+      },
+    ],
+    type: "doc",
+  };
+
+  it("saves the validator-rebuilt doc and writes ONE summary-only audit row", async () => {
+    const input = inputFor("dsk");
+    const created = await createCourse(EDITOR, input);
+    // Pin updated_at in the past so a would-be touch would be provable.
+    await db
+      .update(courses)
+      .set({ updatedAt: new Date("2020-01-01T00:00:00Z") })
+      .where(eq(courses.id, created.id));
+
+    const dto = await updateCourseDescription(EDITOR, created.id, {
+      description: FILLED_DOC,
+    });
+
+    // 200 DTO: id/updatedAt/isDescriptionEmpty — no document echo.
+    expect(Object.keys(dto).sort()).toEqual([
+      "id",
+      "isDescriptionEmpty",
+      "updatedAt",
+    ]);
+    expect(dto.id).toBe(created.id);
+    expect(dto.isDescriptionEmpty).toBe(false);
+
+    // Stored description = the validated document.
+    const [row] = await db
+      .select({ description: courses.description })
+      .from(courses)
+      .where(eq(courses.id, created.id));
+    expect(row?.description).toEqual(FILLED_DOC);
+
+    // Exactly ONE audit row for the save (course.create made its own),
+    // summaries only, no document text anywhere.
+    const audits = await db
+      .select()
+      .from(auditLogs)
+      .where(
+        and(
+          eq(auditLogs.entityType, "course"),
+          eq(auditLogs.entityId, created.id),
+          eq(auditLogs.action, "course.update_description"),
+        ),
+      );
+    expect(audits).toHaveLength(1);
+    expect(audits[0]?.before).toEqual({ isDescriptionEmpty: true });
+    expect(audits[0]?.after).toEqual({ isDescriptionEmpty: false });
+    expect(JSON.stringify(audits[0])).not.toContain("Untuk ahli gizi baru.");
+  });
+
+  it("no change (same doc, different key order) → no write, no audit", async () => {
+    const input = inputFor("dsk");
+    const created = await createCourse(EDITOR, input);
+    await updateCourseDescription(EDITOR, created.id, {
+      description: FILLED_DOC,
+    });
+    await db
+      .update(courses)
+      .set({ updatedAt: new Date("2020-01-01T00:00:00Z") })
+      .where(eq(courses.id, created.id));
+    const auditsBefore = await db.$count(auditLogs);
+
+    const dto = await updateCourseDescription(EDITOR, created.id, {
+      description: REORDERED_DOC,
+    });
+
+    expect(dto.isDescriptionEmpty).toBe(false);
+    const [row] = await db
+      .select({ updatedAt: courses.updatedAt })
+      .from(courses)
+      .where(eq(courses.id, created.id));
+    expect(row?.updatedAt.getFullYear()).toBe(2020);
+    expect(await db.$count(auditLogs)).toBe(auditsBefore);
+  });
+
+  it("non-DRAFT → 409 and the description stays null", async () => {
+    const input = inputFor("dsk");
+    const created = await createCourse(EDITOR, input);
+    await db
+      .update(courses)
+      .set({ status: "IN_REVIEW" })
+      .where(eq(courses.id, created.id));
+    const auditsBefore = await db.$count(auditLogs);
+
+    await expect(
+      updateCourseDescription(EDITOR, created.id, { description: FILLED_DOC }),
+    ).rejects.toBeInstanceOf(ConflictError);
+
+    const [row] = await db
+      .select({ description: courses.description })
+      .from(courses)
+      .where(eq(courses.id, created.id));
+    expect(row?.description).toBeNull();
+    expect(await db.$count(auditLogs)).toBe(auditsBefore);
+  });
+
+  it("unknown course → 404; MEMBER → 403 BEFORE the input is parsed", async () => {
+    await expect(
+      updateCourseDescription(EDITOR, "8f38a3b3-9999-4999-8999-999999999999", {
+        description: FILLED_DOC,
+      }),
+    ).rejects.toBeInstanceOf(NotFoundError);
+    // Garbage input proves parsing never ran: a ZodError would mean it did.
+    await expect(
+      updateCourseDescription(MEMBER, "whatever", { bukan: "kontrak" }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+  it("V-08: an iframe document → ZodError on description.content.0.type, DB untouched", async () => {
+    const input = inputFor("dsk");
+    const created = await createCourse(EDITOR, input);
+    const auditsBefore = await db.$count(auditLogs);
+
+    const attempt = updateCourseDescription(EDITOR, created.id, {
+      description: { type: "doc", content: [{ type: "iframe" }] },
+    });
+    await expect(attempt).rejects.toBeInstanceOf(ZodError);
+    await attempt.catch((error: unknown) => {
+      if (error instanceof ZodError) {
+        expect(error.issues[0]?.path).toEqual([
+          "description",
+          "content",
+          0,
+          "type",
+        ]);
+      }
+    });
+
+    const [row] = await db
+      .select({ description: courses.description })
+      .from(courses)
+      .where(eq(courses.id, created.id));
+    expect(row?.description).toBeNull();
+    expect(await db.$count(auditLogs)).toBe(auditsBefore);
+  });
+
+  it("getCourseDescriptionEditor: null → EMPTY_DOC; unknown → 404; MEMBER → 403", async () => {
+    const input = inputFor("dsk");
+    const created = await createCourse(EDITOR, input);
+
+    const dto = await getCourseDescriptionEditor(EDITOR, {
+      courseId: created.id,
+    });
+    expect(dto).toEqual({
+      id: created.id,
+      title: input.title,
+      status: "DRAFT",
+      description: { type: "doc", content: [{ type: "paragraph" }] },
+    });
+
+    await expect(
+      getCourseDescriptionEditor(EDITOR, {
+        courseId: "8f38a3b3-9999-4999-8999-999999999999",
+      }),
+    ).rejects.toBeInstanceOf(NotFoundError);
+    await expect(
+      getCourseDescriptionEditor(MEMBER, { bukan: "kontrak" }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
   });
 });

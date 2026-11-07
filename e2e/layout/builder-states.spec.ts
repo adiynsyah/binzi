@@ -1,7 +1,7 @@
 // The five S1-02 screenshot states for the owner's visual review (card
 // "Sebelum membuka PR"): empty builder, builder with two lessons and an
 // incomplete checklist, the settings panel with a SERVER slug error, the
-// 21h add-lesson dialog, and the placeholder lesson editor — each at
+// 21h add-lesson dialog, and the lesson editor — each at
 // w360/w768/w1280 (the card's width table; w700/w1440 are out of the
 // card and skipped here).
 //
@@ -87,12 +87,14 @@ test.describe("S1-02 builder: 5 state screenshot", () => {
       );
     });
 
-    await test.step("placeholder editor materi", async () => {
+    await test.step("editor materi", async () => {
       await page.goto(`/cms/kursus/${filledCourseId}/materi/${firstLessonId}`);
-      await expect(page.getByText("Segera hadir.")).toBeVisible();
+      await expect(
+        page.getByRole("textbox", { name: "Teks materi" }),
+      ).toBeVisible();
       await maybeScreenshot(
         page,
-        "s1-02-materi-editor-placeholder",
+        "s1-04-materi-editor",
         testInfo.project.name,
       );
     });

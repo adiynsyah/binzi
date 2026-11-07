@@ -22,13 +22,16 @@ import {
   createCourseInput,
   getCourseDetailInput,
   listCoursesInput,
+  updateCourseDescriptionInput,
   updateCourseInput,
 } from "./schema";
 import type {
   CmsCourseBuilderDTO,
   CmsCourseDetailDTO,
   CmsCourseListItemDTO,
+  CourseDescriptionEditorDTO,
   CourseStatusCounts,
+  UpdatedCourseDescriptionDTO,
 } from "./serializer";
 import {
   toCmsCourseBuilderDTO,
@@ -41,8 +44,10 @@ export type {
   CmsCourseBuilderDTO,
   CmsCourseDetailDTO,
   CmsCourseListItemDTO,
+  CourseDescriptionEditorDTO,
   CourseStatusCounts,
   PublishChecklist,
+  UpdatedCourseDescriptionDTO,
 };
 
 /** Everything the builder page needs, from ONE call (card S1-02 §5). */
@@ -182,4 +187,42 @@ export async function updateCourse(
     actorId: actor.id,
   });
   return dto;
+}
+
+/**
+ * Save the course description (card S1-04 §3). EDITOR+; role before input
+ * parsing (same guard order as updateCourse). The parsed value IS the
+ * validator-rebuilt document — exactly what the transaction stores.
+ */
+export async function updateCourseDescription(
+  actor: Actor,
+  courseId: string,
+  input: unknown,
+): Promise<UpdatedCourseDescriptionDTO> {
+  assertCanManageCourses(actor);
+  const parsed = updateCourseDescriptionInput.parse(input);
+  const { dto } = await courseQueries.updateCourseDescriptionIfDraft({
+    courseId,
+    values: parsed,
+    actorId: actor.id,
+  });
+  return dto;
+}
+
+/**
+ * The description editor page's data (card S1-04 §6): EDITOR+; unknown
+ * course → 404. A stored null description maps to EMPTY_DOC; a row that
+ * somehow fails the validator comes back with description null and the
+ * page answers "Deskripsi ini tidak bisa dibuka editor.".
+ */
+export async function getCourseDescriptionEditor(
+  actor: Actor,
+  input: unknown,
+): Promise<CourseDescriptionEditorDTO> {
+  assertCanManageCourses(actor);
+  const { courseId } = getCourseDetailInput.parse(input);
+
+  const row = await courseQueries.findCourseDescriptionEditorById(courseId);
+  if (!row) throw new NotFoundError("Kursus tidak ditemukan");
+  return row;
 }

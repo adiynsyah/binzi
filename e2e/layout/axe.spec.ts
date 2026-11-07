@@ -218,6 +218,7 @@ test.describe("axe WCAG 2.1 A/AA", () => {
     expect(filledResponse.status(), await filledResponse.text()).toBe(201);
     const filledId = ((await filledResponse.json()) as { data: { id: string } })
       .data.id;
+    let firstLessonId = "";
     for (const title of [
       `${filledToken}${"x".padEnd(80, "x")}`.slice(0, 80),
       `${filledToken} protein`,
@@ -227,6 +228,10 @@ test.describe("axe WCAG 2.1 A/AA", () => {
         { data: { title } },
       );
       expect(lessonResponse.status(), await lessonResponse.text()).toBe(201);
+      const lessonId = (
+        (await lessonResponse.json()) as { data: { id: string } }
+      ).data.id;
+      if (firstLessonId === "") firstLessonId = lessonId;
     }
 
     await page.goto(`/cms/kursus/${filledId}`);
@@ -238,6 +243,18 @@ test.describe("axe WCAG 2.1 A/AA", () => {
       page.getByRole("dialog").getByLabel("Judul materi"),
     ).toBeVisible();
     await expectAxeClean(page, "EDITOR builder dialog tambah materi", testInfo);
+
+    // Card S1-04: the two content-editing pages — the lesson editor and
+    // the course description editor (same pattern as the builder above).
+    await page.goto(`/cms/kursus/${filledId}/materi/${firstLessonId}`);
+    await expect(
+      page.getByRole("textbox", { name: "Teks materi" }),
+    ).toBeVisible();
+    await expectAxeClean(page, "EDITOR editor materi", testInfo);
+
+    await page.goto(`/cms/kursus/${filledId}/deskripsi`);
+    await expect(page.getByRole("textbox", { name: "Deskripsi" })).toBeVisible();
+    await expectAxeClean(page, "EDITOR deskripsi kursus", testInfo);
   });
 
   test("tamu: menu ponsel terbuka (w360 saja)", async ({ page }, testInfo) => {

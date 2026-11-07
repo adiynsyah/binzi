@@ -44,6 +44,9 @@ const PAGE_EXPECTATIONS: readonly {
   // S1-02: the (placeholder) lesson editor — same EDITOR+ matrix; real ids
   // are substituted per role below (MEMBER hits the role gate first).
   { path: "/cms/kursus/[id]/materi/[lessonId]", member: 403, editor: 200, admin: 200, superAdmin: 200 },
+  // S1-04: the course description editor — same matrix; the real course id
+  // is substituted per role below.
+  { path: "/cms/kursus/[id]/deskripsi", member: 403, editor: 200, admin: 200, superAdmin: 200 },
   { path: "/cms/quiz", member: 403, editor: 200, admin: 200, superAdmin: 200 },
   { path: "/cms/media", member: 403, editor: 200, admin: 200, superAdmin: 200 },
   // ADMIN+
@@ -191,7 +194,8 @@ test.describe("status per peran", () => {
       try {
         for (const row of PAGE_EXPECTATIONS) {
           const dynamicPath =
-            row.path === "/cms/kursus/[id]"
+            row.path === "/cms/kursus/[id]" ||
+              row.path === "/cms/kursus/[id]/deskripsi"
               ? realCoursePath
               : row.path === "/cms/kursus/[id]/materi/[lessonId]"
                 ? realLessonPath

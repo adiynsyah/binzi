@@ -1,16 +1,25 @@
-// /cms/kursus/[id]/materi/[lessonId] (card S1-02 §4): a PLACEHOLDER for
-// the lesson editor — the editor itself is S1-04. Both ids must be UUIDs
-// and the lesson must belong to that course; anything else is a 404
-// (anti-IDOR shape: existence is not confirmed), same as the builder page.
+// /cms/kursus/[id]/materi/[lessonId] (card S1-04 §5) — the lesson text
+// editor, replacing the S1-02 placeholder. Guards as before: EDITOR+,
+// both ids UUIDs, and the lesson must belong to that course — anything
+// else is a 404 (anti-IDOR shape: existence is not confirmed), same as
+// the builder page. A DRAFT course opens ContentDocForm; a non-DRAFT
+// course shows the locked view (§7); a stored document that somehow fails
+// the validator never opens the editor (§5).
 import { notFound } from "next/navigation";
 
-import { CmsPlaceholderPage } from "@/components/cms/cms-pages";
+import {
+  ContentDocBreadcrumb,
+  ContentDocForm,
+  CONTENT_DOC_HEADING_CLASS,
+} from "@/components/cms/content-doc-form";
+import { LOCKED_NOTICE } from "@/components/cms/course-settings-panel";
+import { RichContent } from "@/components/shared/rich-content";
+import { Banner } from "@/components/ui/banner";
+import { isDocEmpty } from "@/lib/content-doc";
 import { NotFoundError } from "@/lib/errors";
 import { requireRole } from "@/lib/rbac";
-import { getLessonInCourse } from "@/modules/lesson/service";
-
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+import { UUID_PATTERN } from "@/modules/course/schema";
+import { getLessonEditor, type LessonEditorDTO } from "@/modules/lesson/service";
 
 export default async function CmsLessonEditorPage({
   params,
@@ -25,9 +34,9 @@ export default async function CmsLessonEditorPage({
     notFound();
   }
 
-  let lesson: { id: string; title: string };
+  let editor: LessonEditorDTO;
   try {
-    lesson = await getLessonInCourse(sessionUser, { courseId: id, lessonId });
+    editor = await getLessonEditor(sessionUser, { courseId: id, lessonId });
   } catch (error) {
     if (error instanceof NotFoundError) {
       notFound();
@@ -35,5 +44,70 @@ export default async function CmsLessonEditorPage({
     throw error;
   }
 
-  return <CmsPlaceholderPage title={lesson.title} />;
+  const { course, lesson } = editor;
+
+  // The SAME breadcrumb in every variant (review item) — the locked and
+  // unreadable views render it without the leave guard (nothing is
+  // editable, so nothing can be lost), keeping the way back to the
+  // builder instead of a dead end.
+  const breadcrumb = [
+    { label: "Kursus", href: "/cms/kursus" },
+    { label: course.title, href: `/cms/kursus/${course.id}` },
+    { label: `Materi ${lesson.orderIndex}`, href: null },
+  ];
+
+  if (course.status !== "DRAFT") {
+    // Locked view (card §7): no editor, no Simpan — the notice plus the
+    // stored text (or "Belum diisi." when it is empty).
+    return (
+      <div>
+        <header className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <ContentDocBreadcrumb items={breadcrumb} />
+        </header>
+        <div className="pb-8 pt-3">
+          <h1 className={CONTENT_DOC_HEADING_CLASS}>{lesson.title}</h1>
+          <div className="mt-4">
+            <Banner tone="info" title={LOCKED_NOTICE} />
+          </div>
+          <div className="mt-6">
+            {lesson.content !== null && !isDocEmpty(lesson.content) ? (
+              <RichContent doc={lesson.content} />
+            ) : (
+              <p className="text-[15px] text-text-muted">Belum diisi.</p>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (lesson.content === null) {
+    // The serializer already logged the issue codes + paths — the page
+    // never shows the document's text back (§12.3).
+    return (
+      <div>
+        <header className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <ContentDocBreadcrumb items={breadcrumb} />
+        </header>
+        <div className="pb-8 pt-3">
+          <h1 className={CONTENT_DOC_HEADING_CLASS}>{lesson.title}</h1>
+          <p className="mt-4 text-[15px] text-text-muted">
+            Isi materi ini tidak bisa dibuka editor.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <ContentDocForm
+      initialDoc={lesson.content}
+      saveUrl={`/api/cms/courses/${course.id}/lessons/${lesson.id}`}
+      method="PATCH"
+      bodyKey="content"
+      labelId="lesson-content-label"
+      breadcrumb={breadcrumb}
+      heading={lesson.title}
+    />
+  );
 }

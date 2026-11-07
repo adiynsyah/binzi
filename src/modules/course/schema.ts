@@ -8,6 +8,7 @@
 // are rejected instead of silently stripped.
 import { z } from "zod";
 
+import { contentDocSchema } from "@/lib/content-doc-validator";
 import { slugify } from "@/lib/slug";
 
 export const COURSE_TITLE_MAX = 80;
@@ -130,6 +131,21 @@ export const updateCourseInput = z
   .superRefine(rejectForbiddenSlug);
 
 export type UpdateCourseInput = z.infer<typeof updateCourseInput>;
+
+/**
+ * Save the course description (card S1-04 §3) — a SEPARATE endpoint from
+ * PATCH /api/cms/courses/{id}: the five-field settings contract stays
+ * untouched and a long document never rides along on every settings save.
+ * contentDocSchema parses AND validates the document (CRS-05); its output
+ * is what the server stores.
+ */
+export const updateCourseDescriptionInput = z.strictObject({
+  description: contentDocSchema,
+});
+
+export type UpdateCourseDescriptionInput = z.infer<
+  typeof updateCourseDescriptionInput
+>;
 
 /**
  * List contract: filter by status, search by title (1–80 chars after

@@ -1,16 +1,22 @@
-// Explicit serialization for the lesson module (PRD §12.6, card S1-02).
+// Explicit serialization for the lesson module (PRD §12.6, cards S1-02,
+// S1-04).
 //
 // Module-internal: consumers outside the module get DTO types re-exported
-// from service.ts. Two audiences, two DTOs:
+// from service.ts. Audiences and DTOs:
 // - the outline row (builder 21a): everything the row markers need and
 //   NOTHING else — the TipTap content itself never crosses this boundary,
 //   only the computed isContentEmpty;
-// - the created lesson (201 response + audit `after`).
+// - the created lesson (201 response + audit `after`);
+// - the content-save response (S1-04): id/updatedAt/isContentEmpty — the
+//   document is never echoed back;
+// - the editor page (S1-04): the document itself, validated HERE so an
+//   unreadable row never opens the editor.
 //
 // Type-only db imports + the pure @/lib/content-doc: serializer tests run
 // without DATABASE_URL.
-import type { lessons } from "@/db/schema";
-import { isDocEmpty } from "@/lib/content-doc";
+import type { courses, lessons } from "@/db/schema";
+import { EMPTY_DOC, isDocEmpty, type ContentDoc } from "@/lib/content-doc";
+import { validateContentDoc } from "@/lib/content-doc-validator";
 
 export type LessonOutlineRow = Pick<
   typeof lessons.$inferSelect,
@@ -96,4 +102,108 @@ export type LessonTitleRow = Pick<typeof lessons.$inferSelect, "id" | "title">;
 
 export function toLessonTitleDTO(row: LessonTitleRow): { id: string; title: string } {
   return { id: row.id, title: row.title };
+}
+
+// ------------------------------------------------------ content save (S1-04)
+
+/** What the content-save transaction reads and answers (card §2). */
+export type LessonContentRow = Pick<
+  typeof lessons.$inferSelect,
+  "id" | "content" | "updatedAt"
+>;
+
+/** 200 response of PATCH …/lessons/{lessonId}: no document comes back. */
+export type UpdatedLessonContentDTO = {
+  id: string;
+  updatedAt: string;
+  isContentEmpty: boolean;
+};
+
+export function toUpdatedLessonContentDTO(row: LessonContentRow): UpdatedLessonContentDTO {
+  return {
+    id: row.id,
+    updatedAt: row.updatedAt.toISOString(),
+    isContentEmpty: isDocEmpty(row.content),
+  };
+}
+
+/** Audit summaries (card §2 step 4): emptiness only, never the document. */
+export function contentAuditSummary(content: unknown): { isContentEmpty: boolean } {
+  return { isContentEmpty: isDocEmpty(content) };
+}
+
+// -------------------------------------------------------- editor page (S1-04)
+
+/** The editor page's course columns (card §5). */
+export type LessonEditorCourseRow = Pick<
+  typeof courses.$inferSelect,
+  "id" | "title" | "status"
+>;
+
+/** The editor page's lesson columns (card §5). */
+export type LessonEditorLessonRow = Pick<
+  typeof lessons.$inferSelect,
+  "id" | "title" | "orderIndex" | "content"
+>;
+
+export type LessonEditorDTO = {
+  course: {
+    id: string;
+    title: string;
+    status: LessonEditorCourseRow["status"];
+  };
+  lesson: {
+    id: string;
+    title: string;
+    orderIndex: number;
+    /**
+     * null only when the STORED document fails the validator — never
+     * expected; the page answers with "Isi materi ini tidak bisa dibuka
+     * editor." instead of opening the editor (card §5).
+     */
+    content: ContentDoc | null;
+  };
+};
+
+export function toLessonEditorDTO(
+  course: LessonEditorCourseRow,
+  lesson: LessonEditorLessonRow,
+): LessonEditorDTO {
+  // Defensive branch: no known writer stores NULL content
+  // (createLessonWithQuiz writes EMPTY_DOC), but the column is nullable —
+  // NULL opens with the same blank canvas as a new lesson (card §5), not
+  // an error state.
+  if (lesson.content === null) {
+    return {
+      course: { id: course.id, title: course.title, status: course.status },
+      lesson: {
+        id: lesson.id,
+        title: lesson.title,
+        orderIndex: lesson.orderIndex,
+        content: EMPTY_DOC,
+      },
+    };
+  }
+  // Re-validate the stored document (§12.3 "sanitasi ulang saat render"):
+  // codes and paths only in the log, never the document's text.
+  const result = validateContentDoc(lesson.content);
+  if (!result.ok) {
+    console.error(
+      "lesson editor: dokumen materi tidak lolos validasi",
+      result.issues.map((issue) => ({ code: issue.code, path: issue.path })),
+    );
+    return {
+      course: { id: course.id, title: course.title, status: course.status },
+      lesson: { id: lesson.id, title: lesson.title, orderIndex: lesson.orderIndex, content: null },
+    };
+  }
+  return {
+    course: { id: course.id, title: course.title, status: course.status },
+    lesson: {
+      id: lesson.id,
+      title: lesson.title,
+      orderIndex: lesson.orderIndex,
+      content: result.doc,
+    },
+  };
 }
