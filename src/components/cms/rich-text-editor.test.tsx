@@ -330,6 +330,16 @@ describe("toolbar", () => {
 });
 
 describe("aturan suntingan", () => {
+  it("tabel dirender di dalam pembungkus .tableWrapper", () => {
+    // The wrapper the canvas CSS scrolls (wide tables stay inside it —
+    // layout itself is untestable in jsdom). It comes from the TableView
+    // node view, which TipTap installs whenever resizable is false, so
+    // this alone survives mutation 13; the renderWrapper option itself
+    // is guarded in editor-extensions.test.ts via getHTML.
+    renderEditor({ defaultValue: TABLE_DOC });
+    expect(getCanvas().querySelector(".tableWrapper > table")).toBeTruthy();
+  });
+
   it("fokus pada dokumen berakhir tabel tidak memanggil onChange; satu ketikan → sekali, dokumen sah", async () => {
     const { onChange } = renderEditor({ defaultValue: TABLE_DOC });
     const canvas = getCanvas();

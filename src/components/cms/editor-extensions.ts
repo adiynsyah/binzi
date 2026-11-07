@@ -33,7 +33,13 @@ export function createEditorExtensions(
         isAllowedUri: (url) => classifyHref(url) !== null,
       },
     }),
-    TableKit.configure({ table: { resizable: false } }),
+    // renderWrapper makes serialization (getHTML) wrap each table in a
+    // div.tableWrapper. The editing DOM has that wrapper anyway — with
+    // resizable: false TipTap always installs the TableView node view,
+    // which wraps tables itself — so wide tables scroll inside it
+    // instead of scrolling the whole canvas (visual review item 2).
+    // getJSON is unchanged either way.
+    TableKit.configure({ table: { resizable: false, renderWrapper: true } }),
     Placeholder.configure({
       placeholder: options?.placeholder ?? "Mulai menulis…",
     }),

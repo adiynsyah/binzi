@@ -542,4 +542,13 @@ describe("tabel", () => {
     expectValid(doc);
     expect(tableCount(doc)).toBe(1);
   });
+
+  it("renderWrapper membungkus tabel di getHTML dengan div.tableWrapper", () => {
+    // renderWrapper only affects serialization (renderHTML). The editing
+    // DOM has the wrapper regardless — with resizable: false TipTap
+    // always installs the TableView node view, which wraps tables itself
+    // — so getHTML is the only place this option is observable.
+    const editor = makeEditor(tableDoc);
+    expect(editor.getHTML()).toContain('<div class="tableWrapper"><table');
+  });
 });

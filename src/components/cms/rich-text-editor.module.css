@@ -5,13 +5,14 @@
  * file stays the source of truth — update both together.
  *
  * Colors enter ONLY through var(--…) tokens. ProseMirror-controlled
- * class names (.ProseMirror, p.is-editor-empty, .selectedCell) are global
- * and must stay wrapped in :global(…) or CSS modules would hash them and
- * the rules would never match the DOM.
+ * class names (.ProseMirror, .tableWrapper, p.is-editor-empty,
+ * .selectedCell) are global and must stay wrapped in :global(…) or CSS
+ * modules would hash them and the rules would never match the DOM.
  *
  * Deliberate differences from the renderer: empty paragraphs stay
- * visible (a place to type), the placeholder pseudo-element, the
- * selected-cell tint, and scroll inside the canvas for wide tables.
+ * visible (a place to type), the placeholder pseudo-element, and the
+ * selected-cell tint. Wide tables scroll inside their .tableWrapper
+ * (TipTap renderWrapper), matching RichContent.
  */
 
 /* Clickable canvas: padding and minimum height live on the editable
@@ -25,18 +26,31 @@
 
 .canvas :global(.ProseMirror) {
   /* RichContent ROOT_CLASS: flex column, 16px gaps between blocks, 17px
-   * body text, wrapping anywhere, capped at the 68ch measure (padding
-   * included, so the text column matches the renderer's max-width). */
+   * body text, wrapping anywhere. The editable itself spans the whole
+   * frame — the 68ch measure applies per block (rule below), and a
+   * click in the empty area right of the text column focuses the
+   * editor. */
   display: flex;
   flex-direction: column;
   gap: 16px;
-  max-width: calc(var(--width-measure) + 40px);
   font-size: 17px;
   line-height: 1.75;
   color: var(--text-body);
   overflow-wrap: anywhere;
   outline: none; /* the focus ring lives on the frame instead */
-  overflow-x: auto; /* wide tables scroll inside the canvas */
+}
+
+/* The 68ch measure applies PER BLOCK, like RichContent's reading
+ * column. */
+.canvas :global(.ProseMirror) > * {
+  max-width: var(--width-measure);
+}
+
+/* Wide tables scroll in their own wrapper (renderWrapper), like
+ * RichContent — overflow on the editable itself scrolled the whole
+ * document whenever the cursor moved through a wide table. */
+.canvas :global(.tableWrapper) {
+  overflow-x: auto;
 }
 
 /* Focus ring on the frame while the canvas is focused (global ring

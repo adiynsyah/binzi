@@ -36,7 +36,7 @@ const BUTTON_BASE =
 const BUTTON_IDLE = "text-text-nav hover:bg-fill";
 const BUTTON_ACTIVE = "bg-text text-surface";
 const LABEL_BUTTON_BASE =
-  "grid h-8 place-items-center rounded-sm px-2 text-[12.5px] font-bold disabled:cursor-not-allowed disabled:pointer-events-none disabled:text-text-subtle";
+  "inline-flex h-8 items-center justify-center gap-1 rounded-sm px-2 text-[12.5px] font-bold disabled:cursor-not-allowed disabled:pointer-events-none disabled:text-text-subtle";
 
 /* Icons copied from 20a.html markup, 17px, currentColor. */
 const BULLET_LIST_ICON = (
@@ -313,7 +313,7 @@ export function EditorToolbar({
             disabled={!editor}
             className={cn(LABEL_BUTTON_BASE, BUTTON_IDLE)}
           >
-            Tabel<span aria-hidden="true"> ▾</span>
+            Tabel<span aria-hidden="true">▾</span>
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent
