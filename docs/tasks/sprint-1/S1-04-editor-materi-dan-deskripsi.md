@@ -9,6 +9,11 @@
 
 > **Dibuat 5 Nov 2026** di Claude chat. **Ditinjau ulang terhadap `main` `2e9a44f`** (S1-03a, PR #110) pada hari yang sama: `validateContentDoc`, `contentDocSchema`, `ContentDoc`, `EMPTY_DOC`, dan `RichContent` ada dengan nama yang sama. Props editor mengikuti kartu S1-03b. C-04 (`d3eab7f`, 6 Nov) tidak menyentuh `src/`. **Sebelum sesi, kartu ini ditinjau sekali lagi setelah S1-03b merge.**
 >
+> **Ditinjau ulang 7 Nov terhadap `main` `a4d823b`** (S1-03b, PR #114). Semua berkas dan simbol yang dirujuk ada. Props `RichTextEditor` sesuai bagian 4: `defaultValue` dibaca sekali, `onChange` hanya untuk suntingan dokumen, `aria-invalid` boolean, `ref.focus()`, dan `className` dipasang di bingkai. Gate audit di `a4d823b`: 0 excused / 0 blocking / 23. Tiga koreksi:
+> - lebar bingkai editor dibatasi selebar kolom baca peserta (bagian 4, "Lebar editor");
+> - galat 400 API tidak membawa kode per isian, jadi E2E memeriksa path dan pesan (bagian "Selesai jika", E2E API);
+> - tes integrasi memakai PGlite, bukan DB `e2e:db`.
+>
 > **Disetujui pemilik 5 Nov:**
 > - tanpa cek versi untuk demo (simpan terakhir yang menang);
 > - deskripsi di halaman sendiri;
@@ -112,7 +117,11 @@ Satu komponen klien untuk kedua halaman. Bentuknya formulir satu isian di sekita
 - Judul `h1` dengan gaya judul 21i: 28 px / 1.18, bobot 900 (TOKENS: 800 → 900), tracking −0.022em.
 - `intro` bila ada (`text-text-muted`).
 - Label isian: 15 px tebal, ditambah tag mono "WAJIB" (21i). `labelId` dipasang di elemen yang hanya berisi teks label, bukan tag "WAJIB", supaya nama aksesibel editor tepat "Teks materi" atau "Deskripsi".
-- Editor.
+- Editor, dengan **lebar editor** dibatasi selebar kolom baca peserta:
+  - Bungkus `RichTextEditor` dengan elemen `max-w-[calc(var(--width-measure)+42px)] text-[17px]`. Angka 42 = padding kanvas kiri-kanan 2 × 20 px + garis bingkai 2 × 1 px.
+  - `text-[17px]` wajib di pembungkus itu: satuan `ch` di `--width-measure` dihitung dari ukuran huruf elemen tempat ia dipakai, sedangkan kolom `RichContent` memakai 17 px. Diuji 7 Nov di Chromium: dengan 17 px lebar paragraf editor sama persis dengan kolom `RichContent` (729 px di font pengganti sandbox), tanpa itu 43 px lebih sempit. Ukuran huruf toolbar, panel 20b, dan kanvas semuanya eksplisit, jadi tidak terpengaruh.
+  - Alasannya: kanvas S1-03b membatasi setiap blok ke 68ch. Tanpa batas ini, bingkai di layar 1280 selebar sekitar 975 px (sidebar 249 px, panel "Syarat materi lengkap" 21i ditunda) dengan ruang kosong sekitar 260 px di dalam kotak editor. Dengan batas ini, teks dan tabel memenuhi kotak, dan ruang di kanan bingkai menjadi ruang halaman tempat panel 21i nanti.
+  - Pesan galat isian tetap di bawah editor, di luar pembungkus.
 - Pesan galat isian di bawah editor, disambungkan lewat `aria-describedby`; editor diberi `aria-invalid` saat ada galat.
 
 **Indikator simpan** (satu tempat, di kepala halaman; 20c):
@@ -223,7 +232,7 @@ Rencana memuat:
   - `updateLessonContentInput` dengan `iframe` di indeks 0 → path `["content", "content", 0, "type"]` dan `params.code` `FORBIDDEN_EMBED`;
   - key tambahan di objek luar → ditolak;
   - `updateCourseDescriptionInput` setara.
-- [ ] **Tes integrasi** (DB `e2e:db`, pola `service.integration.test.ts`), untuk materi dan deskripsi masing-masing:
+- [ ] **Tes integrasi** (PGlite, pola `src/modules/{course,lesson}/service.integration.test.ts`; tidak butuh Docker), untuk materi dan deskripsi masing-masing:
   - **Sah:**
     - tersimpan, dan isinya sama dengan dokumen hasil validasi;
     - `updated_at` kursus ikut bergerak (khusus materi);
@@ -260,7 +269,7 @@ Rencana memuat:
     2. Kembali ke builder → "Sudah diisi · Ubah", dan syarat "Deskripsi lengkap" terpenuhi.
   - **Penjaga:** ketik tanpa simpan, klik breadcrumb → dialog → "Tetap di sini" → teks masih ada.
   - **API** (request konteks yang sudah login):
-    - `iframe` → 400 dengan `fields` berkode `FORBIDDEN_EMBED`;
+    - `iframe` → 400 dengan `error.fields[0].path` `"content.content.0.type"` dan `message` sama dengan `CONTENT_DOC_MESSAGES.FORBIDDEN_EMBED`. `toErrorResponse` hanya mengirim `{ path, message }` per isian (kode `FORBIDDEN_EMBED` ada di `params.code` Zod tetapi tidak ikut ke respons), dan `src/lib/errors.ts` di kartu ini hanya boleh ditambah `PayloadTooLargeError`;
     - body 2 MB → 413;
     - MEMBER → 403, termasuk dengan body 2 MB (peran dicek sebelum body).
   - **Kursus bukan `DRAFT`** → kedua halaman tampil terkunci, tanpa tombol Simpan.
@@ -280,9 +289,9 @@ Rencana memuat:
 
 ## Sebelum membuka PR
 - **Prasyarat:** Docker menyala, `npm run dev:db` dan `npm run e2e:db`. `main` sudah memuat S1-03a dan S1-03b.
-- **Gate audit:** `node scripts/check-audit.mjs` di awal sesi dan sebelum PR. Harapan sama dengan akhir S1-03b (dikonfirmasi 6 Nov di `main` `d3eab7f`: 0 excused / 0 blocking / 23). Angka lain atau temuan blocking baru → berhenti dan tempel output lengkapnya.
+- **Gate audit:** `node scripts/check-audit.mjs` di awal sesi dan sebelum PR. Harapan sama dengan akhir S1-03b (dikonfirmasi 7 Nov di `main` `a4d823b`: 0 excused / 0 blocking / 23). Angka lain atau temuan blocking baru → berhenti dan tempel output lengkapnya.
 - **Prettier:** berkas yang sudah ada tetap apa adanya, sehingga diff sebatas lingkup. Berkas baru boleh dirapikan.
-- **Uji mutasi:** commit lokal dulu, lalu kembalikan setiap mutasi dengan `git restore`.
+- **Uji mutasi:** commit lokal dulu, lalu kembalikan setiap mutasi dengan `git restore`. Sebelum mutasi pertama, `git status` harus bersih: `git restore` menghapus perubahan yang belum di-commit, dan itu terjadi dua kali di S1-03b sehingga perbaikan harus ditulis ulang.
 - **Staging per nama berkas.** Sebelum commit, `git status` hanya menunjukkan berkas dari daftar di atas.
 - **"Keputusan & asumsi" di PR** memuat semua copy usulan dan keputusan yang diambil tanpa bertanya.
 - **Screenshot e2e** kedua halaman (w1280 dan w768, termasuk state "BELUM DISIMPAN", "TERSIMPAN", bar gagal, dan dialog penjaga) disimpan di artefak CI, dengan `animations: "disabled"` (pelajaran S1-01).
