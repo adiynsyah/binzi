@@ -283,6 +283,13 @@ describe("toolbar", () => {
     const buttons = () =>
       Array.from(toolbar.querySelectorAll<HTMLButtonElement>("[data-toolbar-button]"));
     const focusedIndex = () => buttons().findIndex((button) => button === document.activeElement);
+    // Browsers dispatch keydown from the FOCUSED button; the handler
+    // ignores keys from anything else (see the menu test below).
+    const keyOnFocused = (key: string) => {
+      const active = document.activeElement;
+      if (!active) throw new Error("tidak ada elemen terfokus");
+      fireEvent.keyDown(active, { key });
+    };
 
     expect(buttons().filter((button) => button.tabIndex === 0)).toHaveLength(1);
     const first = buttons()[0];
@@ -290,16 +297,35 @@ describe("toolbar", () => {
     expect(first.tabIndex).toBe(0);
 
     first.focus();
-    fireEvent.keyDown(toolbar, { key: "ArrowRight" });
+    keyOnFocused("ArrowRight");
     expect(focusedIndex()).toBe(1);
-    fireEvent.keyDown(toolbar, { key: "End" });
+    keyOnFocused("End");
     expect(focusedIndex()).toBe(6);
-    fireEvent.keyDown(toolbar, { key: "ArrowRight" });
+    keyOnFocused("ArrowRight");
     expect(focusedIndex()).toBe(0);
-    fireEvent.keyDown(toolbar, { key: "Home" });
+    keyOnFocused("Home");
     expect(focusedIndex()).toBe(0);
-    fireEvent.keyDown(toolbar, { key: "ArrowLeft" });
+    keyOnFocused("ArrowLeft");
     expect(focusedIndex()).toBe(6);
+  });
+
+  it("panah dari dalam menu Tabel tidak menggerakkan roving tabindex", async () => {
+    // The menu renders in a portal, but its React keydown events bubble
+    // into the toolbar handler — they must be ignored there (review
+    // item 4). The toolbar is grabbed BEFORE opening: Radix aria-hides
+    // the rest of the page while the menu is open.
+    renderEditor();
+    const toolbar = screen.getByRole("toolbar", { name: "Format teks" });
+    const menu = await openTableMenu();
+    const firstItem = within(menu).getAllByRole("menuitem")[0];
+    if (!firstItem) throw new Error("item menu tidak ditemukan");
+    fireEvent.keyDown(firstItem, { key: "ArrowRight" });
+    const tabbable = Array.from(
+      toolbar.querySelectorAll<HTMLButtonElement>("[data-toolbar-button]"),
+    ).filter((button) => button.tabIndex === 0);
+    expect(tabbable).toHaveLength(1);
+    expect(tabbable[0]?.getAttribute("aria-label")).toBe("Tebal");
+    await closeTableMenu(menu);
   });
 });
 
@@ -419,9 +445,13 @@ describe("dialog tautan", () => {
     fireEvent.click(screen.getByRole("button", { name: "Tautan" }));
     const dialog = await screen.findByRole("dialog", { name: "Pasang tautan" });
     const input = within(dialog).getByRole("textbox", { name: "Alamat tautan" });
-    input.focus();
     fireEvent.change(input, { target: { value: "javascript:x" } });
-    fireEvent.click(within(dialog).getByRole("button", { name: "Pasang" }));
+    // Chrome moves focus to the button on mousedown, before the click
+    // handlers run — simulate that, then expect the error path to put
+    // focus back in the field (review item 2).
+    const submit = within(dialog).getByRole("button", { name: "Pasang" });
+    submit.focus();
+    fireEvent.click(submit);
     expect(screen.getByText(CONTENT_DOC_MESSAGES.INVALID_LINK)).toBeTruthy();
     expect(input.getAttribute("aria-invalid")).toBe("true");
     expect(screen.queryByRole("dialog")).toBeTruthy(); // dialog stays open

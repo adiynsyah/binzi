@@ -7,6 +7,7 @@
 import { afterAll, describe, expect, it } from "vitest";
 import { Editor, type JSONContent } from "@tiptap/react";
 
+import { insertOrSetLink } from "./editor-link-dialog";
 import { canInsertTable, createEditorExtensions } from "./editor-extensions";
 import { EMPTY_DOC } from "@/lib/content-doc";
 import { CONTENT_DOC_SHOWCASE } from "@/lib/content-doc-fixtures";
@@ -470,21 +471,13 @@ describe("sisip teks bertautan pada seleksi kosong", () => {
     const editor = makeEditor(textDoc("awal "));
     // Collapsed cursor right after "awal " (end of the paragraph).
     editor.commands.setTextSelection(editor.state.doc.content.size - 1);
-    expect(
-      editor
-        .chain()
-        .insertContent({
-          type: "text",
-          text: "https://contoh.id",
-          marks: [{ type: "link", attrs: { href: "https://contoh.id" } }],
-        })
-        .unsetMark("link")
-        .run(),
-    ).toBe(true);
+    // The real implementation, not a copy of its chain — this test is
+    // the guard for the trailing unsetMark("link") (review item 1).
+    insertOrSetLink(editor, "https://contoh.id");
     expect(linkHrefs(editor.getJSON())).toEqual(["https://contoh.id"]);
     // insertContent at the collapsed cursor goes through storedMarks,
-    // exactly like typed input — the unsetMark above left the link mark
-    // out of them.
+    // exactly like typed input — the unsetMark("link") inside
+    // insertOrSetLink left the link mark out of them.
     expect(editor.commands.insertContent("x")).toBe(true);
     const doc = editor.getJSON();
     expectValid(doc);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { Editor } from "@tiptap/react";
 
 import { Button } from "@/components/ui/button";
@@ -63,11 +63,15 @@ export function EditorLinkDialog({
   // state below is a fresh field each time — no reset effect needed.
   const [value, setValue] = useState(initialHref);
   const [error, setError] = useState<string | undefined>(undefined);
+  const inputRef = useRef<HTMLInputElement | null>(null);
 
   function applyLink(): void {
     const href = value.trim();
     if (classifyHref(href) === null) {
       setError(CONTENT_DOC_MESSAGES.INVALID_LINK);
+      // The click that submitted moved focus to the button — back to the
+      // field so the writer fixes the address in place (card §5).
+      inputRef.current?.focus();
       return;
     }
     onOpenChange(false);
@@ -109,6 +113,7 @@ export function EditorLinkDialog({
             error={error}
           >
             <Input
+              ref={inputRef}
               type="text"
               inputMode="url"
               value={value}

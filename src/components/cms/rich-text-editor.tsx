@@ -82,8 +82,10 @@ export function RichTextEditor({
   const [initialContent] = useState(
     () => structuredClone(defaultValue) as unknown as JSONContent,
   );
-  // Built once per mount — rebuilding per render would reconfigure the
-  // editor and drop the document (owner decision).
+  // Built once per mount: a fresh array per render would make useEditor
+  // re-apply options (setOptions) on every render — needless
+  // reconfiguration; the document itself would survive it (owner
+  // decision).
   const [extensions] = useState(() => createEditorExtensions({ placeholder }));
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [linkHref, setLinkHref] = useState("");

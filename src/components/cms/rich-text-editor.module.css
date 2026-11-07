@@ -1,8 +1,8 @@
 /*
  * Canvas typography for RichTextEditor (card S1-03b §3). Every value is
- * copied from src/components/shared/rich-text-editor.tsx (RichContent,
- * card S1-03a) so an author sees exactly what a participant will read;
- * that file stays the source of truth — update both together.
+ * copied from src/components/shared/rich-content.tsx (RichContent, card
+ * S1-03a) so an author sees exactly what a participant will read; that
+ * file stays the source of truth — update both together.
  *
  * Colors enter ONLY through var(--…) tokens. ProseMirror-controlled
  * class names (.ProseMirror, p.is-editor-empty, .selectedCell) are global

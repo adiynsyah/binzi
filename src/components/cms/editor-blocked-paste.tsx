@@ -75,7 +75,7 @@ export function EditorBlockedPastePanel({
       <div className="flex items-start gap-[11px]">
         <span
           aria-hidden="true"
-          className="grid size-[22px] flex-none place-items-center rounded-full bg-danger text-xs font-bold text-surface"
+          className="grid size-[22px] flex-none place-items-center rounded-pill bg-danger text-xs font-bold text-surface"
         >
           !
         </span>
@@ -105,7 +105,7 @@ export function EditorBlockedPastePanel({
               <>
                 <Button
                   ref={primaryRef}
-                  variant="secondary"
+                  variant="dark"
                   size="md"
                   onClick={onPasteWithoutBlocked}
                 >

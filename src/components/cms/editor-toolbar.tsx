@@ -174,6 +174,17 @@ export function EditorToolbar({
   // Roving tabindex: exactly one button in the tab order; arrows wrap,
   // Home/End jump to the ends (card §4).
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    // Only the toolbar's own buttons: the Tabel menu renders through a
+    // portal, but its React keydown events still bubble into this
+    // handler — arrow keys inside the menu must not move the roving
+    // tabindex.
+    const target = event.target;
+    if (
+      !(target instanceof HTMLElement) ||
+      !target.closest("[data-toolbar-button]")
+    ) {
+      return;
+    }
     if (
       event.key !== "ArrowLeft" &&
       event.key !== "ArrowRight" &&
