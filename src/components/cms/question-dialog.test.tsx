@@ -3,7 +3,7 @@ import "../ui/test-env";
 
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { RefObject } from "react";
+import { useState, type RefObject } from "react";
 
 import { QuestionDialog } from "./question-dialog";
 import { QUESTION_LIMITS } from "@/modules/quiz/schema";
@@ -186,6 +186,19 @@ describe("QuestionDialog (card S1-09 §4)", () => {
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
+  it("Esc close: focus returns to the OPENER (no trigger — Radix alone would drop it to body)", async () => {
+    render(<OpenCloseHarness />);
+    const opener = screen.getByRole("button", { name: "Buka dialog" });
+    opener.focus();
+    fireEvent.click(opener);
+    expect(screen.getByRole("dialog")).toBeTruthy();
+
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(document.activeElement).toBe(opener);
+  });
+
   it("Enter inside a textarea is a newline, never a submit", () => {
     renderDialog({ question: editedQuestion() });
     const textarea = screen.getByLabelText("Pertanyaan");
@@ -252,6 +265,35 @@ describe("QuestionDialog (card S1-09 §4)", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("a key-group error is linked to the radiogroup (aria-describedby + aria-invalid)", async () => {
+    renderDialog({ question: null, total: 3 });
+    // Valid texts, NO key — the error belongs to the option GROUP.
+    fireEvent.change(screen.getByLabelText("Pertanyaan"), {
+      target: { value: "Pertanyaan valid" },
+    });
+    for (const label of ["Opsi A", "Opsi B", "Opsi C", "Opsi D"]) {
+      fireEvent.change(screen.getByLabelText(label), {
+        target: { value: `Teks ${label}` },
+      });
+    }
+    fireEvent.change(screen.getByLabelText("Pembahasan"), {
+      target: { value: "Pembahasan valid" },
+    });
+    fireEvent.click(saveButton());
+
+    const radiogroup = await screen.findByRole("radiogroup", {
+      name: "Kunci jawaban",
+    });
+    expect(radiogroup.getAttribute("aria-invalid")).toBe("true");
+    expect(radiogroup.getAttribute("aria-describedby")).toBe(
+      "question-key-error",
+    );
+    // The referenced node carries the key-rule sentence.
+    expect(document.getElementById("question-key-error")?.textContent).toContain(
+      "Tandai tepat satu kunci jawaban.",
+    );
+  });
+
   it("201 + 'Simpan soal': one POST, onSaved('save'), router.refresh", async () => {
     fetchMock.mockResolvedValue(okResponse(201));
     const { onSaved } = renderDialog({ question: null, total: 3 });
@@ -275,7 +317,7 @@ describe("QuestionDialog (card S1-09 §4)", () => {
     expect(refreshMock).toHaveBeenCalled();
   });
 
-  it("200 + 'Simpan & tambah soal': PATCH, dialog stays open, title +1, fields cleared, type kept, focus Pertanyaan", async () => {
+  it("200 + 'Simpan & tambah soal': PATCH, dialog stays open, title = total+1 of total+1, fields cleared, type kept, focus Pertanyaan", async () => {
     fetchMock.mockResolvedValue(okResponse(200));
     renderDialog({ question: editedQuestion(), total: 3 });
     expect(screen.getByText("Soal 01 dari 3")).toBeTruthy();
@@ -286,7 +328,9 @@ describe("QuestionDialog (card S1-09 §4)", () => {
     expect(fetchMock.mock.calls[0]?.[0]).toBe(
       "/api/cms/quizzes/quiz-1/questions/qq-1",
     );
-    expect(screen.getByText("Soal 02 dari 4")).toBeTruthy();
+    // An add-mode save from an EDIT appends at max+1 = total+1 — the title
+    // jumps to "Soal 04 dari 4", never "Soal 02 dari 4" (card §4).
+    expect(screen.getByText("Soal 04 dari 4")).toBeTruthy();
     expect(
       (screen.getByLabelText("Pertanyaan") as HTMLTextAreaElement).value,
     ).toBe("");
@@ -420,6 +464,30 @@ describe("QuestionDialog (card S1-09 §4)", () => {
     expect(radio.className).toContain("sr-only");
   });
 });
+
+/** State-driven host mirroring the page: a plain button (no DialogTrigger)
+ *  opens the dialog, and "save" closes it like QuizEditor.onSaved does. */
+function OpenCloseHarness() {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button type="button" onClick={() => setOpen(true)}>
+        Buka dialog
+      </button>
+      <QuestionDialog
+        open={open}
+        onOpenChange={setOpen}
+        quizId="quiz-1"
+        question={null}
+        total={11}
+        headingRef={headingRef()}
+        onSaved={(mode) => {
+          if (mode === "save") setOpen(false);
+        }}
+      />
+    </>
+  );
+}
 
 /** Fills every field validly (PG, key on B). */
 function fillValid(): void {

@@ -256,6 +256,37 @@ describe("QuizEditor — FINAL (22a)", () => {
     expect(screen.getByText("Belum ada soal.")).toBeTruthy();
     expect(screen.getByRole("button", { name: "+ Tambah soal" })).toBeTruthy();
   });
+
+  it("normal save close: focus returns to the 'Sunting soal 01' opener", async () => {
+    fetchMock.mockResolvedValue({
+      status: 200,
+      ok: true,
+      json: async () => ({
+        data: {
+          id: "qq-1",
+          orderIndex: 1,
+          type: "SINGLE_CHOICE",
+          updatedAt: "2026-11-08T00:00:00.000Z",
+        },
+      }),
+    } as unknown as Response);
+    render(
+      <QuizEditor
+        editor={editorFixture({ questions: [question({ orderIndex: 1 })] })}
+      />,
+    );
+    // Keyboard-style activation: the opener is FOCUSED when it opens the
+    // dialog (the dialog captures document.activeElement at open time).
+    const opener = screen.getByRole("button", { name: "Sunting soal 01" });
+    opener.focus();
+    fireEvent.click(opener);
+    await waitFor(() => expect(screen.getByRole("dialog")).toBeTruthy());
+    // The seeded question is valid — a straight save closes the dialog.
+    fireEvent.click(screen.getByRole("button", { name: "Simpan soal" }));
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(document.activeElement).toBe(opener);
+  });
 });
 
 describe("QuizEditor — lesson quiz (22h)", () => {

@@ -217,6 +217,16 @@ test("3. muat ulang → soal bertahan; Sunting soal 01 → isian terisi", async 
   await expect(
     dialog.getByLabel("Pembahasan", { exact: true }),
   ).toHaveValue(`Pembahasan PG ${t}-1 untuk tes e2e.`);
+
+  // A normal save closes the dialog and returns focus to the OPENER —
+  // there is no DialogTrigger, so Radix alone would drop focus to <body>.
+  await dialog
+    .getByRole("button", { name: "Simpan soal", exact: true })
+    .click();
+  await expect(dialog).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Sunting soal 01" }),
+  ).toBeFocused();
 });
 
 test("4. editor materi → blok Quiz materi → Isi quiz → → halaman quiz materi (← Materi 1)", async ({

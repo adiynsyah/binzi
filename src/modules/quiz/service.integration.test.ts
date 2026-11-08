@@ -238,6 +238,21 @@ describe("getScoreWeights — fail-closed (card S1-09)", () => {
     expect(message).toContain("npm run db:seed");
   });
 
+  // The both-missing case pins the reader's fail-closed shape: a fallback
+  // that only kicks in when EVERY row is gone (the surviving && variant of
+  // mutation 13) must redden here too, not just in the one-row test.
+  it("BOTH rows missing → Error naming BOTH keys and npm run db:seed", async () => {
+    await pglite.query(
+      "delete from system_settings where key in ('score.lesson_weight', 'score.final_weight')",
+    );
+    const error = await getScoreWeights().catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(Error);
+    const message = (error as Error).message;
+    expect(message).toContain("score.lesson_weight");
+    expect(message).toContain("score.final_weight");
+    expect(message).toContain("npm run db:seed");
+  });
+
   it("string \"40\" → Error", async () => {
     await setSettingKey("score.lesson_weight", 60);
     await setSettingKey("score.final_weight", "40");

@@ -320,11 +320,14 @@ export function QuestionDialog({
 
       if (response.status === 201 || response.status === 200) {
         if (mode === "add") {
-          // Stay open as the NEXT new question (card §4): count + title move
-          // up, every input clears, the type stays, focus → Pertanyaan.
+          // Stay open as the NEXT new question (card §4 "Soal {n+1} dari
+          // {n+1}"): the new question is appended at max+1 = total+1 —
+          // even when this add-mode save started from an edit ("Sunting
+          // soal 01" → "Soal 04 dari 4", not 02). Every input clears, the
+          // type stays, focus → Pertanyaan.
           setEditingId(null);
           setSeq((previous) => ({
-            nn: previous.nn + 1,
+            nn: previous.total + 1,
             total: previous.total + 1,
           }));
           setText("");
@@ -381,11 +384,14 @@ export function QuestionDialog({
         title={`Soal ${twoDigits(seq.nn)} dari ${seq.total}`}
         className="sm:max-w-[760px]"
         onCloseAutoFocus={(event) => {
-          // 409 refresh removes the opener ("Sunting soal nn" lives only in
-          // the editable state): focus the h1 instead. Normal closes let
-          // Radix return focus to the opener.
-          if (openerRef.current?.isConnected !== true) {
-            event.preventDefault();
+          // The dialog opens through state, never a DialogTrigger, so
+          // Radix has no trigger to return focus to — left alone it lands
+          // on <body>. Always take over: the opener while it is still
+          // connected (a 409 refresh removes it — card §4) → the page h1.
+          event.preventDefault();
+          if (openerRef.current?.isConnected === true) {
+            openerRef.current.focus();
+          } else {
             headingRef.current?.focus();
           }
         }}
@@ -450,6 +456,8 @@ export function QuestionDialog({
             <div
               role="radiogroup"
               aria-label="Kunci jawaban"
+              aria-invalid={errors.options ? true : undefined}
+              aria-describedby={errors.options ? "question-key-error" : undefined}
               className="mt-2 flex flex-col gap-2"
             >
               {type === "SINGLE_CHOICE"
