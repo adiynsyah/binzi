@@ -1,9 +1,68 @@
 # Status Proyek BINZI — catatan untuk melanjutkan di chat baru
 
-> Terakhir diperbarui: 7 Nov 2026. File ini dikelola manual (bukan oleh agent) dan hanya untuk melanjutkan percakapan dengan Claude.
+> Terakhir diperbarui: 8 Nov 2026. File ini dikelola manual (bukan oleh agent) dan hanya untuk melanjutkan percakapan dengan Claude.
 > Untuk melanjutkan: buka chat baru, unggah file ini + `docs/tasks/URUTAN-KERJA.md`, lalu pakai prompt di bagian paling bawah.
 
-## Pembaruan 7 Nov 2026 — S1-03b dan S1-04 di-merge, keputusan video demo (baca ini dulu, lalu 6 Nov, 4 Nov malam, 4 Nov, dan 3 Nov)
+## Pembaruan 8 Nov 2026 — kartu S1-09 direvisi, sesi S1-09 berjalan, Beranda versi demo masuk jadwal (baca ini dulu, lalu 7 Nov, 6 Nov, 4 Nov malam, 4 Nov, dan 3 Nov)
+
+Bagian-bagian di bawahnya tetap berlaku. Bagian ini mengubah atau menambahnya.
+
+### Yang di-merge hari ini
+
+| PR | Isi |
+|---|---|
+| #118 | Kartu S1-09 editor quiz CMS (22a + 22b) |
+| #119 | Revisi kartu S1-09 sebelum sesi, dua putaran: mode simpan dari `submitter` dengan "Simpan soal" pertama di DOM, bentuk normal teks ↔ dokumen, label "KUNCI" `success-tint-text` (`success` di `success-tint` hanya 4,35:1), select tipe tidak di bawah ✕, tata baris 1024 (kolom kanan 288 px + container query), `getScoreWeights` gagal tertutup, target sentuh radio diukur lewat `<label>`, perbaikan bug baris deskripsi di `rbac.spec.ts`, dialog setelah 409 |
+
+`main` sekarang `e53cb26`. Gate audit 0 excused / 0 blocking / 23. Baseline Vitest 88 berkas / 910 tes. Sesi S1-09 dimulai dari `e53cb26`; rencana agent ditinjau di Claude chat dan disetujui dengan tambahan (lihat "Keputusan pemilik 8 Nov" no. 6).
+
+### Keputusan pemilik 8 Nov
+
+1. **Beranda versi demo masuk jadwal**, kartu [S6-01](tasks/sprint-6/S6-01-beranda-versi-demo.md), di slot **Sen 9** menggantikan impor soal CSV. **Impor CSV pindah ke setelah demo.** Soal demo diisi lewat editor S1-09 atau jalur data demo (batas keputusan tetap Sen 16).
+2. **Lingkup Beranda versi demo:** Hero, Cara kerjanya, Tanya Ahli Gizi, CTA penutup, ditambah halaman "Segera hadir" untuk `/kursus`, `/artikel`, `/tentang`, `/cari`. **Ditunda:** Kursus unggulan, Artikel terbaru, Kredibilitas, FAQ, fallback email (KSL-10), analitik (KSL-06), smooth scroll (KSL-13).
+3. **Hero:** teks dan tombol 1a di semua lebar, ilustrasi 6a di kanan (Q33, Q37). Ilustrasi **bergerak terus** dengan tombol kecil **"Jeda animasi"** (WCAG 2.2.2); "Kurangi gerakan" → frame diam. Ilustrasi 6a murni CSS, tanpa dependensi baru.
+4. **Tanya Ahli Gizi ikut demo.** Data ahli gizi mengikuti desain (OQ-08: STR dummy), di satu berkas konten yang bisa diedit pemilik. Nomor WhatsApp dibaca saat klik lewat `GET /api/konsultasi/whatsapp` (302 ke `wa.me`), sehingga `/` tetap statis dan nomor bisa diganti tanpa deploy.
+5. **Rab 11 — daftar kursus peserta di area member `/belajar`**, bukan katalog publik `/kursus` (katalog tetap S6).
+6. **S1-09 (persetujuan rencana):** di luar DRAFT, tautan blok Final Quiz builder berbunyi **"Lihat Final Quiz"**; di DRAFT tetap "Sunting Final Quiz". Tes builder read-only "tanpa tautan Sunting" tidak diubah. Usulan revisi kartu no. 8–10 disetujui lewat merge #119.
+
+### Jadwal demo setelah hari ini
+
+| Hari | Kartu |
+|---|---|
+| Min 8 | S1-09 editor quiz CMS — sesi berjalan |
+| Sen 9 | **S6-01 Beranda versi demo** (menggantikan impor CSV) |
+| Sel 10 | S1-08 kirim & terbitkan (versi demo) |
+| Rab 11 | Peserta: daftar kursus terbit + ikut kursus (di `/belajar`) |
+| Kam 12 | Peserta: halaman materi + progres |
+| Jum 13 | Peserta: player video (memakai cadangan Sel 17) |
+| Sab 14 – Min 15 | Peserta: mengerjakan quiz |
+| Sen 16 | Peserta: hasil & nilai |
+| Rab 18 – Kam 19 | Production, akun demo, data contoh, gladi resik |
+
+### Persiapan demo (tambahan 8 Nov)
+
+- **Pengaturan di binzi-dev** (SQL Editor): `select key, value from system_settings where key in ('quiz.min_questions', 'score.lesson_weight', 'score.final_weight', 'consultation.whatsapp_number');` → harapan `10`, `60`, `40`, dan nomor. Tanpa baris skor, halaman editor quiz galat 500 (`getScoreWeights` gagal tertutup).
+- **Nomor WhatsApp asli** diisi sendiri di binzi-dev, bukan lewat chat atau git. Formatnya string JSON diawali `62`, bentuk perintahnya: `update system_settings set value = to_jsonb('6280000000000'::text) where key = 'consultation.whatsapp_number';`, dengan angka diganti nomor asli (bila ditempel tanpa diganti, nilainya tetap dummy). Seed memakai dummy `6280000000000`.
+- **Matikan "Kurangi gerakan"** di HP dan laptop yang dipakai demo, supaya ilustrasi hero terlihat bergerak.
+- **Demo boleh dibuka dari `/`** setelah S6-01 merge; tautan header berujung "Segera hadir", bukan 404.
+- STR di Beranda masih dummy (OQ-08). Ini boleh untuk demo, tetapi wajib diganti sebelum rilis (§14.9).
+
+### Pelajaran 8 Nov
+
+1. **Tinjauan kartu mencari tes lama lewat asersi, bukan hanya teks.** Dua tes lama yang akan merah di S1-09 lolos dari tinjauan kartu dan baru ketemu saat tinjauan rencana: `toEqual` bentuk penuh DTO `getLessonEditor`, dan asersi builder read-only "tidak ada tautan /Sunting/". Cari `toEqual` pada DTO yang diubah dan asersi "tidak ada X" (`queryBy…` → `toBeNull`, `toHaveCount(0)`) di area yang disentuh (lanjutan pelajaran 7 Nov no. 8).
+2. **Perilaku nyata browser dicek di Chromium sandbox sebelum masuk kartu.** Enter di isian memicu tombol submit pertama di DOM (implicit submission); `fireEvent.submit` di jsdom memberi `submitter` null.
+3. **Konstanta dari modul `"use client"` di halaman server:** di server bernilai client reference (`typeof` = `"function"`), tetapi tetap ter-render benar bila dioper langsung sebagai prop. Yang rusak hanya bila diolah di server (lanjutan pelajaran 3 Nov; diuji di build Next 16.4.1 minimal).
+4. **`helper` e2e mengukur apa?** `expectTouchTarget` mengukur `boundingBox`, sehingga radio `sr-only` selalu 1 × 1; yang diukur adalah `<label>`-nya.
+5. **Dugaan diberi label dugaan sampai diukur, juga untuk Claude chat.** Dugaan "skala `transform` membuat gulir samping" dibantah Chromium; masalah sebenarnya ruang kosong 286 px di bawah ilustrasi. Kartu S6-01 memakai hasil ukur.
+6. **`value::text` pada string JSON mengembalikan tanda kutip.** Pola `selectMinQuestionsText` hanya cocok untuk angka; string dibaca dengan `value #>> '{}'` + `jsonb_typeof`.
+
+### Catatan untuk kartu berikutnya
+
+- **S1-08 (Sel 10):** PRD §11.4 no. 12 juga melarang terbit bila ada soal yang melanggar aturan (tanpa kunci, tanpa pembahasan). Pastikan checklist terbit memeriksanya, bukan hanya jumlah soal.
+- **Kartu impor CSV (setelah demo):** memakai `questionInput` S1-09 dan helper simpan soal di dalam transaksi (satu kunci kursus, banyak soal).
+- **Daftar periksa tinjauan kartu** (ditawarkan 8 Nov, belum ditulis): kategori dari pelajaran 7 Nov dan 8 Nov, ditutup tabel per butir ✓ / ✗ / tidak bisa diperiksa dari sandbox.
+
+## Pembaruan 7 Nov 2026 — S1-03b dan S1-04 di-merge, keputusan video demo (baca setelah 8 Nov, lalu 6 Nov, 4 Nov malam, 4 Nov, dan 3 Nov)
 
 Bagian-bagian di bawahnya tetap berlaku. Bagian ini mengubah atau menambahnya.
 

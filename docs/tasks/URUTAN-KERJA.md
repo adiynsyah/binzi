@@ -122,7 +122,7 @@ Prasyarat Sprint 1 (tanpa tanggal tetap — sebelum S1-01, tanpa branch kartu la
 
 ## Sprint 1 — CMS kursus & materi
 
-Kartu ditulis di Claude chat menjelang sesinya, terhadap kode `main` terbaru. Rencana lengkap, prasyarat, dan keputusan tertunda ada di `STATUS.md` (item "Rencana S1"). Sejak 3 Nov urutan dan lingkupnya mengikuti jadwal demo 20 Nov (bagian "Pembaruan 3 Nov", "Pembaruan 4 Nov", "Pembaruan 4 Nov malam", "Pembaruan 6 Nov", dan "Pembaruan 7 Nov" di `STATUS.md`).
+Kartu ditulis di Claude chat menjelang sesinya, terhadap kode `main` terbaru. Rencana lengkap, prasyarat, dan keputusan tertunda ada di `STATUS.md` (item "Rencana S1"). Sejak 3 Nov urutan dan lingkupnya mengikuti jadwal demo 20 Nov (bagian "Pembaruan 3 Nov", "Pembaruan 4 Nov", "Pembaruan 4 Nov malam", "Pembaruan 6 Nov", dan "Pembaruan 7 Nov" di `STATUS.md`). Sejak 8 Nov impor soal CSV pindah ke setelah demo (bagian "Pembaruan 8 Nov").
 
 - [x] 🤖 [S1-01](sprint-1/S1-01-daftar-dan-kursus-baru.md) — Daftar kursus, kursus baru, builder kosong · *✅ PR #106*
 - [ ] 🤖 [S1-01b](sprint-1/S1-01b-daftar-kursus-lanjutan.md) — Daftar kursus lanjutan: kartu 19e tablet & ponsel, "Urut ▾", perapian dialog & kode S1-01 · *setelah demo 20 Nov*
@@ -134,15 +134,16 @@ Kartu ditulis di Claude chat menjelang sesinya, terhadap kode `main` terbaru. Re
 - [ ] 🤖 S1-05 — Unggah video materi ke R2 + mesin file untuk kontrol 29a *(butuh H-04 + A-17; kartu belum ditulis)* · *setelah demo — demo memakai video YouTube ([rencana](../decisions/video-sumber.md))*
 - [ ] 🤖 S1-06 — Media library *(butuh A-17 + keputusan penyajian gambar; kartu belum ditulis)* · *setelah demo*
 - [ ] 🤖 S1-07 — Pemilih gambar, sampul, pemakaian aset *(kartu belum ditulis)* · *setelah demo; menyalakan lagi syarat sampul*
+- [ ] 🤖 Impor soal CSV (22c) — memakai aturan soal S1-09 *(kartu belum ditulis)* · *setelah demo; slot Sen 9 dipakai Beranda versi demo (keputusan 8 Nov)*
 - [ ] 🤖 S1-08 — Kirim & terbitkan, versi demo "Kirim → Setujui & terbitkan" tanpa `NEEDS_REVISION` · *Sel 10 Nov* *(kartu belum ditulis; versi lengkap butuh PRD v1.6, setelah demo)*
 
 ## Jalur demo 20 Nov — kartu menyusul
 
-Jadwal dan keputusannya di `STATUS.md` (bagian "Pembaruan 3 Nov"). Kartu ditulis di Claude chat selagi agent mengerjakan kartu sebelumnya. Urutan potong bila terlambat: halaman "Nilai Saya" lebih dulu, lalu impor CSV.
+Jadwal dan keputusannya di `STATUS.md` (bagian "Pembaruan 3 Nov" dan "Pembaruan 8 Nov"). Kartu ditulis di Claude chat selagi agent mengerjakan kartu sebelumnya. Urutan potong bila terlambat: halaman "Nilai Saya". Impor CSV sudah dipindah ke setelah demo (8 Nov).
 
-- [ ] 🤖 [S1-09](sprint-1/S1-09-editor-quiz.md) — Editor quiz CMS: daftar soal (22a) + form satu soal (22b) · *Min 8 Nov; usulan disetujui 7 Nov; kartu ditinjau terhadap `main` sebelum sesi*
-- [ ] 🤖 Impor soal CSV (22c) · *Sen 9 Nov*
-- [ ] 🤖 Peserta: daftar kursus terbit + ikut kursus · *Rab 11 Nov*
+- [ ] 🤖 [S1-09](sprint-1/S1-09-editor-quiz.md) — Editor quiz CMS: daftar soal (22a) + form satu soal (22b) · *Min 8 Nov; kartu direvisi 8 Nov (#119); sesi berjalan 8 Nov*
+- [ ] 🤖 [S6-01](sprint-6/S6-01-beranda-versi-demo.md) — Beranda versi demo: hero 1a + ilustrasi 6a (bergerak, tombol jeda), Cara kerjanya, Tanya Ahli Gizi, CTA penutup, halaman "Segera hadir" · *Sen 9 Nov, menggantikan impor CSV (keputusan 8 Nov)*
+- [ ] 🤖 Peserta: daftar kursus terbit + ikut kursus — di area member `/belajar`, bukan katalog publik `/kursus` (keputusan 8 Nov) · *Rab 11 Nov*
 - [ ] 🤖 Peserta: halaman materi + progres, termasuk `POST /api/progress/video` dan posisi terakhir ([rencana video](../decisions/video-sumber.md) bagian 2) · *Kam 12 Nov*
 - [x] 👤 Keputusan video demo: **YouTube unlisted** · *✅ diputuskan 7 Nov; R2 tetap jalur produksi, H-04 tetap wajib sebelum S1-05 — [rencana](../decisions/video-sumber.md)*
 - [ ] 🤖 Peserta: player video — kolom sumber video, `LessonVideoPlayer` dengan kontrol 29a di atas mesin YouTube, CSP, skrip pasang video demo ([rencana](../decisions/video-sumber.md) bagian 1, 3, 4, 5) · *Jum 13 Nov, memakai cadangan Sel 17; garis potong: kontrol bawaan YouTube*
