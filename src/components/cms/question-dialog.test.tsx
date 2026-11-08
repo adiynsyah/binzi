@@ -302,7 +302,7 @@ describe("QuestionDialog (card S1-09 §4)", () => {
     );
   });
 
-  it("double submit: a second click while in flight never fetches twice", async () => {
+  it("double submit: later activations while in flight never fetch twice", async () => {
     let resolveFetch: (value: Response) => void = () => {};
     fetchMock.mockReturnValue(
       new Promise<Response>((resolve) => {
@@ -315,7 +315,11 @@ describe("QuestionDialog (card S1-09 §4)", () => {
     // becomes its loadingLabel, so it cannot be re-queried by name.
     const button = saveButton();
     fireEvent.click(button);
-    fireEvent.click(button);
+    // The in-flight guard must also cover the paths the loading Button's
+    // real `disabled` cannot block: a direct form submit (submitter null)
+    // and the softDisabled "Simpan & tambah soal" (activatable by design).
+    fireEvent.submit(button.closest("form")!);
+    fireEvent.click(addButton());
     expect(fetchMock).toHaveBeenCalledTimes(1);
     resolveFetch(okResponse(201));
     await waitFor(() => expect(refreshMock).toHaveBeenCalled());
