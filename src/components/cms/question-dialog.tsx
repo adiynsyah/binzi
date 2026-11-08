@@ -401,9 +401,6 @@ export function QuestionDialog({
           noValidate
           onSubmit={(event) => void onSubmit(event)}
         >
-          {conflict ? <Banner tone="error" title={conflict} /> : null}
-          {failed ? <Banner tone="error" title={GENERIC_FAILURE} /> : null}
-
           {/* Type — fixed per quiz on the page; editable here so a legacy
               B/S question can become PG, but never silently. */}
           <div className="flex sm:justify-end">
@@ -617,6 +614,13 @@ export function QuestionDialog({
             />
           </div>
 
+          {/* The failure banners sit DIRECTLY above the buttons, not at the
+              form top: saving scrolls the dialog to its bottom, so a
+              top-of-form banner (network failure, 409) would never be on
+              screen — buttons disappearing "for no reason" on 409. */}
+          {conflict ? <Banner tone="error" title={conflict} /> : null}
+          {failed ? <Banner tone="error" title={GENERIC_FAILURE} /> : null}
+
           {/* "Simpan soal" is FIRST in the DOM (implicit Enter submits it);
               sm:flex-row-reverse shows it rightmost like 22b. A 409 hides
               both — nothing more can be saved (card §4). */}
@@ -625,6 +629,7 @@ export function QuestionDialog({
               <>
                 <Button
                   type="submit"
+                  variant="dark"
                   loading={saving}
                   loadingLabel="Menyimpan…"
                   className="sm:flex-1"

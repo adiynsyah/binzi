@@ -481,7 +481,10 @@ test("screenshot halaman quiz & dialog (w1280/w1024/w768/w360; dialog w1280/w360
     await maybeScreenshot(page, "s1-09-dialog-bs", viewport.label);
     await dialog.getByRole("button", { name: "Tutup" }).click();
 
-    // Galat: the request is aborted → the generic failure banner.
+    // Galat: the request is aborted → the generic failure banner. Saving
+    // scrolls the dialog to its bottom, so the banner must be IN the
+    // viewport there (it lives directly above the buttons), not merely
+    // rendered somewhere off-screen (both widths of this loop).
     await page.route("**/api/cms/quizzes/*/questions*", (route) => route.abort());
     await page.getByRole("button", { name: "+ Tambah soal" }).click();
     await fillPgForm(page, "galat");
@@ -490,7 +493,7 @@ test("screenshot halaman quiz & dialog (w1280/w1024/w768/w360; dialog w1280/w360
       .click();
     await expect(
       dialog.getByText("Soal belum tersimpan — periksa koneksi lalu coba lagi."),
-    ).toBeVisible();
+    ).toBeInViewport();
     await maybeScreenshot(page, "s1-09-dialog-galat", viewport.label);
     await page.unroute("**/api/cms/quizzes/*/questions*");
     await dialog.getByRole("button", { name: "Tutup" }).click();
