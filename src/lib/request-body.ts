@@ -13,6 +13,13 @@ import { BadRequestError, PayloadTooLargeError } from "./errors";
 /** 1 MiB: the validator limits (100k characters, 5k nodes) fit comfortably. */
 export const MAX_CONTENT_BODY_BYTES = 1_048_576;
 
+/**
+ * 64 KiB (card S1-09 §2): one question is at most ~2k + 5k + 4×500
+ * characters of UTF-8 plus JSON overhead — an order of magnitude of
+ * headroom, still a tiny read.
+ */
+export const MAX_QUESTION_BODY_BYTES = 65_536;
+
 export async function readJsonBody(
   request: Request,
   maxBytes: number,

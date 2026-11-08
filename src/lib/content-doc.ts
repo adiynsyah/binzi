@@ -161,3 +161,61 @@ export function isDocEmpty(doc: unknown): boolean {
   if (!isTipTapDoc(doc)) return true;
   return !hasVisibleText(doc);
 }
+
+// --------------------------------------------- plain-text conversion (S1-09)
+
+/** One node's inline text: text nodes verbatim, hardBreak → "\n", other
+ *  nodes contribute their children's text concatenated (no separators). */
+function nodeText(node: unknown): string {
+  if (!isObject(node)) return "";
+  if (node.type === "hardBreak") return "\n";
+  if (typeof node.text === "string") return node.text;
+  if (Array.isArray(node.content)) {
+    return node.content.map((child) => nodeText(child)).join("");
+  }
+  return "";
+}
+
+/**
+ * Plain text → the stored document shape (card S1-09 §1): CRLF/CR → LF,
+ * every line trimmed, empty-after-trim lines dropped, each surviving line
+ * one paragraph with one text node. Input that leaves not a single line
+ * THROWS — `{ type: "doc", content: [] }` is rejected by the validator
+ * (INVALID_STRUCTURE), and the only callers sit behind `questionInput`,
+ * which rejects empty text first. Output always passes validateContentDoc.
+ *
+ * Exact round-trip holds ONLY doc → text → doc (for this function's
+ * output); text → doc → text normalizes instead (see docToPlainText).
+ */
+export function plainTextToDoc(text: string): ContentDoc {
+  const lines = text
+    .replace(/\r\n?/g, "\n")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+  if (lines.length === 0) {
+    throw new Error(
+      "plainTextToDoc: teks kosong — tidak ada baris untuk dijadikan dokumen",
+    );
+  }
+  return {
+    type: "doc",
+    content: lines.map((line) => ({
+      type: "paragraph",
+      content: [{ type: "text", text: line }],
+    })),
+  };
+}
+
+/**
+ * Document → plain text (card S1-09 §1): each top-level block's text on
+ * its own line (joined "\n"), hardBreak → "\n" within a line, anything
+ * else contributes text only. null / not a TipTap document → "" (an
+ * EMPTY_DOC paragraph yields "" too — "belum diisi", never a crash).
+ */
+export function docToPlainText(doc: unknown): string {
+  if (!isTipTapDoc(doc) || !Array.isArray(doc.content)) return "";
+  return doc.content
+    .map((block) => nodeText(block).trim())
+    .join("\n");
+}
