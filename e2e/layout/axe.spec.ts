@@ -14,7 +14,13 @@ import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
 import type { TestInfo } from "@playwright/test";
 
-import { createRoleAccount, expect, signInViaApi, test } from "../fixtures";
+import {
+  createRoleAccount,
+  expect,
+  signInViaApi,
+  test,
+  withE2eDb,
+} from "../fixtures";
 import {
   GUEST_PAGES,
   TURNSTILE_CONTAINER,
@@ -255,6 +261,74 @@ test.describe("axe WCAG 2.1 A/AA", () => {
     await page.goto(`/cms/kursus/${filledId}/deskripsi`);
     await expect(page.getByRole("textbox", { name: "Deskripsi" })).toBeVisible();
     await expectAxeClean(page, "EDITOR deskripsi kursus", testInfo);
+  });
+
+  test("EDITOR: editor quiz + dialog sunting soal (S1-09)", async (
+    { page, request },
+    testInfo,
+  ) => {
+    // Card S1-09 §6: the quiz editor page (FINAL quiz with two questions,
+    // so both marker shapes render) and the EDIT dialog of soal 1 — it has
+    // a key, so the "Kunci" row rides along (a brand-new dialog has no key
+    // row). A question POST needs the page's signed-in context.
+    const editor = await createRoleAccount(request, "EDITOR");
+    await signInViaApi(page.context(), editor);
+    const token = `q${Date.now().toString(36)}${testInfo.project.name}`;
+    const created = await page.context().request.post("/api/cms/courses", {
+      data: {
+        title: `${token} kursus uji axe quiz`,
+        slug: `${token}-kursus-uji-axe-quiz`,
+        level: "BEGINNER",
+        summary: "Ringkasan netral untuk tes e2e.",
+      },
+    });
+    expect(created.status(), await created.text()).toBe(201);
+    const courseId = ((await created.json()) as { data: { id: string } }).data
+      .id;
+
+    // The FINAL quiz id is not part of the course answer — E2E database.
+    const rows = await withE2eDb(
+      (sql) => sql`select final_quiz_id as id from courses where id = ${courseId}`,
+    );
+    const quizId = rows[0]?.id as string;
+    expect(quizId, "kursus punya quiz FINAL").toBeTruthy();
+
+    for (const [index, type] of ["SINGLE_CHOICE", "TRUE_FALSE"].entries()) {
+      const options =
+        type === "SINGLE_CHOICE"
+          ? [
+              { text: "Opsi satu", isCorrect: false },
+              { text: "Opsi dua", isCorrect: true },
+              { text: "Opsi tiga", isCorrect: false },
+              { text: "Opsi empat", isCorrect: false },
+            ]
+          : [
+              { text: "Benar", isCorrect: true },
+              { text: "Salah", isCorrect: false },
+            ];
+      const question = await page.context().request.post(
+        `/api/cms/quizzes/${quizId}/questions`,
+        {
+          data: {
+            type,
+            text: `Pertanyaan axe ke ${index + 1} untuk tes e2e.`,
+            explanation: "Pembahasan axe untuk tes e2e.",
+            options,
+          },
+        },
+      );
+      expect(question.status(), await question.text()).toBe(201);
+    }
+
+    await page.goto(`/cms/quiz/${quizId}`);
+    await expect(page.getByText("2 dari 20 soal")).toBeVisible();
+    await expectAxeClean(page, "EDITOR editor quiz", testInfo);
+
+    await page.getByRole("button", { name: "Sunting soal 01" }).click();
+    await expect(
+      page.getByRole("dialog").getByText("Soal 01 dari 2"),
+    ).toBeVisible();
+    await expectAxeClean(page, "EDITOR dialog sunting soal", testInfo);
   });
 
   test("tamu: menu ponsel terbuka (w360 saja)", async ({ page }, testInfo) => {
