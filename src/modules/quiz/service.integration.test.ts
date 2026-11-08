@@ -19,7 +19,6 @@ import * as schema from "@/db/schema";
 import {
   auditLogs,
   courses,
-  lessons,
   questionOptions,
   questions,
   systemSettings,
