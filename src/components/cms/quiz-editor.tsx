@@ -39,13 +39,15 @@ function ruleRow(term: string, value: string) {
 }
 
 /** "PG · KUNCI ✓ · PEMBAHASAN ✓" — one success line when complete; mixed
- *  tones otherwise (✓ = success, KOSONG = danger, the type stays meta). */
+ *  tones otherwise (✓ = success, KOSONG = danger, the type stays meta).
+ *  Each segment is a single text literal so the line's pieces are stable
+ *  query targets. */
 function MarkerLine({ question }: { question: QuizEditorQuestionDTO }) {
   const typeLabel = question.type === "SINGLE_CHOICE" ? "PG" : "B/S";
   if (question.hasKey && question.hasExplanation) {
     return (
       <p className="font-mono text-[11.5px] font-medium uppercase tracking-[0.08em] text-success">
-        {typeLabel} · KUNCI ✓ · PEMBAHASAN ✓
+        {`${typeLabel} · KUNCI ✓ · PEMBAHASAN ✓`}
       </p>
     );
   }
@@ -53,12 +55,10 @@ function MarkerLine({ question }: { question: QuizEditorQuestionDTO }) {
     <p className="font-mono text-[11.5px] font-medium uppercase tracking-[0.08em]">
       <span className="text-text-meta">{typeLabel}</span>
       <span className={question.hasKey ? "text-success" : "text-danger"}>
-        {" · "}
-        {question.hasKey ? "KUNCI ✓" : "KUNCI KOSONG"}
+        {question.hasKey ? "· KUNCI ✓" : "· KUNCI KOSONG"}
       </span>
       <span className={question.hasExplanation ? "text-success" : "text-danger"}>
-        {" · "}
-        {question.hasExplanation ? "PEMBAHASAN ✓" : "PEMBAHASAN KOSONG"}
+        {question.hasExplanation ? "· PEMBAHASAN ✓" : "· PEMBAHASAN KOSONG"}
       </span>
     </p>
   );
@@ -257,8 +257,8 @@ export function QuizEditor({ editor }: { editor: QuizEditorDTO }) {
                           onClick={() => openEdit(question)}
                           className="relative inline-flex min-h-11 items-center text-sm font-bold text-primary-deep transition-colors duration-200 ease-out hover:text-primary-deeper"
                         >
-                          Sunting
-                          <span className="sr-only"> soal {nn}</span>
+                          Sunting{" "}
+                          <span className="sr-only">soal {nn}</span>
                         </button>
                       ) : null}
                     </div>
@@ -293,7 +293,9 @@ export function QuizEditor({ editor }: { editor: QuizEditorDTO }) {
                   </span>
                 </dd>
               </div>
-            ) : null}
+            ) : (
+              ruleRow("Ambang lulus", `${quiz.passingScorePercent}%`)
+            )}
             {ruleRow("Kesempatan", "1 — terkunci")}
             {ruleRow("Acak soal", quiz.shuffleQuestions ? "Ya" : "Tidak")}
             {ruleRow("Acak opsi", quiz.shuffleOptions ? "Ya" : "Tidak")}

@@ -120,10 +120,14 @@ export function QuestionDialog({
 
   // Latest props, read by the open-transition effect without joining its
   // dependency array (a refresh mid-dialog must not re-seed the fields).
+  // Mirrored in an effect declared BEFORE the open effect below, so when
+  // `open` flips the refs already hold this render's values.
   const questionRef = useRef(question);
-  questionRef.current = question;
   const totalRef = useRef(total);
-  totalRef.current = total;
+  useEffect(() => {
+    questionRef.current = question;
+    totalRef.current = total;
+  });
 
   const inFlight = useRef(false);
   const lastPgKey = useRef<number | null>(null);
