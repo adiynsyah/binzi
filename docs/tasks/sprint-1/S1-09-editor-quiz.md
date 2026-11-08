@@ -9,7 +9,7 @@
 
 > **Dibuat 7 Nov 2026** di Claude chat, ditinjau terhadap `main` `9125ed1`. Semua berkas dan simbol yang dirujuk ada dengan nama yang sama.
 >
-> **Direvisi 8 Nov 2026** di Claude chat, ditinjau terhadap `main` `0922046` (kode identik dengan `5e13a0f`). Temuan tinjauan dijalankan di sandbox — validator dokumen asli, zod 4.6.6, jsdom 29, Chromium 153 — dan diterapkan di bagian 1, 3, 4, 5, 6, "Selesai jika", dan "Bukan lingkup". Ringkasan dan buktinya di "Catatan revisi 8 Nov" paling bawah.
+> **Direvisi 8 Nov 2026** di Claude chat, ditinjau terhadap `main` `0922046` (kode identik dengan `5e13a0f`). Temuan tinjauan dijalankan di sandbox — validator dokumen asli, zod 4.6.6, jsdom 29, Chromium 153, build Next 16.4.1 minimal — dan diterapkan di bagian 1, 3, 4, 5, 6, "Selesai jika", dan "Bukan lingkup". Ringkasan dan buktinya di "Catatan revisi 8 Nov" paling bawah.
 >
 > **Disetujui pemilik 7 Nov** (dicantumkan di "Keputusan & asumsi" PR sebagai keputusan yang sudah disetujui, bersama semua copy bertanda *(usulan)* di kartu ini):
 > 1. Satu rute untuk kedua jenis quiz: `/cms/quiz/{quizId}` (sudah ada di matriks RBAC sebagai prefix EDITOR+).
@@ -114,7 +114,8 @@ Dua route baru dengan pola route S1-04: `requireApiRole("EDITOR")` **sebelum** b
     weights,               // getScoreWeights() → { lessonPercent, finalPercent }
   }
   ```
-  `text` dan `explanation` dikirim sebagai teks biasa (`docToPlainText`). `hasKey` = tepat satu opsi benar; `hasExplanation` = pembahasan tidak kosong. Data kunci aman di sini karena halaman ini khusus staf.
+  `text` dan `explanation` dikirim sebagai teks biasa (`docToPlainText`). `hasKey` = tepat satu opsi benar; `hasExplanation` = pembahasan tidak kosong. Data kunci aman di sini karena halaman ini khusus staf: aturan `CLAUDE.md` "`is_correct` & pembahasan tidak pernah dikirim sebelum submit" berlaku untuk jalur peserta, bukan editor CMS EDITOR+. Jalur peserta (Sab 14) tidak boleh memakai DTO ini.
+- **Konstanta dari modul `"use client"` di halaman server** (`CONTENT_DOC_HEADING_CLASS`, `LOCKED_NOTICE`): **hanya dioper langsung** sebagai prop, seperti halaman S1-04. Jangan diolah di server (`cn(…)`, template string, lookup peta, `typeof`). Diuji 8 Nov di build Next 16.4.1: di server nilainya `typeof` = `"function"` (client reference), tetapi `<h1 className={X}>` tetap ter-render dengan kelas yang benar karena referensinya diselesaikan saat SSR (pelajaran 3 Nov).
 - **Bobot nilai — `getScoreWeights()`** (baru, `src/modules/quiz/service.ts` + query di `queries.ts`): membaca `score.lesson_weight` dan `score.final_weight` sebagai `::text` lalu di-parse sekali (pola `selectMinQuestionsText`). **Gagal tertutup** seperti `getMinQuestions`: baris hilang, bukan bilangan bulat, di luar 0–100, atau jumlah keduanya ≠ 100 → `Error` yang menyebut kedua kunci dan `npm run db:seed`. Tidak ada angka cadangan. Kartu hasil & nilai (Sen 16) memakai fungsi yang sama.
 - **Tata letak (22a, 22h)** di dalam padding layout CMS, tanpa bar kedua (pelajaran S1-04):
   - Baris kepala: `ContentDocBreadcrumb` (tanpa penjaga).
@@ -154,17 +155,17 @@ Dialog A-06 selebar 760 px (desain 22b), satu formulir tanpa react-hook-form. `D
   - **Mode simpan dari `event.nativeEvent.submitter`:** hanya tombol "Simpan & tambah soal" yang memberi mode "tambah". Selain itu — termasuk `submitter === null` (`form.requestSubmit()` tanpa argumen, `fireEvent.submit` di jsdom 29, dicek 8 Nov) — mode "Simpan soal".
   - Enter di textarea menambah baris, tidak menyimpan.
 - **Alur simpan:**
-  - Validasi klien dengan `questionInput` dulu. Galat tampil di bawah isiannya (`aria-describedby`, `aria-invalid`), lalu fokus ke isian pertama yang salah. Tidak ada request.
+  - Validasi klien dengan `questionInput` dulu. Galat tampil di bawah isiannya (`aria-describedby`, `aria-invalid`), lalu fokus ke isian pertama yang salah. Tidak ada request. Galat ber-path `options` (jumlah opsi, kunci, B/S) tampil di bawah grup "Kunci jawaban" dan fokus ke radio kunci pertama; galat `options.{i}.text` ke isian opsi itu. Urutan "pertama" mengikuti urutan formulir: pertanyaan → opsi → kunci → pembahasan.
   - Penjaga `inFlight` (pola S1-02). Tes submit ganda memakai submit formulir kedua, bukan klik tombol (tombol `loading` memasang `disabled` native — pelajaran 7 Nov no. 6).
   - **201/200 + "Simpan soal"** → dialog tertutup, fokus kembali ke tombol yang membukanya, `router.refresh()`.
   - **201/200 + "Simpan & tambah soal"** → dialog tetap terbuka sebagai soal baru: tipe dipertahankan, isian dikosongkan, judul naik ("Soal {n+1} dari {n+1}"), fokus ke "Pertanyaan", `router.refresh()`.
   - **400** → `fields` dipetakan ke isian berdasarkan path (`text`, `explanation`, `options`, `options.{i}.text`); path lain → pesan umum di dialog.
-  - **409** → banner galat di dialog berisi pesan server, lalu `router.refresh()`.
+  - **409** → banner galat di dialog berisi pesan server, kedua tombol simpan disembunyikan, isian **tetap utuh** (penulis masih bisa menyalin teksnya), lalu `router.refresh()`. State dialog tinggal di komponen editor quiz yang dirender di **kedua** keadaan (draf dan terkunci), jadi dialog tetap terbuka setelah halaman berganti ke tampilan terkunci. Pembukanya ("Sunting soal nn" / "+ Tambah soal") sudah hilang di tampilan terkunci, jadi saat dialog ditutup fokus dipindah ke `h1` halaman (`tabIndex={-1}`, lewat `onCloseAutoFocus`), bukan jatuh ke `body` (masalah yang sama dicatat STATUS untuk S1-08).
   - **Galat lain atau jaringan putus** → "Soal belum tersimpan — periksa koneksi lalu coba lagi." *(usulan)* di dialog. Isian tetap utuh.
 - **Menutup dialog** (✕ atau Esc) membuang perubahan tanpa konfirmasi *(usulan untuk demo; dicatat di PR)*.
 
 ### 5. Pintu masuk editor quiz
-- **Builder, blok Final Quiz** (`lesson-outline.tsx`, komentar "Sunting Final Quiz … deliberately not rendered"): tambahkan tautan "Sunting Final Quiz" ke `/cms/quiz/{finalQuiz.id}`, target sentuh ≥ 44 px. Ditampilkan untuk semua status kursus (halaman quiz sendiri menangani tampilan terkunci), dan **tidak** dirender bila `finalQuiz === null` (kolom `final_quiz_id` nullable).
+- **Builder, blok Final Quiz** (`lesson-outline.tsx`, komentar "Sunting Final Quiz … deliberately not rendered"): tambahkan tautan "Sunting Final Quiz" ke `/cms/quiz/{finalQuiz.id}` bergaya tombol sekunder (`buttonVariants({ variant: "secondary" })`, sama dengan "Sunting" di baris materi) di kanan judul "Final Quiz", seperti 21a/21g (desain 40 px → 44 px aturan target sentuh). Ditampilkan untuk semua status kursus (halaman quiz sendiri menangani tampilan terkunci), dan **tidak** dirender bila `finalQuiz === null` (kolom `final_quiz_id` nullable).
 - **Halaman editor materi** — blok "Quiz materi" seperti 21i, di bawah editor:
   - judul "Quiz materi", pil "{n} dari min. {min} soal", teks "Sudah dibuat otomatis · wajib dikerjakan user agar materi selesai" *(usulan; 21i: "Sudah dibuat otomatis & kosong…")*, tautan "Isi quiz →" bila `n = 0`, "Sunting quiz →" bila `n > 0` *(usulan)*, menuju `/cms/quiz/{quizId}`;
   - pil jumlah memakai warna yang sama dengan halaman quiz: `pending-tint` selama n < min, `success-tint` setelahnya; target sentuh tautan ≥ 44 px;
@@ -177,7 +178,7 @@ Dialog A-06 selebar 760 px (desain 22b), satu formulir tanpa react-hook-form. `D
 - `e2e/rbac.spec.ts`:
   - tambah baris `/cms/quiz/[quizId]` (MEMBER 403 dengan literal `[quizId]`, EDITOR+ 200). ID nyata = `data.quizId` dari respons `POST …/lessons` yang sudah dipanggil di setup baris materi (`CreatedLessonDTO.quizId`);
   - **perbaiki bug baris deskripsi S1-04:** substitusinya sekarang `realCoursePath` (path builder), sehingga `/cms/kursus/{id}/deskripsi` **tidak pernah diminta** (baris 196–199 di `0922046`). Substitusi yang benar `${realCoursePath}/deskripsi`. Jangan meniru pola lama untuk baris quiz.
-- `e2e/layout/touch-targets.spec.ts` — satu tes baru di w360 (pola tes builder S1-02, `expectTouchTarget`): "Sunting Final Quiz" (builder), "+ Tambah soal", "Sunting soal 01", "Isi quiz →" (editor materi), dan di dialog: "Tipe soal", keempat radio kunci, kedua tombol simpan, ✕.
+- `e2e/layout/touch-targets.spec.ts` — satu tes baru di w360 (pola tes builder S1-02, `expectTouchTarget`): "Sunting Final Quiz" (builder), "+ Tambah soal", "Sunting soal 01", "Isi quiz →" (editor materi), dan di dialog: "Tipe soal", keempat area kunci, kedua tombol simpan, ✕. `expectTouchTarget` mengukur `boundingBox` locator, sehingga radio native `sr-only` (1 × 1 px) selalu gagal: yang diukur `<label>` pembungkusnya, mis. `dialog.locator("label", { has: page.getByRole("radio", { name: "Kunci: opsi A" }) })`.
 - `e2e/layout/axe.spec.ts`: halaman editor quiz (Final Quiz terisi dua soal) dan **dialog sunting soal 1** (punya kunci, jadi baris "KUNCI" ikut diperiksa — dialog soal baru tidak punya baris kunci), pada w360 dan w1280.
 - **Lebar teks soal** (di `cms-quiz-editor.spec.ts`, project `chromium` dengan `page.setViewportSize`): pada viewport 360, 1024, dan 1280, lebar kotak teks soal baris pertama ≥ 240 px (`boundingBox`) dan `scrollWidth ≤ innerWidth`. 1024 tidak ada di `widths.ts`, jadi diukur di sini.
 
@@ -226,6 +227,8 @@ Rencana memuat:
   - nama aksesibel: isian "Opsi A"…"Opsi D" dan radio "Kunci: opsi A"…"Kunci: opsi D" masing-masing tepat satu elemen;
   - pindah tipe PG → B/S → PG mempertahankan teks opsi PG **dan** kunci PG; PG → B/S mengosongkan kunci;
   - `fireEvent.submit(form)` tanpa submitter (formulir lengkap) → satu `fetch`, mode "Simpan soal" (dialog tertutup);
+  - galat `options` (tanpa kunci) → pesan di bawah grup "Kunci jawaban", fokus ke "Kunci: opsi A";
+  - 409 → banner berisi pesan server, tombol simpan tidak ada, isian utuh; setelah ditutup fokus di `h1` halaman (tes komponen halaman);
   - galat klien: tanpa `fetch`, pesan di bawah isian, `aria-invalid`, fokus ke isian salah pertama;
   - "Simpan soal" → satu `fetch` dengan method, URL, dan body yang benar, dialog tertutup, fokus kembali ke pembuka;
   - "Simpan & tambah soal" → dialog tetap terbuka, isian kosong, tipe tetap, judul naik, fokus ke "Pertanyaan";
@@ -271,6 +274,7 @@ Rencana memuat:
 
 ## Verifikasi otomatis (agent menjalankan, hasilnya dilampirkan di PR)
 - `npm run check` · `npm run build` · `npm run e2e`
+- Baseline Vitest di `0922046`: **88 berkas / 910 tes** (dijalankan di sandbox 8 Nov). PR melaporkan 910 + jumlah tes baru; tes lama yang berubah disebut satu per satu.
 - `git diff --stat main -- package.json package-lock.json src/db` kosong
 
 ## Verifikasi oleh kamu (sebelum merge)
@@ -309,5 +313,7 @@ Tinjauan terhadap `main` `0922046` sebelum sesi. Bukti dijalankan di sandbox Cla
 | 8 | Target sentuh tidak diatur | `touch-targets.spec.ts` sudah memuat builder S1-02 | Bagian 3–6, tes baru |
 | 9 | Baris deskripsi di `rbac.spec.ts` meminta path builder | Substitusi `realCoursePath` untuk `/cms/kursus/[id]/deskripsi` | Bagian 6 |
 | 10 | Bobot nilai tanpa pembaca dan tanpa aturan gagal | Hanya `getMinQuestions` yang ada; `score.lesson_weight` 60 di seed | Bagian 3 (`getScoreWeights`), tes, mutasi 13 |
+
+Putaran kedua (8 Nov, sebelum PR revisi di-merge): konstanta modul `"use client"` di halaman server (diuji di build Next 16.4.1 minimal), aturan `is_correct` `CLAUDE.md` vs editor staf, pengukuran target sentuh radio `sr-only` (`expectTouchTarget` = `boundingBox`), fokus untuk galat `options`, perilaku dialog setelah 409 dan fokus saat pembuka hilang, gaya "Sunting Final Quiz" (21a/21g), baseline Vitest 910, dan 22g (cocok dengan kartu; 22g menyebut "5–10 soal" untuk quiz materi, digantikan keputusan no. 5).
 
 Juga: `finalQuiz`/`lessons.quiz_id` null, cabang dokumen tak terbaca, pil "{n} dari 20" setelah 20, kunci saat pindah tipe, lebar dialog 760 vs bawaan 560, dan isi 22a/22h yang tidak dirender. Yang dicek cocok: semua rujukan berkas dan simbol, matriks RBAC `/cms/quiz` prefix EDITOR+, sidebar "Quiz" aktif untuk `/cms/quiz/{id}`, tidak ada tes lama yang merah, zod 4.6.6 `discriminatedUnion` + `superRefine` mengumpulkan semua galat dengan path yang benar (dan melewati refine saat galat tipe), path galat 400 digabung `.` (cocok dengan `options.2.text`), aturan soal = QZ-04 / §11.4 no. 12, gate 0 / 0 / 23.
