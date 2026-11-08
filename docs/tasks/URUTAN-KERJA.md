@@ -141,7 +141,7 @@ Kartu ditulis di Claude chat menjelang sesinya, terhadap kode `main` terbaru. Re
 
 Jadwal dan keputusannya di `STATUS.md` (bagian "Pembaruan 3 Nov" dan "Pembaruan 8 Nov"). Kartu ditulis di Claude chat selagi agent mengerjakan kartu sebelumnya. Urutan potong bila terlambat: halaman "Nilai Saya". Impor CSV sudah dipindah ke setelah demo (8 Nov).
 
-- [ ] 🤖 [S1-09](sprint-1/S1-09-editor-quiz.md) — Editor quiz CMS: daftar soal (22a) + form satu soal (22b) · *Min 8 Nov; kartu direvisi 8 Nov (#119); sesi berjalan 8 Nov*
+- [x] 🤖 [S1-09](sprint-1/S1-09-editor-quiz.md) — Editor quiz CMS: daftar soal (22a) + form satu soal (22b) · *✅ PR #120 (8 Nov); perapian kosmetik setelah demo (STATUS 8 Nov)*
 - [ ] 🤖 [S6-01](sprint-6/S6-01-beranda-versi-demo.md) — Beranda versi demo: hero 1a + ilustrasi 6a (bergerak, tombol jeda), Cara kerjanya, Tanya Ahli Gizi, CTA penutup, halaman "Segera hadir" · *Sen 9 Nov, menggantikan impor CSV (keputusan 8 Nov)*
 - [ ] 🤖 Peserta: daftar kursus terbit + ikut kursus — di area member `/belajar`, bukan katalog publik `/kursus` (keputusan 8 Nov) · *Rab 11 Nov*
 - [ ] 🤖 Peserta: halaman materi + progres, termasuk `POST /api/progress/video` dan posisi terakhir ([rencana video](../decisions/video-sumber.md) bagian 2) · *Kam 12 Nov*

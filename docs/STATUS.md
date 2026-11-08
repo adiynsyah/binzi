@@ -29,7 +29,7 @@ Bagian-bagian di bawahnya tetap berlaku. Bagian ini mengubah atau menambahnya.
 
 | Hari | Kartu |
 |---|---|
-| Min 8 | S1-09 editor quiz CMS — sesi berjalan |
+| Min 8 | S1-09 editor quiz CMS — **di-merge (#120)** |
 | Sen 9 | **S6-01 Beranda versi demo** (menggantikan impor CSV) |
 | Sel 10 | S1-08 kirim & terbitkan (versi demo) |
 | Rab 11 | Peserta: daftar kursus terbit + ikut kursus (di `/belajar`) |
@@ -39,6 +39,22 @@ Bagian-bagian di bawahnya tetap berlaku. Bagian ini mengubah atau menambahnya.
 | Sen 16 | Peserta: hasil & nilai |
 | Rab 18 – Kam 19 | Production, akun demo, data contoh, gladi resik |
 
+### S1-09 di-merge (#120)
+
+Editor quiz CMS: daftar soal 22a + dialog satu soal 22b, pintu masuk dari builder ("Sunting Final Quiz" / "Lihat Final Quiz") dan dari editor materi (blok "Quiz materi"), API simpan soal (`POST`/`PATCH /api/cms/quizzes/{quizId}/questions…`), `getScoreWeights`, dan perbaikan bug baris deskripsi di `rbac.spec.ts`. 10 commit; Vitest 92 berkas / 1006 tes (baseline 910); E2E 149 lulus / 14 dilewati; gate audit 0 / 0 / 23; mutasi M1–M17 merah sesuai harapan. Pemilik memverifikasi lima langkah manual di lokal pada 8 Nov.
+
+Tinjauan PR di Claude chat menemukan lima hal yang diperbaiki sebelum merge:
+- fokus tidak kembali ke tombol pembuka setelah dialog ditutup (jatuh ke `body`);
+- judul "Simpan & tambah soal" dari mode sunting salah ("Soal 02 dari 4", seharusnya "Soal 04 dari 4"), dan tes PR mengunci nilai yang salah;
+- galat grup kunci tidak dirujuk `aria-describedby`;
+- banner galat jaringan dan 409 dirender di puncak formulir sehingga tidak terlihat setelah klik simpan;
+- "Simpan soal" memakai `primary`, padahal kartu dan 22b menetapkan `dark`.
+
+**Perapian S1-09 setelah demo** (kosmetik, dari tinjauan screenshot):
+- baris opsi dialog berupa kotak isian di dalam kotak baris (garis ganda); 22b satu baris = satu kotak;
+- kolom aturan quiz materi: label "Ambang lulus" terlipat dua baris, dan keterangan "Rata-rata semua quiz materi…" berdiri di bawah daftar, bukan di bawah nilai Bobot seperti 22h;
+- fokus awal dialog jatuh di "Tipe soal"; untuk soal baru lebih praktis di "Pertanyaan".
+
 ### Persiapan demo (tambahan 8 Nov)
 
 - **Pengaturan di binzi-dev** (SQL Editor): `select key, value from system_settings where key in ('quiz.min_questions', 'score.lesson_weight', 'score.final_weight', 'consultation.whatsapp_number');` → harapan `10`, `60`, `40`, dan nomor. Tanpa baris skor, halaman editor quiz galat 500 (`getScoreWeights` gagal tertutup).
@@ -46,6 +62,7 @@ Bagian-bagian di bawahnya tetap berlaku. Bagian ini mengubah atau menambahnya.
 - **Matikan "Kurangi gerakan"** di HP dan laptop yang dipakai demo, supaya ilustrasi hero terlihat bergerak.
 - **Demo boleh dibuka dari `/`** setelah S6-01 merge; tautan header berujung "Segera hadir", bukan 404.
 - STR di Beranda masih dummy (OQ-08). Ini boleh untuk demo, tetapi wajib diganti sebelum rilis (§14.9).
+- **Gladi resik: simpan sebelum mengeklik menu sidebar.** Penjaga perubahan belum disimpan di editor materi dan deskripsi hanya menjaga breadcrumb, tautan "Sunting quiz →", tutup tab, muat ulang, dan ketik URL. Klik menu sidebar CMS tidak dijaga (keterbatasan S1-04, dijadwalkan setelah demo); perubahan yang belum disimpan hilang tanpa peringatan.
 
 ### Pelajaran 8 Nov
 
@@ -55,6 +72,10 @@ Bagian-bagian di bawahnya tetap berlaku. Bagian ini mengubah atau menambahnya.
 4. **`helper` e2e mengukur apa?** `expectTouchTarget` mengukur `boundingBox`, sehingga radio `sr-only` selalu 1 × 1; yang diukur adalah `<label>`-nya.
 5. **Dugaan diberi label dugaan sampai diukur, juga untuk Claude chat.** Dugaan "skala `transform` membuat gulir samping" dibantah Chromium; masalah sebenarnya ruang kosong 286 px di bawah ilustrasi. Kartu S6-01 memakai hasil ukur.
 6. **`value::text` pada string JSON mengembalikan tanda kutip.** Pola `selectMinQuestionsText` hanya cocok untuk angka; string dibaca dengan `value #>> '{}'` + `jsonb_typeof`.
+7. **Dialog Radix yang dibuka lewat state (tanpa `DialogTrigger`) harus mengatur `onCloseAutoFocus` sendiri.** Tanpa itu Radix memanggil `preventDefault` lalu memfokuskan `triggerRef` yang `null`, sehingga fokus jatuh ke `body` setelah Esc, ✕, atau simpan. Pola S1-09: selalu `preventDefault`, fokus ke pembuka bila masih terhubung, selain itu ke h1. Kartu yang memakai dialog berbasis state wajib meminta tes "fokus kembali ke pembuka".
+8. **`toBeVisible()` tidak membuktikan elemen ada di layar.** Banner di luar viewport (dialog tergulir) tetap lolos `toBeVisible()`. Untuk umpan balik yang harus terlihat setelah aksi, pakai `toBeInViewport()`.
+9. **Tes bisa mengunci nilai yang salah.** Tes PR S1-09 mengasersi "Soal 02 dari 4" yang bertentangan dengan rumus kartu. Tinjauan PR membandingkan nilai literal di tes dengan teks kartu, bukan hanya memastikan tesnya hijau.
+10. **Screenshot ditinjau semuanya, bukan contoh.** Dua dari tiga temuan tampilan terakhir S1-09 hanya terlihat di screenshot yang tidak diperiksa agent (`dialog-galat`).
 
 ### Catatan untuk kartu berikutnya
 
