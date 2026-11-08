@@ -5,7 +5,12 @@
 // doc to the client.
 import { describe, expect, it } from "vitest";
 
-import { EMPTY_DOC, isDocEmpty } from "./content-doc";
+import {
+  EMPTY_DOC,
+  docToPlainText,
+  isDocEmpty,
+  plainTextToDoc,
+} from "./content-doc";
 import { CONTENT_DOC_SHOWCASE } from "./content-doc-fixtures";
 
 const docWithText = (text: string) => ({
@@ -156,5 +161,92 @@ describe("isDocEmpty", () => {
   it("CONTENT_DOC_SHOWCASE → false (consistency: any non-space text)", () => {
     // Every valid fixture with text anywhere must be non-empty.
     expect(isDocEmpty(CONTENT_DOC_SHOWCASE)).toBe(false);
+  });
+});
+
+// ------------------------------- plain text conversion (card S1-09 §1)
+
+describe("plainTextToDoc", () => {
+  it("one paragraph with one text node per line", () => {
+    expect(plainTextToDoc("a\nb")).toEqual({
+      type: "doc",
+      content: [
+        { type: "paragraph", content: [{ type: "text", text: "a" }] },
+        { type: "paragraph", content: [{ type: "text", text: "b" }] },
+      ],
+    });
+  });
+
+  it("CRLF and lone CR become LF first", () => {
+    expect(plainTextToDoc("a\r\nb\rc")).toEqual({
+      type: "doc",
+      content: [
+        { type: "paragraph", content: [{ type: "text", text: "a" }] },
+        { type: "paragraph", content: [{ type: "text", text: "b" }] },
+        { type: "paragraph", content: [{ type: "text", text: "c" }] },
+      ],
+    });
+  });
+
+  it("empty lines are dropped — the roundtrip normalizes gaps", () => {
+    expect(plainTextToDoc("a\n\n\nb")).toEqual(plainTextToDoc("a\nb"));
+  });
+
+  it("whitespace-only lines are dropped too", () => {
+    expect(plainTextToDoc("a\n   \nb")).toEqual(plainTextToDoc("a\nb"));
+  });
+
+  it("blank lines around the text are trimmed away", () => {
+    expect(plainTextToDoc("\n a \n")).toEqual({
+      type: "doc",
+      content: [{ type: "paragraph", content: [{ type: "text", text: "a" }] }],
+    });
+  });
+
+  it("zero remaining lines throws (the caller contract)", () => {
+    expect(() => plainTextToDoc(" \n \n")).toThrow(/teks kosong/);
+  });
+});
+
+describe("docToPlainText", () => {
+  it("paragraphs join with \\n", () => {
+    expect(
+      docToPlainText({
+        type: "doc",
+        content: [
+          { type: "paragraph", content: [{ type: "text", text: "a" }] },
+          { type: "paragraph", content: [{ type: "text", text: "b" }] },
+        ],
+      }),
+    ).toBe("a\nb");
+  });
+
+  it("hardBreak reads back as a newline inside the paragraph", () => {
+    expect(
+      docToPlainText({
+        type: "doc",
+        content: [
+          {
+            type: "paragraph",
+            content: [
+              { type: "text", text: "a" },
+              { type: "hardBreak" },
+              { type: "text", text: "b" },
+            ],
+          },
+        ],
+      }),
+    ).toBe("a\nb");
+  });
+
+  it("null / non-doc / not-an-object → empty string", () => {
+    expect(docToPlainText(null)).toBe("");
+    expect(docToPlainText(undefined)).toBe("");
+    expect(docToPlainText("teks")).toBe("");
+    expect(docToPlainText({ type: "paragraph" })).toBe("");
+  });
+
+  it("roundtrip: docToPlainText ∘ plainTextToDoc keeps the lines", () => {
+    expect(docToPlainText(plainTextToDoc("a\nb\nc"))).toBe("a\nb\nc");
   });
 });

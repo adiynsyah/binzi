@@ -296,6 +296,7 @@ export async function updateLessonContentIfDraft(input: {
 export async function findLessonEditorById(
   courseId: string,
   lessonId: string,
+  minQuestions: number,
 ): Promise<LessonEditorDTO | undefined> {
   const rows = await db
     .select({
@@ -306,6 +307,8 @@ export async function findLessonEditorById(
       lessonTitle: lessons.title,
       orderIndex: lessons.orderIndex,
       content: lessons.content,
+      quizId: lessons.quizId,
+      quizQuestionCount: quizQuestionCountSql,
     })
     .from(lessons)
     .innerJoin(courses, eq(lessons.courseId, courses.id))
@@ -320,6 +323,9 @@ export async function findLessonEditorById(
       title: row.lessonTitle,
       orderIndex: row.orderIndex,
       content: row.content,
+      quizId: row.quizId,
+      quizQuestionCount: row.quizQuestionCount,
     },
+    minQuestions,
   );
 }

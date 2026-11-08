@@ -4,7 +4,11 @@ import "../ui/test-env";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ContentDocForm, type ContentDocFormProps } from "./content-doc-form";
+import {
+  ContentDocForm,
+  LessonQuizBlock,
+  type ContentDocFormProps,
+} from "./content-doc-form";
 import { EMPTY_DOC, type ContentDoc } from "@/lib/content-doc";
 
 /*
@@ -524,5 +528,87 @@ describe("ContentDocForm unsaved-changes guards", () => {
     fireEvent.click(screen.getByRole("link", { name: "Judul Kursus" }));
 
     expect(screen.queryByText("Tinggalkan tanpa menyimpan?")).toBeNull();
+  });
+});
+
+// --------------------------------------- quiz block (card S1-09 §5, 21i)
+
+describe("ContentDocForm quiz block", () => {
+  it("renders under the editor when quizBlock is given: pill + 'Isi quiz →' at 0", () => {
+    renderForm({
+      quizBlock: { href: "/cms/quiz/q-1", questionCount: 0, minQuestions: 5 },
+    });
+
+    expect(screen.getByText("Quiz materi")).toBeTruthy();
+    expect(screen.getByText("0 dari min. 5 soal")).toBeTruthy();
+    expect(
+      screen.getByText(
+        "Sudah dibuat otomatis · wajib dikerjakan user agar materi selesai",
+      ),
+    ).toBeTruthy();
+    const link = screen.getByRole("link", { name: "Isi quiz →" });
+    expect(link.getAttribute("href")).toBe("/cms/quiz/q-1");
+    // The pill sits below the minimum → pending pair.
+    expect(screen.getByText("0 dari min. 5 soal").className).toContain(
+      "bg-pending-tint",
+    );
+  });
+
+  it("questionCount > 0 → 'Sunting quiz →' and the success pair at the minimum", () => {
+    renderForm({
+      quizBlock: { href: "/cms/quiz/q-1", questionCount: 5, minQuestions: 5 },
+    });
+
+    expect(screen.getByRole("link", { name: "Sunting quiz →" })).toBeTruthy();
+    expect(screen.getByText("5 dari min. 5 soal").className).toContain(
+      "bg-success-tint",
+    );
+  });
+
+  it("absent quizBlock → no block (the description page)", () => {
+    renderForm();
+    expect(screen.queryByText("Quiz materi")).toBeNull();
+  });
+
+  it("a DIRTY document opens the leave guard instead of navigating (D8)", () => {
+    renderForm({
+      quizBlock: { href: "/cms/quiz/q-1", questionCount: 0, minQuestions: 5 },
+    });
+    editValid();
+
+    fireEvent.click(screen.getByRole("link", { name: "Isi quiz →" }));
+
+    expect(screen.getByText("Tinggalkan tanpa menyimpan?")).toBeTruthy();
+    expect(pushMock).not.toHaveBeenCalled();
+  });
+
+  it("a clean document navigates straight away (no leave dialog)", () => {
+    renderForm({
+      quizBlock: { href: "/cms/quiz/q-1", questionCount: 0, minQuestions: 5 },
+    });
+
+    fireEvent.click(screen.getByRole("link", { name: "Isi quiz →" }));
+
+    expect(screen.queryByText("Tinggalkan tanpa menyimpan?")).toBeNull();
+  });
+});
+
+describe("LessonQuizBlock standalone (locked + unreadable variants)", () => {
+  it("mode='view' renders 'Lihat quiz →'; href=null renders no link at all", () => {
+    const { rerender } = render(
+      <LessonQuizBlock
+        href="/cms/quiz/q-1"
+        mode="view"
+        questionCount={2}
+        minQuestions={5}
+      />,
+    );
+    expect(screen.getByRole("link", { name: "Lihat quiz →" })).toBeTruthy();
+
+    rerender(
+      <LessonQuizBlock href={null} mode="edit" questionCount={2} minQuestions={5} />,
+    );
+    expect(screen.queryByRole("link")).toBeNull();
+    expect(screen.getByText("2 dari min. 5 soal")).toBeTruthy();
   });
 });

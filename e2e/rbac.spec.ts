@@ -47,6 +47,10 @@ const PAGE_EXPECTATIONS: readonly {
   // S1-04: the course description editor — same matrix; the real course id
   // is substituted per role below.
   { path: "/cms/kursus/[id]/deskripsi", member: 403, editor: 200, admin: 200, superAdmin: 200 },
+  // S1-09: the quiz editor — same matrix; the real LESSON quiz id
+  // (CreatedLessonDTO.quizId from the setup POST above) is substituted per
+  // role below (MEMBER hits the role gate first, literal path).
+  { path: "/cms/quiz/[quizId]", member: 403, editor: 200, admin: 200, superAdmin: 200 },
   { path: "/cms/quiz", member: 403, editor: 200, admin: 200, superAdmin: 200 },
   { path: "/cms/media", member: 403, editor: 200, admin: 200, superAdmin: 200 },
   // ADMIN+
@@ -160,7 +164,11 @@ test.describe("status per peran", () => {
       // the role check, which runs BEFORE the id is parsed (anti-IDOR:
       // a MEMBER never learns whether an id exists).
       let realCoursePath: string | null = null;
+      // Built from realCoursePath (never a template over null: MEMBER keeps
+      // the literal path, so its 403 comes from the role gate).
+      let realDescriptionPath: string | null = null;
       let realLessonPath: string | null = null;
+      let realQuizPath: string | null = null;
       if (role !== "MEMBER") {
         // Underscores are not slug-legal (SLUG_PATTERN) — SUPER_ADMIN
         // would otherwise 400 on its own setup row.
@@ -180,26 +188,37 @@ test.describe("status per peran", () => {
         const courseId = ((await created.json()) as { data: { id: string } })
           .data.id;
         realCoursePath = `/cms/kursus/${courseId}`;
+        realDescriptionPath = `${realCoursePath}/deskripsi`;
         // The materi row needs a real lesson IN that course (S1-02).
         const lesson = await context.request.post(
           `/api/cms/courses/${courseId}/lessons`,
           { data: { title: `${token} materi rbac` } },
         );
         expect(lesson.status(), `${role} create lesson for the materi row`).toBe(201);
-        const lessonId = ((await lesson.json()) as { data: { id: string } })
-          .data.id;
-        realLessonPath = `/cms/kursus/${courseId}/materi/${lessonId}`;
+        const lessonData = (await lesson.json()) as {
+          data: { id: string; quizId: string };
+        };
+        realLessonPath = `/cms/kursus/${courseId}/materi/${lessonData.data.id}`;
+        // S1-09: the lesson's quiz is created in the same transaction —
+        // its id rides along in CreatedLessonDTO.
+        realQuizPath = `/cms/quiz/${lessonData.data.quizId}`;
       }
 
       try {
         for (const row of PAGE_EXPECTATIONS) {
+          // S1-09 fix: the deskripsi row used to fall into realCoursePath
+          // (the builder path), so /cms/kursus/{id}/deskripsi was NEVER
+          // requested — the row tested the builder twice, vacuously green.
           const dynamicPath =
-            row.path === "/cms/kursus/[id]" ||
-              row.path === "/cms/kursus/[id]/deskripsi"
+            row.path === "/cms/kursus/[id]"
               ? realCoursePath
-              : row.path === "/cms/kursus/[id]/materi/[lessonId]"
-                ? realLessonPath
-                : null;
+              : row.path === "/cms/kursus/[id]/deskripsi"
+                ? realDescriptionPath
+                : row.path === "/cms/kursus/[id]/materi/[lessonId]"
+                  ? realLessonPath
+                  : row.path === "/cms/quiz/[quizId]"
+                    ? realQuizPath
+                    : null;
           const path = dynamicPath ?? row.path;
           const response = await context.request.get(path, {
             maxRedirects: 0,

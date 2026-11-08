@@ -11,6 +11,7 @@ import {
   ContentDocBreadcrumb,
   ContentDocForm,
   CONTENT_DOC_HEADING_CLASS,
+  LessonQuizBlock,
 } from "@/components/cms/content-doc-form";
 import { LOCKED_NOTICE } from "@/components/cms/course-settings-panel";
 import { RichContent } from "@/components/shared/rich-content";
@@ -76,6 +77,16 @@ export default async function CmsLessonEditorPage({
               <p className="text-[15px] text-text-muted">Belum diisi.</p>
             )}
           </div>
+          {/* The quiz stays readable in the locked view (card S1-09 §5) —
+              "Lihat" wording, no dirty guard (nothing is editable). */}
+          {lesson.quizId !== null ? (
+            <LessonQuizBlock
+              href={`/cms/quiz/${lesson.quizId}`}
+              mode="view"
+              questionCount={lesson.quizQuestionCount}
+              minQuestions={editor.minQuestions}
+            />
+          ) : null}
         </div>
       </div>
     );
@@ -83,7 +94,8 @@ export default async function CmsLessonEditorPage({
 
   if (lesson.content === null) {
     // The serializer already logged the issue codes + paths — the page
-    // never shows the document's text back (§12.3).
+    // never shows the document's text back (§12.3). No quiz link either:
+    // this branch exists precisely because the row cannot be trusted.
     return (
       <div>
         <header className="flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -94,6 +106,14 @@ export default async function CmsLessonEditorPage({
           <p className="mt-4 text-[15px] text-text-muted">
             Isi materi ini tidak bisa dibuka editor.
           </p>
+          {lesson.quizId !== null ? (
+            <LessonQuizBlock
+              href={null}
+              mode="edit"
+              questionCount={lesson.quizQuestionCount}
+              minQuestions={editor.minQuestions}
+            />
+          ) : null}
         </div>
       </div>
     );
@@ -108,6 +128,15 @@ export default async function CmsLessonEditorPage({
       labelId="lesson-content-label"
       breadcrumb={breadcrumb}
       heading={lesson.title}
+      quizBlock={
+        lesson.quizId !== null
+          ? {
+              href: `/cms/quiz/${lesson.quizId}`,
+              questionCount: lesson.quizQuestionCount,
+              minQuestions: editor.minQuestions,
+            }
+          : undefined
+      }
     />
   );
 }

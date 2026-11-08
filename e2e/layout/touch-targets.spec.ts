@@ -6,7 +6,13 @@
 // "Lupa password?", which stands alone in the label row (owner decision):
 // measured and REPORTED only, never asserted (an inline link in the label
 // row cannot reach 44px; tracked for the a11y chore).
-import { createRoleAccount, expect, signInViaApi, test } from "../fixtures";
+import {
+  createRoleAccount,
+  expect,
+  signInViaApi,
+  test,
+  withE2eDb,
+} from "../fixtures";
 import type { Locator } from "@playwright/test";
 import {
   createCourseViaApi,
@@ -215,6 +221,105 @@ test.describe("target sentuh >= 44px @w360", () => {
     await expectTouchTarget(
       page.getByRole("button", { name: "+ Tambah materi pertama" }),
       "+ Tambah materi pertama",
+    );
+  });
+
+  test("editor quiz: Sunting Final Quiz, tambah/sunting soal, Isi quiz →, dialog", async ({
+    page,
+    request,
+  }) => {
+    // Card S1-09 §6: every quiz-editor control at w360. The FINAL quiz of
+    // a fresh course carries one question ("Sunting soal 01"); the lesson
+    // editor page carries the quiz block ("Isi quiz →" at count 0).
+    const editor = await createRoleAccount(request, "EDITOR");
+    await signInViaApi(page.context(), editor);
+    const t = randomToken("qz");
+    const courseId = await createCourseViaApi(page.context(), {
+      title: `${t} Sentuh Quiz`,
+    });
+    const lessonId = await createLessonViaApi(
+      page.context(),
+      courseId,
+      `${t} Materi Quiz`,
+    );
+
+    // The FINAL quiz id never appears in an API answer — read it from the
+    // E2E database (same helper shape as cms-quiz-editor.spec.ts).
+    const quizRows = await withE2eDb(
+      (sql) => sql`select final_quiz_id as id from courses where id = ${courseId}`,
+    );
+    const finalQuizId = quizRows[0]?.id as string;
+    expect(finalQuizId, "kursus punya quiz FINAL").toBeTruthy();
+    const question = await page.context().request.post(
+      `/api/cms/quizzes/${finalQuizId}/questions`,
+      {
+        data: {
+          type: "SINGLE_CHOICE",
+          text: "Pertanyaan sentuh untuk tes e2e.",
+          explanation: "Pembahasan sentuh untuk tes e2e.",
+          options: [
+            { text: "Opsi satu", isCorrect: false },
+            { text: "Opsi dua", isCorrect: true },
+            { text: "Opsi tiga", isCorrect: false },
+            { text: "Opsi empat", isCorrect: false },
+          ],
+        },
+      },
+    );
+    expect(question.status(), await question.text()).toBe(201);
+
+    // The builder door (lesson-outline Final Quiz block).
+    await page.goto(`/cms/kursus/${courseId}`);
+    await expectTouchTarget(
+      page.getByRole("link", { name: "Sunting Final Quiz" }),
+      "Sunting Final Quiz (builder)",
+    );
+
+    // The quiz page + the open dialog.
+    await page.goto(`/cms/quiz/${finalQuizId}`);
+    await expectTouchTarget(
+      page.getByRole("button", { name: "+ Tambah soal" }),
+      "+ Tambah soal",
+    );
+    await expectTouchTarget(
+      page.getByRole("button", { name: "Sunting soal 01" }),
+      "Sunting soal 01",
+    );
+    await page.getByRole("button", { name: "+ Tambah soal" }).click();
+    const dialog = page.getByRole("dialog");
+    await expect(
+      dialog.getByLabel("Pertanyaan", { exact: true }),
+    ).toBeVisible();
+    await expectTouchTarget(
+      dialog.getByLabel("Tipe soal", { exact: true }),
+      "Tipe soal (dialog)",
+    );
+    // The key hit area is the <label> circle wrapping the sr-only radio
+    // (the 1×1 radio itself would always fail — card §6).
+    for (const name of ["Kunci: opsi A", "Kunci: opsi B", "Kunci: opsi C", "Kunci: opsi D"]) {
+      await expectTouchTarget(
+        dialog.locator("label", { has: page.getByRole("radio", { name }) }),
+        `lingkaran kunci ${name}`,
+      );
+    }
+    await expectTouchTarget(
+      dialog.getByRole("button", { name: "Simpan soal", exact: true }),
+      "Simpan soal (dialog)",
+    );
+    await expectTouchTarget(
+      dialog.getByRole("button", { name: "Simpan & tambah soal" }),
+      "Simpan & tambah soal (dialog)",
+    );
+    await expectTouchTarget(
+      dialog.getByRole("button", { name: "Tutup" }),
+      "✕ Tutup (dialog soal)",
+    );
+
+    // The materi editor's quiz-block door.
+    await page.goto(`/cms/kursus/${courseId}/materi/${lessonId}`);
+    await expectTouchTarget(
+      page.getByRole("link", { name: "Isi quiz →" }),
+      "Isi quiz → (blok quiz editor materi)",
     );
   });
 

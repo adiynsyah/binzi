@@ -6,6 +6,8 @@
 // input contract.
 import { NotFoundError } from "@/lib/errors";
 
+import { getMinQuestions } from "@/modules/quiz/service";
+
 import { assertCanManageLessons, type Actor } from "./policy";
 import * as lessonQueries from "./queries";
 import {
@@ -76,12 +78,13 @@ export async function getLessonInCourse(
 }
 
 /**
- * The lesson editor page's data (card S1-04 §5): EDITOR+; unknown lesson,
- * unknown course, or a lesson belonging to another course → 404. The
- * stored document is validated in the serializer — a row that somehow
- * fails the validator comes back with lesson.content null and the page
- * answers "Isi materi ini tidak bisa dibuka editor." instead of opening
- * the editor.
+ * The lesson editor page's data (card S1-04 §5 + S1-09 §5): EDITOR+;
+ * unknown lesson, unknown course, or a lesson belonging to another course
+ * → 404. The stored document is validated in the serializer — a row that
+ * somehow fails the validator comes back with lesson.content null and the
+ * page answers "Isi materi ini tidak bisa dibuka editor." instead of
+ * opening the editor. The quiz columns feed the page's quiz block; the
+ * publish minimum comes from the quiz module (fail-closed there).
  */
 export async function getLessonEditor(
   actor: Actor,
@@ -90,7 +93,12 @@ export async function getLessonEditor(
   assertCanManageLessons(actor);
   const { courseId, lessonId } = getLessonInput.parse(input);
 
-  const row = await lessonQueries.findLessonEditorById(courseId, lessonId);
+  const minQuestions = await getMinQuestions();
+  const row = await lessonQueries.findLessonEditorById(
+    courseId,
+    lessonId,
+    minQuestions,
+  );
   if (!row) throw new NotFoundError("Materi tidak ditemukan");
   return row;
 }

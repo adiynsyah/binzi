@@ -136,7 +136,7 @@ beforeEach(() => {
 describe("CourseBuilder", () => {
   describe("DRAFT rendering", () => {
     it("renders heading row, empty outline, and the checklist", () => {
-      renderBuilder();
+      const first = renderBuilder();
 
       expect(
         screen.getByRole("heading", { name: "Dasar Gizi Ibu Hamil" }),
@@ -162,6 +162,20 @@ describe("CourseBuilder", () => {
       ).toBeTruthy();
       expect(screen.getByText("3 / 6")).toBeTruthy();
       expect(screen.getByText("3 hal perlu dilengkapi")).toBeTruthy();
+
+      // DRAFT: the Final Quiz block's door says "Sunting" (S1-09 §5).
+      expect(
+        screen.getByRole("link", { name: "Sunting Final Quiz" }).getAttribute("href"),
+      ).toBe("/cms/quiz/fq-1");
+
+      // No finalQuiz column value → no door at all (defensive branch).
+      first.unmount();
+      renderBuilder(
+        builderFixture({ course: courseFixture({ finalQuiz: null }) }),
+      );
+      expect(
+        screen.queryByRole("link", { name: /Final Quiz$/ }),
+      ).toBeNull();
     });
 
     it("keeps the slug when the title is edited (no auto-follow)", () => {
@@ -485,6 +499,12 @@ describe("CourseBuilder", () => {
         screen.queryByRole("button", { name: "+ Tambah materi" }),
       ).toBeNull();
       expect(screen.queryByRole("link", { name: /Sunting/ })).toBeNull();
+      // …but the Final Quiz block keeps its door in every status (S1-09 §5):
+      // outside DRAFT it is "Lihat", not "Sunting" — that is why the /Sunting/
+      // assertion above still holds.
+      expect(
+        screen.getByRole("link", { name: "Lihat Final Quiz" }).getAttribute("href"),
+      ).toBe("/cms/quiz/fq-1");
       expect(
         screen.queryByRole("button", { name: /Tambah materi/ }),
       ).toBeNull();
