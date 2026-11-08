@@ -559,7 +559,12 @@ describe("updateLessonContent & getLessonEditor (card S1-04)", () => {
         title: "Les editor",
         orderIndex: 1,
         content: { type: "doc", content: [{ type: "paragraph" }] },
+        // The quiz CRS-06 created together with the lesson, still empty,
+        // plus the publish minimum from the seeded settings (S1-09 §5).
+        quizId: lesson.quizId,
+        quizQuestionCount: 0,
       },
+      minQuestions: 10,
     });
 
     await expect(

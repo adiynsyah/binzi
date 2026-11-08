@@ -25,6 +25,7 @@
  * Alt clicks and middle clicks keep their native new-tab behavior.
  */
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   useEffect,
@@ -38,10 +39,83 @@ import type { JSONContent } from "@tiptap/react";
 import { RichTextEditor } from "./rich-text-editor";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button-variants";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { FieldError } from "./form-fields";
 import { validateContentDoc } from "@/lib/content-doc-validator";
 import type { ContentDoc } from "@/lib/content-doc";
+
+/**
+ * The 21i "Quiz materi" block (card S1-09 §5): every lesson's quiz exists
+ * from creation — the block states its count against the publish minimum
+ * and is the door to /cms/quiz/{id}. Exported so the materi page can also
+ * render it in its LOCKED ("Lihat quiz →", no dirty guard — nothing is
+ * editable there) and validator-failed (no link at all) variants.
+ *
+ * The pill carries the state (pending below the minimum, success at it);
+ * the container stays neutral like its sibling "Final Quiz" block in the
+ * builder outline. The note drops 21i's "& kosong" — the pill's count
+ * already says it, and it would be wrong once questions exist (PR list).
+ */
+export function LessonQuizBlock({
+  href,
+  mode,
+  questionCount,
+  minQuestions,
+  onLinkClick,
+}: {
+  /** null → info-only block (validator-failed page: no door anywhere). */
+  href: string | null;
+  /** "edit" → "Isi quiz →"/"Sunting quiz →" by count; "view" → "Lihat quiz →". */
+  mode: "edit" | "view";
+  questionCount: number;
+  minQuestions: number;
+  /** The dirty guard — only the editable page passes it (same as breadcrumbs). */
+  onLinkClick?: (
+    event: ReactMouseEvent<HTMLAnchorElement>,
+    href: string,
+  ) => void;
+}) {
+  const meetsMin = questionCount >= minQuestions;
+  const label =
+    mode === "view"
+      ? "Lihat quiz →"
+      : questionCount === 0
+        ? "Isi quiz →"
+        : "Sunting quiz →";
+  return (
+    <div className="mt-6 flex flex-wrap items-center gap-x-3.5 gap-y-2 rounded-card border border-border bg-surface-2 p-4">
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <span className="text-[15px] font-bold text-text">Quiz materi</span>
+          <span
+            className={`rounded-pill px-2.5 py-1 text-[11px] font-bold ${
+              meetsMin
+                ? "bg-success-tint text-success-tint-text"
+                : "bg-pending-tint text-pending-tint-text"
+            }`}
+          >
+            {questionCount} dari min. {minQuestions} soal
+          </span>
+        </div>
+        <p className="mt-1 text-[13px] leading-relaxed text-text-muted">
+          Sudah dibuat otomatis · wajib dikerjakan user agar materi selesai
+        </p>
+      </div>
+      {href !== null ? (
+        <Link
+          href={href}
+          onClick={
+            onLinkClick ? (event) => onLinkClick(event, href) : undefined
+          }
+          className={`${buttonVariants({ variant: "dark" })} ml-auto`}
+        >
+          {label}
+        </Link>
+      ) : null}
+    </div>
+  );
+}
 
 export type ContentDocFormProps = {
   /** The stored document (EMPTY_DOC for a never-filled field). */
@@ -55,6 +129,15 @@ export type ContentDocFormProps = {
   breadcrumb: { label: string; href: string | null }[];
   heading: string;
   intro?: string;
+  /**
+   * The lesson page's quiz block (card S1-09 §5) — absent on the
+   * description page and on a lesson without a quiz column value.
+   */
+  quizBlock?: {
+    href: string;
+    questionCount: number;
+    minQuestions: number;
+  };
 };
 
 /** Field label per bodyKey (21i: "Teks materi"; the description page: "Deskripsi"). */
@@ -154,6 +237,7 @@ export function ContentDocForm({
   breadcrumb,
   heading,
   intro,
+  quizBlock,
 }: ContentDocFormProps) {
   const router = useRouter();
   const label = LABEL_BY_BODY_KEY[bodyKey];
@@ -433,6 +517,19 @@ export function ContentDocForm({
         </div>
         {/* The field message sits OUTSIDE the measure-capped wrapper. */}
         <FieldError id={errorId} message={fieldError ?? undefined} />
+
+        {/* The lesson page's quiz block rides under the editor (21i) and
+            its link shares the breadcrumb dirty guard: an unsaved document
+            opens the A-06 leave dialog, not a silent navigation. */}
+        {quizBlock ? (
+          <LessonQuizBlock
+            href={quizBlock.href}
+            mode="edit"
+            questionCount={quizBlock.questionCount}
+            minQuestions={quizBlock.minQuestions}
+            onLinkClick={onBreadcrumbClick}
+          />
+        ) : null}
       </div>
 
       <Dialog

@@ -198,14 +198,25 @@ export function LessonOutline({
         aria-labelledby="builder-final-quiz-heading"
         className="rounded-card border border-border bg-surface-2 px-4 py-4 sm:px-[18px]"
       >
-        <h3
-          id="builder-final-quiz-heading"
-          className="text-[15px] font-bold text-text"
-        >
-          Final Quiz
-        </h3>
-        {/* "Sunting Final Quiz" belongs to the quiz editor card and is
-            deliberately not rendered. */}
+        <div className="flex flex-wrap items-center gap-3">
+          <h3
+            id="builder-final-quiz-heading"
+            className="text-[15px] font-bold text-text"
+          >
+            Final Quiz
+          </h3>
+          {/* The door to /cms/quiz/{id} in EVERY status (card S1-09 §5):
+              DRAFT edits, anything else is still readable there — "Lihat"
+              keeps the word "Sunting" meaning editable. */}
+          {finalQuiz !== null ? (
+            <Link
+              href={`/cms/quiz/${finalQuiz.id}`}
+              className={`${buttonVariants({ variant: "secondary" })} ml-auto`}
+            >
+              {editable ? "Sunting Final Quiz" : "Lihat Final Quiz"}
+            </Link>
+          ) : null}
+        </div>
         <p className="mt-1 text-[13px] leading-relaxed text-text-muted">
           {finalQuizLine}
         </p>

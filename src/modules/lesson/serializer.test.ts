@@ -156,6 +156,8 @@ describe("toLessonEditorDTO (card S1-04)", () => {
       title: "Materi satu",
       orderIndex: 1,
       content: FILLED_DOC,
+      quizId: "q-1",
+      quizQuestionCount: 3,
       ...overrides,
     };
   }
@@ -164,8 +166,8 @@ describe("toLessonEditorDTO (card S1-04)", () => {
     vi.restoreAllMocks();
   });
 
-  it("maps the page DTO: course id/title/status + the validated lesson", () => {
-    const dto = toLessonEditorDTO(course, lessonRow());
+  it("maps the page DTO: course id/title/status + the validated lesson + quiz block columns", () => {
+    const dto = toLessonEditorDTO(course, lessonRow(), 10);
     expect(dto).toEqual({
       course: { id: "c-1", title: "Dasar Gizi Ibu Hamil", status: "DRAFT" },
       lesson: {
@@ -173,29 +175,40 @@ describe("toLessonEditorDTO (card S1-04)", () => {
         title: "Materi satu",
         orderIndex: 1,
         content: FILLED_DOC,
+        quizId: "q-1",
+        quizQuestionCount: 3,
       },
+      minQuestions: 10,
     });
   });
 
   it("null content (defensive; no known writer stores null) opens with EMPTY_DOC", () => {
-    const dto = toLessonEditorDTO(course, lessonRow({ content: null }));
+    const dto = toLessonEditorDTO(course, lessonRow({ content: null }), 10);
     expect(dto.lesson.content).toEqual(EMPTY_DOC);
   });
 
   it("a stored document that fails the validator comes back null, logged with codes + paths only", () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const dto = toLessonEditorDTO(course, {
-      id: "l-1",
-      title: "Materi rusak",
-      orderIndex: 2,
-      content: { type: "doc", content: [{ type: "iframe" }] },
-    });
+    const dto = toLessonEditorDTO(
+      course,
+      {
+        id: "l-1",
+        title: "Materi rusak",
+        orderIndex: 2,
+        content: { type: "doc", content: [{ type: "iframe" }] },
+        quizId: "q-1",
+        quizQuestionCount: 0,
+      },
+      10,
+    );
 
     expect(dto.lesson).toEqual({
       id: "l-1",
       title: "Materi rusak",
       orderIndex: 2,
       content: null,
+      quizId: "q-1",
+      quizQuestionCount: 0,
     });
     expect(errorSpy).toHaveBeenCalledTimes(1);
     const logged = errorSpy.mock.calls[0]?.[1] as unknown;

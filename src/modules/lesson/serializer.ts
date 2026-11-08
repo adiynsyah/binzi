@@ -140,11 +140,14 @@ export type LessonEditorCourseRow = Pick<
   "id" | "title" | "status"
 >;
 
-/** The editor page's lesson columns (card §5). */
+/** The editor page's lesson columns (card §5 + S1-09 §5 quiz block). */
 export type LessonEditorLessonRow = Pick<
   typeof lessons.$inferSelect,
-  "id" | "title" | "orderIndex" | "content"
->;
+  "id" | "title" | "orderIndex" | "content" | "quizId"
+> & {
+  /** Correlated count of the linked quiz's questions (0 without a quiz). */
+  quizQuestionCount: number;
+};
 
 export type LessonEditorDTO = {
   course: {
@@ -162,12 +165,19 @@ export type LessonEditorDTO = {
      * editor." instead of opening the editor (card §5).
      */
     content: ContentDoc | null;
+    /** The linked quiz (CRS-06: created together); null → no quiz block. */
+    quizId: string | null;
+    /** Correlated count for the quiz block's pill (0 without a quiz). */
+    quizQuestionCount: number;
   };
+  /** The publish minimum (quiz.min_questions) for the quiz block's pill. */
+  minQuestions: number;
 };
 
 export function toLessonEditorDTO(
   course: LessonEditorCourseRow,
   lesson: LessonEditorLessonRow,
+  minQuestions: number,
 ): LessonEditorDTO {
   // Defensive branch: no known writer stores NULL content
   // (createLessonWithQuiz writes EMPTY_DOC), but the column is nullable —
@@ -181,7 +191,10 @@ export function toLessonEditorDTO(
         title: lesson.title,
         orderIndex: lesson.orderIndex,
         content: EMPTY_DOC,
+        quizId: lesson.quizId,
+        quizQuestionCount: lesson.quizQuestionCount,
       },
+      minQuestions,
     };
   }
   // Re-validate the stored document (§12.3 "sanitasi ulang saat render"):
@@ -194,7 +207,15 @@ export function toLessonEditorDTO(
     );
     return {
       course: { id: course.id, title: course.title, status: course.status },
-      lesson: { id: lesson.id, title: lesson.title, orderIndex: lesson.orderIndex, content: null },
+      lesson: {
+        id: lesson.id,
+        title: lesson.title,
+        orderIndex: lesson.orderIndex,
+        content: null,
+        quizId: lesson.quizId,
+        quizQuestionCount: lesson.quizQuestionCount,
+      },
+      minQuestions,
     };
   }
   return {
@@ -204,6 +225,9 @@ export function toLessonEditorDTO(
       title: lesson.title,
       orderIndex: lesson.orderIndex,
       content: result.doc,
+      quizId: lesson.quizId,
+      quizQuestionCount: lesson.quizQuestionCount,
     },
+    minQuestions,
   };
 }
