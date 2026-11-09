@@ -10,7 +10,9 @@ import type { BrowserContext, Locator, Page } from "@playwright/test";
 import { expect } from "../fixtures";
 import { widthSpecOf } from "./widths";
 
-/** Card §2 guest pages (no token on /reset-password → expired state). */
+/** Card §2 guest pages (no token on /reset-password → expired state) +
+ * the S6-01 "Segera hadir" pages, so they join axe, no-scroll and
+ * screenshots at every width. */
 export const GUEST_PAGES: readonly string[] = [
   "/",
   "/masuk",
@@ -18,6 +20,10 @@ export const GUEST_PAGES: readonly string[] = [
   "/lupa-password",
   "/reset-password",
   "/daftar/verifikasi",
+  "/kursus",
+  "/artikel",
+  "/tentang",
+  "/cari",
 ];
 
 /** 40-char no-space name (A-14b lesson: 217px overflow at 360). */

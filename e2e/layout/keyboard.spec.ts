@@ -228,27 +228,15 @@ test.describe("skip link 'Lewati ke konten utama'", () => {
     await page.keyboard.press("Enter");
     await expect(page).toHaveURL(/#konten-utama$/);
     await page.keyboard.press("Tab");
-    // Beranda is the A-14a placeholder (real content arrives in S6):
-    // main#konten-utama currently holds ZERO focusable elements, so Tab
-    // after the skip link correctly continues to the first focusable
-    // AFTER main (a footer link). The invariant that holds today — and
-    // the one that matters — is that focus has passed the header. When
-    // S6 adds focusable content inside main, tighten this to the owner's
-    // strict wording ("first element INSIDE #konten-utama").
-    const landed = await page.evaluate(() => {
-      const active = document.activeElement;
-      if (!(active instanceof Element)) return false;
-      const inHeader = active.closest("header") !== null;
-      const main = document.querySelector("main#konten-utama");
-      const inside = active.closest("#konten-utama") !== null;
-      const after =
-        main !== null &&
-        (main.compareDocumentPosition(active) &
-          Node.DOCUMENT_POSITION_FOLLOWING) !==
-          0;
-      return !inHeader && (inside || after);
-    });
-    expect(landed, "fokus berikutnya di dalam/setelah #konten-utama").toBe(true);
+    // S6-01 tightened this per the comment that used to live here: the
+    // Beranda now HAS focusable content, so the stop after the skip link
+    // must be the first focusable INSIDE #konten-utama — the hero's
+    // "Mulai Belajar Gratis" (the CTA-penutup link with the same name
+    // comes later in the DOM; .first() pins the hero one).
+    const firstInMain = page
+      .getByRole("link", { name: "Mulai Belajar Gratis" })
+      .first();
+    await expect(firstInMain).toBeFocused();
     const indicator = await focusIndicatorOf(page);
     expect.soft(indicator.pass, `indikator fokus: ${indicator.reason}`).toBe(true);
   });
