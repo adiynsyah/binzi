@@ -8,9 +8,9 @@ import { buttonVariants } from "@/components/ui/button-variants";
  * CTA penutup (card S6-01 §5 + keputusan tinjauan 8 Nov): a full-width
  * primary-tint ribbon with a primary/25 top hairline — NOT a bordered
  * card. 1a lays the copy and buttons on one space-between row that wraps;
- * below 640 the buttons stack full-width (1d). The 1a paragraph hex
- * #5a1c14 has no token (and must not get one); ink-surface is the
- * mapping table's nearest match.
+ * below 640 the buttons stack full-width (1d). The 1a paragraph colour has
+ * no token (and must not get one); ink-surface is the mapping table's
+ * nearest match.
  */
 export function CtaPenutup() {
   return (
