@@ -242,6 +242,10 @@ test.describe("beranda", () => {
         headingBox!.y,
         "sisi atas h2 ≥ sisi bawah header sticky",
       ).toBeGreaterThanOrEqual(headerBox!.y + headerBox!.height - 0.5);
+
+      // Card "Sebelum membuka PR": the anchored KSL section is one of the
+      // review screenshots (360 + 1280 only).
+      await maybeScreenshot(page, `tanya-ahli-gizi-w${width}`, "chromium");
     });
   }
 
