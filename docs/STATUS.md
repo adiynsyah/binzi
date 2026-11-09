@@ -1,9 +1,120 @@
 # Status Proyek BINZI — catatan untuk melanjutkan di chat baru
 
-> Terakhir diperbarui: 8 Nov 2026. File ini dikelola manual (bukan oleh agent) dan hanya untuk melanjutkan percakapan dengan Claude.
+> Terakhir diperbarui: 9 Nov 2026. File ini dikelola manual (bukan oleh agent) dan hanya untuk melanjutkan percakapan dengan Claude.
 > Untuk melanjutkan: buka chat baru, unggah file ini + `docs/tasks/URUTAN-KERJA.md`, lalu pakai prompt di bagian paling bawah.
 
-## Pembaruan 8 Nov 2026 — kartu S1-09 direvisi, sesi S1-09 berjalan, Beranda versi demo masuk jadwal (baca ini dulu, lalu 7 Nov, 6 Nov, 4 Nov malam, 4 Nov, dan 3 Nov)
+## Pembaruan 9 Nov 2026 — S6-01 di-merge, kartu S1-08 siap (baca ini dulu, lalu 8 Nov, 7 Nov, 6 Nov, 4 Nov malam, 4 Nov, dan 3 Nov)
+
+Bagian-bagian di bawahnya tetap berlaku. Bagian ini mengubah atau menambahnya.
+
+### Yang di-merge hari ini
+
+| PR | Isi |
+|---|---|
+| #126 | Kartu S6-01 Beranda versi demo + STATUS 8 Nov |
+| #127 | S6-01 Beranda versi demo |
+
+`main` sekarang `e382359`. Gate audit 0 excused / 0 blocking / 23. Baseline Vitest **98 berkas / 1030 tes** (diukur di sandbox Claude chat, 9 Nov).
+
+### S6-01 di-merge (#127)
+
+Hero 1a + ilustrasi 6a (murni CSS Module, tombol "Jeda animasi"/"Putar animasi", frame diam saat "Kurangi gerakan"), Cara kerjanya, Tanya Ahli Gizi dengan `GET /api/konsultasi/whatsapp` (302 ke `wa.me` dari `system_settings`, 503 gagal tertutup, keduanya `no-store`), CTA penutup, dan halaman "Segera hadir" untuk `/kursus`, `/artikel`, `/tentang`, `/cari`. 8 commit; Vitest 98 / 1030 (+24); E2E 164 lulus; build `/` dan keempat halaman ○, route ƒ; mutasi 1–7 merah sesuai harapan. Pemilik memeriksa deskripsi PR, screenshot, dan checklist preview Vercel.
+
+Tinjauan rencana di Claude chat menambah 12 butir, antara lain: selektor jeda harus memuat kelas lokal (build gagal tanpanya), animasi hanya lewat kelas CSS Module, status redirect 302 eksplisit, templat WhatsApp dioper dari route (modul tidak mengimpor `src/components`), ukuran h1 36 / 46 / 62 px, uji di 640 dan 1024, garis bingkai `ring-1`, dan axe untuk tombol jeda.
+
+Tinjauan PR menemukan lima hal yang diperbaiki sebelum merge (`b082aa6`):
+- asersi "h1 tidak menimpa ilustrasi" di 1024 tidak bisa gagal (lihat pelajaran no. 3);
+- statistik hero dibaca dua kali oleh pembaca layar (`<dl>` + `<dt>` sr-only);
+- markup ilustrasi masuk bundle klien karena diimpor langsung oleh komponen klien;
+- `bg-white/…` dan `border-white/…` (palet Tailwind) → token `surface`;
+- `#e8b04a` → `var(--warning)`, sesuai tabel pemetaan TOKENS.md.
+
+**Penyimpangan desain yang disengaja:** aksen pil "Seimbang" di ilustrasi memakai `primary-deep`, bukan `#f04030` dari 6a. axe mengukur teks di dalam gambar `aria-hidden` juga, dan teks tidak pernah memakai `primary` (C-07).
+
+### Keputusan pemilik 9 Nov
+
+1. **Tambahan 12 butir pada rencana S6-01** disetujui, termasuk dua yang melampaui kartu: ukuran h1 per lebar dan uji di 640 / 1024.
+2. **Kartu S1-08** ([kartu](tasks/sprint-1/S1-08-kirim-dan-terbitkan.md)), versi demo:
+   1. "Kirim untuk persetujuan" hanya EDITOR (18d); "Setujui & terbitkan" hanya ADMIN+.
+   2. `reviewer_id` = pengirim, `reviewed_at` = waktu kirim; terbit ditolak bila peninjau kosong (Q6).
+   3. Persetujuan lewat builder: antrean di `/cms/konten?status=menunggu`, baris membuka builder read-only, ADMIN+ melihat "Setujui & terbitkan". Layar 19d tidak dibangun untuk demo.
+   4. Dialog kirim mengikuti 20d.
+   5. Tanpa jalan mundur di UI; jalan mundur saat gladi resik lewat SQL (bagian "Persiapan demo" di bawah).
+   6. "Perlu revisi" = layar kosong; badge angka sidebar dan email/notifikasi ditunda.
+3. **Pengecekan lambatnya `/belajar` ditunda** (lihat bagian "/belajar lambat").
+
+### Jadwal demo setelah hari ini
+
+| Hari | Kartu |
+|---|---|
+| Sen 9 | S6-01 Beranda versi demo — **di-merge (#127)** |
+| Sel 10 | **S1-08 kirim & terbitkan** (kartu masuk lewat PR docs ini) |
+| Rab 11 | Peserta: daftar kursus terbit + ikut kursus (di `/belajar`), termasuk `loading.tsx` dan baca sesi sekali per request |
+| Kam 12 | Peserta: halaman materi + progres |
+| Jum 13 | Peserta: player video (memakai cadangan Sel 17) |
+| Sab 14 – Min 15 | Peserta: mengerjakan quiz |
+| Sen 16 | Peserta: hasil & nilai |
+| Rab 18 – Kam 19 | Production, akun demo, data contoh, gladi resik |
+
+### Catatan dari chat 8 Nov yang belum tercatat
+
+1. **PR Dependabot:** #124 (`@hookform/resolvers` 6.0.0, major) di-ignore lewat komentar. #121 `drizzle-orm`, #122 `cn`, #123 `@axe-core/playwright` (CI merah), dan #125 `lucide-react` dibiarkan terbuka sampai C-09 setelah demo. Kelimanya lolos soak, dan lockfile-nya hanya berubah di entri paket itu. Pagi 9 Nov branch `dependabot/npm_and_yarn/hookform/resolvers-6.0.0` masih ada di remote, padahal menurut (ssss) PR yang ditutup lewat ignore kehilangan branch-nya. Status #124 tidak bisa dicek dari sandbox (rate limit), jadi pastikan di halaman PR bahwa Dependabot membalas dan PR berstatus Closed.
+2. **Koreksi:** batas 5 PR Dependabot **tidak** menahan PR keamanan. Security update punya batas terpisah (10) menurut dokumentasi GitHub. Kalimat lama di "Cara kerja" dan "Keputusan & catatan" sudah dibetulkan.
+
+### /belajar lambat (pemilik, 9 Nov — belum diukur)
+
+Saat login, pindah ke halaman lain lalu kembali ke "Belajar" terasa macet beberapa saat. Ini bukan akibat S6-01: area belajar tidak disentuh #127.
+
+Dugaan penyebab, belum diukur:
+1. **Region.** Fungsi Vercel berjalan di iad1 (Washington), database binzi-dev di Singapura — butir "Region fungsi Vercel" di "Pekerjaan kecil", terbuka sejak 18 Okt. Setiap query menyeberang Pasifik.
+2. **Query ganda.** Layout area belajar dan halaman `/belajar` sama-sama memanggil `requireRole` (sesi dari DB, sengaja tanpa cache cookie) dan `getUserProfile`, tanpa cache per request.
+3. **Tanpa umpan balik.** Tidak ada `loading.tsx` di seluruh aplikasi, jadi halaman lama tetap tampil tanpa tanda apa pun sampai server selesai.
+
+Cara mengukur (±5 menit): DevTools → Network → klik "Belajar" → request `belajar?_rsc=…`. Catat "Waiting for server response" di tab Timing, dan `x-vercel-id` di Headers (bagian kedua = region fungsi). Ulangi tiga kali.
+
+Rencana:
+- **A.** Pemilik memindahkan region fungsi ke Singapura (Settings → Functions → Function Regions; paket Hobby = satu region), redeploy, lalu ukur ulang. Paling lambat sebelum gladi resik.
+- **B dan C.** `loading.tsx` area belajar, serta sesi dan profil dibaca sekali per request (`cache()` React). Masuk kartu Rab 11, karena kartu itu membangun isi `/belajar`.
+
+### Persiapan demo (tambahan 9 Nov)
+
+- **Jalan mundur kursus yang terlanjur dikirim** (binzi-dev, SQL Editor). Ganti slug dengan slug kursusnya:
+  `update courses set status = 'DRAFT', reviewer_id = null, reviewed_at = null where slug = 'slug-kursus' and status = 'IN_REVIEW';`
+  - Harapan `UPDATE 1`; dicoba di Postgres 16 sandbox.
+  - Jalur ini **tidak tercatat di audit log**.
+  - Untuk kursus yang sudah `PUBLISHED`, jangan dipakai setelah ada peserta yang ikut. Bila memang perlu, tambahkan `published_at = null` dan ganti syaratnya menjadi `status = 'PUBLISHED'`.
+- **"Kurangi gerakan" aktif:** beberapa bagian ilustrasi hero bisa kosong sampai ±1,3 detik sebelum muncul (pelajaran no. 5). Matikan "Kurangi gerakan" di perangkat demo; ini sudah ada di persiapan 8 Nov.
+- **Region fungsi Vercel ke Singapura** sebelum gladi resik (bagian "/belajar lambat").
+
+### Pelajaran 9 Nov
+
+1. **CSS Module di Next 16 menuntut selektor "murni".** `[data-paused] *` tanpa kelas lokal menggagalkan build ("Selector is not pure"). Nama keyframes di-hash (`X79I1W_ilRing`), sehingga nama polos di style inline tidak menemukan keyframes-nya dan elemennya diam tanpa galat. Dicek dengan `next build` minimal di sandbox. Uji kartu 8 Nov dilakukan di Chromium polos, jadi tidak menangkap ini.
+2. **`NextResponse.redirect` berstatus bawaan 307.** Status lain harus ditulis eksplisit.
+3. **Asersi kotak elemen tidak mendeteksi luapan teks.** Kotak h1 di grid selalu selebar kolomnya, jadi "kanan kotak h1 ≤ kiri ilustrasi" lolos walaupun teks menimpa ilustrasi (diukur di Chromium: teks berakhir di x = 651–863, ilustrasi mulai di x = 424). Yang mendeteksi: `scrollWidth ≤ clientWidth`, atau kotak `Range` atas isi elemen. Asersi baru dibuktikan dengan mutasi `whitespace-nowrap`.
+4. **Lebar uji proyek (360 / 700 / 768 / 1280 / 1440) tidak memuat 1024**, awal tata letak dua kolom. Ini pelajaran 4 Nov malam yang terlewat di kartu S6-01; kartu dengan grid `lg:` meminta uji 1024 eksplisit.
+5. **Aturan reduced-motion global tidak menolkan `animation-delay`.** Animasi `fill-mode: both` diam di frame `from` selama jedanya. Ukur keadaan "diam" juga di detik pertama, bukan hanya setelah semua jeda lewat.
+6. **postgres.js meng-encode JSON parameter yang dipasang di konteks `::jsonb`.** `${JSON.stringify(x)}::jsonb` menjadi ter-encode dua kali; pakai `to_jsonb(${x}::text)`.
+7. **Komponen klien yang mengimpor markup server menyeretnya ke bundle klien.** Markup besar dioper sebagai `children` dari server component.
+8. **Proyek lebar Playwright memakai `reducedMotion: "reduce"`.** Elemen `motion-reduce:hidden` tidak pernah diperiksa axe atau target sentuh di sana; periksa di proyek `chromium` atau dengan `emulateMedia`.
+9. **Data e2e dipakai bersama antar-spec.** Spec lain meninggalkan kursus IN_REVIEW tanpa peninjau, jadi jangan mengasersi jumlah atau keadaan kosong pada daftar lintas pengguna (diterapkan di kartu S1-08).
+10. **Pelajaran lama terulang, dan bisa terulang setengah.** Pelajaran 8 Nov no. 8 (`toBeInViewport`) adalah pengulangan (fff) 23–24 Okt yang kehilangan separuh aturannya: `{ ratio: 1 }`, karena rasio bawaan lolos bila 1 px terlihat. Tes S1-09 di `e2e/cms-quiz-editor.spec.ts` memakai `toBeInViewport()` tanpa ratio. Daftar periksa tinjauan kartu harus memuat pelajaran lama, bukan hanya 7–8 Nov.
+
+### Perapian dan chore setelah demo (dari S6-01)
+
+- Aturan reduce di `globals.css`: tambahkan `animation-delay: 0s !important`, lalu sederhanakan polling di E2E no. 3 `beranda.spec.ts`.
+- `next/image` foto ahli gizi: `width`/`height` = ukuran tampil (40 di hero, 64/80 di kartu), bukan 256.
+- Section Tanya Ahli Gizi: `aria-labelledby` ke h2 menggantikan `aria-label` yang berbeda dari judulnya.
+- Tes unit nomor WhatsApp: batas tepat (10 dan 15 digit sah, 9 digit tidak sah).
+- E2E: asersi `href` kedua tombol CTA penutup.
+- Komentar kepala `hero-illustration.module.css`: "exact TOKENS.md match" → "padanan TOKENS.md, termasuk tabel pemetaan".
+- `e2e/cms-quiz-editor.spec.ts`: banner galat memakai `toBeInViewport({ ratio: 1 })` (pelajaran no. 10); masuk perapian S1-09.
+
+### Catatan untuk kartu berikutnya
+
+- **Rab 11 (peserta, `/belajar`):** `loading.tsx` area belajar, serta sesi dan profil dibaca sekali per request (`cache()` React, kebijakan "sesi dari DB" tetap). Sesuaikan bila hasil ukur region berkata lain.
+- **Daftar periksa tinjauan kartu** (belum ditulis): disusun dari **semua** pelajaran — (a)–(eeeee) di "Keputusan & catatan" ditambah 3–9 Nov — dikelompokkan per kategori, ditutup tabel per butir ✓ / ✗ / tidak bisa diperiksa dari sandbox.
+
+## Pembaruan 8 Nov 2026 — kartu S1-09 direvisi, sesi S1-09 berjalan, Beranda versi demo masuk jadwal (baca setelah 9 Nov, lalu 7 Nov, 6 Nov, 4 Nov malam, 4 Nov, dan 3 Nov)
 
 Bagian-bagian di bawahnya tetap berlaku. Bagian ini mengubah atau menambahnya.
 
@@ -538,7 +649,7 @@ Rencana disetujui, dengan lima tambahan berikut (hasil tinjauan C-02/C-03, belum
 - Halaman `/dev/ui` hanya hidup di development (404 di preview & production) → verifikasi komponen UI selalu di lokal.
 - URL Preview Vercel dilindungi Deployment Protection (SSO): agent tidak bisa membukanya (curl → 302 ke login). Pembukaan Preview selalu oleh kamu, sambil login Vercel.
 - Setelah mengubah env di Vercel: redeploy **tanpa build cache**, lalu buka `/masuk` di Production. Status "Ready" tidak membuktikan env benar.
-- **PR Dependabot** (cooldown 14 hari sejak C-01, hanya untuk version updates): sebelum merge, bandingkan lockfile per entri (versi + integrity) terhadap basis PR dan cek umur setiap versi baru — cooldown hanya menahan versi paket yang diusulkan, bukan dependensi transitif yang ikut ter-resolve, dan PR security update tidak kena cooldown. PR berbasis `main` lama di-rebase dulu (komentar `@dependabot rebase`) agar CI berjalan di basis terkini. PR yang bertentangan dengan kartu (mis. versi yang dipin kartu chore) ditutup dengan komentar alasan — Dependabot tidak mengusulkan versi itu lagi. Batas bawaan 5 PR terbuka: bila penuh, tab Dependabot (Insights → Dependency graph → tab "Dependabot" di atas isi halaman, bukan di sidebar) bertanda ⚠ "cannot open any more pull requests" — baca pesan job sebelum menyimpulkan konfigurasi rusak.
+- **PR Dependabot** (cooldown 14 hari sejak C-01, hanya untuk version updates): sebelum merge, bandingkan lockfile per entri (versi + integrity) terhadap basis PR dan cek umur setiap versi baru — cooldown hanya menahan versi paket yang diusulkan, bukan dependensi transitif yang ikut ter-resolve, dan PR security update tidak kena cooldown. PR berbasis `main` lama di-rebase dulu (komentar `@dependabot rebase`) agar CI berjalan di basis terkini. PR yang bertentangan dengan kartu (mis. versi yang dipin kartu chore) ditutup dengan komentar alasan — Dependabot tidak mengusulkan versi itu lagi. Batas bawaan 5 PR terbuka: bila penuh, tab Dependabot (Insights → Dependency graph → tab "Dependabot" di atas isi halaman, bukan di sidebar) bertanda ⚠ "cannot open any more pull requests" — baca pesan job sebelum menyimpulkan konfigurasi rusak. Batas 5 itu hanya untuk version update; security update punya batas terpisah (10) dan tidak tertahan olehnya (dokumentasi GitHub; koreksi 9 Nov).
 - **DB lokal (sejak C-05, 28 Okt):** development & uji manual memakai Postgres lokal (`npm run dev:db`), bukan binzi-dev. Setiap PR yang membawa migrasi diikuti `npm run db:migrate:binzi-dev` oleh pemilik (env dari `.env.binzi-dev`) sebelum fiturnya dibuka di Production; pengubahan role di binzi-dev lewat `npm run user:role:binzi-dev`. Setiap perintah DB dibaca dari **baris target**-nya (`[drizzle] target:`, `[binzi-dev] … target:`, `[db:seed:demo] target:`) sebelum melanjutkan — cara membacanya di `docs/development-lokal.md`.
 
 ## Pekerjaan kecil yang masih terbuka
@@ -573,7 +684,7 @@ Rencana disetujui, dengan lima tambahan berikut (hasil tinjauan C-02/C-03, belum
 - [x] Scrim menu ponsel tamu — dicek di iPhone 13 Safari (24 Okt): saat menu terbuka halaman di belakangnya terkunci (tidak tergulir), jadi yang terlihat selalu tertutup scrim. Potongan di screenshot full-page `tamu-menu-terbuka-w360` adalah artefak tangkapan (halaman direkam lebih panjang dari viewport).
 - [x] **Cek run terjadwal pertama workflow Cron** — selesai 20 Okt: Cron #2 (pemicu `schedule`) dibuat 22.53 UTC 19 Okt, ±3,5 jam setelah jadwal 19.17 UTC (insiden GitHub Actions 19 Okt sejak 15.49 UTC), hijau (workflow hanya hijau bila status persis 200). Run terjadwal berikutnya 22 Okt 19.17 UTC (23 Okt 02.17 WIB). Bila run hilang atau telat, cek riwayat insiden GitHub dulu sebelum menyimpulkan workflow bermasalah; run merah → tabel kegagalan di catatan "Cron & health". **Cron #3** (terjadwal 22 Okt 19.17 UTC): dibuat 22.17 UTC — telat 3 jam tanpa insiden — hijau. GitHub tidak menjamin waktu run terjadwal; keep-alive tetap aman selama run tidak hilang. `*/3` berlaku pada tanggal: run berikutnya 25, 28, 31 Okt lalu 1 Nov (31 dan 1 berurutan).
 - [ ] Frekuensi keep-alive mengikuti PRD §10.5 (tiap 3 hari). Dokumentasi Supabase menyebut beberapa request per hari biasanya cukup; bila project pernah ter-pause atau run terjadwal sering dibuang GitHub, ubah ke harian lewat revisi PRD (catatan keputusan kartu A-18).
-- [ ] Region fungsi Vercel: request Production diterima di sin1 tapi fungsinya berjalan di **iad1** (Washington, D.C., region bawaan) — terlihat di `x-vercel-id` dan Vercel Logs, 18 Okt. **binzi-dev ternyata di Singapura** (`aws-0-ap-southeast-1.pooler.supabase.com`, terbaca dari baris target `*:binzi-dev`, 28 Okt) — jadi sekarang pun setiap query Production menyeberang Pasifik (iad1 → Singapura), bukan hanya nanti saat binzi-prod. Samakan region fungsi Vercel ke Singapura (Settings → Functions; cek ketersediaannya di paket Hobby) — bisa dikerjakan kapan saja, tidak perlu menunggu binzi-prod.
+- [ ] Region fungsi Vercel: request Production diterima di sin1 tapi fungsinya berjalan di **iad1** (Washington, D.C., region bawaan) — terlihat di `x-vercel-id` dan Vercel Logs, 18 Okt. **binzi-dev ternyata di Singapura** (`aws-0-ap-southeast-1.pooler.supabase.com`, terbaca dari baris target `*:binzi-dev`, 28 Okt) — jadi sekarang pun setiap query Production menyeberang Pasifik (iad1 → Singapura), bukan hanya nanti saat binzi-prod. Samakan region fungsi Vercel ke Singapura (Settings → Functions; cek ketersediaannya di paket Hobby) — bisa dikerjakan kapan saja, tidak perlu menunggu binzi-prod. **9 Nov:** paket Hobby boleh memilih satu region (dokumentasi Vercel); kini **wajib sebelum gladi resik**, karena navigasi ke `/belajar` terasa macet (bagian "/belajar lambat", Pembaruan 9 Nov).
 - [x] **Sebelum sesi A-19:** Docker Desktop & versi Postgres — selesai 19 Okt: Docker Desktop 20.10.11 (tua, tetapi cukup untuk `e2e:db`; perbarui bila container bermasalah), Postgres binzi-dev **17.6**, dicek lewat SQL `show server_version;` di SQL Editor — bukan menu Settings → Infrastructure seperti arahan semula (pelajaran (aaa)).
 - [x] **Setelah PR A-19 di-merge:** daftarkan check `e2e` sebagai required status check — selesai 20 Okt bersama aturan branch `main` (lihat posisi).
 - [x] **Untuk sesi A-19b:** DOM `/cms` memuat dua `<nav aria-label="Menu CMS">` sekaligus — sidebar (`cms-sidebar.tsx`, tampil ≥ 1024) dan rel (`cms-rail.tsx`, 640–1023); yang tidak sesuai lebar `display: none`. Nav ketiga (drawer ponsel, `cms-mobile-bar.tsx`) hanya ada saat drawer terbuka. `page.locator('nav[aria-label="Menu CMS"]')` cocok dua elemen (strict mode gagal), `getByRole` hanya menghitung yang terlihat — locator & asersi per lebar menyasar nav yang terlihat. Branch uji mutasi A-19b dibuat dari branch PR, bukan `main` (pelajaran (bbb)). Terpakai di PR #69 (`visibleCmsAccountTrigger`).
@@ -648,9 +759,9 @@ Rencana disetujui, dengan lima tambahan berikut (hasil tinjauan C-02/C-03, belum
 - [ ] Sebelum S2: `/daftar` membaca `?next=` (sekarang hanya `?error=`; dicatat di PR #54). Tanpa itu, pengguna yang mendaftar dari tengah alur (gerbang 7c, LoginModal 2c) mendarat di `/belajar`, padahal 3c dan §7.4 A menuntut kembali ke halaman asal. Jalur email juga kehilangan tujuan: tautan verifikasi → `/daftar/verifikasi` → "Mulai belajar" → `/belajar`.
 - [ ] Footer: ikon media sosial belum dipasang (akun & URL belum ada); tautan kategori artikel ditambahkan di S4 setelah K-04.
 - [x] **Chore pendaratan staf (Q44)** — selesai 17 Okt (PR #57): `/masuk/lanjut` + `landingPathForRole`. A-19 menguji pendaratan per peran.
-- [x] ~~Sebelum S1: model data "Perlu revisi"~~ — diputuskan 24 Okt: `NEEDS_REVISION` + kolom catatan (item PRD v1.6); diterapkan di S1-08.
+- [x] ~~Sebelum S1: model data "Perlu revisi"~~ — diputuskan 24 Okt: `NEEDS_REVISION` + kolom catatan (item PRD v1.6); diterapkan di S1-08 versi lengkap setelah demo. Versi demo S1-08 (9 Nov) tanpa `NEEDS_REVISION`.
 - [ ] Chore: varian gelap di komponen Avatar (`src/components/ui/avatar.tsx`) — **jatuh tempo** (A-15 selesai). Gaya `bg-text text-surface` diberi lewat `className` di 4 tempat A-14b (header member, menu akun) dan 4 tempat A-15 (blok user sidebar, avatar rel, avatar bar ponsel, kartu user drawer). Sekalian luruskan komentar di `src/components/cms/cms-mobile-bar.tsx` yang menyebut scrim tetap bisa dijangkau — panel setinggi layar menutupinya bila isi lebih tinggi dari layar (sama seperti drawer akun A-14b); agent membaca komentar sebagai kebenaran.
-- [ ] Cek jumlah PR terbuka: per 8 Okt ada 6 PR terbuka; per 9 Okt (sebelum merge #40) 5; per 12 Okt 6 (termasuk #53). Bila 5 di antaranya Dependabot, batasnya penuh (lihat catatan "Batas 5 PR Dependabot").
+- [ ] Cek jumlah PR terbuka: per 8 Okt ada 6 PR terbuka; per 9 Okt (sebelum merge #40) 5; per 12 Okt 6 (termasuk #53). Bila 5 di antaranya Dependabot, batas version update penuh (lihat catatan "Batas 5 PR Dependabot"; PR keamanan tidak tertahan — koreksi 9 Nov). Per 9 Nov: 4 PR Dependabot terbuka (#121, #122, #123, #125).
 - [ ] Koreksi kartu A-14b (commit docs kecil, tidak mendesak): "teks lebih tebal" untuk item aktif keliru (Lato tanpa 600 → diam & aktif sama-sama 700), dan "nama, email, dan inisial" menjadi "nama dan email" (prop `initial` sengaja tidak dibuat). Keduanya sudah tercatat di PR #53.
 - [ ] → **S1-01** (kursus) & **S1-02** (materi). Saat kartu CMS kursus (S1): validasi slug menolak kata yang bentrok dengan rute statis — slug kursus `kursus-saya` dan `nilai` (bentrok dengan `/belajar/kursus-saya`, `/belajar/nilai`), slug materi `final-quiz` (bentrok dengan `/belajar/{slug}/final-quiz`). Segmen statis selalu menang, jadi kursus/materi dengan slug itu tidak akan pernah bisa dibuka.
 - [ ] Saat S2/S5: tinjau `getActiveAccountItem` (`src/components/shared/nav-items.ts`) — Dashboard menyala untuk `/belajar` dan semua `/belajar/**` selain Kursus Saya & Nilai Saya, termasuk ringkasan kursus `/belajar/{slug}`. Keputusan implisit agent, tidak tercatat di "Keputusan & asumsi" PR #53.
@@ -676,7 +787,7 @@ Rencana disetujui, dengan lima tambahan berikut (hasil tinjauan C-02/C-03, belum
 - **`MIGRATION_DATABASE_URL`** hanya di `.env.local` (dipakai drizzle-kit lokal), tidak di Vercel.
 - **`BETTER_AUTH_SECRET`** berbeda antara lokal dan Vercel.
 - **Dependabot major:** GitHub Actions major dengan CI hijau boleh di-merge (CI di PR itu sendiri membuktikan versinya jalan); paket npm major → komentar `@dependabot ignore this major version`, lalu ditangani sebagai kartu tersendiri.
-- **Batas 5 PR Dependabot:** jangan biarkan 5 PR menumpuk — selama penuh, Dependabot tidak membuka PR baru, termasuk rilis keamanan.
+- **Batas 5 PR Dependabot:** jangan biarkan 5 PR version update menumpuk — selama penuh, Dependabot tidak membuka PR version update baru. *Koreksi 9 Nov:* PR security update **tidak** ikut tertahan; batasnya terpisah (10) menurut dokumentasi GitHub.
 - **Keyframes khusus komponen** ditulis di CSS Module di samping komponennya (contoh: shimmer skeleton A-06), bukan di `globals.css`.
 - **Badge "Selesai"** memakai token netral terdekat; slate di 16c tidak ada di TOKENS.md.
 - **EmptyState:** aksi utama & alternatif berupa objek `{ label, href?, onClick? }` yang dirender sebagai Button — dijaga TypeScript.
@@ -790,25 +901,24 @@ Rencana disetujui, dengan lima tambahan berikut (hasil tinjauan C-02/C-03, belum
 Saya sedang membangun BINZI (platform belajar gizi) dengan Next.js 16 +
 AI coding agent (Claude Code). Terlampir docs/STATUS.md dan
 docs/tasks/URUTAN-KERJA.md dari repo saya — baca keduanya sebagai konteks.
-Baca bagian "Pembaruan 7 Nov" di STATUS.md lebih dulu, lalu
-"Pembaruan 6 Nov", "Pembaruan 4 Nov malam", "Pembaruan 4 Nov", dan
-"Pembaruan 3 Nov 2026 —
-target demo 20 Nov"; jadwal dan keputusan di sana mengalahkan rencana
-sprint lama.
+Baca bagian "Pembaruan 9 Nov" di STATUS.md lebih dulu, lalu
+"Pembaruan 8 Nov", "Pembaruan 7 Nov", "Pembaruan 6 Nov", "Pembaruan 4 Nov
+malam", "Pembaruan 4 Nov", dan "Pembaruan 3 Nov 2026 — target demo 20 Nov";
+jadwal dan keputusan di sana mengalahkan rencana sprint lama.
 Spesifikasi lengkap ada di docs/prd/ dan aturan agent di CLAUDE.md;
 repo publik di github.com/adiynsyah/binzi — clone untuk membaca kode,
 kartu, desain, dan meninjau PR (API GitHub sering kena rate limit;
 git fetch pull/N/head tetap jalan). Repo di mesin saya ada di
 ~/Project/React/binzi-new.
-Posisi terakhir (7 Nov): S1-03b (PR #114) dan S1-04 (PR #116) di-merge →
-main 5e13a0f. Keputusan video demo (YouTube + kontrol 29a, produksi tetap
-R2) ada di docs/decisions/video-sumber.md. Berikutnya:
-- Min 8: tulis dan tinjau kartu editor quiz (22a daftar soal, 22b form
-  satu soal) terhadap main, lalu sesi agent.
-- Kartu Kam 12 (halaman materi + progres) dan Jum 13 (player video 29a +
-  mesin YouTube) ditulis dari rencana video.
+Posisi terakhir (9 Nov): S6-01 Beranda versi demo (PR #127) di-merge →
+main e382359; kartu S1-08 (kirim & terbitkan, versi demo) masuk lewat PR
+docs. Berikutnya:
+- Sel 10: sesi S1-08; rencana agent ditinjau di chat sebelum disetujui.
+- Rab 11: tulis kartu peserta "daftar kursus terbit + ikut kursus" di
+  /belajar, termasuk loading.tsx dan baca sesi sekali per request.
+- Pemilik: region fungsi Vercel ke Singapura sebelum gladi resik.
 - Untuk tinjauan tampilan, Claude bisa menjalankan Chromium headless di
-  sandbox (lihat pelajaran 7 Nov no. 2).
+  sandbox (@sparticuz/chromium + playwright-core dari registry npm).
 Gate audit main: 0 excused / 0 blocking / 23 info-low-moderate. Uji
 lokal selalu dengan npm run dev:db. Branch main diproteksi (wajib PR,
 check ci + e2e) — docs juga lewat PR. Setiap kartu ditinjau terhadap
