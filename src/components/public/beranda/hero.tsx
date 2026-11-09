@@ -5,6 +5,7 @@ import { PUBLIC_HREFS } from "@/components/shared/nav-items";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { PageContainer } from "@/components/shared/page-container";
 
+import { HeroIllustration } from "../hero-illustration/hero-illustration";
 import { IllustrationFrame } from "../hero-illustration/illustration-frame";
 import { AHLI_GIZI, STATISTIK_HERO, SUBJUDUL_HERO } from "./beranda-content";
 
@@ -61,22 +62,28 @@ export function Hero() {
               {AHLI_GIZI.kredensial} · STR {AHLI_GIZI.str}
             </p>
           </div>
-          <dl className="mt-10 flex gap-9 border-t border-border-soft pt-6">
+          {/* Stats as a plain list: a <dl> with an sr-only <dt> made screen
+              readers announce every label twice ("kursus terkurasi, 3,
+              kursus terkurasi"). Number-then-label reads once. */}
+          <ul className="mt-10 flex gap-9 border-t border-border-soft pt-6">
             {STATISTIK_HERO.map((stat) => (
-              <div key={stat.label}>
-                <dt className="sr-only">{stat.label}</dt>
-                <dd className="font-mono text-[26px] font-medium leading-none text-text sm:text-[34px]">
+              <li key={stat.label}>
+                <div className="font-mono text-[26px] font-medium leading-none text-text sm:text-[34px]">
                   {stat.angka}
-                </dd>
-                <dd className="mt-1.5 text-[13px] text-text-muted sm:text-[13.5px]">
+                </div>
+                <div className="mt-1.5 text-[13px] text-text-muted sm:text-[13.5px]">
                   {stat.label}
-                </dd>
-              </div>
+                </div>
+              </li>
             ))}
-          </dl>
+          </ul>
         </div>
         <div className="flex justify-center lg:justify-start">
-          <IllustrationFrame />
+          {/* The artwork travels as children so HeroIllustration stays a
+              server component and never enters the client bundle. */}
+          <IllustrationFrame>
+            <HeroIllustration />
+          </IllustrationFrame>
         </div>
       </div>
     </PageContainer>

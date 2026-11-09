@@ -17,7 +17,7 @@ vi.mock("../hero-illustration/hero-illustration.module.css", () => ({
 
 import { PUBLIC_HREFS } from "@/components/shared/nav-items";
 
-import { AHLI_GIZI } from "./beranda-content";
+import { AHLI_GIZI, STATISTIK_HERO } from "./beranda-content";
 import { Hero } from "./hero";
 
 // Card S6-01 §8: CTA hrefs, the highlighted "benar", and the reviewer row
@@ -53,5 +53,16 @@ describe("Hero", () => {
     expect(reviewer.textContent).toContain(AHLI_GIZI.kredensial);
     // The photo is decorative: the name is spelled out next to it.
     expect(screen.getByAltText("")).toBeTruthy();
+  });
+
+  // Review 9 Nov: the old <dl> + sr-only <dt> made screen readers announce
+  // every label twice. The plain list keeps each label in the DOM exactly
+  // once — getAllByText length 1 is the regression guard.
+  it("renders each stat label exactly once (no sr-only duplicate)", () => {
+    render(<Hero />);
+    for (const stat of STATISTIK_HERO) {
+      expect(screen.getAllByText(stat.label)).toHaveLength(1);
+    }
+    expect(screen.getByText(String(STATISTIK_HERO[0].angka))).toBeTruthy();
   });
 });

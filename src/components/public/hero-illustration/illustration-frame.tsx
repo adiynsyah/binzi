@@ -11,13 +11,17 @@
 // `.frame[data-paused] *` in the module. The button hides under
 // motion-reduce (globals.css already kills animations); its state is
 // deliberately NOT persisted — a reload resumes motion (card §3).
+//
+// The artwork arrives as CHILDREN (card §3): HeroIllustration stays a
+// server component owned by hero.tsx and never crosses into the client
+// bundle — this file only contributes the frame, the scaler and the
+// pause button.
 import { useState } from "react";
 import { Pause, Play } from "lucide-react";
 
-import { HeroIllustration } from "./hero-illustration";
 import styles from "./hero-illustration.module.css";
 
-export function IllustrationFrame() {
+export function IllustrationFrame({ children }: { children: React.ReactNode }) {
   const [paused, setPaused] = useState(false);
 
   return (
@@ -27,7 +31,7 @@ export function IllustrationFrame() {
       data-paused={paused ? "" : undefined}
     >
       <div className="absolute left-0 top-0 origin-top-left scale-[0.45] sm:scale-[0.8] lg:scale-[0.7778]">
-        <HeroIllustration />
+        {children}
       </div>
       <button
         type="button"

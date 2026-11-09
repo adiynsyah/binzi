@@ -272,13 +272,42 @@ test.describe("beranda", () => {
 
       if (width === 1024) {
         await expectNoHorizontalScroll(page, "beranda @1024");
-        const headingBox = await page
+
+        // The h1 BOX always spans its whole grid column, so comparing the
+        // box edge to the illustration column can never fail (review 9
+        // Nov). Two real checks instead: (a) the heading text does not
+        // overflow its own box, and (b) the TEXT right edge — a Range over
+        // the heading contents, not the element box — stays clear of the
+        // illustration column's left edge.
+        const overflow = await page
           .getByRole("heading", { level: 1 })
-          .boundingBox();
+          .evaluate((node) => {
+            const el = node instanceof HTMLElement ? node : null;
+            return el
+              ? { scroll: el.scrollWidth, client: el.clientWidth }
+              : null;
+          });
         expect(
-          headingBox!.x + headingBox!.width,
-          "teks h1 berakhir sebelum kolom ilustrasi",
-        ).toBeLessThanOrEqual(frameBox!.x + 0.5);
+          overflow!.scroll,
+          "teks h1 tidak meluap dari kotaknya (scrollWidth ≤ clientWidth)",
+        ).toBeLessThanOrEqual(overflow!.client);
+
+        const edges = await page.evaluate(() => {
+          const heading = document.querySelector("h1");
+          const frame = document.querySelector("[data-hero-frame]");
+          if (!heading || !frame) return null;
+          const range = document.createRange();
+          range.selectNodeContents(heading);
+          return {
+            textRight: range.getBoundingClientRect().right,
+            frameLeft: frame.getBoundingClientRect().left,
+          };
+        });
+        expect(
+          edges!.textRight,
+          "teks h1 (Range isi) berakhir sebelum kolom ilustrasi",
+        ).toBeLessThanOrEqual(edges!.frameLeft + 0.5);
+
         await maybeScreenshot(page, "beranda-w1024", testInfo.project.name);
       }
     });

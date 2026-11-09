@@ -57,7 +57,7 @@ export function HeroIllustration() {
             <div
               style={{ ...box(23, 33, 4, 4), borderRadius: 999, background: "rgba(26, 22, 20, 0.14)" }}
             />
-            <div style={{ ...box(44, 12, 15, 30), borderRadius: 999, background: "#e8b04a" }} />
+            <div style={{ ...box(44, 12, 15, 30), borderRadius: 999, background: "var(--warning)" }} />
             <div
               style={{ ...box(48, 18, 7, 18), borderRadius: 999, background: "rgba(255, 255, 255, 0.42)" }}
             />
@@ -274,7 +274,7 @@ export function HeroIllustration() {
         />
         <div
           className={`${styles.book} ${styles.book3}`}
-          style={{ width: 166, marginTop: 6, background: "#e8b04a" }}
+          style={{ width: 166, marginTop: 6, background: "var(--warning)" }}
         />
       </div>
 

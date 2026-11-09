@@ -6,11 +6,11 @@
  * animation therefore lives HERE as a class and no animation* property
  * ever appears in a style prop.
  *
- * Colors: values with an exact TOKENS.md match use var(--…)
- * (fill-soft, surface, text, text-muted, border, border-soft, primary,
- * primary-deep, success, success-tint-text, warning, video-bg);
- * illustration-only colors stay hex — allowed only in this folder
- * (scripts/check-hex.mjs exemption, card A-04).
+ * Colors: values with an exact TOKENS.md match use var(--…) — across this
+ * file and hero-illustration.tsx: fill-soft, surface, text, text-muted,
+ * border, primary, primary-deep, success, success-tint-text, warning,
+ * video-bg; illustration-only colors stay hex — allowed only in this
+ * folder (scripts/check-hex.mjs exemption, card A-04).
  *
  * Resting state = meaningful frame (card §3): the global reduced-motion
  * rule in globals.css makes every animation 0.01ms/one-iteration, so

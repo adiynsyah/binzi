@@ -24,8 +24,8 @@ import {
  *
  * The 1a mock paints internal lines and card fills in hexes that all map
  * to ink-surface (invisible on the same background); the card prescribes
- * opacity modifiers instead (white/10 lines, primary-deep/15 disclaimer),
- * and axe decides the contrast.
+ * opacity modifiers instead (surface/10 lines, primary-deep/15
+ * disclaimer), and axe decides the contrast.
  */
 export function TanyaAhliGizi() {
   return (
@@ -49,7 +49,7 @@ export function TanyaAhliGizi() {
 
         <div className="mt-8 grid items-start gap-8 lg:grid-cols-[400px_minmax(0,1fr)] lg:gap-12">
           {/* kartu profil (KSL-02) */}
-          <div className="rounded-card border border-white/10 bg-white/5 p-5 sm:p-6">
+          <div className="rounded-card border border-surface/10 bg-surface/5 p-5 sm:p-6">
             <div className="flex items-center gap-4">
               <Image
                 src={AHLI_GIZI.foto.src}
@@ -63,10 +63,10 @@ export function TanyaAhliGizi() {
                   {AHLI_GIZI.nama}
                 </h3>
                 <div className="mt-1.5 flex flex-wrap gap-1.5">
-                  <span className="rounded-pill bg-white/10 px-2.5 py-[5px] text-[12px] font-bold text-surface">
+                  <span className="rounded-pill bg-surface/10 px-2.5 py-[5px] text-[12px] font-bold text-surface">
                     {AHLI_GIZI.kredensial}
                   </span>
-                  <span className="rounded-pill bg-white/10 px-2.5 py-[5px] font-mono text-[12px] font-medium text-surface">
+                  <span className="rounded-pill bg-surface/10 px-2.5 py-[5px] font-mono text-[12px] font-medium text-surface">
                     STR {AHLI_GIZI.str}
                   </span>
                 </div>
@@ -91,7 +91,7 @@ export function TanyaAhliGizi() {
               {CONTOH_PERTANYAAN.map((contoh) => (
                 <li
                   key={contoh}
-                  className="rounded-[10px] border border-white/10 px-3.5 py-3 text-[14px] leading-[1.45] text-surface"
+                  className="rounded-[10px] border border-surface/10 px-3.5 py-3 text-[14px] leading-[1.45] text-surface"
                 >
                   “{contoh}”
                 </li>
@@ -104,17 +104,17 @@ export function TanyaAhliGizi() {
             </p>
 
             <ul className="mt-4 flex flex-wrap gap-2.5">
-              <li className="flex items-center gap-2 rounded-[10px] border border-white/10 px-3.5 py-2 text-[13.5px] font-bold text-surface">
+              <li className="flex items-center gap-2 rounded-[10px] border border-surface/10 px-3.5 py-2 text-[13.5px] font-bold text-surface">
                 <span
                   aria-hidden="true"
                   className="size-[7px] flex-none rounded-pill bg-success"
                 />
                 {JAM_LAYANAN}
               </li>
-              <li className="rounded-[10px] border border-white/10 px-3.5 py-2 text-[13.5px] font-bold text-ink-surface-text">
+              <li className="rounded-[10px] border border-surface/10 px-3.5 py-2 text-[13.5px] font-bold text-ink-surface-text">
                 {WAKTU_BALAS}
               </li>
-              <li className="rounded-[10px] border border-white/10 px-3.5 py-2 text-[13.5px] font-bold text-ink-surface-text">
+              <li className="rounded-[10px] border border-surface/10 px-3.5 py-2 text-[13.5px] font-bold text-ink-surface-text">
                 Gratis
               </li>
             </ul>
