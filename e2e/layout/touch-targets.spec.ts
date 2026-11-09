@@ -323,6 +323,45 @@ test.describe("target sentuh >= 44px @w360", () => {
     );
   });
 
+  // Card S6-01 §8: every Beranda + "Segera hadir" control at w360. The
+  // w360 project runs reducedMotion:"reduce" (playwright.config.ts), which
+  // hides the pause button (motion-reduce:hidden) — emulate the OPPOSITE
+  // media here so "Jeda animasi" exists to measure.
+  test("beranda: CTA hero & penutup, Jeda animasi, Kenali tim kami, WhatsApp, Kembali ke Beranda", async ({
+    page,
+  }) => {
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    await page.goto("/");
+
+    // "Mulai Belajar Gratis" and "Baca Artikel" each appear TWICE (hero +
+    // CTA penutup) — all four must clear 44px.
+    const ctaPrimary = page.getByRole("link", { name: "Mulai Belajar Gratis" });
+    expect(await ctaPrimary.count(), "CTA primer: hero + penutup").toBe(2);
+    await expectAllTouchTargets(ctaPrimary, "CTA Mulai Belajar Gratis");
+    const ctaSecondary = page.getByRole("link", { name: "Baca Artikel" });
+    expect(await ctaSecondary.count(), "CTA sekunder: hero + penutup").toBe(2);
+    await expectAllTouchTargets(ctaSecondary, "CTA Baca Artikel");
+
+    await expectTouchTarget(
+      page.getByRole("button", { name: "Jeda animasi" }),
+      "Jeda animasi",
+    );
+    await expectTouchTarget(
+      page.getByRole("link", { name: /Kenali tim kami/ }),
+      "Kenali tim kami →",
+    );
+    await expectTouchTarget(
+      page.getByRole("link", { name: /Chat Ahli Gizi di WhatsApp/ }),
+      "Chat Ahli Gizi di WhatsApp",
+    );
+
+    await page.goto("/kursus");
+    await expectTouchTarget(
+      page.getByRole("link", { name: "Kembali ke Beranda" }),
+      "Kembali ke Beranda (/kursus)",
+    );
+  });
+
   test("form auth: tombol kirim, toggle password, ✕ Tutup", async ({ page }) => {
     await page.goto("/masuk");
     await expectTouchTarget(
