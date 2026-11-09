@@ -1,19 +1,29 @@
 /*
- * Beranda placeholder (card A-14a): content arrives in S6. Only change here
- * — <main> moved up into the (public) layout, and the empty section anchor
- * is added as the target of the "Konsultasi" nav link. Its scroll margin
- * mirrors the sticky header height (68 / 80, see HEADER_HEIGHT in
- * nav-items.ts) so the section top is never covered (KSL-14).
+ * Beranda versi demo (card S6-01): Hero → Cara kerjanya → Tanya Ahli
+ * Gizi → CTA penutup. Stays a static page (○) — no DB, cookies(), headers()
+ * or session here or in any of its components (A-14a, PRD §10.4; the CI
+ * build runs with a dummy DATABASE_URL and no server). The WhatsApp number
+ * is read at click time by GET /api/konsultasi/whatsapp, not here.
  */
+import type { Metadata } from "next";
+
+import { CaraKerjanya } from "@/components/public/beranda/cara-kerjanya";
+import { CtaPenutup } from "@/components/public/beranda/cta-penutup";
+import { Hero } from "@/components/public/beranda/hero";
+import { TanyaAhliGizi } from "@/components/public/beranda/tanya-ahli-gizi";
+import { SUBJUDUL_HERO } from "@/components/public/beranda/beranda-content";
+
+export const metadata: Metadata = {
+  description: SUBJUDUL_HERO,
+};
+
 export default function HomePage() {
   return (
     <>
-      BINZI
-      <section
-        id="tanya-ahli-gizi"
-        aria-label="Tanya Ahli Gizi"
-        className="scroll-mt-[68px] sm:scroll-mt-[80px]"
-      />
+      <Hero />
+      <CaraKerjanya />
+      <TanyaAhliGizi />
+      <CtaPenutup />
     </>
   );
 }

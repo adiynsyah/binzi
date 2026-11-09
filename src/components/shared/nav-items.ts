@@ -1,8 +1,11 @@
 /*
  * Public navigation model (card A-14a) — the single constants file for link
  * targets shared by the guest header, the mobile menu, the footer and the
- * A-14b member header/menu. Pages that do not exist yet legitimately 404
- * until their sprint (S4–S6); no placeholder pages are created for them.
+ * A-14b member header/menu. A-14a originally let not-yet-built pages 404;
+ * the owner's 8 Nov decision (card S6-01 §6) reversed that for the demo —
+ * /kursus, /artikel, /tentang and /cari now render "Segera hadir" pages,
+ * so header links no longer 404. /kursus/{slug} and /artikel/{slug} still
+ * 404 until their sprint.
  */
 
 /** The eight public targets listed on card A-14a. */
