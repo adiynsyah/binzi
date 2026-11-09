@@ -215,8 +215,10 @@
 }
 
 .centerPillAccent {
-  /* part of the artwork (aria-hidden), not UI text */
-  color: var(--primary);
+  /* Rendered text — axe measures contrast inside aria-hidden artwork
+     too, and CLAUDE.md forbids primary as a text color (6a's #f04030
+     loses to the token rule). primary-deep on the white pill = 5.61:1. */
+  color: var(--primary-deep);
 }
 
 .chipA {

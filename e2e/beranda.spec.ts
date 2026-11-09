@@ -120,7 +120,18 @@ test.describe("beranda", () => {
       page.getByRole("button", { name: "Jeda animasi" }),
     ).toBeHidden();
 
-    const states = await illustrationAnimationStates(page);
+    // The global reduce rule (globals.css) overrides duration + iteration
+    // count but NOT animation-delay — a fill-both animation still in its
+    // delay phase (up to 1.3s: chipB) reports playState "running" while it
+    // holds its from{} frame. Poll briefly until every delay has elapsed;
+    // if something genuinely animates forever, the loop times out and the
+    // assertion below fails.
+    let states: string[] = [];
+    for (let i = 0; i < 40; i += 1) {
+      states = await illustrationAnimationStates(page);
+      if (!states.includes("running")) break;
+      await page.waitForTimeout(100);
+    }
     expect(
       states.filter((state) => state === "running"),
       "tidak ada animasi running saat gerakan dikurangi",
@@ -155,7 +166,10 @@ test.describe("beranda", () => {
         (sql) =>
           sql`select value from system_settings where key = 'consultation.whatsapp_number'`,
       );
-      const original = rows[0]?.value as unknown;
+      // KSL-08 contract: this key is a phone-number STRING (the seed and
+      // the 503-path both write to_jsonb(text)); jsonb_typeof in the route
+      // enforces the same.
+      const original = rows[0]?.value as string | undefined;
 
       try {
         // to_jsonb('0812'::text): leading zeros are not a valid JSON number
@@ -178,11 +192,16 @@ test.describe("beranda", () => {
         };
         expect(body.error.code).toBe("CONSULTATION_UNAVAILABLE");
       } finally {
+        // to_jsonb(<param>::text): postgres.js JSON-ENCODES string params
+        // bound to a ::jsonb context, so `${JSON.stringify(x)}::jsonb`
+        // double-encodes (verified against the e2e DB: raw length 15 → 19).
+        // Binding as plain text and wrapping server-side round-trips the
+        // parsed value exactly.
         await withE2eDb((sql) =>
           original === undefined
             ? sql`delete from system_settings where key = 'consultation.whatsapp_number'`
             : sql`update system_settings
-                  set value = ${JSON.stringify(original)}::jsonb
+                  set value = to_jsonb(${original}::text)
                   where key = 'consultation.whatsapp_number'`,
         );
       }
