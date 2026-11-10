@@ -218,6 +218,71 @@ export function toCmsCourseBuilderDTO(
   };
 }
 
+// -------------------------------------------- review + queue (card S1-08)
+
+/** Review facts riding beside the builder course (card §3). */
+export type CourseReviewDTO = {
+  reviewerName: string;
+  /** ISO 8601 — when the course was sent for approval (reviewed_at). */
+  reviewedAt: string;
+};
+
+/**
+ * null while the course has no reviewer yet (DRAFT, or a legacy IN_REVIEW
+ * row). Submit stamps reviewer_id and reviewed_at together, so both are
+ * either present or the review reads as not recorded. The name follows the
+ * ownerDisplayName pattern: trimmed name, or the email when blank.
+ */
+export function toCourseReviewDTO(row: {
+  reviewerId: string | null;
+  reviewerName: string | null;
+  reviewerEmail: string | null;
+  reviewedAt: Date | null;
+}): CourseReviewDTO | null {
+  if (row.reviewerId === null || row.reviewedAt === null) {
+    return null;
+  }
+  return {
+    reviewerName: ownerDisplayName(row.reviewerName ?? "", row.reviewerEmail ?? ""),
+    reviewedAt: row.reviewedAt.toISOString(),
+  };
+}
+
+/** What the approval-queue lookup reads (card §6): reviewer via left join. */
+export type CourseApprovalQueueRow = {
+  id: string;
+  title: string;
+  reviewerName: string | null;
+  reviewerEmail: string | null;
+  reviewedAt: Date | null;
+};
+
+/**
+ * One queue row (card §6). reviewerName stays null when no reviewer is
+ * recorded — the queue renders that state explicitly ("PENGGARAP BELUM
+ * TERCATAT · —", 19d) instead of hiding the row.
+ */
+export type CourseApprovalQueueItemDTO = {
+  id: string;
+  title: string;
+  reviewerName: string | null;
+  reviewedAt: string | null;
+};
+
+export function toCourseApprovalQueueItemDTO(
+  row: CourseApprovalQueueRow,
+): CourseApprovalQueueItemDTO {
+  return {
+    id: row.id,
+    title: row.title,
+    reviewerName:
+      row.reviewerName === null && row.reviewerEmail === null
+        ? null
+        : ownerDisplayName(row.reviewerName ?? "", row.reviewerEmail ?? ""),
+    reviewedAt: row.reviewedAt?.toISOString() ?? null,
+  };
+}
+
 // ------------------------------------------------- description (card S1-04)
 
 /** What the description-save transaction reads and answers (card §3). */

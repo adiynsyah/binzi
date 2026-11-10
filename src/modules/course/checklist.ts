@@ -40,6 +40,45 @@ export type PublishChecklistItem = {
   met: boolean;
 };
 
+/**
+ * Row facts both checklist callers can provide (card S1-08 §1, owner
+ * review addition 2): getCourseBuilder fills it from its unlocked read,
+ * the submit/publish gate from the locked courses row plus fresh post-lock
+ * statements. The lesson entries arrive ALREADY shaped by the lesson
+ * module's one outline statement — nobody rebuilds isContentEmpty or
+ * counts a second way.
+ */
+export type PublishChecklistSource = {
+  title: string;
+  level: string;
+  summary: string | null;
+  slug: string;
+  isDescriptionEmpty: boolean;
+  lessons: ChecklistLessonInput[];
+  finalQuizQuestionCount: number;
+};
+
+/**
+ * The ONE builder of evaluatePublishChecklist inputs: the builder page and
+ * the server gate funnel through this function, so their inputs can never
+ * diverge in shape or content origin.
+ */
+export function publishChecklistInputFrom(
+  source: PublishChecklistSource,
+  minQuestions: number,
+): PublishChecklistInput {
+  return {
+    title: source.title,
+    level: source.level,
+    summary: source.summary,
+    slug: source.slug,
+    isDescriptionEmpty: source.isDescriptionEmpty,
+    lessons: source.lessons,
+    finalQuizQuestionCount: source.finalQuizQuestionCount,
+    minQuestions,
+  };
+}
+
 export type PublishChecklist = {
   items: PublishChecklistItem[];
   /** How many items are met ("m" of the "m / 6" header). */

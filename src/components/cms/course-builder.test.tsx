@@ -115,6 +115,9 @@ function builderFixture(
     outline: [],
     checklist: checklistFixture(),
     minQuestions: 3,
+    // Card S1-08 §3: neutral defaults — DRAFT has no review and no actions.
+    review: null,
+    actions: { canSubmit: false, canPublish: false },
     ...overrides,
   };
 }
