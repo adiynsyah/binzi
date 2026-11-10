@@ -61,8 +61,9 @@ export function ApprovalQueue({
 
   return (
     <section className="mt-6">
-      {/* Count pill (19d): the queue length, oldest first. */}
-      <span className="inline-block rounded-pill border border-border bg-surface px-3 py-1 font-mono text-xs text-text-muted">
+      {/* Count pill (19d): the queue length, oldest first — the pending
+          tint token pair (see tokens.css), no border. */}
+      <span className="inline-block rounded-pill bg-pending-tint px-3 py-1 font-mono text-xs text-pending-tint-text">
         {items.length} menunggu
       </span>
       <ul className="mt-3 flex flex-col divide-y divide-border-soft rounded-card border border-border bg-surface">

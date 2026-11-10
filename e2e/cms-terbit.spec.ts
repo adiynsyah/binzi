@@ -174,7 +174,11 @@ test("3. ADMIN → Persetujuan → klik kursus → Setujui & terbitkan → PUBLI
   ).toBeVisible();
   await dialog.getByRole("button", { name: "Setujui & terbitkan" }).click();
 
-  await expect(statusBanner(page, "Kursus terbit.")).toBeInViewport();
+  // ratio 1 like tests 1 and 7: in every width the whole banner must sit
+  // next to the h1 that receives focus.
+  await expect(statusBanner(page, "Kursus terbit.")).toBeInViewport({
+    ratio: 1,
+  });
   await expect(builderBadge(page, title, "Terbit")).toBeVisible();
 
   // DB: published + timestamped, reviewer = the submitting EDITOR, and
@@ -199,6 +203,18 @@ test("3. ADMIN → Persetujuan → klik kursus → Setujui & terbitkan → PUBLI
     "course.submit",
     "course.publish",
   ]);
+
+  // Tambahan 6: ADMIN on ?status=perlu-revisi still gets the "Persetujuan"
+  // queue (the page branches on the active nav item, not the status param —
+  // "perlu-revisi" is an EDITOR-only item), so the revisi empty state must
+  // not render here.
+  await page.goto("/cms/konten?status=perlu-revisi");
+  await expect(
+    page.getByRole("heading", { name: "Persetujuan", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Belum ada konten yang perlu direvisi."),
+  ).toHaveCount(0);
 });
 
 test("4. kursus belum lengkap → dialog daftar kekurangan; Kirim tidak mengirim request", async ({
