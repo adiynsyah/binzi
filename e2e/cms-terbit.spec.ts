@@ -566,8 +566,12 @@ test("screenshot builder, dialog kirim/terbitkan, banner, /cms/konten (w1280/w36
     await expect(statusBanner(page, "Kursus terbit.")).toBeVisible();
     await maybeScreenshot(page, "s1-08-banner-terbit", viewport.label);
     await page.goto("/cms/konten");
+    // exact: in an isolated run the queue can be empty (this test's own
+    // course was just published; other rows only exist in a full run), and
+    // the empty-state h3 "Tidak ada kursus yang menunggu persetujuan."
+    // would otherwise substring-match into a strict-mode violation.
     await expect(
-      page.getByRole("heading", { name: "Persetujuan" }),
+      page.getByRole("heading", { name: "Persetujuan", exact: true }),
     ).toBeVisible();
     await maybeScreenshot(page, "s1-08-konten-admin", viewport.label);
 
