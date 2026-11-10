@@ -122,7 +122,7 @@ Prasyarat Sprint 1 (tanpa tanggal tetap — sebelum S1-01, tanpa branch kartu la
 
 ## Sprint 1 — CMS kursus & materi
 
-Kartu ditulis di Claude chat menjelang sesinya, terhadap kode `main` terbaru. Rencana lengkap, prasyarat, dan keputusan tertunda ada di `STATUS.md` (item "Rencana S1"). Sejak 3 Nov urutan dan lingkupnya mengikuti jadwal demo 20 Nov (bagian "Pembaruan 3 Nov", "Pembaruan 4 Nov", "Pembaruan 4 Nov malam", "Pembaruan 6 Nov", dan "Pembaruan 7 Nov" di `STATUS.md`). Sejak 8 Nov impor soal CSV pindah ke setelah demo (bagian "Pembaruan 8 Nov"). Keputusan kartu S1-08 ada di bagian "Pembaruan 9 Nov".
+Kartu ditulis di Claude chat menjelang sesinya, terhadap kode `main` terbaru. Rencana lengkap, prasyarat, dan keputusan tertunda ada di `STATUS.md` (item "Rencana S1"). Sejak 3 Nov urutan dan lingkupnya mengikuti jadwal demo 20 Nov (bagian "Pembaruan 3 Nov", "Pembaruan 4 Nov", "Pembaruan 4 Nov malam", "Pembaruan 6 Nov", dan "Pembaruan 7 Nov" di `STATUS.md`). Sejak 8 Nov impor soal CSV pindah ke setelah demo (bagian "Pembaruan 8 Nov"). Keputusan kartu S1-08 ada di bagian "Pembaruan 9 Nov"; hasilnya di "Pembaruan 10 Nov".
 
 - [x] 🤖 [S1-01](sprint-1/S1-01-daftar-dan-kursus-baru.md) — Daftar kursus, kursus baru, builder kosong · *✅ PR #106*
 - [ ] 🤖 [S1-01b](sprint-1/S1-01b-daftar-kursus-lanjutan.md) — Daftar kursus lanjutan: kartu 19e tablet & ponsel, "Urut ▾", perapian dialog & kode S1-01 · *setelah demo 20 Nov*
@@ -135,22 +135,22 @@ Kartu ditulis di Claude chat menjelang sesinya, terhadap kode `main` terbaru. Re
 - [ ] 🤖 S1-06 — Media library *(butuh A-17 + keputusan penyajian gambar; kartu belum ditulis)* · *setelah demo*
 - [ ] 🤖 S1-07 — Pemilih gambar, sampul, pemakaian aset *(kartu belum ditulis)* · *setelah demo; menyalakan lagi syarat sampul*
 - [ ] 🤖 Impor soal CSV (22c) — memakai aturan soal S1-09 *(kartu belum ditulis)* · *setelah demo; slot Sen 9 dipakai Beranda versi demo (keputusan 8 Nov)*
-- [ ] 🤖 [S1-08](sprint-1/S1-08-kirim-dan-terbitkan.md) — Kirim & terbitkan, versi demo: Kirim (EDITOR) → antrean `/cms/konten` → Setujui & terbitkan (ADMIN+) di builder, tanpa `NEEDS_REVISION` · *Sel 10 Nov* *(versi lengkap butuh PRD v1.6, setelah demo)*
+- [x] 🤖 [S1-08](sprint-1/S1-08-kirim-dan-terbitkan.md) — Kirim & terbitkan, versi demo: Kirim (EDITOR) → antrean `/cms/konten` → Setujui & terbitkan (ADMIN+) di builder, tanpa `NEEDS_REVISION` · *✅ PR #129 (10 Nov); perapian setelah demo (STATUS 10 Nov)* *(versi lengkap butuh PRD v1.6, setelah demo)*
 
 ## Jalur demo 20 Nov — kartu menyusul
 
-Jadwal dan keputusannya di `STATUS.md` (bagian "Pembaruan 3 Nov", "Pembaruan 8 Nov", dan "Pembaruan 9 Nov"). Kartu ditulis di Claude chat selagi agent mengerjakan kartu sebelumnya. Urutan potong bila terlambat: halaman "Nilai Saya". Impor CSV sudah dipindah ke setelah demo (8 Nov).
+Jadwal dan keputusannya di `STATUS.md` (bagian "Pembaruan 3 Nov", "Pembaruan 8 Nov", "Pembaruan 9 Nov", dan "Pembaruan 10 Nov"). Kartu ditulis di Claude chat selagi agent mengerjakan kartu sebelumnya. Urutan potong bila terlambat: halaman "Nilai Saya". Impor CSV sudah dipindah ke setelah demo (8 Nov).
 
 - [x] 🤖 [S1-09](sprint-1/S1-09-editor-quiz.md) — Editor quiz CMS: daftar soal (22a) + form satu soal (22b) · *✅ PR #120 (8 Nov); perapian kosmetik setelah demo (STATUS 8 Nov)*
 - [x] 🤖 [S6-01](sprint-6/S6-01-beranda-versi-demo.md) — Beranda versi demo: hero 1a + ilustrasi 6a (bergerak, tombol jeda), Cara kerjanya, Tanya Ahli Gizi, CTA penutup, halaman "Segera hadir" · *✅ PR #127 (9 Nov); perapian setelah demo (STATUS 9 Nov)*
-- [ ] 🤖 Peserta: daftar kursus terbit + ikut kursus — di area member `/belajar`, bukan katalog publik `/kursus` (keputusan 8 Nov); termasuk `loading.tsx` area belajar dan baca sesi/profil sekali per request (STATUS 9 Nov, "/belajar lambat") · *Rab 11 Nov*
+- [ ] 🤖 [S5-01](sprint-5/S5-01-dasbor-belajar-versi-demo.md) — Dasbor belajar versi demo: kursus terbit, "Mulai materi 1" (pendaftaran), Kursus saya, skeleton `/belajar`, halaman legal "Segera hadir" · *Rab 11 Nov* *(`cache()` sesi/profil ditunda ke setelah demo — STATUS 10 Nov)*
 - [ ] 🤖 Peserta: halaman materi + progres, termasuk `POST /api/progress/video` dan posisi terakhir ([rencana video](../decisions/video-sumber.md) bagian 2) · *Kam 12 Nov*
 - [x] 👤 Keputusan video demo: **YouTube unlisted** · *✅ diputuskan 7 Nov; R2 tetap jalur produksi, H-04 tetap wajib sebelum S1-05 — [rencana](../decisions/video-sumber.md)*
 - [ ] 🤖 Peserta: player video — kolom sumber video, `LessonVideoPlayer` dengan kontrol 29a di atas mesin YouTube, CSP, skrip pasang video demo ([rencana](../decisions/video-sumber.md) bagian 1, 3, 4, 5) · *Jum 13 Nov, memakai cadangan Sel 17; garis potong: kontrol bawaan YouTube*
 - [ ] 🤖 Peserta: mengerjakan quiz · *Sab 14 – Min 15 Nov*
 - [ ] 🤖 Peserta: hasil & nilai · *Sen 16 Nov*
 - [ ] 👤 Cadangan · *Sel 17 Nov*
-- [ ] 👤 Region fungsi Vercel → Singapura (Settings → Functions), ukur `/belajar` sebelum & sesudah (STATUS 9 Nov) · *paling lambat sebelum gladi resik Rab 18 Nov*
+- [x] 👤 Region fungsi Vercel → Singapura (Settings → Functions), ukur `/belajar` sebelum & sesudah (STATUS 9 Nov) · *✅ 10 Nov: `/belajar` 1,64 s → ±0,12 s (STATUS 10 Nov)*
 - [ ] 👤 Production: migrasi binzi-dev, akun demo per peran, data contoh, gladi resik · *Rab 18 – Kam 19 Nov*
 - [ ] 👤 Demo alur utuh dengan data contoh · *Jum 20 Nov*
 
