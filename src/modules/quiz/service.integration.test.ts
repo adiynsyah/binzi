@@ -57,6 +57,8 @@ vi.mock("@/db", () => ({
 
 import {
   createQuestion,
+  findQuestionRuleViolations,
+  formatQuizRuleViolation,
   getMinQuestions,
   getQuizEditor,
   getScoreWeights,
@@ -583,5 +585,185 @@ describe("getQuizEditor (card S1-09 §3)", () => {
     await expect(
       getQuizEditor(MEMBER, { quizId: randomUUID() }),
     ).rejects.toBeInstanceOf(ForbiddenError);
+  });
+});
+
+// ---------------------------- rule pass (card S1-08 §1)
+
+describe("findQuestionRuleViolations — the publish gate's rule pass (card S1-08 §1)", () => {
+  beforeEach(async () => {
+    await seedEditorSettings();
+  });
+
+  /** A course whose lesson quiz and Final Quiz each hold 10 stored questions. */
+  async function newFilledCourse() {
+    const { courseId, finalQuizId } = await newDraftCourseWithFinalQuiz();
+    const lesson = await createLesson(EDITOR, courseId, {
+      title: "Materi aturan",
+    });
+    for (let i = 1; i <= 10; i += 1) {
+      await createQuestion(EDITOR, { quizId: lesson.quizId }, {
+        ...PG_INPUT,
+        text: `Pertanyaan materi ${i}`,
+        explanation: `Pembahasan materi ${i}`,
+      });
+    }
+    // One benar/salah question rides along: the TRUE_FALSE arm of
+    // questionInput must map stored rows just as cleanly.
+    await updateQuestion(
+      EDITOR,
+      { quizId: lesson.quizId, questionId: (await quizQuestionIds(lesson.quizId))[9]!.id },
+      {
+        type: "TRUE_FALSE",
+        text: "Pertanyaan materi benar salah",
+        explanation: "Pembahasan benar salah",
+        options: [
+          { text: "Benar", isCorrect: true },
+          { text: "Salah", isCorrect: false },
+        ],
+      },
+    );
+    for (let i = 1; i <= 10; i += 1) {
+      await createQuestion(EDITOR, { quizId: finalQuizId }, {
+        ...PG_INPUT,
+        text: `Pertanyaan final ${i}`,
+        explanation: `Pembahasan final ${i}`,
+      });
+    }
+    return { courseId, lessonQuizId: lesson.quizId, finalQuizId };
+  }
+
+  /** The quiz's stored questions, ordered by order_index. */
+  async function quizQuestionIds(quizId: string) {
+    return db
+      .select({ id: questions.id, orderIndex: questions.orderIndex })
+      .from(questions)
+      .where(eq(questions.quizId, quizId))
+      .orderBy(questions.orderIndex);
+  }
+
+  function firstViolation(violations: Awaited<ReturnType<typeof findQuestionRuleViolations>>) {
+    const first = violations[0];
+    if (!first) throw new Error("expected at least one violation");
+    return first;
+  }
+
+  it("passes clean data (PG + benar/salah) inside a transaction", async () => {
+    const { lessonQuizId, finalQuizId } = await newFilledCourse();
+    const violations = await db.transaction(async (tx) =>
+      findQuestionRuleViolations(tx, [
+        { quizId: lessonQuizId, label: "Quiz materi 1" },
+        { quizId: finalQuizId, label: "Final Quiz" },
+      ]),
+    );
+    expect(violations).toEqual([]);
+  });
+
+  it("two answer keys in lesson quiz question 2 → exact label + two-digit number", async () => {
+    const { lessonQuizId, finalQuizId } = await newFilledCourse();
+    const second = (await quizQuestionIds(lessonQuizId))[1];
+    if (!second) throw new Error("second question missing");
+    await db
+      .update(questionOptions)
+      .set({ isCorrect: true })
+      .where(
+        and(eq(questionOptions.questionId, second.id), eq(questionOptions.orderIndex, 2)),
+      );
+
+    const violations = await db.transaction(async (tx) =>
+      findQuestionRuleViolations(tx, [
+        { quizId: lessonQuizId, label: "Quiz materi 1" },
+        { quizId: finalQuizId, label: "Final Quiz" },
+      ]),
+    );
+    expect(violations).toHaveLength(1);
+    const first = violations[0];
+    if (!first) throw new Error("violation missing");
+    expect(first).toEqual({
+      quizId: lessonQuizId,
+      label: "Quiz materi 1",
+      orderIndex: 2,
+      message: "Tandai tepat satu kunci jawaban.",
+    });
+    expect(formatQuizRuleViolation(first)).toBe(
+      "Quiz materi 1, soal 02: Tandai tepat satu kunci jawaban.",
+    );
+  });
+
+  it("NULL explanation in Final Quiz question 1 → \"Pembahasan wajib diisi.\"", async () => {
+    const { lessonQuizId, finalQuizId } = await newFilledCourse();
+    const first = (await quizQuestionIds(finalQuizId))[0];
+    if (!first) throw new Error("first question missing");
+    await db
+      .update(questions)
+      .set({ explanation: null })
+      .where(eq(questions.id, first.id));
+
+    const violations = await db.transaction(async (tx) =>
+      findQuestionRuleViolations(tx, [
+        { quizId: lessonQuizId, label: "Quiz materi 1" },
+        { quizId: finalQuizId, label: "Final Quiz" },
+      ]),
+    );
+    expect(formatQuizRuleViolation(firstViolation(violations))).toBe(
+      "Final Quiz, soal 01: Pembahasan wajib diisi.",
+    );
+  });
+
+  it("a 3-option question → \"Pilihan ganda harus punya tepat 4 opsi.\"", async () => {
+    const { lessonQuizId } = await newFilledCourse();
+    const third = (await quizQuestionIds(lessonQuizId))[2];
+    if (!third) throw new Error("third question missing");
+    await db
+      .delete(questionOptions)
+      .where(
+        and(eq(questionOptions.questionId, third.id), eq(questionOptions.orderIndex, 4)),
+      );
+
+    const violations = await db.transaction(async (tx) =>
+      findQuestionRuleViolations(tx, [{ quizId: lessonQuizId, label: "Quiz materi 1" }]),
+    );
+    expect(formatQuizRuleViolation(firstViolation(violations))).toBe(
+      "Quiz materi 1, soal 03: Pilihan ganda harus punya tepat 4 opsi.",
+    );
+  });
+
+  it("reports lesson quizzes before the Final Quiz (input order, then order_index)", async () => {
+    const { lessonQuizId, finalQuizId } = await newFilledCourse();
+    const lessonSecond = (await quizQuestionIds(lessonQuizId))[1];
+    const finalFirst = (await quizQuestionIds(finalQuizId))[0];
+    if (!lessonSecond || !finalFirst) throw new Error("questions missing");
+    // Corrupt BOTH: lesson q2 (two keys) and final q1 (NULL explanation).
+    await db
+      .update(questionOptions)
+      .set({ isCorrect: true })
+      .where(
+        and(
+          eq(questionOptions.questionId, lessonSecond.id),
+          eq(questionOptions.orderIndex, 2),
+        ),
+      );
+    await db.update(questions).set({ explanation: null }).where(eq(questions.id, finalFirst.id));
+
+    const violations = await db.transaction(async (tx) =>
+      findQuestionRuleViolations(tx, [
+        { quizId: lessonQuizId, label: "Quiz materi 1" },
+        { quizId: finalQuizId, label: "Final Quiz" },
+      ]),
+    );
+    expect(violations).toHaveLength(2);
+    expect(formatQuizRuleViolation(firstViolation(violations))).toBe(
+      "Quiz materi 1, soal 02: Tandai tepat satu kunci jawaban.",
+    );
+    expect(formatQuizRuleViolation(violations[1]!)).toBe(
+      "Final Quiz, soal 01: Pembahasan wajib diisi.",
+    );
+  });
+
+  it("an empty quiz list answers [] without querying", async () => {
+    const violations = await db.transaction(async (tx) =>
+      findQuestionRuleViolations(tx, []),
+    );
+    expect(violations).toEqual([]);
   });
 });

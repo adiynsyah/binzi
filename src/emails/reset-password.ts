@@ -4,6 +4,8 @@
 // masa berlaku plus perangkat dan waktu permintaan. Perangkat hanya
 // kategori kasar dari User-Agent (browser/OS) — tidak ada geo, jadi kota
 // tidak disebut (data kota tidak boleh dikarang).
+import { formatWib } from "@/lib/datetime";
+
 import {
   darkButton,
   escapeHtml,
@@ -15,6 +17,11 @@ import {
   renderEmail,
   warningBox,
 } from "./layout";
+
+// Card S1-08 §6: formatWib moved to src/lib/datetime.ts (the CMS approval
+// queue needs it server-side). Re-exported so src/emails/templates.test.ts
+// keeps importing it from here unchanged.
+export { formatWib };
 
 export type RequestDevice = {
   browser: string;
@@ -30,20 +37,6 @@ export type ResetPasswordEmailInput = {
   /** When the reset was requested (server clock). */
   requestedAt: Date;
 };
-
-/** Formats a timestamp in WIB as "3 Okt 2026 14.05 WIB" (design 15a). */
-export function formatWib(date: Date): string {
-  const formatted = new Intl.DateTimeFormat("id-ID", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-    timeZone: "Asia/Jakarta",
-  }).format(date);
-  return `${formatted.replace(/,\s*/, " ")} WIB`;
-}
 
 function deviceLine(device: RequestDevice | null, requestedAt: Date): string {
   const when = formatWib(requestedAt);

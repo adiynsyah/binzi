@@ -6,7 +6,7 @@
 // input contract.
 import { NotFoundError } from "@/lib/errors";
 
-import { getMinQuestions } from "@/modules/quiz/service";
+import { getMinQuestions, type DbTx } from "@/modules/quiz/service";
 
 import { assertCanManageLessons, type Actor } from "./policy";
 import * as lessonQueries from "./queries";
@@ -17,6 +17,7 @@ import {
 } from "./schema";
 import type {
   CreatedLessonDTO,
+  LessonChecklistRow,
   LessonEditorDTO,
   LessonOutlineItemDTO,
   UpdatedLessonContentDTO,
@@ -25,6 +26,7 @@ import type {
 // DTO types for consumers: import these from service, not from serializer.
 export type {
   CreatedLessonDTO,
+  LessonChecklistRow,
   LessonEditorDTO,
   LessonOutlineItemDTO,
   UpdatedLessonContentDTO,
@@ -58,6 +60,19 @@ export async function listLessonOutline(
   courseId: string,
 ): Promise<LessonOutlineItemDTO[]> {
   return lessonQueries.listOutlineByCourseId(courseId);
+}
+
+/**
+ * Checklist rows for the publish gate (card S1-08 §1): the SAME outline
+ * statement the builder page uses, executed inside the caller's
+ * submit/publish transaction AFTER its course lock — the gate reads what
+ * the builder shows (one checklist source, owner review addition 2).
+ */
+export async function listLessonChecklistRows(
+  tx: DbTx,
+  courseId: string,
+): Promise<LessonChecklistRow[]> {
+  return lessonQueries.listChecklistRows(tx, courseId);
 }
 
 /**

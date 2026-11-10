@@ -39,6 +39,7 @@ import {
 import type { CmsCourseBuilderDTO, PublishChecklist } from "@/modules/course/service";
 
 import type { SettingsValues } from "./course-builder";
+import { PublishChecklistRow } from "./course-publish-dialogs";
 
 export type CourseSettingsPanelProps = {
   course: CmsCourseBuilderDTO;
@@ -114,41 +115,12 @@ function ChecklistBlock({ checklist }: { checklist: PublishChecklist }) {
           {checklist.met} / {checklist.total}
         </span>
       </div>
-      {/* Meaning never rides on color alone: each row says terpenuhi /
-          belum terpenuhi in text for screen readers (card §5). */}
+      {/* The row itself is the SHARED PublishChecklistRow (card S1-08 §4,
+          owner review 9): the panel block and both gate dialogs draw the
+          identical ✓/circle row with its sr-only state text. */}
       <ul className="mt-1.5">
         {checklist.items.map((item) => (
-          <li
-            key={item.key}
-            className="flex items-center gap-2.5 border-b border-border-soft py-2 last:border-b-0"
-          >
-            {item.met ? (
-              <span
-                aria-hidden="true"
-                className="grid size-5 shrink-0 place-items-center rounded-pill bg-success text-[11px] font-bold text-surface"
-              >
-                ✓
-              </span>
-            ) : (
-              /* Open circle on the same 20px footprint as the ✓ badge
-                 (21g) — a "○" text glyph sat low next to it. */
-              <span
-                aria-hidden="true"
-                className="size-5 shrink-0 rounded-pill border-2 border-border-strong"
-              />
-            )}
-            <span
-              className={`text-[12.5px] leading-[1.45] ${
-                item.met ? "text-text-muted" : "text-text"
-              }`}
-            >
-              {item.label}
-              <span className="sr-only">
-                {" "}
-                {item.met ? "terpenuhi" : "belum terpenuhi"}
-              </span>
-            </span>
-          </li>
+          <PublishChecklistRow key={item.key} met={item.met} label={item.label} />
         ))}
       </ul>
       {checklist.missing.length > 0 ? (

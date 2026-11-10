@@ -17,10 +17,10 @@ import {
   quizzes,
   systemSettings,
 } from "@/db/schema";
-import { plainTextToDoc } from "@/lib/content-doc";
+import { docToPlainText, plainTextToDoc } from "@/lib/content-doc";
 import { ConflictError, NotFoundError } from "@/lib/errors";
 
-import type { QuestionInput } from "./schema";
+import { questionInput, type QuestionInput } from "./schema";
 import {
   questionAuditSummary,
   toQuestionSummaryDTO,
@@ -499,4 +499,124 @@ export async function findQuizEditorById(
           .orderBy(asc(questionOptions.orderIndex), asc(questionOptions.id));
 
   return { quiz, owner, questionRows, optionRows };
+}
+
+// --------------------------------------- publish rule pass (card S1-08 §1)
+
+/** A quiz plus its gate label: "Quiz materi {n}" or "Final Quiz" (card §1). */
+export type LabeledQuiz = {
+  quizId: string;
+  label: string;
+};
+
+/** One stored question that fails questionInput (card S1-08 §1). */
+export type QuizRuleViolation = {
+  quizId: string;
+  label: string;
+  /** The question's order_index — rendered two digits by the formatter. */
+  orderIndex: number;
+  /** First Zod issue message, e.g. "Tandai tepat satu kunci jawaban.". */
+  message: string;
+};
+
+/** "Quiz materi 1, soal 02: Tandai tepat satu kunci jawaban." (card §1). */
+export function formatQuizRuleViolation(
+  violation: QuizRuleViolation,
+): string {
+  const nn = String(violation.orderIndex).padStart(2, "0");
+  return `${violation.label}, soal ${nn}: ${violation.message}`;
+}
+
+/**
+ * The publish gate's question-rule pass (card S1-08 §1, PRD §11.4 no. 12):
+ * every STORED question of the given quizzes re-validated against
+ * questionInput — the same schema the editor enforces, so the rules keep
+ * one source. Runs inside the caller's transaction as its OWN statements,
+ * after the course lock (never inside the locking SELECT). Quizzes are
+ * checked in INPUT order (lesson quizzes by order_index, then the Final
+ * Quiz), questions by order_index — exactly TWO fixed queries, never
+ * per-question N+1. Returns every violation in that order; the caller
+ * reports the first.
+ */
+export async function findQuestionRuleViolations(
+  tx: DbTx,
+  quizzes: LabeledQuiz[],
+): Promise<QuizRuleViolation[]> {
+  if (quizzes.length === 0) {
+    return [];
+  }
+
+  const questionRows = await tx
+    .select({
+      id: questions.id,
+      quizId: questions.quizId,
+      orderIndex: questions.orderIndex,
+      type: questions.type,
+      text: questions.text,
+      explanation: questions.explanation,
+    })
+    .from(questions)
+    .where(inArray(questions.quizId, quizzes.map((quiz) => quiz.quizId)))
+    .orderBy(asc(questions.orderIndex), asc(questions.id));
+
+  const optionRows =
+    questionRows.length === 0
+      ? []
+      : await tx
+          .select({
+            questionId: questionOptions.questionId,
+            orderIndex: questionOptions.orderIndex,
+            text: questionOptions.text,
+            isCorrect: questionOptions.isCorrect,
+          })
+          .from(questionOptions)
+          .where(
+            inArray(
+              questionOptions.questionId,
+              questionRows.map((row) => row.id),
+            ),
+          )
+          .orderBy(asc(questionOptions.orderIndex), asc(questionOptions.id));
+
+  const optionsByQuestion = new Map<
+    string,
+    { text: string; isCorrect: boolean }[]
+  >();
+  for (const option of optionRows) {
+    const list = optionsByQuestion.get(option.questionId) ?? [];
+    list.push({ text: option.text, isCorrect: option.isCorrect });
+    optionsByQuestion.set(option.questionId, list);
+  }
+
+  const violations: QuizRuleViolation[] = [];
+  for (const quiz of quizzes) {
+    for (const question of questionRows) {
+      if (question.quizId !== quiz.quizId) {
+        continue;
+      }
+      // The EXACT questionInput shape: a strict discriminatedUnion, so the
+      // mapped object carries type/text/explanation/options and nothing
+      // else. text/explanation ride through docToPlainText (null → ""),
+      // which is how a NULL explanation fails with "Pembahasan wajib
+      // diisi." (card note).
+      const parsed = questionInput.safeParse({
+        type: question.type,
+        text: docToPlainText(question.text),
+        explanation: docToPlainText(question.explanation),
+        options: (optionsByQuestion.get(question.id) ?? []).map((option) => ({
+          text: option.text,
+          isCorrect: option.isCorrect,
+        })),
+      });
+      if (!parsed.success) {
+        violations.push({
+          quizId: quiz.quizId,
+          label: quiz.label,
+          orderIndex: question.orderIndex,
+          message: parsed.error.issues[0]?.message ?? "Soal tidak valid.",
+        });
+      }
+    }
+  }
+  return violations;
 }

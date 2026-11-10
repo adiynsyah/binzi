@@ -11,6 +11,19 @@ describe("Button", () => {
     expect(screen.getByRole("button", { name: "Mulai quiz" })).toBeTruthy();
   });
 
+  // Card S1-08 §4: the publish confirm uses the new success variant —
+  // assert the exact utility classes so a refactor cannot silently drop
+  // the success background/contrast pairing.
+  it("applies the success variant classes", () => {
+    render(<Button variant="success">Setujui & terbitkan</Button>);
+    expect(
+      screen.getByRole("button", { name: "Setujui & terbitkan" }).className,
+    ).toContain("bg-success");
+    expect(
+      screen.getByRole("button", { name: "Setujui & terbitkan" }).className,
+    ).toContain("text-surface");
+  });
+
   it("locks and reports busy state while loading", () => {
     render(
       <Button loading loadingLabel="Menyimpan…">

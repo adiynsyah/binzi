@@ -10,7 +10,18 @@
 import "server-only";
 
 import { isDeepStrictEqual } from "node:util";
-import { and, count, desc, eq, ilike, ne, sql, type SQL } from "drizzle-orm";
+import {
+  aliasedTable,
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  ilike,
+  ne,
+  sql,
+  type SQL,
+} from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -22,23 +33,37 @@ import {
   users,
 } from "@/db/schema";
 import { ConflictError, NotFoundError } from "@/lib/errors";
-import type { ContentDoc } from "@/lib/content-doc";
-import { createEmptyFinalQuiz } from "@/modules/quiz/service";
+import { isDocEmpty, type ContentDoc } from "@/lib/content-doc";
+import { listLessonChecklistRows } from "@/modules/lesson/service";
+import {
+  createEmptyFinalQuiz,
+  findQuestionRuleViolations,
+  formatQuizRuleViolation,
+  type DbTx,
+  type LabeledQuiz,
+} from "@/modules/quiz/service";
 
 import { isUniqueViolation } from "./db-errors";
 import {
+  CHECKLIST_INCOMPLETE_MESSAGE,
   courseFieldError,
   NOT_DRAFT_MESSAGE,
+  NOT_DRAFT_SUBMIT_MESSAGE,
+  NOT_IN_REVIEW_MESSAGE,
+  REVIEWER_MISSING_MESSAGE,
   SIMILAR_TITLE_MESSAGE,
   SLUG_TAKEN_MESSAGE,
 } from "./errors";
+import { evaluatePublishChecklist, publishChecklistInputFrom } from "./checklist";
 
 import {
   descriptionAuditSummary,
   toCmsCourseBuilderDTO,
   toCmsCourseDetailDTO,
+  toCourseApprovalQueueItemDTO,
   toCourseDescriptionEditorDTO,
   toUpdatedCourseDescriptionDTO,
+  type CourseApprovalQueueItemDTO,
   type CourseBuilderRow,
   type CourseDescriptionEditorDTO,
   type UpdatedCourseDescriptionDTO,
@@ -76,6 +101,11 @@ const ownerColumns = {
   ownerName: users.name,
   ownerEmail: users.email,
 };
+
+// The approval-queue's reviewer join (card S1-08 §6): users joined AGAIN
+// under an alias (drizzle 0.45 exposes aliasedTable, not alias) — the
+// owner join above already occupies the table.
+const reviewer = aliasedTable(users, "reviewer");
 
 // PG LIKE treats backslash as the escape character by default, so % and _
 // typed by the user must be escaped to keep them literal.
@@ -282,10 +312,20 @@ export function isSimilarTitle(candidate: string, existing: string): boolean {
   return existing.startsWith(candidate) || candidate.startsWith(existing);
 }
 
-/** Builder lookup (21a/21g): the settings audience's column set. */
+/** Builder lookup (21a/21g): the settings audience's column set + reviewer
+ * (card S1-08 §3 — an UNLOCKED read, so the reviewer left join is fine
+ * here; the submit/publish lock statements carry courses columns only). */
 export async function findCourseBuilderById(
   courseId: string,
-): Promise<CourseBuilderRow | undefined> {
+): Promise<
+  | (CourseBuilderRow & {
+      reviewerId: string | null;
+      reviewerName: string | null;
+      reviewerEmail: string | null;
+      reviewedAt: Date | null;
+    })
+  | undefined
+> {
   const rows = await db
     .select({
       id: courses.id,
@@ -301,9 +341,14 @@ export async function findCourseBuilderById(
       ...ownerColumns,
       finalQuizQuestionCount: finalQuizQuestionCountSql,
       finalQuizDurationMinutes: finalQuizDurationSql,
+      reviewerId: courses.reviewerId,
+      reviewedAt: courses.reviewedAt,
+      reviewerName: reviewer.name,
+      reviewerEmail: reviewer.email,
     })
     .from(courses)
     .innerJoin(users, eq(courses.createdBy, users.id))
+    .leftJoin(reviewer, eq(courses.reviewerId, reviewer.id))
     .where(eq(courses.id, courseId))
     .limit(1);
   return rows[0];
@@ -569,4 +614,349 @@ export async function findCourseDescriptionEditorById(
   const row = rows[0];
   if (!row) return undefined;
   return toCourseDescriptionEditorDTO(row);
+}
+
+// ------------------------------------------- submit & publish (card S1-08)
+
+/**
+ * What the submit/publish lock reads (card S1-08 §1–2, owner review
+ * addition 1): courses columns + the owner join for the 200 DTO — and
+ * NOTHING else. Count subqueries and lesson rows live in SEPARATE
+ * statements issued AFTER the lock: under READ COMMITTED a subquery in a
+ * lock-waiting statement evaluates on the statement's pre-wait snapshot,
+ * so it can miss a 10th question another tab committed while we waited.
+ * The reviewer is NOT joined here — reviewer_name is only needed by the
+ * page's unlocked lookup (findCourseBuilderById).
+ */
+type ReviewLockedRow = Pick<
+  typeof courses.$inferSelect,
+  | "id"
+  | "title"
+  | "slug"
+  | "summary"
+  | "description"
+  | "level"
+  | "status"
+  | "isSequential"
+  | "updatedAt"
+  | "finalQuizId"
+  | "reviewerId"
+  | "reviewedAt"
+> & {
+  ownerName: string;
+  ownerEmail: string;
+};
+
+async function lockCourseForReview(
+  tx: DbTx,
+  courseId: string,
+): Promise<ReviewLockedRow | undefined> {
+  const rows = await tx
+    .select({
+      id: courses.id,
+      title: courses.title,
+      slug: courses.slug,
+      summary: courses.summary,
+      description: courses.description,
+      level: courses.level,
+      status: courses.status,
+      isSequential: courses.isSequential,
+      updatedAt: courses.updatedAt,
+      finalQuizId: courses.finalQuizId,
+      reviewerId: courses.reviewerId,
+      reviewedAt: courses.reviewedAt,
+      ...ownerColumns,
+    })
+    .from(courses)
+    .innerJoin(users, eq(courses.createdBy, users.id))
+    .where(eq(courses.id, courseId))
+    .limit(1)
+    // Same discipline as updateCourseIfDraft: lock ONLY the courses row.
+    .for("update", { of: courses });
+  return rows[0];
+}
+
+/**
+ * The publish gate's POST-LOCK reads (card §1 step 1–2): Final Quiz count +
+ * duration and the lesson checklist rows, each its own statement inside
+ * the same transaction — everything the checklist input and the 200 DTO
+ * need, read fresh.
+ */
+async function readGateInputs(
+  tx: DbTx,
+  courseId: string,
+  finalQuizId: string | null,
+): Promise<{
+  lessonRows: Awaited<ReturnType<typeof listLessonChecklistRows>>;
+  finalQuizQuestionCount: number;
+  finalQuizDurationMinutes: number | null;
+}> {
+  let finalQuizQuestionCount = 0;
+  let finalQuizDurationMinutes: number | null = null;
+  if (finalQuizId !== null) {
+    const durationRows = await tx
+      .select({ durationMinutes: quizzes.durationMinutes })
+      .from(quizzes)
+      .where(eq(quizzes.id, finalQuizId))
+      .limit(1);
+    finalQuizDurationMinutes = durationRows[0]?.durationMinutes ?? null;
+    const countRows = await tx
+      .select({ value: count().mapWith(Number) })
+      .from(questions)
+      .where(eq(questions.quizId, finalQuizId));
+    finalQuizQuestionCount = countRows[0]?.value ?? 0;
+  }
+  const lessonRows = await listLessonChecklistRows(tx, courseId);
+  return { lessonRows, finalQuizQuestionCount, finalQuizDurationMinutes };
+}
+
+/**
+ * The shared gate (card §1), run INSIDE the caller's transaction after the
+ * lock: checklist first, then the question rules — first failure throws
+ * 409. minQuestions was read BEFORE the transaction by the service
+ * (fail-closed 500, exactly like the builder).
+ */
+async function assertPublishGate(
+  tx: DbTx,
+  courseId: string,
+  course: ReviewLockedRow,
+  minQuestions: number,
+): Promise<Awaited<ReturnType<typeof readGateInputs>>> {
+  const inputs = await readGateInputs(tx, courseId, course.finalQuizId);
+
+  // Same input builder as getCourseBuilder (owner review addition 2) —
+  // builder and gate can never disagree.
+  const checklist = evaluatePublishChecklist(
+    publishChecklistInputFrom(
+      {
+        title: course.title,
+        level: course.level,
+        summary: course.summary,
+        slug: course.slug,
+        isDescriptionEmpty: isDocEmpty(course.description),
+        lessons: inputs.lessonRows.map((row) => ({
+          orderIndex: row.orderIndex,
+          isContentEmpty: row.isContentEmpty,
+          quizQuestionCount: row.quizQuestionCount,
+        })),
+        finalQuizQuestionCount: inputs.finalQuizQuestionCount,
+      },
+      minQuestions,
+    ),
+  );
+  if (checklist.met < checklist.total) {
+    throw new ConflictError(CHECKLIST_INCOMPLETE_MESSAGE);
+  }
+
+  // Rule pass, PRD §11.4 no. 12: lesson quizzes in order_index order,
+  // then the Final Quiz (card §1 step 2).
+  const labeledQuizzes: LabeledQuiz[] = [
+    ...inputs.lessonRows.flatMap((row) =>
+      row.quizId === null
+        ? []
+        : [{ quizId: row.quizId, label: `Quiz materi ${row.orderIndex}` }],
+    ),
+    ...(course.finalQuizId === null
+      ? []
+      : [{ quizId: course.finalQuizId, label: "Final Quiz" }]),
+  ];
+  const violations = await findQuestionRuleViolations(tx, labeledQuizzes);
+  const first = violations[0];
+  if (first !== undefined) {
+    throw new ConflictError(formatQuizRuleViolation(first));
+  }
+
+  return inputs;
+}
+
+/**
+ * Kirim (card §2): ONE transaction — lock → 404/409 → gate → update to
+ * IN_REVIEW with reviewer = sender → ONE summary-only audit row → the
+ * builder DTO built from the locked row + fresh post-lock counts.
+ */
+export async function submitCourseTx(input: {
+  courseId: string;
+  actorId: string;
+  minQuestions: number;
+}): Promise<ReturnType<typeof toCmsCourseBuilderDTO>> {
+  return db.transaction(async (tx) => {
+    const locked = await lockCourseForReview(tx, input.courseId);
+    if (!locked) {
+      throw new NotFoundError("Kursus tidak ditemukan");
+    }
+    if (locked.status !== "DRAFT") {
+      throw new ConflictError(NOT_DRAFT_SUBMIT_MESSAGE);
+    }
+
+    const gate = await assertPublishGate(
+      tx,
+      input.courseId,
+      locked,
+      input.minQuestions,
+    );
+
+    const updatedRows = await tx
+      .update(courses)
+      .set({
+        status: "IN_REVIEW",
+        reviewerId: input.actorId,
+        reviewedAt: new Date(),
+        updatedBy: input.actorId,
+      })
+      .where(eq(courses.id, input.courseId))
+      .returning({
+        id: courses.id,
+        title: courses.title,
+        slug: courses.slug,
+        summary: courses.summary,
+        description: courses.description,
+        level: courses.level,
+        status: courses.status,
+        isSequential: courses.isSequential,
+        updatedAt: courses.updatedAt,
+        finalQuizId: courses.finalQuizId,
+        reviewerId: courses.reviewerId,
+        reviewedAt: courses.reviewedAt,
+      });
+    const updated = updatedRows[0];
+    if (!updated) {
+      throw new Error("submitCourseTx: update returned no row");
+    }
+
+    // Summary only (card §2 step 5) — before { status }, after
+    // { status, reviewerId, reviewedAt }, no documents.
+    await tx.insert(auditLogs).values({
+      actorId: input.actorId,
+      action: "course.submit",
+      entityType: "course",
+      entityId: updated.id,
+      before: { status: locked.status },
+      after: {
+        status: updated.status,
+        reviewerId: updated.reviewerId,
+        reviewedAt: updated.reviewedAt?.toISOString() ?? null,
+      },
+      ip: null,
+    });
+
+    return toCmsCourseBuilderDTO({
+      ...updated,
+      ownerName: locked.ownerName,
+      ownerEmail: locked.ownerEmail,
+      finalQuizQuestionCount: gate.finalQuizQuestionCount,
+      finalQuizDurationMinutes: gate.finalQuizDurationMinutes,
+    });
+  });
+}
+
+/**
+ * Terbitkan (card §2): lock → 404 / 409 (not IN_REVIEW, reviewer missing)
+ * → the gate AGAIN (settings or data may have moved since submit) →
+ * update to PUBLISHED (reviewer untouched) → audit → builder DTO.
+ */
+export async function publishCourseTx(input: {
+  courseId: string;
+  actorId: string;
+  minQuestions: number;
+}): Promise<ReturnType<typeof toCmsCourseBuilderDTO>> {
+  return db.transaction(async (tx) => {
+    const locked = await lockCourseForReview(tx, input.courseId);
+    if (!locked) {
+      throw new NotFoundError("Kursus tidak ditemukan");
+    }
+    if (locked.status !== "IN_REVIEW") {
+      throw new ConflictError(NOT_IN_REVIEW_MESSAGE);
+    }
+    if (locked.reviewerId === null) {
+      throw new ConflictError(REVIEWER_MISSING_MESSAGE);
+    }
+
+    const gate = await assertPublishGate(
+      tx,
+      input.courseId,
+      locked,
+      input.minQuestions,
+    );
+
+    const updatedRows = await tx
+      .update(courses)
+      .set({
+        status: "PUBLISHED",
+        publishedAt: new Date(),
+        updatedBy: input.actorId,
+      })
+      .where(eq(courses.id, input.courseId))
+      .returning({
+        id: courses.id,
+        title: courses.title,
+        slug: courses.slug,
+        summary: courses.summary,
+        description: courses.description,
+        level: courses.level,
+        status: courses.status,
+        isSequential: courses.isSequential,
+        updatedAt: courses.updatedAt,
+        finalQuizId: courses.finalQuizId,
+        reviewerId: courses.reviewerId,
+        reviewedAt: courses.reviewedAt,
+        publishedAt: courses.publishedAt,
+      });
+    const updated = updatedRows[0];
+    if (!updated) {
+      throw new Error("publishCourseTx: update returned no row");
+    }
+
+    // Summary only (card §2 step 6): before { status }, after
+    // { status, publishedAt } (owner review addition 12).
+    await tx.insert(auditLogs).values({
+      actorId: input.actorId,
+      action: "course.publish",
+      entityType: "course",
+      entityId: updated.id,
+      before: { status: locked.status },
+      after: {
+        status: updated.status,
+        publishedAt: updated.publishedAt?.toISOString() ?? null,
+      },
+      ip: null,
+    });
+
+    return toCmsCourseBuilderDTO({
+      ...updated,
+      ownerName: locked.ownerName,
+      ownerEmail: locked.ownerEmail,
+      finalQuizQuestionCount: gate.finalQuizQuestionCount,
+      finalQuizDurationMinutes: gate.finalQuizDurationMinutes,
+    });
+  });
+}
+
+/**
+ * The approval queue (card §6): IN_REVIEW courses, oldest reviewed_at
+ * first (ASC puts the NULL rows of legacy data last). ADMIN+ passes no
+ * reviewer filter; an EDITOR only sees courses they sent themselves.
+ */
+export async function listApprovalQueue(filter: {
+  reviewerId?: string;
+}): Promise<CourseApprovalQueueItemDTO[]> {
+  const rows = await db
+    .select({
+      id: courses.id,
+      title: courses.title,
+      reviewerName: reviewer.name,
+      reviewerEmail: reviewer.email,
+      reviewedAt: courses.reviewedAt,
+    })
+    .from(courses)
+    .leftJoin(reviewer, eq(courses.reviewerId, reviewer.id))
+    .where(
+      and(
+        eq(courses.status, "IN_REVIEW"),
+        filter.reviewerId === undefined
+          ? undefined
+          : eq(courses.reviewerId, filter.reviewerId),
+      ),
+    )
+    .orderBy(asc(courses.reviewedAt), asc(courses.id));
+  return rows.map(toCourseApprovalQueueItemDTO);
 }

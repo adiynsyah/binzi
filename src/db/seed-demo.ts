@@ -121,6 +121,15 @@ function courseRows() {
     level: COURSE_LEVEL[i],
     estimatedMinutes: 30 + i * 15,
     status: COURSE_STATUS[i],
+    // Card S1-08 §7: IN_REVIEW ⇒ the reviewer is recorded (the queue
+    // eyebrow and the publish gate's REVIEWER_MISSING check rely on it).
+    // onConflictDoNothing keeps already-seeded local rows untouched.
+    ...(i === 3
+      ? {
+          reviewerId: DEMO_AUTHOR_ID,
+          reviewedAt: new Date("2026-10-28T03:00:00Z"),
+        }
+      : {}),
     finalQuizId: finalQuizId(i),
     createdBy: DEMO_AUTHOR_ID,
     updatedBy: DEMO_AUTHOR_ID,

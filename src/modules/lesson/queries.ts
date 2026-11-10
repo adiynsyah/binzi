@@ -15,19 +15,22 @@ import { isDeepStrictEqual } from "node:util";
 import { and, asc, eq, sql } from "drizzle-orm";
 
 import { db } from "@/db";
+import type { Db } from "@/db/client";
 import { auditLogs, courses, lessons, questions } from "@/db/schema";
 import { EMPTY_DOC, type ContentDoc } from "@/lib/content-doc";
 import { ConflictError, NotFoundError } from "@/lib/errors";
 import { slugify, uniquifySlug } from "@/lib/slug";
-import { createEmptyLessonQuiz } from "@/modules/quiz/service";
+import { createEmptyLessonQuiz, type DbTx } from "@/modules/quiz/service";
 
 import {
   contentAuditSummary,
   toCreatedLessonDTO,
+  toLessonChecklistRow,
   toLessonEditorDTO,
   toLessonOutlineItemDTO,
   toUpdatedLessonContentDTO,
   type CreatedLessonDTO,
+  type LessonChecklistRow,
   type LessonEditorDTO,
   type LessonOutlineItemDTO,
   type UpdatedLessonContentDTO,
@@ -36,9 +39,18 @@ import {
 // Correlated count resolved inside the one SELECT (no N+1) — same shape as
 // finalQuizQuestionCountSql in the course module. mapWith(Number): drivers
 // hand back bigint counts as strings.
+//
+// The outer reference is hand-qualified on purpose: drizzle renders a
+// Column interpolated into a sql`` template by its BARE name, so
+// `${questions.quizId} = ${lessons.quizId}` renders "quiz_id" = "quiz_id"
+// — Postgres then resolves BOTH sides against the subquery's own FROM and
+// the predicate is always true, counting every question in the database
+// for every lesson. Found by the S1-08 gate tests (first test data with
+// two filled quizzes); masked before because no earlier test database
+// held questions in more than one quiz.
 const quizQuestionCountSql = sql<number>`(
-  select count(*) from ${questions}
-  where ${questions.quizId} = ${lessons.quizId}
+  select count(*) from ${questions} as counted
+  where counted.quiz_id = lessons.quiz_id
 )`.mapWith(Number);
 
 /**
@@ -50,11 +62,24 @@ const quizQuestionCountSql = sql<number>`(
 export const NOT_DRAFT_MESSAGE =
   "Kursus sudah bukan draf — hanya draf yang bisa diubah.";
 
-/** Builder outline (21a), ordered by order_index. */
-export async function listOutlineByCourseId(
+/** Either end of the outline SELECT: the pool or a live transaction. */
+type DbOrTx = Db | DbTx;
+
+type OutlineRow = Parameters<typeof toLessonOutlineItemDTO>[0] & {
+  quizId: string | null;
+};
+
+/**
+ * The builder outline's ONE SELECT, parameterized by executor (card S1-08
+ * §1): the builder page reads it through db, the publish gate reads the
+ * SAME statement inside its transaction — so checklist inputs are built
+ * from one query shape, never two.
+ */
+async function selectOutlineRows(
+  executor: DbOrTx,
   courseId: string,
-): Promise<LessonOutlineItemDTO[]> {
-  const rows = await db
+): Promise<OutlineRow[]> {
+  return executor
     .select({
       id: lessons.id,
       title: lessons.title,
@@ -63,12 +88,36 @@ export async function listOutlineByCourseId(
       videoStatus: lessons.videoStatus,
       videoDurationSeconds: lessons.videoDurationSeconds,
       isFreePreview: lessons.isFreePreview,
+      quizId: lessons.quizId,
       quizQuestionCount: quizQuestionCountSql,
     })
     .from(lessons)
     .where(eq(lessons.courseId, courseId))
     .orderBy(asc(lessons.orderIndex));
+}
+
+/** Builder outline (21a), ordered by order_index. */
+export async function listOutlineByCourseId(
+  courseId: string,
+): Promise<LessonOutlineItemDTO[]> {
+  const rows = await selectOutlineRows(db, courseId);
   return rows.map(toLessonOutlineItemDTO);
+}
+
+/**
+ * Checklist rows for the publish gate (card S1-08 §1, owner review): runs
+ * INSIDE the caller's submit/publish transaction as a SEPARATE statement
+ * AFTER the FOR UPDATE on the courses row — never inside the locking
+ * statement itself (a subquery there reads the pre-wait snapshot under
+ * READ COMMITTED and could miss a 10th question another tab just
+ * committed).
+ */
+export async function listChecklistRows(
+  executor: DbOrTx,
+  courseId: string,
+): Promise<LessonChecklistRow[]> {
+  const rows = await selectOutlineRows(executor, courseId);
+  return rows.map(toLessonChecklistRow);
 }
 
 /** Lesson title lookup for the editor placeholder page (must belong to the course). */

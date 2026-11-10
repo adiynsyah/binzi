@@ -7,7 +7,7 @@ import { join } from "node:path";
 
 import type { BrowserContext, Locator, Page } from "@playwright/test";
 
-import { expect } from "../fixtures";
+import { expect, withE2eDb } from "../fixtures";
 import { widthSpecOf } from "./widths";
 
 /** Card §2 guest pages (no token on /reset-password → expired state) +
@@ -314,4 +314,106 @@ export async function createLessonViaApi(
   );
   expect(response.status(), await response.text()).toBe(201);
   return ((await response.json()) as { data: { id: string } }).data.id;
+}
+
+// ------------------------------------------------- S1-08 API fixtures
+
+/** One neutral filled paragraph document (content + description fills). */
+function paragraphDoc(text: string) {
+  return {
+    type: "doc",
+    content: [{ type: "paragraph", content: [{ type: "text", text }] }],
+  };
+}
+
+/** A valid PG question body, token-distinct texts, key on option one. */
+function publishablePgBody(label: string) {
+  return {
+    type: "SINGLE_CHOICE",
+    text: `Pertanyaan PG ${label} untuk tes e2e.`,
+    explanation: `Pembahasan PG ${label} untuk tes e2e.`,
+    options: [
+      { text: `Opsi satu ${label}`, isCorrect: true },
+      { text: `Opsi dua ${label}`, isCorrect: false },
+      { text: `Opsi tiga ${label}`, isCorrect: false },
+      { text: `Opsi empat ${label}`, isCorrect: false },
+    ],
+  };
+}
+
+/** POSTs one valid PG question through the real API. */
+async function postQuestionViaApi(
+  context: BrowserContext,
+  quizId: string,
+  label: string,
+): Promise<void> {
+  const response = await context.request.post(
+    `/api/cms/quizzes/${quizId}/questions`,
+    { data: publishablePgBody(label) },
+  );
+  expect(response.status(), await response.text()).toBe(201);
+}
+
+/**
+ * A course that passes the whole S1-08 publish gate, built through the real
+ * APIs with the signed-in EDITOR context's cookies (card §7): filled
+ * description, one lesson with content, 10 PG questions on its quiz, 10 on
+ * the FINAL quiz. Copy is neutral with a token woven in (CLAUDE.md). The
+ * FINAL quiz id is read from the database — it is part of no API answer
+ * (same as finalQuizIdOf in cms-quiz-editor.spec.ts).
+ */
+export async function createPublishableCourseViaApi(
+  context: BrowserContext,
+  title: string,
+): Promise<{
+  courseId: string;
+  lessonId: string;
+  lessonQuizId: string;
+  finalQuizId: string;
+}> {
+  const courseId = await createCourseViaApi(context, { title });
+
+  const description = await context.request.put(
+    `/api/cms/courses/${courseId}/description`,
+    {
+      data: {
+        description: paragraphDoc(`Deskripsi netral ${title} untuk tes e2e.`),
+      },
+    },
+  );
+  expect(description.status(), await description.text()).toBe(200);
+
+  const lessonResponse = await context.request.post(
+    `/api/cms/courses/${courseId}/lessons`,
+    { data: { title: `${title} materi 1` } },
+  );
+  expect(lessonResponse.status(), await lessonResponse.text()).toBe(201);
+  const lesson = (await lessonResponse.json()) as {
+    data: { id: string; quizId: string };
+  };
+  const lessonId = lesson.data.id;
+  const lessonQuizId = lesson.data.quizId;
+
+  const content = await context.request.patch(
+    `/api/cms/courses/${courseId}/lessons/${lessonId}`,
+    { data: { content: paragraphDoc(`Isi materi netral ${title} untuk tes e2e.`) } },
+  );
+  expect(content.status(), await content.text()).toBe(200);
+
+  for (let n = 1; n <= 10; n += 1) {
+    await postQuestionViaApi(context, lessonQuizId, `materi ${n} ${title}`);
+  }
+
+  const rows = await withE2eDb(
+    (sql) => sql`select final_quiz_id as id from courses where id = ${courseId}`,
+  );
+  const finalQuizId = rows[0]?.id;
+  if (!finalQuizId) {
+    throw new Error(`course ${courseId} was created without a FINAL quiz`);
+  }
+  for (let n = 1; n <= 10; n += 1) {
+    await postQuestionViaApi(context, finalQuizId, `final ${n} ${title}`);
+  }
+
+  return { courseId, lessonId, lessonQuizId, finalQuizId };
 }

@@ -59,6 +59,32 @@ export function toLessonOutlineItemDTO(
   };
 }
 
+/**
+ * Checklist row for the publish gate (card S1-08 §1): exactly the outline
+ * facts the publish checklist needs, plus the linked quiz id for the
+ * question-rule pass. isContentEmpty comes from the SAME isDocEmpty as the
+ * outline DTO — one checklist source, so builder and gate can never
+ * disagree about emptiness or counts.
+ */
+export type LessonChecklistRow = {
+  orderIndex: number;
+  isContentEmpty: boolean;
+  /** CRS-06: created together with the lesson; null only for legacy rows. */
+  quizId: string | null;
+  quizQuestionCount: number;
+};
+
+export function toLessonChecklistRow(
+  row: LessonOutlineRow & { quizId: string | null },
+): LessonChecklistRow {
+  return {
+    orderIndex: row.orderIndex,
+    isContentEmpty: isDocEmpty(row.content),
+    quizId: row.quizId,
+    quizQuestionCount: row.quizQuestionCount,
+  };
+}
+
 export type CreatedLessonRow = Pick<
   typeof lessons.$inferSelect,
   | "id"

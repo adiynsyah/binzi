@@ -52,6 +52,7 @@ const buttonHoverSim: Record<NonNullable<ButtonProps["variant"]>, CSSProperties>
   dark: { backgroundColor: "var(--ink-surface)" },
   ghost: { backgroundColor: "var(--fill)" },
   danger: { filter: "brightness(0.9)" },
+  success: { filter: "brightness(0.9)" },
 };
 
 const inputHoverSim: CSSProperties = { borderColor: "var(--text-subtle)" };
@@ -102,6 +103,7 @@ const buttonRows: {
   { name: "Gelap", variant: "dark", label: "Unduh", loadingLabel: "Mengunduh…" },
   { name: "Hantu", variant: "ghost", label: "Salin", loadingLabel: "Menyalin…" },
   { name: "Bahaya", variant: "danger", label: "Hapus akun", loadingLabel: "Menghapus…" },
+  { name: "Sukses", variant: "success", label: "Setujui & terbitkan", loadingLabel: "Menerbitkan…" },
 ];
 
 // Dev-only invalid document for the fallback demo (card S1-03a §7). An

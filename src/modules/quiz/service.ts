@@ -7,6 +7,8 @@ import {
   LESSON_WEIGHT_KEY,
   MIN_QUESTIONS_KEY,
   createQuestionTx,
+  findQuestionRuleViolations,
+  formatQuizRuleViolation,
   insertEmptyFinalQuiz,
   insertEmptyLessonQuiz,
   selectMinQuestionsText,
@@ -27,6 +29,8 @@ import { NotFoundError } from "@/lib/errors";
 
 export type { DbTx };
 export type { Actor };
+export type { LabeledQuiz, QuizRuleViolation } from "./queries";
+export { findQuestionRuleViolations, formatQuizRuleViolation };
 export type {
   QuestionSummaryDTO,
   QuizEditorDTO,

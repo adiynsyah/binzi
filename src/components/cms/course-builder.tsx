@@ -30,6 +30,7 @@ import { useForm, FormProvider } from "react-hook-form";
 import { CMS_HEADING_CLASS } from "@/components/cms/cms-pages";
 import { STATUS_BADGE } from "@/components/cms/course-status";
 import { BadgeStatus } from "@/components/ui/badge-status";
+import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
 import {
   updateCourseInput,
@@ -41,6 +42,11 @@ import type {
 } from "@/modules/course/service";
 
 import { AddLessonDialog } from "./add-lesson-dialog";
+import {
+  PublishCourseDialog,
+  SubmitCourseDialog,
+  type StatusBannerState,
+} from "./course-publish-dialogs";
 import { CourseSettingsPanel } from "./course-settings-panel";
 import { LessonOutline } from "./lesson-outline";
 
@@ -73,14 +79,23 @@ function settingsFrom(course: CmsCourseBuilderDTO): SettingsValues {
 
 export function CourseBuilder({ builder }: { builder: CourseBuilderDTO }) {
   const router = useRouter();
-  const { course, outline, checklist, minQuestions } = builder;
+  const { course, outline, checklist, minQuestions, review, actions } = builder;
   const editable = course.status === "DRAFT";
 
   const [banner, setBanner] = useState<
     | { tone: "success" | "error"; title: string; description?: string }
     | null
   >(null);
+  // Status banner under the heading row (card §4): the two gate dialogs,
+  // the Simpan 409 lock (§5.1), and the add-lesson 409 (§5.2) report here —
+  // in every width it sits next to the h1 that receives focus, unlike the
+  // right-column panel banner that other Simpan results keep using.
+  const [statusBanner, setStatusBanner] = useState<StatusBannerState | null>(
+    null,
+  );
   const [addOpen, setAddOpen] = useState(false);
+  const [submitOpen, setSubmitOpen] = useState(false);
+  const [publishOpen, setPublishOpen] = useState(false);
 
   const form = useForm<SettingsValues>({
     resolver: standardSchemaResolver(updateCourseInput),
@@ -92,7 +107,7 @@ export function CourseBuilder({ builder }: { builder: CourseBuilderDTO }) {
     handleSubmit,
     setError,
     reset,
-    formState: { isSubmitting },
+    formState: { isSubmitting, isDirty },
   } = form;
 
   // Focus pass by stable panel ids (the fields render in the panel across
@@ -134,6 +149,61 @@ export function CourseBuilder({ builder }: { builder: CourseBuilderDTO }) {
     }
   }, [isSubmitting, banner]);
 
+  // Post-refresh focus (card §4/§5, owner review 5). ONE helper serves
+  // every focus return: the opener while it is still connected, otherwise
+  // the builder h1 (tabIndex -1) — a refresh that flips the page can
+  // unmount the opener, and focus must never fall to <body>. The dialog
+  // close paths call it through their focusReturn prop; the refresh paths
+  // ALSO leave a request here, consumed when the refreshed props land.
+  const headingRef = useRef<HTMLHeadingElement | null>(null);
+  const submitRef = useRef<HTMLButtonElement | null>(null);
+  const publishRef = useRef<HTMLButtonElement | null>(null);
+  const postRefreshFocus = useRef<{ pending: boolean; target: HTMLElement | null }>(
+    { pending: false, target: null },
+  );
+
+  function focusOpenerElseHeading(target: HTMLElement | null): void {
+    if (target !== null && target.isConnected) target.focus();
+    else headingRef.current?.focus();
+  }
+
+  function requestPostRefreshFocus(target: HTMLElement | null): void {
+    postRefreshFocus.current = { pending: true, target };
+  }
+
+  // Consumed on EVERY refresh: the dependency is the builder PROP identity
+  // — each server render hands the page a new object, so this runs exactly
+  // once per landed refresh (owner review 5).
+  useEffect(() => {
+    const request = postRefreshFocus.current;
+    if (!request.pending) return;
+    request.pending = false;
+    focusOpenerElseHeading(request.target);
+  }, [builder]);
+
+  // The gate dialogs' response table (card §4): banner always, refresh +
+  // post-refresh focus only for the statuses that can change the page.
+  function handleGateOutcome(
+    opener: HTMLElement | null,
+    banner: StatusBannerState,
+    refresh: boolean,
+  ): void {
+    setStatusBanner(banner);
+    if (refresh) {
+      router.refresh();
+      requestPostRefreshFocus(opener);
+    }
+  }
+
+  // Add-lesson 409 (§5.2): the dialog is gone after the status flip, so it
+  // reports through this prop — status banner + refresh, focus to the h1
+  // (every add button lives in now-read-only territory).
+  function handleAddLessonConflict(message: string): void {
+    setStatusBanner({ tone: "error", title: message });
+    router.refresh();
+    requestPostRefreshFocus(null);
+  }
+
   // Handler-level double-submit guard: softDisabled stays clickable.
   const inFlight = useRef(false);
 
@@ -173,7 +243,10 @@ export function CourseBuilder({ builder }: { builder: CourseBuilderDTO }) {
         const json = (await response.json()) as {
           error?: { message?: string };
         };
-        setBanner({
+        // §5.1: the lock message goes to the STATUS banner under the
+        // heading — in 360 the settings panel sits far below the h1 that
+        // receives focus, and the form is read-only after the refresh.
+        setStatusBanner({
           tone: "error",
           title:
             json.error?.message ??
@@ -181,7 +254,11 @@ export function CourseBuilder({ builder }: { builder: CourseBuilderDTO }) {
         });
         // The refresh flips the page to its read-only shape (card §2).
         router.refresh();
+        // TWO focus requests (owner review 4): Simpan right away — the
+        // effect above — and a post-refresh one, because after the refresh
+        // Simpan is unmounted and the h1 takes over.
         pendingSaveFocus.current = true;
+        requestPostRefreshFocus(saveRef.current);
       } else {
         setBanner({
           tone: "error",
@@ -217,25 +294,69 @@ export function CourseBuilder({ builder }: { builder: CourseBuilderDTO }) {
   return (
     <div>
       <div className="flex flex-wrap items-center gap-3">
-        {/* min-w-0 + wrap-anywhere: an 80-char no-space title must not
-            stretch the page sideways (A-19b). */}
-        <h1 className={`${CMS_HEADING_CLASS} min-w-0`}>{course.title}</h1>
+        {/* min-w-0: an 80-char no-space title must not stretch the page
+            sideways (A-19b). tabIndex -1: the post-refresh focus fallback
+            lands here when an opener button unmounts. */}
+        <h1
+          ref={headingRef}
+          tabIndex={-1}
+          className={`${CMS_HEADING_CLASS} min-w-0`}
+        >
+          {course.title}
+        </h1>
         <BadgeStatus status={STATUS_BADGE[course.status]} />
-        {editable ? (
-          <Button
-            ref={saveRef}
-            type="submit"
-            form="course-settings-form"
-            variant="secondary"
-            className="ml-auto"
-            loading={isSubmitting}
-            loadingLabel="Menyimpan…"
-            softDisabled={isSubmitting}
-          >
-            Simpan
-          </Button>
-        ) : null}
+        {(editable || actions.canSubmit || actions.canPublish) && (
+          <div className="ml-auto flex flex-wrap items-center gap-3">
+            {editable ? (
+              <Button
+                ref={saveRef}
+                type="submit"
+                form="course-settings-form"
+                variant="secondary"
+                loading={isSubmitting}
+                loadingLabel="Menyimpan…"
+                softDisabled={isSubmitting}
+              >
+                Simpan
+              </Button>
+            ) : null}
+            {actions.canSubmit ? (
+              <Button
+                ref={submitRef}
+                type="button"
+                variant="dark"
+                onClick={() => setSubmitOpen(true)}
+              >
+                Kirim untuk persetujuan
+              </Button>
+            ) : null}
+            {actions.canPublish ? (
+              <Button
+                ref={publishRef}
+                type="button"
+                variant="success"
+                onClick={() => setPublishOpen(true)}
+              >
+                Setujui &amp; terbitkan
+              </Button>
+            ) : null}
+          </div>
+        )}
       </div>
+      {statusBanner ? (
+        <div className="mt-4">
+          <Banner
+            tone={statusBanner.tone}
+            title={statusBanner.title}
+            description={statusBanner.description}
+            onDismissed={
+              statusBanner.tone === "success"
+                ? () => setStatusBanner(null)
+                : undefined
+            }
+          />
+        </div>
+      ) : null}
       {course.summary ? (
         <p className="mt-2 max-w-(--width-measure) text-[15px] text-text-muted">
           {course.summary}
@@ -272,6 +393,34 @@ export function CourseBuilder({ builder }: { builder: CourseBuilderDTO }) {
           courseId={course.id}
           courseTitle={course.title}
           nextOrderIndex={outline.length + 1}
+          onConflict={handleAddLessonConflict}
+        />
+      ) : null}
+
+      {actions.canSubmit ? (
+        <SubmitCourseDialog
+          open={submitOpen}
+          onOpenChange={setSubmitOpen}
+          courseId={course.id}
+          checklist={checklist}
+          settingsDirty={isDirty}
+          focusReturn={() => focusOpenerElseHeading(submitRef.current)}
+          onOutcome={(banner, refresh) =>
+            handleGateOutcome(submitRef.current, banner, refresh)
+          }
+        />
+      ) : null}
+      {actions.canPublish ? (
+        <PublishCourseDialog
+          open={publishOpen}
+          onOpenChange={setPublishOpen}
+          courseId={course.id}
+          checklist={checklist}
+          review={review}
+          focusReturn={() => focusOpenerElseHeading(publishRef.current)}
+          onOutcome={(banner, refresh) =>
+            handleGateOutcome(publishRef.current, banner, refresh)
+          }
         />
       ) : null}
     </div>

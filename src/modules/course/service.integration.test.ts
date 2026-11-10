@@ -27,7 +27,7 @@
 import { fileURLToPath } from "node:url";
 
 import { PGlite } from "@electric-sql/pglite";
-import { and, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
 import { ZodError } from "zod";
@@ -35,8 +35,18 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import type { Db } from "@/db/client";
 import * as schema from "@/db/schema";
-import { auditLogs, courses, quizzes, systemSettings, users } from "@/db/schema";
+import {
+  auditLogs,
+  courses,
+  questionOptions,
+  questions,
+  quizzes,
+  systemSettings,
+  users,
+} from "@/db/schema";
 import { ConflictError, ForbiddenError, NotFoundError } from "@/lib/errors";
+import { createLesson, updateLessonContent } from "@/modules/lesson/service";
+import { createQuestion } from "@/modules/quiz/service";
 
 // queries.ts carries "server-only" and imports the singleton `db` from
 // "@/db". "server-only" throws outside a React Server bundle — stub it (same
@@ -76,7 +86,10 @@ import {
   getCourseBuilder,
   getCourseDescriptionEditor,
   getCourseDetail,
+  listCourseApprovalQueue,
   listCourses,
+  publishCourse,
+  submitCourse,
   updateCourse,
   updateCourseDescription,
 } from "./service";
@@ -87,6 +100,9 @@ let pglite: PGlite;
 let db: Db;
 
 const EDITOR = { id: "u-editor", role: "EDITOR" as const };
+const EDITOR_B = { id: "u-editor-b", role: "EDITOR" as const };
+const ADMIN = { id: "u-admin", role: "ADMIN" as const };
+const SUPER_ADMIN = { id: "u-super", role: "SUPER_ADMIN" as const };
 const MEMBER = { id: "u-member", role: "MEMBER" as const };
 
 beforeAll(async () => {
@@ -112,6 +128,27 @@ beforeAll(async () => {
       email: "member@example.com",
       emailVerified: true,
       role: "MEMBER",
+    },
+    {
+      id: EDITOR_B.id,
+      name: "Editor Beta",
+      email: "editor-b@example.com",
+      emailVerified: true,
+      role: "EDITOR",
+    },
+    {
+      id: ADMIN.id,
+      name: "Admin Satu",
+      email: "admin@example.com",
+      emailVerified: true,
+      role: "ADMIN",
+    },
+    {
+      id: SUPER_ADMIN.id,
+      name: "Super Satu",
+      email: "super@example.com",
+      emailVerified: true,
+      role: "SUPER_ADMIN",
     },
   ]);
 
@@ -832,5 +869,518 @@ describe("updateCourseDescription & getCourseDescriptionEditor (card S1-04)", ()
     await expect(
       getCourseDescriptionEditor(MEMBER, { bukan: "kontrak" }),
     ).rejects.toBeInstanceOf(ForbiddenError);
+  });
+});
+
+// ------------------------------------------- submit / publish (card S1-08)
+//
+// Covers the card's "Selesai jika" for §1–§3 and §6:
+// - submitCourse: success (IN_REVIEW + reviewer = sender + updated_by + ONE
+//   course.submit audit with exact before/after), reviewer = sender ≠
+//   creator, ADMIN/SUPER_ADMIN/MEMBER → 403 with no write/audit, non-DRAFT
+//   → 409, unknown id → 404.
+// - Publish gate (checklist first, then quiz rules, lessons before FINAL):
+//   every failure → 409 with the card's exact copy and DB/audit untouched.
+// - publishCourse: ADMIN + SUPER_ADMIN success (PUBLISHED + published_at +
+//   reviewer untouched + course.publish audit), EDITOR → 403, DRAFT/PUBLISHED
+//   → 409, reviewer NULL → 409, min_questions raised after submit → 409,
+//   question corrupted after submit → 409.
+// - getCourseBuilder: review null before submit, filled after; actions per
+//   role × status.
+// - listCourseApprovalQueue: IN_REVIEW only, reviewed_at asc, EDITOR sees
+//   own submissions only, NULL reviewer → reviewerName null, MEMBER → 403.
+
+/** Neutral filled TipTap document shared by content + description fills. */
+const TERBIT_DOC = {
+  type: "doc",
+  content: [
+    {
+      type: "paragraph",
+      content: [{ type: "text", text: "Isi netral untuk tes kirim terbitkan." }],
+    },
+  ],
+};
+
+/** A rule-complete SINGLE_CHOICE question (unique text per prefix+number). */
+function pgQuestionFor(prefix: string, n: number) {
+  return {
+    type: "SINGLE_CHOICE" as const,
+    text: `${prefix} pertanyaan ${n}`,
+    explanation: `${prefix} pembahasan ${n}`,
+    options: [
+      { text: `${prefix} opsi satu ${n}`, isCorrect: true },
+      { text: `${prefix} opsi dua ${n}`, isCorrect: false },
+      { text: `${prefix} opsi tiga ${n}`, isCorrect: false },
+      { text: `${prefix} opsi empat ${n}`, isCorrect: false },
+    ],
+  };
+}
+
+/**
+ * Build a course that passes the whole publish gate by default (card §1):
+ * filled description, `lessons` lessons with content + `lessonQuestions`
+ * rule-complete questions each, `finalQuestions` on the FINAL quiz. Every
+ * knob exists so gate-failure tests can break exactly one item.
+ */
+async function fillCourseForSubmit(
+  prefix: string,
+  options: {
+    lessons?: number;
+    lessonQuestions?: number;
+    finalQuestions?: number;
+    description?: boolean;
+  } = {},
+) {
+  const {
+    lessons = 1,
+    lessonQuestions = 10,
+    finalQuestions = 10,
+    description = true,
+  } = options;
+
+  const created = await createCourse(EDITOR, inputFor(prefix));
+  if (description) {
+    await updateCourseDescription(EDITOR, created.id, {
+      description: TERBIT_DOC,
+    });
+  }
+
+  const lessonQuizIds: string[] = [];
+  for (let index = 1; index <= lessons; index += 1) {
+    const lesson = await createLesson(EDITOR, created.id, {
+      title: `${created.title} materi ${index}`,
+    });
+    await updateLessonContent(
+      EDITOR,
+      { courseId: created.id, lessonId: lesson.id },
+      { content: TERBIT_DOC },
+    );
+    for (let n = 1; n <= lessonQuestions; n += 1) {
+      await createQuestion(EDITOR, { quizId: lesson.quizId }, pgQuestionFor(prefix, n));
+    }
+    lessonQuizIds.push(lesson.quizId);
+  }
+
+  const finalQuizId = created.finalQuiz?.id;
+  if (!finalQuizId) throw new Error("fillCourseForSubmit: final quiz missing");
+  for (let n = 1; n <= finalQuestions; n += 1) {
+    await createQuestion(EDITOR, { quizId: finalQuizId }, pgQuestionFor(prefix, n));
+  }
+
+  return { courseId: created.id, title: created.title, lessonQuizIds, finalQuizId };
+}
+
+/** Course audits filtered by action (owner review 11: never total rows). */
+function actionAudits(
+  courseId: string,
+  action: "course.submit" | "course.publish",
+) {
+  return db
+    .select()
+    .from(auditLogs)
+    .where(
+      and(
+        eq(auditLogs.entityType, "course"),
+        eq(auditLogs.entityId, courseId),
+        eq(auditLogs.action, action),
+      ),
+    );
+}
+
+async function courseRowOf(courseId: string) {
+  const [row] = await db.select().from(courses).where(eq(courses.id, courseId));
+  if (!row) throw new Error("course row missing");
+  return row;
+}
+
+/** Gate failure side effect: still DRAFT, no reviewer, no submit audit. */
+async function expectStillDraft(courseId: string) {
+  const row = await courseRowOf(courseId);
+  expect(row.status).toBe("DRAFT");
+  expect(row.reviewerId).toBeNull();
+  expect(row.reviewedAt).toBeNull();
+  expect(await actionAudits(courseId, "course.submit")).toHaveLength(0);
+}
+
+/** Question ids of one quiz in stable order (order_index asc). */
+async function questionIdsOf(quizId: string) {
+  const rows = await db
+    .select({ id: questions.id })
+    .from(questions)
+    .where(eq(questions.quizId, quizId))
+    .orderBy(asc(questions.orderIndex));
+  return rows.map((row) => row.id);
+}
+
+/** SQL-level corruption: flip the first incorrect option to correct. */
+async function flipFirstIncorrectOptionTrue(questionId: string) {
+  const candidates = await db
+    .select({ id: questionOptions.id })
+    .from(questionOptions)
+    .where(
+      and(
+        eq(questionOptions.questionId, questionId),
+        eq(questionOptions.isCorrect, false),
+      ),
+    )
+    .orderBy(asc(questionOptions.orderIndex));
+  const target = candidates[0];
+  if (!target) throw new Error("no incorrect option to flip");
+  await db
+    .update(questionOptions)
+    .set({ isCorrect: true })
+    .where(eq(questionOptions.id, target.id));
+}
+
+describe("submitCourse — kirim untuk persetujuan (card S1-08 §2)", () => {
+  it("success: IN_REVIEW, reviewer = sender, updated_by, ONE course.submit audit", async () => {
+    const setup = await fillCourseForSubmit("sbm");
+
+    const dto = await submitCourse(EDITOR, setup.courseId);
+    expect(dto.status).toBe("IN_REVIEW");
+    expect(dto.finalQuiz?.questionCount).toBe(10); // fresh post-lock count
+
+    const row = await courseRowOf(setup.courseId);
+    expect(row.status).toBe("IN_REVIEW");
+    expect(row.reviewerId).toBe(EDITOR.id);
+    expect(row.reviewedAt).toBeInstanceOf(Date);
+    expect(row.updatedBy).toBe(EDITOR.id);
+
+    const audits = await actionAudits(setup.courseId, "course.submit");
+    expect(audits).toHaveLength(1);
+    expect(audits[0]?.actorId).toBe(EDITOR.id);
+    expect(audits[0]?.before).toEqual({ status: "DRAFT" });
+    expect(audits[0]?.after).toEqual({
+      status: "IN_REVIEW",
+      reviewerId: EDITOR.id,
+      reviewedAt: expect.any(String),
+    });
+    expect(audits[0]?.ip).toBeNull();
+  });
+
+  it("reviewer = the sender, not the creator", async () => {
+    const setup = await fillCourseForSubmit("rvw"); // created by EDITOR
+
+    const dto = await submitCourse(EDITOR_B, setup.courseId);
+    expect(dto.status).toBe("IN_REVIEW");
+
+    const row = await courseRowOf(setup.courseId);
+    expect(row.createdBy).toBe(EDITOR.id);
+    expect(row.reviewerId).toBe(EDITOR_B.id);
+  });
+
+  it("ADMIN, SUPER_ADMIN, MEMBER → 403 with no write and no audit", async () => {
+    const setup = await fillCourseForSubmit("fbd");
+
+    for (const actor of [ADMIN, SUPER_ADMIN, MEMBER]) {
+      await expect(submitCourse(actor, setup.courseId)).rejects.toBeInstanceOf(
+        ForbiddenError,
+      );
+    }
+
+    await expectStillDraft(setup.courseId);
+  });
+
+  it("non-DRAFT → 409 with the exact copy (second submit)", async () => {
+    const setup = await fillCourseForSubmit("nd");
+    await submitCourse(EDITOR, setup.courseId);
+
+    await expect(submitCourse(EDITOR, setup.courseId)).rejects.toMatchObject({
+      message: "Kursus sudah dikirim atau terbit — hanya draf yang bisa dikirim.",
+    });
+  });
+
+  it("unknown id → 404", async () => {
+    await expect(
+      submitCourse(EDITOR, "8f38a3b3-9999-4999-8999-999999999999"),
+    ).rejects.toBeInstanceOf(NotFoundError);
+  });
+});
+
+describe("submit gate — checklist first, then quiz rules (card S1-08 §1)", () => {
+  it("no lessons → 409 checklist copy, DB + audit untouched", async () => {
+    const setup = await fillCourseForSubmit("gtn", { lessons: 0 });
+
+    await expect(submitCourse(EDITOR, setup.courseId)).rejects.toMatchObject({
+      message: "Syarat terbit belum lengkap — lihat daftar syarat di halaman kursus.",
+    });
+    await expectStillDraft(setup.courseId);
+  });
+
+  it("lesson quiz with 9 questions → 409 checklist copy", async () => {
+    const setup = await fillCourseForSubmit("gsq", { lessonQuestions: 9 });
+
+    await expect(submitCourse(EDITOR, setup.courseId)).rejects.toMatchObject({
+      message: "Syarat terbit belum lengkap — lihat daftar syarat di halaman kursus.",
+    });
+    await expectStillDraft(setup.courseId);
+  });
+
+  it("empty description → 409 checklist copy", async () => {
+    const setup = await fillCourseForSubmit("gds", { description: false });
+
+    await expect(submitCourse(EDITOR, setup.courseId)).rejects.toMatchObject({
+      message: "Syarat terbit belum lengkap — lihat daftar syarat di halaman kursus.",
+    });
+    await expectStillDraft(setup.courseId);
+  });
+
+  it("two answer keys in lesson quiz q02 → exact violation copy", async () => {
+    const setup = await fillCourseForSubmit("gkunci");
+    const ids = await questionIdsOf(setup.lessonQuizIds[0]!);
+    await flipFirstIncorrectOptionTrue(ids[1]!); // soal 02 → two keys
+
+    await expect(submitCourse(EDITOR, setup.courseId)).rejects.toMatchObject({
+      message: "Quiz materi 1, soal 02: Tandai tepat satu kunci jawaban.",
+    });
+    await expectStillDraft(setup.courseId);
+  });
+
+  it("NULL explanation in Final Quiz q01 → exact violation copy", async () => {
+    const setup = await fillCourseForSubmit("gnull");
+    const ids = await questionIdsOf(setup.finalQuizId);
+    await db
+      .update(questions)
+      .set({ explanation: null })
+      .where(eq(questions.id, ids[0]!));
+
+    await expect(submitCourse(EDITOR, setup.courseId)).rejects.toMatchObject({
+      message: "Final Quiz, soal 01: Pembahasan wajib diisi.",
+    });
+    await expectStillDraft(setup.courseId);
+  });
+
+  it("report order: lesson quiz violations before Final Quiz", async () => {
+    const setup = await fillCourseForSubmit("gurut");
+    const lessonIds = await questionIdsOf(setup.lessonQuizIds[0]!);
+    await flipFirstIncorrectOptionTrue(lessonIds[1]!); // lesson q02: two keys
+    const finalIds = await questionIdsOf(setup.finalQuizId);
+    await db
+      .update(questions)
+      .set({ explanation: null })
+      .where(eq(questions.id, finalIds[0]!)); // final q01: NULL explanation
+
+    await expect(submitCourse(EDITOR, setup.courseId)).rejects.toMatchObject({
+      message: "Quiz materi 1, soal 02: Tandai tepat satu kunci jawaban.",
+    });
+    await expectStillDraft(setup.courseId);
+  });
+});
+
+describe("publishCourse — setujui & terbitkan (card S1-08 §2)", () => {
+  it("ADMIN success: PUBLISHED, published_at, reviewer untouched, ONE course.publish audit", async () => {
+    const setup = await fillCourseForSubmit("pbm");
+    await submitCourse(EDITOR, setup.courseId);
+    const submittedRow = await courseRowOf(setup.courseId);
+
+    const dto = await publishCourse(ADMIN, setup.courseId);
+    expect(dto.status).toBe("PUBLISHED");
+    expect(dto.finalQuiz?.questionCount).toBe(10);
+
+    const row = await courseRowOf(setup.courseId);
+    expect(row.status).toBe("PUBLISHED");
+    expect(row.publishedAt).toBeInstanceOf(Date);
+    expect(row.reviewerId).toBe(EDITOR.id); // reviewer facts untouched
+    expect(row.reviewedAt?.getTime()).toBe(submittedRow.reviewedAt?.getTime());
+
+    const audits = await actionAudits(setup.courseId, "course.publish");
+    expect(audits).toHaveLength(1);
+    expect(audits[0]?.actorId).toBe(ADMIN.id);
+    expect(audits[0]?.before).toEqual({ status: "IN_REVIEW" });
+    expect(audits[0]?.after).toEqual({
+      status: "PUBLISHED",
+      publishedAt: expect.any(String),
+    });
+    expect(audits[0]?.ip).toBeNull();
+
+    // The submit audit is still there (filtered per action, not totals).
+    expect(await actionAudits(setup.courseId, "course.submit")).toHaveLength(1);
+  });
+
+  it("SUPER_ADMIN can publish too", async () => {
+    const setup = await fillCourseForSubmit("pbsuper");
+    await submitCourse(EDITOR, setup.courseId);
+
+    const dto = await publishCourse(SUPER_ADMIN, setup.courseId);
+    expect(dto.status).toBe("PUBLISHED");
+    expect((await courseRowOf(setup.courseId)).status).toBe("PUBLISHED");
+  });
+
+  it("EDITOR → 403; DRAFT → 409; publishing again → 409", async () => {
+    const setup = await fillCourseForSubmit("pgd");
+
+    await expect(publishCourse(EDITOR, setup.courseId)).rejects.toBeInstanceOf(
+      ForbiddenError,
+    );
+    await expect(publishCourse(ADMIN, setup.courseId)).rejects.toMatchObject({
+      message: "Kursus tidak sedang menunggu persetujuan.",
+    });
+
+    await submitCourse(EDITOR, setup.courseId);
+    await publishCourse(ADMIN, setup.courseId);
+    await expect(publishCourse(ADMIN, setup.courseId)).rejects.toMatchObject({
+      message: "Kursus tidak sedang menunggu persetujuan.",
+    });
+  });
+
+  it("reviewer NULL (SQL) → 409 with the exact copy", async () => {
+    const setup = await fillCourseForSubmit("pnull");
+    await submitCourse(EDITOR, setup.courseId);
+    await db
+      .update(courses)
+      .set({ reviewerId: null })
+      .where(eq(courses.id, setup.courseId));
+
+    await expect(publishCourse(ADMIN, setup.courseId)).rejects.toMatchObject({
+      message: "Penggarap belum tercatat — kursus harus dikirim ulang dari draf.",
+    });
+    expect((await courseRowOf(setup.courseId)).status).toBe("IN_REVIEW");
+    expect(await actionAudits(setup.courseId, "course.publish")).toHaveLength(0);
+  });
+
+  it("min_questions raised after submit → 409 checklist (then restored)", async () => {
+    const setup = await fillCourseForSubmit("pmin");
+    await submitCourse(EDITOR, setup.courseId);
+
+    try {
+      await db
+        .update(systemSettings)
+        .set({ value: 11 })
+        .where(eq(systemSettings.key, "quiz.min_questions"));
+
+      await expect(publishCourse(ADMIN, setup.courseId)).rejects.toMatchObject({
+        message: "Syarat terbit belum lengkap — lihat daftar syarat di halaman kursus.",
+      });
+      expect((await courseRowOf(setup.courseId)).status).toBe("IN_REVIEW");
+    } finally {
+      await db
+        .update(systemSettings)
+        .set({ value: 10 })
+        .where(eq(systemSettings.key, "quiz.min_questions"));
+    }
+  });
+
+  it("question corrupted after submit → 409 rule copy", async () => {
+    const setup = await fillCourseForSubmit("pcorrupt");
+    await submitCourse(EDITOR, setup.courseId);
+    const ids = await questionIdsOf(setup.finalQuizId);
+    await db
+      .update(questions)
+      .set({ explanation: null })
+      .where(eq(questions.id, ids[0]!));
+
+    await expect(publishCourse(ADMIN, setup.courseId)).rejects.toMatchObject({
+      message: "Final Quiz, soal 01: Pembahasan wajib diisi.",
+    });
+    expect((await courseRowOf(setup.courseId)).status).toBe("IN_REVIEW");
+  });
+});
+
+describe("getCourseBuilder — review + actions (card S1-08 §3)", () => {
+  it("DRAFT: review null, actions per role", async () => {
+    const setup = await fillCourseForSubmit("act");
+
+    const asEditor = await getCourseBuilder(EDITOR, { courseId: setup.courseId });
+    expect(asEditor.course.status).toBe("DRAFT");
+    expect(asEditor.review).toBeNull();
+    expect(asEditor.actions).toEqual({ canSubmit: true, canPublish: false });
+
+    const asAdmin = await getCourseBuilder(ADMIN, { courseId: setup.courseId });
+    expect(asAdmin.review).toBeNull();
+    expect(asAdmin.actions).toEqual({ canSubmit: false, canPublish: false });
+  });
+
+  it("IN_REVIEW: review filled (blank name → email), actions flip", async () => {
+    const setup = await fillCourseForSubmit("actrvw");
+    await submitCourse(EDITOR, setup.courseId);
+
+    const asEditor = await getCourseBuilder(EDITOR, { courseId: setup.courseId });
+    expect(asEditor.course.status).toBe("IN_REVIEW");
+    expect(asEditor.review).toEqual({
+      reviewerName: "editor@example.com", // u-editor has a blank name
+      reviewedAt: expect.any(String),
+    });
+    expect(asEditor.actions).toEqual({ canSubmit: false, canPublish: false });
+
+    const asAdmin = await getCourseBuilder(ADMIN, { courseId: setup.courseId });
+    expect(asAdmin.actions).toEqual({ canSubmit: false, canPublish: true });
+  });
+
+  it("PUBLISHED: every action false, review stays", async () => {
+    const setup = await fillCourseForSubmit("actpb");
+    await submitCourse(EDITOR, setup.courseId);
+    await publishCourse(ADMIN, setup.courseId);
+
+    const asAdmin = await getCourseBuilder(ADMIN, { courseId: setup.courseId });
+    expect(asAdmin.course.status).toBe("PUBLISHED");
+    expect(asAdmin.actions).toEqual({ canSubmit: false, canPublish: false });
+    expect(asAdmin.review?.reviewerName).toBe("editor@example.com");
+  });
+});
+
+describe("listCourseApprovalQueue (card S1-08 §6)", () => {
+  it("IN_REVIEW only, reviewed_at asc, EDITOR sees own only, MEMBER → 403", async () => {
+    const a = await fillCourseForSubmit("qa");
+    const b = await fillCourseForSubmit("qb");
+    await submitCourse(EDITOR, a.courseId);
+    await submitCourse(EDITOR_B, b.courseId);
+    // Pin reviewed_at: same-millisecond collisions would make the order
+    // assertion flaky, and the queue sorts on reviewed_at asc.
+    await db
+      .update(courses)
+      .set({ reviewedAt: new Date("2026-01-01T00:00:00Z") })
+      .where(eq(courses.id, a.courseId));
+    await db
+      .update(courses)
+      .set({ reviewedAt: new Date("2026-02-02T00:00:00Z") })
+      .where(eq(courses.id, b.courseId));
+    // A DRAFT course and a PUBLISHED course must never appear.
+    const draftOnly = await fillCourseForSubmit("qd");
+    const done = await fillCourseForSubmit("qdone");
+    await submitCourse(EDITOR, done.courseId);
+    await publishCourse(ADMIN, done.courseId);
+
+    const adminQueue = await listCourseApprovalQueue(ADMIN);
+    const aIndex = adminQueue.findIndex((item) => item.id === a.courseId);
+    const bIndex = adminQueue.findIndex((item) => item.id === b.courseId);
+    expect(aIndex).toBeGreaterThanOrEqual(0);
+    expect(bIndex).toBeGreaterThanOrEqual(0);
+    expect(aIndex).toBeLessThan(bIndex); // reviewed_at asc
+
+    expect(adminQueue[aIndex]).toMatchObject({
+      id: a.courseId,
+      title: a.title,
+      reviewerName: "editor@example.com",
+      reviewedAt: "2026-01-01T00:00:00.000Z",
+    });
+    expect(adminQueue[bIndex]).toMatchObject({
+      reviewerName: "Editor Beta",
+      reviewedAt: "2026-02-02T00:00:00.000Z",
+    });
+    expect(adminQueue.some((item) => item.id === draftOnly.courseId)).toBe(false);
+    expect(adminQueue.some((item) => item.id === done.courseId)).toBe(false);
+
+    const editorQueue = await listCourseApprovalQueue(EDITOR);
+    expect(editorQueue.some((item) => item.id === a.courseId)).toBe(true);
+    expect(editorQueue.some((item) => item.id === b.courseId)).toBe(false);
+
+    await expect(listCourseApprovalQueue(MEMBER)).rejects.toBeInstanceOf(
+      ForbiddenError,
+    );
+  });
+
+  it("NULL reviewer stays in the ADMIN queue with reviewerName null", async () => {
+    const c = await fillCourseForSubmit("qc");
+    await submitCourse(EDITOR, c.courseId);
+    await db
+      .update(courses)
+      .set({ reviewerId: null })
+      .where(eq(courses.id, c.courseId));
+
+    const queue = await listCourseApprovalQueue(ADMIN);
+    const item = queue.find((entry) => entry.id === c.courseId);
+    expect(item).toBeDefined();
+    expect(item?.reviewerName).toBeNull();
+    expect(item?.reviewedAt).toEqual(expect.any(String));
   });
 });
