@@ -17,6 +17,7 @@ import type { Locator } from "@playwright/test";
 import {
   createCourseViaApi,
   createLessonViaApi,
+  createPublishableCourseViaApi,
   expectTouchTarget,
   measureTarget,
   openAccountDrawer,
@@ -408,6 +409,90 @@ test.describe("target sentuh >= 44px @w360", () => {
     await expectTouchTarget(
       page.getByRole("button", { name: "Kirim tautan reset" }),
       "tombol kirim Kirim tautan reset",
+    );
+  });
+
+  // Card S1-08 §8: the submit/publish controls at w360 — "Kirim untuk
+  // persetujuan", the dialog's "Kirim"/"Kembali menyunting" (+ its ✕),
+  // "Setujui & terbitkan" in BOTH the top row and the dialog, "Batal",
+  // and the queue row link. The publish side needs an IN_REVIEW course:
+  // the EDITOR submits one via the API before handing over to the ADMIN.
+  test("kirim & terbitkan: tombol builder, dialog kirim/terbitkan, tautan antrean", async ({
+    page,
+    request,
+  }) => {
+    const editor = await createRoleAccount(request, "EDITOR");
+    const admin = await createRoleAccount(request, "ADMIN");
+    await signInViaApi(page.context(), editor);
+    const t = randomToken("kp");
+    const draft = await createPublishableCourseViaApi(
+      page.context(),
+      `${t} Sentuh Kirim`,
+    );
+    const queued = await createPublishableCourseViaApi(
+      page.context(),
+      `${t} Sentuh Terbit`,
+    );
+    const submitted = await page.context().request.post(
+      `/api/cms/courses/${queued.courseId}/submit`,
+    );
+    expect(submitted.status(), await submitted.text()).toBe(200);
+
+    // DRAFT builder top row + the submit dialog.
+    await page.goto(`/cms/kursus/${draft.courseId}`);
+    await expectTouchTarget(
+      page.getByRole("button", { name: "Simpan", exact: true }),
+      "Simpan (bar atas, DRAFT)",
+    );
+    await expectTouchTarget(
+      page.getByRole("button", { name: "Kirim untuk persetujuan" }),
+      "Kirim untuk persetujuan (bar atas)",
+    );
+    await page.getByRole("button", { name: "Kirim untuk persetujuan" }).click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog.getByText("Semua syarat terpenuhi")).toBeVisible();
+    await expectTouchTarget(
+      dialog.getByRole("button", { name: "Kirim", exact: true }),
+      "Kirim (dialog kirim)",
+    );
+    await expectTouchTarget(
+      dialog.getByRole("button", { name: "Kembali menyunting" }),
+      "Kembali menyunting (dialog kirim)",
+    );
+    await expectTouchTarget(
+      dialog.getByRole("button", { name: "Tutup" }),
+      "✕ Tutup (dialog kirim)",
+    );
+    await dialog.getByRole("button", { name: "Kembali menyunting" }).click();
+    await expect(dialog).toHaveCount(0);
+
+    // ADMIN: the queue row link, the IN_REVIEW top row, the publish
+    // dialog (confirm + Batal + its ✕).
+    await signInViaApi(page.context(), admin);
+    await page.goto("/cms/konten");
+    await expectTouchTarget(
+      page.getByRole("link", { name: `${t} Sentuh Terbit` }),
+      "tautan baris antrean",
+    );
+
+    await page.goto(`/cms/kursus/${queued.courseId}`);
+    await expectTouchTarget(
+      page.getByRole("button", { name: "Setujui & terbitkan" }),
+      "Setujui & terbitkan (bar atas)",
+    );
+    await page.getByRole("button", { name: "Setujui & terbitkan" }).click();
+    await expect(dialog.getByText("Terbitkan kursus ini?")).toBeVisible();
+    await expectTouchTarget(
+      dialog.getByRole("button", { name: "Setujui & terbitkan" }),
+      "Setujui & terbitkan (dialog terbitkan)",
+    );
+    await expectTouchTarget(
+      dialog.getByRole("button", { name: "Batal" }),
+      "Batal (dialog terbitkan)",
+    );
+    await expectTouchTarget(
+      dialog.getByRole("button", { name: "Tutup" }),
+      "✕ Tutup (dialog terbitkan)",
     );
   });
 });

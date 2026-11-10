@@ -24,6 +24,8 @@ import {
 import {
   GUEST_PAGES,
   TURNSTILE_CONTAINER,
+  createCourseViaApi,
+  createPublishableCourseViaApi,
   openAccountDrawer,
   openCmsDrawer,
   openGuestMenu,
@@ -337,5 +339,75 @@ test.describe("axe WCAG 2.1 A/AA", () => {
     await page.goto("/");
     await openGuestMenu(page);
     await expectAxeClean(page, "menu ponsel terbuka", testInfo);
+  });
+
+  // Card S1-08 §8: both submit dialogs (complete + 3-pending checklist),
+  // the publish dialog, the ADMIN queue (with a row — never count-
+  // asserted, shared e2e database), and the fresh-EDITOR empty queue +
+  // "Perlu revisi" variant.
+  test("kirim & terbitkan: dialog kirim/terbitkan + /cms/konten (S1-08)", async (
+    { page, request },
+    testInfo,
+  ) => {
+    const editor = await createRoleAccount(request, "EDITOR");
+    const freshEditor = await createRoleAccount(request, "EDITOR");
+    const admin = await createRoleAccount(request, "ADMIN");
+    await signInViaApi(page.context(), editor);
+    const token = `p${Date.now().toString(36)}${testInfo.project.name}`;
+    const complete = await createPublishableCourseViaApi(
+      page.context(),
+      `${token} kursus axe lengkap`,
+    );
+    const bareId = await createCourseViaApi(page.context(), {
+      title: `${token} kursus axe polos`,
+    });
+
+    await page.goto(`/cms/kursus/${complete.courseId}`);
+    await page.getByRole("button", { name: "Kirim untuk persetujuan" }).click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog.getByText("Semua syarat terpenuhi")).toBeVisible();
+    await expectAxeClean(page, "dialog kirim lengkap", testInfo);
+    await dialog.getByRole("button", { name: "Kembali menyunting" }).click();
+    await expect(dialog).toHaveCount(0);
+
+    await page.goto(`/cms/kursus/${bareId}`);
+    await page.getByRole("button", { name: "Kirim untuk persetujuan" }).click();
+    await expect(dialog.getByText("3 hal belum lengkap")).toBeVisible();
+    await expectAxeClean(page, "dialog kirim belum lengkap", testInfo);
+    await dialog.getByRole("button", { name: "Kembali menyunting" }).click();
+
+    // The publish side needs an IN_REVIEW course: submit as the EDITOR,
+    // then hand the same context to the ADMIN.
+    const submitted = await page.context().request.post(
+      `/api/cms/courses/${complete.courseId}/submit`,
+    );
+    expect(submitted.status(), await submitted.text()).toBe(200);
+    await signInViaApi(page.context(), admin);
+
+    await page.goto("/cms/konten");
+    await expect(
+      page.getByRole("link", { name: `${token} kursus axe lengkap` }),
+    ).toBeVisible();
+    await expectAxeClean(page, "ADMIN /cms/konten berisi", testInfo);
+
+    await page.goto(`/cms/kursus/${complete.courseId}`);
+    await page.getByRole("button", { name: "Setujui & terbitkan" }).click();
+    await expect(dialog.getByText("Terbitkan kursus ini?")).toBeVisible();
+    await expectAxeClean(page, "dialog terbitkan", testInfo);
+    await dialog.getByRole("button", { name: "Batal" }).click();
+    await expect(dialog).toHaveCount(0);
+
+    await signInViaApi(page.context(), freshEditor);
+    await page.goto("/cms/konten");
+    await expect(
+      page.getByText("Tidak ada kursus yang menunggu persetujuan."),
+    ).toBeVisible();
+    await expectAxeClean(page, "EDITOR baru /cms/konten kosong", testInfo);
+
+    await page.goto("/cms/konten?status=perlu-revisi");
+    await expect(
+      page.getByText("Belum ada konten yang perlu direvisi."),
+    ).toBeVisible();
+    await expectAxeClean(page, "EDITOR perlu revisi", testInfo);
   });
 });
