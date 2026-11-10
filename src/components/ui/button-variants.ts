@@ -18,6 +18,10 @@ export const buttonVariants = cva(
         dark: "bg-text text-surface hover:bg-ink-surface",
         ghost: "text-text hover:bg-fill",
         danger: "bg-danger text-surface hover:brightness-90",
+        // Card S1-08 §4: the publish confirm ("Setujui & terbitkan").
+        // bg-success #157f5f on white = 4.96:1, above AA for large/bold
+        // button text; hover darkens via brightness instead of a new token.
+        success: "bg-success text-surface hover:brightness-90",
       },
       size: {
         lg: "min-h-(--height-button-primary) px-6 text-base",
