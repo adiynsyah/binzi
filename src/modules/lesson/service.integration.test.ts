@@ -51,10 +51,13 @@ vi.mock("@/db", () => ({
 }));
 
 import { createCourse } from "@/modules/course/service";
+import { createQuestion } from "@/modules/quiz/service";
+
 import {
   createLesson,
   getLessonEditor,
   getLessonInCourse,
+  listLessonChecklistRows,
   listLessonOutline,
   updateLessonContent,
 } from "./service";
@@ -576,5 +579,91 @@ describe("updateLessonContent & getLessonEditor (card S1-04)", () => {
         lessonId: "8f38a3b3-9999-4999-8999-999999999999",
       }),
     ).rejects.toBeInstanceOf(NotFoundError);
+  });
+});
+
+// -------------------------- checklist rows for the publish gate (card S1-08 §1)
+
+describe("listLessonChecklistRows — the gate's outline read (card S1-08 §1)", () => {
+  const PG_INPUT = {
+    type: "SINGLE_CHOICE",
+    text: "Pertanyaan checklist",
+    explanation: "Pembahasan checklist",
+    options: [
+      { text: "Opsi satu", isCorrect: true },
+      { text: "Opsi dua", isCorrect: false },
+      { text: "Opsi tiga", isCorrect: false },
+      { text: "Opsi empat", isCorrect: false },
+    ],
+  } as const;
+
+  const FILLED_DOC = {
+    type: "doc",
+    content: [
+      {
+        type: "paragraph",
+        content: [{ type: "text", text: "Isi materi checklist." }],
+      },
+    ],
+  };
+
+  it("returns orderIndex/emptiness/quizId/counts inside a transaction, matching the outline", async () => {
+    const courseId = await newDraftCourse();
+    const first = await createLesson(EDITOR, courseId, {
+      title: "Materi checklist satu",
+    });
+    const second = await createLesson(EDITOR, courseId, {
+      title: "Materi checklist dua",
+    });
+    await updateLessonContent(
+      EDITOR,
+      { courseId, lessonId: first.id },
+      { content: FILLED_DOC },
+    );
+    await createQuestion(EDITOR, { quizId: first.quizId }, PG_INPUT);
+    await createQuestion(EDITOR, { quizId: first.quizId }, PG_INPUT);
+
+    // The gate always calls this INSIDE its transaction, after the lock.
+    const rows = await db.transaction(async (tx) =>
+      listLessonChecklistRows(tx, courseId),
+    );
+    expect(rows).toEqual([
+      {
+        orderIndex: 1,
+        isContentEmpty: false,
+        quizId: first.quizId,
+        quizQuestionCount: 2,
+      },
+      {
+        orderIndex: 2,
+        isContentEmpty: true,
+        quizId: second.quizId,
+        quizQuestionCount: 0,
+      },
+    ]);
+
+    // ONE source: the same facts the builder outline shows.
+    const outline = await listLessonOutline(courseId);
+    expect(
+      rows.map((row) => ({
+        orderIndex: row.orderIndex,
+        isContentEmpty: row.isContentEmpty,
+        quizQuestionCount: row.quizQuestionCount,
+      })),
+    ).toEqual(
+      outline.map((item) => ({
+        orderIndex: item.orderIndex,
+        isContentEmpty: item.isContentEmpty,
+        quizQuestionCount: item.quizQuestionCount,
+      })),
+    );
+  });
+
+  it("answers [] for a course without lessons", async () => {
+    const courseId = await newDraftCourse();
+    const rows = await db.transaction(async (tx) =>
+      listLessonChecklistRows(tx, courseId),
+    );
+    expect(rows).toEqual([]);
   });
 });

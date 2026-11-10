@@ -39,9 +39,18 @@ import {
 // Correlated count resolved inside the one SELECT (no N+1) — same shape as
 // finalQuizQuestionCountSql in the course module. mapWith(Number): drivers
 // hand back bigint counts as strings.
+//
+// The outer reference is hand-qualified on purpose: drizzle renders a
+// Column interpolated into a sql`` template by its BARE name, so
+// `${questions.quizId} = ${lessons.quizId}` renders "quiz_id" = "quiz_id"
+// — Postgres then resolves BOTH sides against the subquery's own FROM and
+// the predicate is always true, counting every question in the database
+// for every lesson. Found by the S1-08 gate tests (first test data with
+// two filled quizzes); masked before because no earlier test database
+// held questions in more than one quiz.
 const quizQuestionCountSql = sql<number>`(
-  select count(*) from ${questions}
-  where ${questions.quizId} = ${lessons.quizId}
+  select count(*) from ${questions} as counted
+  where counted.quiz_id = lessons.quiz_id
 )`.mapWith(Number);
 
 /**
