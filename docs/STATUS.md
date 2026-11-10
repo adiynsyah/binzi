@@ -1,9 +1,97 @@
 # Status Proyek BINZI — catatan untuk melanjutkan di chat baru
 
-> Terakhir diperbarui: 9 Nov 2026. File ini dikelola manual (bukan oleh agent) dan hanya untuk melanjutkan percakapan dengan Claude.
+> Terakhir diperbarui: 10 Nov 2026. File ini dikelola manual (bukan oleh agent) dan hanya untuk melanjutkan percakapan dengan Claude.
 > Untuk melanjutkan: buka chat baru, unggah file ini + `docs/tasks/URUTAN-KERJA.md`, lalu pakai prompt di bagian paling bawah.
 
-## Pembaruan 9 Nov 2026 — S6-01 di-merge, kartu S1-08 siap (baca ini dulu, lalu 8 Nov, 7 Nov, 6 Nov, 4 Nov malam, 4 Nov, dan 3 Nov)
+## Pembaruan 10 Nov 2026 — S1-08 di-merge, region fungsi ke Singapura, kartu S5-01 siap (baca ini dulu, lalu 9 Nov, 8 Nov, 7 Nov, 6 Nov, 4 Nov malam, 4 Nov, dan 3 Nov)
+
+Bagian-bagian di bawahnya tetap berlaku. Bagian ini mengubah atau menambahnya.
+
+### Yang di-merge hari ini
+
+| PR | Isi |
+|---|---|
+| #128 | Kartu S1-08 + STATUS 9 Nov (merge 9 Nov 23.33, setelah STATUS 9 Nov ditulis) |
+| #129 | S1-08 kirim & terbitkan, versi demo |
+
+`main` sekarang `1898ab6`. Gate audit di sandbox Claude chat 0 excused / 0 blocking / OK / 23; di mesin pemilik 22 (lihat pelajaran no. 5). Baseline Vitest **101 berkas / 1092 tes** (laporan PR #129; belum diukur ulang di sandbox). Tanpa migrasi.
+
+### S1-08 di-merge (#129)
+
+EDITOR mengirim kursus lengkap untuk persetujuan (`IN_REVIEW`, peninjau = pengirim); ADMIN+ menyetujui dan menerbitkan dari builder. Antrean di `/cms/konten`. Gerbang terbit (checklist 21g + aturan soal PRD §11.4 no. 12) berjalan di transaksi setelah baris kursus dikunci, dan diulang saat terbit. Banner status di bawah judul, fokus pasca-refresh ke pembuka atau h1, 409 dari tab lain untuk Simpan dan Tambah materi, seed demo kursus 3 dengan peninjau.
+
+Tinjauan rencana di Claude chat menambah 13 butir. Yang terpenting:
+- **Kunci dulu, baca sesudahnya** — dibuktikan di Postgres 16 sandbox (pelajaran no. 3).
+- **Satu sumber masukan checklist** untuk builder dan gerbang (`publishChecklistInputFrom`, SELECT outline dengan executor `db`/`tx`).
+- **`type` wajib di pemetaan ke `questionInput`** (union strict).
+- **Simpan → 409 mendaftarkan dua permintaan fokus**: segera ke Simpan, dan pasca-refresh ke Simpan atau h1.
+- **`/cms/konten` bercabang dari item menu aktif** (`getActiveCmsItem`), bukan dari parameter `status`.
+
+Tinjauan PR: satu commit kecil sebelum merge (`1944875`) — asersi ADMIN di `?status=perlu-revisi`, `{ ratio: 1 }` pada banner terbit, pil "{n} menunggu" memakai `pending-tint` (19d). Dua berkas di luar daftar kartu, akibat butir "satu sumber": `course/checklist.ts` dan `lesson/serializer.ts`.
+
+**Bug lama ditemukan agent dan diperbaiki di #129.** `quizQuestionCountSql` di `lesson/queries.ts` menghitung **semua soal di database** untuk setiap materi (pelajaran no. 1). Sampai `5b546ab`, angka "n soal" per materi di builder salah, dan syarat "setiap quiz materi minimal 10 soal" bisa tampak terpenuhi. Belum ada kursus yang terbit karena bug ini: jalur terbit baru ada sejak #129.
+
+Verifikasi pemilik: 5 langkah lokal oke, termasuk "10 soal" per materi di kursus contoh 3. 25 screenshot ditinjau di Claude chat — tidak ada yang memblokir; penyimpangan dicatat di "Perapian setelah demo".
+
+### Region fungsi Vercel → Singapura (pemilik, 10 Nov)
+
+Diukur dari Jakarta, DevTools → Network, navigasi klien ke "Belajar":
+
+| Request | iad1 (sebelum) | sin1 (sesudah redeploy) |
+|---|---|---|
+| `belajar?_rsc` | 1,64 / 1,64 / 1,63 s | 303 / 321 / 132 / 113 ms |
+| `get-session` | 1,28 / 1,16 s | 67 / 88 / 74 ms |
+
+Region adalah penyebab utama "/belajar lambat" (9 Nov). Dua request pertama ±300 ms kemungkinan pemanasan deployment baru. Pengaturan berlaku per project, jadi Preview ikut sin1. `x-vercel-id` tidak dicatat; angka `get-session` yang turun 15× sudah menunjukkan fungsi kini dekat database.
+
+### Keputusan pemilik 10 Nov
+
+1. **Tambahan 13 butir pada rencana S1-08** dan commit kecil `1944875` disetujui.
+2. **`cache()` sesi/profil per request ditunda ke setelah demo** (rencana C di 9 Nov). Setelah pindah region, kueri ganda tinggal beberapa milidetik, sedangkan perubahannya menyentuh jalur baca sesi semua halaman sepuluh hari sebelum demo.
+3. **Kartu S5-01 — dasbor belajar versi demo** ([kartu](tasks/sprint-5/S5-01-dasbor-belajar-versi-demo.md)):
+   1. Pendaftaran tersirat lewat "Mulai materi 1" (28a/28b/13b, PRD §7.4 A) — `POST` eksplisit, idempoten (201/200), hanya kursus `PUBLISHED`; tidak pernah saat GET.
+   2. Peserta baru mengikuti 28a/28b tanpa pil "Paling banyak diikuti" dan tanpa "Lihat semua kursus"; peserta aktif hanya mendapat baris "Kursus saya" dari 8a; "Kursus lainnya" tampil di kedua keadaan dengan tombol mulai di setiap baris.
+   3. `loading.tsx` di route group `belajar/(dashboard)/`, bukan di `belajar/` (pelajaran no. 2).
+   4. Halaman legal "Segera hadir": Kebijakan Privasi, Syarat & Ketentuan, Disclaimer medis — tautan footer tidak lagi 404 saat demo. Isi 12c–12e tetap wajib sebelum peserta penelitian atau publik.
+   5. Badge memetakan keempat status PRG-06; tombol menjadi "Lanjutkan" begitu `last_lesson_id` terisi (Kam 12).
+
+### Jadwal demo setelah hari ini
+
+| Hari | Kartu |
+|---|---|
+| Sel 10 | S1-08 kirim & terbitkan — **di-merge (#129)** |
+| Rab 11 | **S5-01 dasbor belajar versi demo** (kartu masuk lewat PR docs ini) |
+| Kam 12 | Peserta: halaman materi + progres, termasuk `POST /api/progress/video` |
+| Jum 13 | Peserta: player video (memakai cadangan Sel 17) |
+| Sab 14 – Min 15 | Peserta: mengerjakan quiz |
+| Sen 16 | Peserta: hasil & nilai |
+| Rab 18 – Kam 19 | Production, akun demo, data contoh, gladi resik |
+
+### Pelajaran 10 Nov
+
+1. **drizzle 0.45.3 merender kolom di template `sql` tanpa nama tabel bila SELECT-nya tabel tunggal.** `${questions.quizId} = ${lessons.quizId}` di `from(lessons)` menjadi `"quiz_id" = "quiz_id"`, dan Postgres mengikat keduanya ke tabel subquery — hitungan salah tanpa galat. Dengan join, nama tabel ikut (diuji `QueryBuilder().toSQL()` di sandbox). Tulis alias tabel subquery dan nama tabel luar dengan tangan. Tes yang menangkapnya butuh data **lebih dari satu** induk (dua quiz berisi soal); data satu induk menutupinya.
+2. **`loading.tsx` membungkus semua rute di bawah foldernya dan mengubah status HTTP-nya.** Diuji dengan Next 16.4.1 minimal: `notFound()` di rute anak menjawab 200 (+ `noindex`), `redirect()` menjadi 200 + meta refresh 1 detik. Tanpa `loading.tsx`: 404 dan 307. Route group (`belajar/(dashboard)/loading.tsx`) membatasinya ke satu halaman.
+3. **Subquery di statement `SELECT … FOR UPDATE` memakai snapshot dari awal statement (READ COMMITTED).** Diuji di Postgres 16: tab lain mengunci kursus, menambah soal ke-10, commit — subquery di statement kunci tetap menghitung 9, statement terpisah sesudahnya 10. Masukan gerbang dibaca dengan statement terpisah setelah kunci.
+4. **Screenshot halaman penuh dari halaman yang tergulir menampilkan elemen `fixed` di posisi yang menyesatkan** — lapisan gelap dialog tidak menutup bagian atas, skip link yang disembunyikan di atas layar ikut terekam. Bukan bug; bila ragu, cek di perangkat.
+5. **Angka gate audit di bawah high berbeda per lingkungan** (22 di mesin pemilik: npm 11 + `node_modules`; 23 di sandbox: npm 10, lockfile saja) atas lockfile yang sama. Yang dibandingkan adalah daftar paket per severity, bukan jumlahnya; yang menentukan tetap 0 excused / 0 blocking.
+6. **`lint:hex` juga menolak hex di komentar.** CI #129 sempat merah karena komentar varian tombol `success`; agent mencegah pengulangannya di commit `1944875`.
+7. **Tes yang menjaga cabang halaman butuh dua asersi**: judul yang benar **dan** ketiadaan isi cabang lain. Judul saja selalu lolos bila judul dan isi tidak lagi berasal dari sumber yang sama.
+
+### Perapian setelah demo (dari S1-08)
+
+- **Builder, letak tombol aksi (S1-02b):** di 21a, badge, Simpan, dan "Kirim untuk persetujuan" ada di bar atas sebaris breadcrumb. Implementasi (pola S1-02) menaruhnya di baris judul: dengan dua tombol, judul 44 karakter sudah membuat tombol turun ke baris sendiri di 1280; di 360 Simpan + Kirim bertumpuk rata kiri, sedangkan "Setujui & terbitkan" rata kanan.
+- **Dialog kirim dibanding 20d:** judul lebih kecil (standar dialog proyek); baris belum terpenuhi memakai lingkaran kosong, bukan "!" merah muda dengan teks tebal; catatan kaki di kotak abu-abu di atas tombol, bukan teks biasa di bawah tombol dengan frasa tebal; tombol berukuran otomatis rata kanan, bukan dua bagian sama lebar.
+- **Copy 409 "Penggarap belum tercatat — kursus harus dikirim ulang dari draf."** menunjuk jalan mundur yang belum ada di UI (hanya data lama atau hasil SQL yang memicunya).
+- **`add-lesson-dialog.tsx`:** cabang 409 memanggil `response.json()` tanpa `catch`; 409 tanpa isi JSON jatuh ke pesan jaringan umum.
+- **`course/queries.ts`:** `lessonCountSql`, `finalQuizQuestionCountSql`, dan `finalQuizDurationSql` benar hanya karena semua pemakainya punya join (pelajaran no. 1). Tulis nama tabel dengan tangan seperti `lesson/queries.ts`.
+
+### Catatan untuk kartu berikutnya
+
+- **S5-01 (Rab 11):** kartu sudah ditinjau ulang terhadap `1898ab6`. Rencana agent ditinjau di chat sebelum disetujui. Kartu memuat pelajaran no. 1 (nama tabel eksplisit + tes tiga kursus) dan no. 2 (route group).
+- **Kam 12 (halaman materi):** catatan lengkap di bagian akhir kartu S5-01 — rute di luar `(dashboard)`, `lessonHref` dari modul `progress`, GET tanpa efek tulis (prefetch), `last_lesson_id` diisi lewat POST.
+- **Daftar periksa tinjauan kartu** masih belum ditulis (Catatan 9 Nov).
+
+## Pembaruan 9 Nov 2026 — S6-01 di-merge, kartu S1-08 siap (baca setelah 10 Nov, lalu 8 Nov, 7 Nov, 6 Nov, 4 Nov malam, 4 Nov, dan 3 Nov)
 
 Bagian-bagian di bawahnya tetap berlaku. Bagian ini mengubah atau menambahnya.
 
@@ -684,7 +772,7 @@ Rencana disetujui, dengan lima tambahan berikut (hasil tinjauan C-02/C-03, belum
 - [x] Scrim menu ponsel tamu — dicek di iPhone 13 Safari (24 Okt): saat menu terbuka halaman di belakangnya terkunci (tidak tergulir), jadi yang terlihat selalu tertutup scrim. Potongan di screenshot full-page `tamu-menu-terbuka-w360` adalah artefak tangkapan (halaman direkam lebih panjang dari viewport).
 - [x] **Cek run terjadwal pertama workflow Cron** — selesai 20 Okt: Cron #2 (pemicu `schedule`) dibuat 22.53 UTC 19 Okt, ±3,5 jam setelah jadwal 19.17 UTC (insiden GitHub Actions 19 Okt sejak 15.49 UTC), hijau (workflow hanya hijau bila status persis 200). Run terjadwal berikutnya 22 Okt 19.17 UTC (23 Okt 02.17 WIB). Bila run hilang atau telat, cek riwayat insiden GitHub dulu sebelum menyimpulkan workflow bermasalah; run merah → tabel kegagalan di catatan "Cron & health". **Cron #3** (terjadwal 22 Okt 19.17 UTC): dibuat 22.17 UTC — telat 3 jam tanpa insiden — hijau. GitHub tidak menjamin waktu run terjadwal; keep-alive tetap aman selama run tidak hilang. `*/3` berlaku pada tanggal: run berikutnya 25, 28, 31 Okt lalu 1 Nov (31 dan 1 berurutan).
 - [ ] Frekuensi keep-alive mengikuti PRD §10.5 (tiap 3 hari). Dokumentasi Supabase menyebut beberapa request per hari biasanya cukup; bila project pernah ter-pause atau run terjadwal sering dibuang GitHub, ubah ke harian lewat revisi PRD (catatan keputusan kartu A-18).
-- [ ] Region fungsi Vercel: request Production diterima di sin1 tapi fungsinya berjalan di **iad1** (Washington, D.C., region bawaan) — terlihat di `x-vercel-id` dan Vercel Logs, 18 Okt. **binzi-dev ternyata di Singapura** (`aws-0-ap-southeast-1.pooler.supabase.com`, terbaca dari baris target `*:binzi-dev`, 28 Okt) — jadi sekarang pun setiap query Production menyeberang Pasifik (iad1 → Singapura), bukan hanya nanti saat binzi-prod. Samakan region fungsi Vercel ke Singapura (Settings → Functions; cek ketersediaannya di paket Hobby) — bisa dikerjakan kapan saja, tidak perlu menunggu binzi-prod. **9 Nov:** paket Hobby boleh memilih satu region (dokumentasi Vercel); kini **wajib sebelum gladi resik**, karena navigasi ke `/belajar` terasa macet (bagian "/belajar lambat", Pembaruan 9 Nov).
+- [x] Region fungsi Vercel: request Production diterima di sin1 tapi fungsinya berjalan di **iad1** (Washington, D.C., region bawaan) — terlihat di `x-vercel-id` dan Vercel Logs, 18 Okt. **binzi-dev ternyata di Singapura** (`aws-0-ap-southeast-1.pooler.supabase.com`, terbaca dari baris target `*:binzi-dev`, 28 Okt) — jadi sekarang pun setiap query Production menyeberang Pasifik (iad1 → Singapura), bukan hanya nanti saat binzi-prod. Samakan region fungsi Vercel ke Singapura (Settings → Functions; cek ketersediaannya di paket Hobby) — bisa dikerjakan kapan saja, tidak perlu menunggu binzi-prod. **9 Nov:** paket Hobby boleh memilih satu region (dokumentasi Vercel); kini **wajib sebelum gladi resik**, karena navigasi ke `/belajar` terasa macet (bagian "/belajar lambat", Pembaruan 9 Nov). **10 Nov: selesai** — fungsi kini di sin1; `belajar?_rsc` 1,64 s → ±0,12 s, `get-session` 1,2 s → ±0,08 s (Pembaruan 10 Nov).
 - [x] **Sebelum sesi A-19:** Docker Desktop & versi Postgres — selesai 19 Okt: Docker Desktop 20.10.11 (tua, tetapi cukup untuk `e2e:db`; perbarui bila container bermasalah), Postgres binzi-dev **17.6**, dicek lewat SQL `show server_version;` di SQL Editor — bukan menu Settings → Infrastructure seperti arahan semula (pelajaran (aaa)).
 - [x] **Setelah PR A-19 di-merge:** daftarkan check `e2e` sebagai required status check — selesai 20 Okt bersama aturan branch `main` (lihat posisi).
 - [x] **Untuk sesi A-19b:** DOM `/cms` memuat dua `<nav aria-label="Menu CMS">` sekaligus — sidebar (`cms-sidebar.tsx`, tampil ≥ 1024) dan rel (`cms-rail.tsx`, 640–1023); yang tidak sesuai lebar `display: none`. Nav ketiga (drawer ponsel, `cms-mobile-bar.tsx`) hanya ada saat drawer terbuka. `page.locator('nav[aria-label="Menu CMS"]')` cocok dua elemen (strict mode gagal), `getByRole` hanya menghitung yang terlihat — locator & asersi per lebar menyasar nav yang terlihat. Branch uji mutasi A-19b dibuat dari branch PR, bukan `main` (pelajaran (bbb)). Terpakai di PR #69 (`visibleCmsAccountTrigger`).
@@ -901,8 +989,8 @@ Rencana disetujui, dengan lima tambahan berikut (hasil tinjauan C-02/C-03, belum
 Saya sedang membangun BINZI (platform belajar gizi) dengan Next.js 16 +
 AI coding agent (Claude Code). Terlampir docs/STATUS.md dan
 docs/tasks/URUTAN-KERJA.md dari repo saya — baca keduanya sebagai konteks.
-Baca bagian "Pembaruan 9 Nov" di STATUS.md lebih dulu, lalu
-"Pembaruan 8 Nov", "Pembaruan 7 Nov", "Pembaruan 6 Nov", "Pembaruan 4 Nov
+Baca bagian "Pembaruan 10 Nov" di STATUS.md lebih dulu, lalu
+"Pembaruan 9 Nov", "Pembaruan 8 Nov", "Pembaruan 7 Nov", "Pembaruan 6 Nov", "Pembaruan 4 Nov
 malam", "Pembaruan 4 Nov", dan "Pembaruan 3 Nov 2026 — target demo 20 Nov";
 jadwal dan keputusan di sana mengalahkan rencana sprint lama.
 Spesifikasi lengkap ada di docs/prd/ dan aturan agent di CLAUDE.md;
@@ -910,13 +998,12 @@ repo publik di github.com/adiynsyah/binzi — clone untuk membaca kode,
 kartu, desain, dan meninjau PR (API GitHub sering kena rate limit;
 git fetch pull/N/head tetap jalan). Repo di mesin saya ada di
 ~/Project/React/binzi-new.
-Posisi terakhir (9 Nov): S6-01 Beranda versi demo (PR #127) di-merge →
-main e382359; kartu S1-08 (kirim & terbitkan, versi demo) masuk lewat PR
-docs. Berikutnya:
-- Sel 10: sesi S1-08; rencana agent ditinjau di chat sebelum disetujui.
-- Rab 11: tulis kartu peserta "daftar kursus terbit + ikut kursus" di
-  /belajar, termasuk loading.tsx dan baca sesi sekali per request.
-- Pemilik: region fungsi Vercel ke Singapura sebelum gladi resik.
+Posisi terakhir (10 Nov): S1-08 kirim & terbitkan (PR #129) di-merge →
+main 1898ab6; region fungsi Vercel sudah di Singapura; kartu S5-01
+(dasbor belajar versi demo) masuk lewat PR docs. Berikutnya:
+- Rab 11: sesi S5-01; rencana agent ditinjau di chat sebelum disetujui.
+- Kam 12: tulis kartu peserta "halaman materi + progres"; catatannya ada
+  di bagian akhir kartu S5-01.
 - Untuk tinjauan tampilan, Claude bisa menjalankan Chromium headless di
   sandbox (@sparticuz/chromium + playwright-core dari registry npm).
 Gate audit main: 0 excused / 0 blocking / 23 info-low-moderate. Uji
