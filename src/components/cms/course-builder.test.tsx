@@ -525,4 +525,210 @@ describe("CourseBuilder", () => {
       expect(screen.getByText("3 / 6")).toBeTruthy();
     });
   });
+
+  describe("kirim & terbitkan (card S1-08 §4/§5)", () => {
+    /** Every checklist item met — the gate dialogs' happy path. */
+    function completeChecklist(): PublishChecklist {
+      const items = checklistFixture().items.map((item) => ({ ...item, met: true }));
+      return { items, met: 6, total: 6, missing: [] };
+    }
+
+    it("renders the top-bar buttons strictly per actions", () => {
+      // DRAFT EDITOR: Simpan + Kirim, no publish.
+      const draft = renderBuilder(
+        builderFixture({
+          checklist: completeChecklist(),
+          actions: { canSubmit: true, canPublish: false },
+        }),
+      );
+      expect(screen.getByRole("button", { name: "Simpan" })).toBeTruthy();
+      expect(
+        screen.getByRole("button", { name: "Kirim untuk persetujuan" }),
+      ).toBeTruthy();
+      expect(
+        screen.queryByRole("button", { name: "Setujui & terbitkan" }),
+      ).toBeNull();
+      draft.unmount();
+
+      // IN_REVIEW ADMIN: publish only (builder stays read-only).
+      renderBuilder(
+        builderFixture({
+          course: courseFixture({ status: "IN_REVIEW" }),
+          review: {
+            reviewerName: "Editor Toka",
+            reviewedAt: "2026-11-09T02:00:00.000Z",
+          },
+          actions: { canSubmit: false, canPublish: true },
+        }),
+      );
+      expect(
+        screen.getByRole("button", { name: "Setujui & terbitkan" }),
+      ).toBeTruthy();
+      expect(screen.queryByRole("button", { name: "Simpan" })).toBeNull();
+      expect(
+        screen.queryByRole("button", { name: "Kirim untuk persetujuan" }),
+      ).toBeNull();
+    });
+
+    it("submit 200: success status banner + router.refresh; rerender IN_REVIEW → h1 focused", async () => {
+      fetchMock.mockResolvedValue(
+        new Response(
+          JSON.stringify({ data: courseFixture({ status: "IN_REVIEW" }) }),
+          { status: 200 },
+        ),
+      );
+      const view = renderBuilder(
+        builderFixture({
+          checklist: completeChecklist(),
+          actions: { canSubmit: true, canPublish: false },
+        }),
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: "Kirim untuk persetujuan" }));
+      expect(screen.getByText("Semua syarat terpenuhi")).toBeTruthy();
+      fireEvent.click(screen.getByRole("button", { name: "Kirim" }));
+
+      expect(
+        await screen.findByText("Kursus terkirim — menunggu persetujuan admin."),
+      ).toBeTruthy();
+      expect(refreshMock).toHaveBeenCalled();
+      expect(fetchMock.mock.calls[0]?.[0]).toBe("/api/cms/courses/c-1/submit");
+
+      // The refresh lands as a NEW builder prop: the opener and Simpan are
+      // gone (IN_REVIEW, no actions) and focus falls to the h1, never body.
+      view.rerender(
+        <CourseBuilder
+          builder={builderFixture({ course: courseFixture({ status: "IN_REVIEW" }) })}
+        />,
+      );
+      await waitFor(() => {
+        expect(screen.getByRole("heading", { name: "Dasar Gizi Ibu Hamil" })).toBe(
+          document.activeElement,
+        );
+      });
+      expect(
+        screen.queryByRole("button", { name: "Kirim untuk persetujuan" }),
+      ).toBeNull();
+    });
+
+    it("submit 409: status banner carries the server message", async () => {
+      fetchMock.mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            error: {
+              code: "CHECKLIST_INCOMPLETE",
+              message: "Syarat terbit belum lengkap — lihat daftar syarat di halaman kursus.",
+            },
+          }),
+          { status: 409 },
+        ),
+      );
+      renderBuilder(
+        builderFixture({
+          checklist: completeChecklist(),
+          actions: { canSubmit: true, canPublish: false },
+        }),
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: "Kirim untuk persetujuan" }));
+      fireEvent.click(screen.getByRole("button", { name: "Kirim" }));
+
+      expect(
+        await screen.findByText(
+          "Syarat terbit belum lengkap — lihat daftar syarat di halaman kursus.",
+        ),
+      ).toBeTruthy();
+      expect(refreshMock).toHaveBeenCalled();
+    });
+
+    it("publish 409 without a status change: banner keeps the server message, focus returns to the opener", async () => {
+      // min_questions rose after submit: the gate fails but the course stays
+      // IN_REVIEW, so the opener survives the refresh (owner review 5).
+      fetchMock.mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            error: {
+              code: "CHECKLIST_INCOMPLETE",
+              message: "Syarat terbit belum lengkap — lihat daftar syarat di halaman kursus.",
+            },
+          }),
+          { status: 409 },
+        ),
+      );
+      const inReview = () =>
+        builderFixture({
+          course: courseFixture({ status: "IN_REVIEW" }),
+          checklist: completeChecklist(), // min_questions rose server-side
+          review: {
+            reviewerName: "Editor Toka",
+            reviewedAt: "2026-11-09T02:00:00.000Z",
+          },
+          actions: { canSubmit: false, canPublish: true },
+        });
+      const view = renderBuilder(inReview());
+
+      fireEvent.click(screen.getByRole("button", { name: "Setujui & terbitkan" }));
+      expect(screen.getByText("Terbitkan kursus ini?")).toBeTruthy();
+      // While the dialog is open, Radix aria-hides the page behind it, so
+      // the ONLY accessible "Setujui & terbitkan" is the dialog's confirm.
+      fireEvent.click(screen.getByRole("button", { name: "Setujui & terbitkan" }));
+
+      expect(
+        await screen.findByText(
+          "Syarat terbit belum lengkap — lihat daftar syarat di halaman kursus.",
+        ),
+      ).toBeTruthy();
+
+      // New builder prop, same IN_REVIEW shape: the opener is still
+      // connected, so it keeps focus — not the h1.
+      view.rerender(<CourseBuilder builder={inReview()} />);
+      await waitFor(() => {
+        expect(screen.getByRole("button", { name: "Setujui & terbitkan" })).toBe(
+          document.activeElement,
+        );
+      });
+      expect(
+        screen.getByRole("heading", { name: "Dasar Gizi Ibu Hamil" }),
+      ).not.toBe(document.activeElement);
+    });
+
+    it("Simpan → 409 (§5.1): message in the STATUS banner, not the settings panel; rerender IN_REVIEW → h1 focused", async () => {
+      fetchMock.mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            error: {
+              code: "NOT_DRAFT",
+              message: "Kursus sudah bukan draf — hanya draf yang bisa diubah.",
+            },
+          }),
+          { status: 409 },
+        ),
+      );
+      const view = renderBuilder();
+      fireEvent.submit(settingsForm());
+
+      expect(
+        await screen.findByText("Kursus sudah bukan draf — hanya draf yang bisa diubah."),
+      ).toBeTruthy();
+      // The panel banner region (inside the settings aside) stays clean —
+      // in 360 it sits far below the h1 that takes focus.
+      expect(
+        document.querySelector("aside")?.textContent,
+      ).not.toContain("Kursus sudah bukan draf");
+
+      // The refresh flips the page read-only: Simpan unmounts and the h1
+      // inherits focus (owner review 4, second request).
+      view.rerender(
+        <CourseBuilder
+          builder={builderFixture({ course: courseFixture({ status: "IN_REVIEW" }) })}
+        />,
+      );
+      await waitFor(() => {
+        expect(screen.getByRole("heading", { name: "Dasar Gizi Ibu Hamil" })).toBe(
+          document.activeElement,
+        );
+      });
+      expect(screen.queryByRole("button", { name: "Simpan" })).toBeNull();
+    });
+  });
 });

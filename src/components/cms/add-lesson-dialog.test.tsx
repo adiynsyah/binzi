@@ -203,4 +203,45 @@ describe("AddLessonDialog", () => {
       (screen.getByLabelText("Judul materi") as HTMLInputElement).value,
     ).toBe("Materi Offline Toka");
   });
+
+  it("409: reports the server message through onConflict, not the generic banner (card S1-08 §5.2)", async () => {
+    // The course locked from another tab: the dialog closes itself and the
+    // BUILDER owns the status banner — never "periksa koneksi" copy.
+    const onConflict = vi.fn();
+    const onOpenChange = vi.fn();
+    render(
+      <AddLessonDialog
+        open
+        onOpenChange={onOpenChange}
+        courseId="c-1"
+        courseTitle="Dasar Gizi Ibu Hamil"
+        nextOrderIndex={2}
+        onConflict={onConflict}
+      />,
+    );
+    fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          error: {
+            code: "NOT_DRAFT",
+            message: "Kursus sudah bukan draf — hanya draf yang bisa diubah.",
+          },
+        }),
+        { status: 409 },
+      ),
+    );
+    fireEvent.change(screen.getByLabelText("Judul materi"), {
+      target: { value: "Materi Dikunci Toka" },
+    });
+    submitForm();
+
+    await waitFor(() => {
+      expect(onConflict).toHaveBeenCalledWith(
+        "Kursus sudah bukan draf — hanya draf yang bisa diubah.",
+      );
+    });
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+    expect(screen.queryByText("Materi belum bisa dibuat.")).toBeNull();
+    expect(pushMock).not.toHaveBeenCalled();
+  });
 });

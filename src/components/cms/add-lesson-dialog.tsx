@@ -50,6 +50,13 @@ export type AddLessonDialogProps = {
   courseTitle: string;
   /** order_index the new lesson gets: outline length + 1 (card §4). */
   nextOrderIndex: number;
+  /**
+   * The course stopped being a DRAFT under this tab (card §5.2): the dialog
+   * closes and the BUILDER shows the server message in its status banner
+   * (with refresh + h1 focus) — after the status flip the dialog itself is
+   * no longer rendered, so it can only report upward.
+   */
+  onConflict?: (message: string) => void;
 };
 
 export function AddLessonDialog({
@@ -58,6 +65,7 @@ export function AddLessonDialog({
   courseId,
   courseTitle,
   nextOrderIndex,
+  onConflict,
 }: AddLessonDialogProps) {
   const router = useRouter();
   const [failed, setFailed] = useState(false);
@@ -121,6 +129,18 @@ export function AddLessonDialog({
           );
         }
         if (fields.some((field) => field.path === "title")) focusTitle();
+      } else if (response.status === 409) {
+        // The course locked from another tab (card §5.2): close + report —
+        // never the generic network copy. The builder owns the banner,
+        // refresh, and the h1 focus.
+        const json = (await response.json()) as {
+          error?: { message?: string };
+        };
+        onConflict?.(
+          json.error?.message ??
+            "Kursus sudah bukan draf — hanya draf yang bisa diubah.",
+        );
+        onOpenChange(false);
       } else {
         setFailed(true);
       }
