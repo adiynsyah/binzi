@@ -1,30 +1,34 @@
-// Temporary /belajar (card A-14b): ONE heading, nothing else — the
-// dashboard content arrives in S5. Greeting copy from 28a ("Selamat
-// datang, Dimas"); the first name is the first word of the display name
-// after trim, and a blank name drops the name part entirely.
+// /belajar — the member learning dashboard (card S5-01 §3). All states and
+// markup live in LearnDashboard (server component); this page is the data
+// wire: guard → profile (header greeting) + dashboard lists in parallel.
 //
-// Layered guard: the layout already checked MEMBER+, but every page calls
-// its own guard (src/lib/rbac.ts) — hiding a button is never authorization.
+// Layered guard: the (learn) layout already checked MEMBER+, but every page
+// calls its own guard (src/lib/rbac.ts) — hiding a button is never
+// authorization.
+//
+// The page sits in a `(dashboard)` ROUTE GROUP so loading.tsx (next to it)
+// can wrap ONLY this page. Directly under belajar/ the fallback would also
+// swallow child routes' notFound()/redirect() — see (dashboard)/loading.tsx.
 import { firstNameOf } from "@/components/shared/member-user";
 import { PageContainer } from "@/components/shared/page-container";
+import { LearnDashboard } from "@/components/learn/learn-dashboard";
+import { getLearnerDashboard } from "@/modules/progress/service";
 import { getUserProfile } from "@/modules/user/service";
 import { requireRole } from "@/lib/rbac";
 
-export default async function BelajarPage() {
+export default async function BelajarDashboardPage() {
   const sessionUser = await requireRole("MEMBER");
-  const profile = await getUserProfile(sessionUser, {
-    userId: sessionUser.id,
-  });
-
-  const firstName = firstNameOf(profile.name);
+  const [profile, dashboard] = await Promise.all([
+    getUserProfile(sessionUser, { userId: sessionUser.id }),
+    getLearnerDashboard(sessionUser),
+  ]);
 
   return (
     <PageContainer className="pt-8">
-      {/* break-words: a 40-character single-word name must not widen the
-          viewport (card: no horizontal scroll at 360 and 640). */}
-      <h1 className="break-words text-balance text-[25px] font-black leading-[1.14] tracking-[-0.022em] text-text sm:text-[32px] sm:leading-[1.16] sm:tracking-[-0.024em]">
-        {firstName ? `Selamat datang, ${firstName}` : "Selamat datang"}
-      </h1>
+      <LearnDashboard
+        firstName={firstNameOf(profile.name)}
+        dashboard={dashboard}
+      />
     </PageContainer>
   );
 }
