@@ -352,7 +352,7 @@ test("5. API: tamu/non-UUID → 401; MEMBER: DRAFT → 404, non-UUID → 404, ke
 // loading.tsx structure test.
 
 test(
-  "7. judul 70 karakter tanpa spasi: tanpa gulir samping di 360/640/1024/1280, keadaan A dan B",
+  "7. judul 70 karakter tanpa spasi: tanpa gulir samping di 360/640/768/1024/1280, keadaan A dan B",
   async ({ page }) => {
     const title = noSpaceTitle(randomToken("bd")).slice(0, 70);
     await memberOnDashbor(page);
@@ -365,7 +365,7 @@ test(
 
     // State A first at EVERY width (screenshots included), then enroll
     // once — after that this member can never render state A again.
-    for (const width of [360, 640, 1024, 1280]) {
+    for (const width of [360, 640, 768, 1024, 1280]) {
       await page.setViewportSize({ width, height: 900 });
       await page.goto("/belajar");
       await expect(page.getByRole("article", { name: title })).toBeVisible();
@@ -377,7 +377,7 @@ test(
       `/api/progress/courses/${made.courseId}/enroll`,
     );
 
-    for (const width of [360, 640, 1024, 1280]) {
+    for (const width of [360, 640, 768, 1024, 1280]) {
       await page.setViewportSize({ width, height: 900 });
       await page.goto("/belajar");
       await expect(
