@@ -122,7 +122,7 @@ Prasyarat Sprint 1 (tanpa tanggal tetap — sebelum S1-01, tanpa branch kartu la
 
 ## Sprint 1 — CMS kursus & materi
 
-Kartu ditulis di Claude chat menjelang sesinya, terhadap kode `main` terbaru. Rencana lengkap, prasyarat, dan keputusan tertunda ada di `STATUS.md` (item "Rencana S1"). Sejak 3 Nov urutan dan lingkupnya mengikuti jadwal demo 20 Nov (bagian "Pembaruan 3 Nov", "Pembaruan 4 Nov", "Pembaruan 4 Nov malam", "Pembaruan 6 Nov", dan "Pembaruan 7 Nov" di `STATUS.md`). Sejak 8 Nov impor soal CSV pindah ke setelah demo (bagian "Pembaruan 8 Nov"). Keputusan kartu S1-08 ada di bagian "Pembaruan 9 Nov"; hasilnya di "Pembaruan 10 Nov".
+Kartu ditulis di Claude chat menjelang sesinya, terhadap kode `main` terbaru. Rencana lengkap, prasyarat, dan keputusan tertunda ada di `STATUS.md` (item "Rencana S1"). Sejak 3 Nov urutan dan lingkupnya mengikuti jadwal demo 20 Nov (bagian "Pembaruan 3 Nov", "Pembaruan 4 Nov", "Pembaruan 4 Nov malam", "Pembaruan 6 Nov", dan "Pembaruan 7 Nov" di `STATUS.md`). Sejak 8 Nov impor soal CSV pindah ke setelah demo (bagian "Pembaruan 8 Nov"). Keputusan kartu S1-08 ada di bagian "Pembaruan 9 Nov"; hasilnya di "Pembaruan 10 Nov". Jalur peserta (S5-01, S2-01, …) di "Pembaruan 11 Nov".
 
 - [x] 🤖 [S1-01](sprint-1/S1-01-daftar-dan-kursus-baru.md) — Daftar kursus, kursus baru, builder kosong · *✅ PR #106*
 - [ ] 🤖 [S1-01b](sprint-1/S1-01b-daftar-kursus-lanjutan.md) — Daftar kursus lanjutan: kartu 19e tablet & ponsel, "Urut ▾", perapian dialog & kode S1-01 · *setelah demo 20 Nov*
@@ -139,14 +139,14 @@ Kartu ditulis di Claude chat menjelang sesinya, terhadap kode `main` terbaru. Re
 
 ## Jalur demo 20 Nov — kartu menyusul
 
-Jadwal dan keputusannya di `STATUS.md` (bagian "Pembaruan 3 Nov", "Pembaruan 8 Nov", "Pembaruan 9 Nov", dan "Pembaruan 10 Nov"). Kartu ditulis di Claude chat selagi agent mengerjakan kartu sebelumnya. Urutan potong bila terlambat: halaman "Nilai Saya". Impor CSV sudah dipindah ke setelah demo (8 Nov).
+Jadwal dan keputusannya di `STATUS.md` (bagian "Pembaruan 3 Nov", "Pembaruan 8 Nov", "Pembaruan 9 Nov", "Pembaruan 10 Nov", dan "Pembaruan 11 Nov"). Kartu ditulis di Claude chat selagi agent mengerjakan kartu sebelumnya. Urutan potong bila terlambat: halaman "Nilai Saya". Impor CSV sudah dipindah ke setelah demo (8 Nov).
 
 - [x] 🤖 [S1-09](sprint-1/S1-09-editor-quiz.md) — Editor quiz CMS: daftar soal (22a) + form satu soal (22b) · *✅ PR #120 (8 Nov); perapian kosmetik setelah demo (STATUS 8 Nov)*
 - [x] 🤖 [S6-01](sprint-6/S6-01-beranda-versi-demo.md) — Beranda versi demo: hero 1a + ilustrasi 6a (bergerak, tombol jeda), Cara kerjanya, Tanya Ahli Gizi, CTA penutup, halaman "Segera hadir" · *✅ PR #127 (9 Nov); perapian setelah demo (STATUS 9 Nov)*
-- [ ] 🤖 [S5-01](sprint-5/S5-01-dasbor-belajar-versi-demo.md) — Dasbor belajar versi demo: kursus terbit, "Mulai materi 1" (pendaftaran), Kursus saya, skeleton `/belajar`, halaman legal "Segera hadir" · *Rab 11 Nov* *(`cache()` sesi/profil ditunda ke setelah demo — STATUS 10 Nov)*
-- [ ] 🤖 Peserta: halaman materi + progres, termasuk `POST /api/progress/video` dan posisi terakhir ([rencana video](../decisions/video-sumber.md) bagian 2) · *Kam 12 Nov*
+- [x] 🤖 [S5-01](sprint-5/S5-01-dasbor-belajar-versi-demo.md) — Dasbor belajar versi demo: kursus terbit, "Mulai materi 1" (pendaftaran), Kursus saya, skeleton `/belajar`, halaman legal "Segera hadir" · *✅ PR #131 (11 Nov); ⚠️ verifikasi manual pemilik belum dijalankan; perapian setelah demo (STATUS 11 Nov)* *(`cache()` sesi/profil ditunda ke setelah demo — STATUS 10 Nov)*
+- [ ] 🤖 [S2-01](sprint-2/S2-01-halaman-materi-dan-progres.md) — Halaman materi peserta + progres: gerbang akses, "materi dibuka", `POST /api/progress/video` dan posisi terakhir ([rencana video](../decisions/video-sumber.md) bagian 2) · *Kam 12 Nov*
 - [x] 👤 Keputusan video demo: **YouTube unlisted** · *✅ diputuskan 7 Nov; R2 tetap jalur produksi, H-04 tetap wajib sebelum S1-05 — [rencana](../decisions/video-sumber.md)*
-- [ ] 🤖 Peserta: player video — kolom sumber video, `LessonVideoPlayer` dengan kontrol 29a di atas mesin YouTube, CSP, skrip pasang video demo ([rencana](../decisions/video-sumber.md) bagian 1, 3, 4, 5) · *Jum 13 Nov, memakai cadangan Sel 17; garis potong: kontrol bawaan YouTube*
+- [ ] 🤖 S2-02 — Peserta: player video — kolom sumber video, `LessonVideoPlayer` dengan kontrol 29a di atas mesin YouTube, CSP, skrip pasang video demo ([rencana](../decisions/video-sumber.md) bagian 1, 3, 4, 5) *(kartu ditulis Kam 12 selagi S2-01 berjalan; butuh ID video contoh dari pemilik)* · *Jum 13 Nov, memakai cadangan Sel 17; garis potong: kontrol bawaan YouTube*
 - [ ] 🤖 Peserta: mengerjakan quiz · *Sab 14 – Min 15 Nov*
 - [ ] 🤖 Peserta: hasil & nilai · *Sen 16 Nov*
 - [ ] 👤 Cadangan · *Sel 17 Nov*
@@ -171,4 +171,4 @@ Dikerjakan kamu bersama ahli gizi, **tidak menunggu** tahap di atas. Konten, buk
 ## Keputusan yang masih kamu tunggu
 
 - [x] **Proposal CSP** — diputuskan 17 Okt: opsi (b+) (PRD v1.5 Q45), diterapkan di [A-16b](fase-0/A-16b-penegakan-csp.md).
-- [ ] **Jalur data demo ke binzi-dev** (data contoh + akun demo per peran) — putuskan paling lambat Sen 16 Nov (`STATUS.md`, "Pembaruan 4 Nov").
+- [ ] **Jalur data demo ke binzi-dev** (data contoh + akun demo per peran) — putuskan paling lambat Sen 16 Nov (`STATUS.md`, "Pembaruan 4 Nov"). *Usulan 11 Nov (berlaku bila tidak diubah): akun manual + kursus diketik lewat CMS dari konten ahli gizi; cadangan kartu seed "[DEMO]" — `STATUS.md`, "Pembaruan 11 Nov", keputusan no. 3.*

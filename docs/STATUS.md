@@ -1,9 +1,121 @@
 # Status Proyek BINZI — catatan untuk melanjutkan di chat baru
 
-> Terakhir diperbarui: 10 Nov 2026. File ini dikelola manual (bukan oleh agent) dan hanya untuk melanjutkan percakapan dengan Claude.
+> Terakhir diperbarui: 11 Nov 2026. File ini dikelola manual (bukan oleh agent) dan hanya untuk melanjutkan percakapan dengan Claude.
 > Untuk melanjutkan: buka chat baru, unggah file ini + `docs/tasks/URUTAN-KERJA.md`, lalu pakai prompt di bagian paling bawah.
 
-## Pembaruan 10 Nov 2026 — S1-08 di-merge, region fungsi ke Singapura, kartu S5-01 siap (baca ini dulu, lalu 9 Nov, 8 Nov, 7 Nov, 6 Nov, 4 Nov malam, 4 Nov, dan 3 Nov)
+## Pembaruan 11 Nov 2026 — S5-01 di-merge, kartu S2-01 siap (baca ini dulu, lalu 10 Nov, 9 Nov, 8 Nov, 7 Nov, 6 Nov, 4 Nov malam, 4 Nov, dan 3 Nov)
+
+Bagian-bagian di bawahnya tetap berlaku. Bagian ini mengubah atau menambahnya.
+
+### Yang di-merge hari ini
+
+| PR | Isi |
+|---|---|
+| #130 | Kartu S5-01 + STATUS 10 Nov (merge 10 Nov 23.04, setelah STATUS 10 Nov ditulis) |
+| #131 | S5-01 dasbor belajar versi demo |
+
+`main` sekarang `acdad2c`. Baseline Vitest **107 berkas / 1138 tes**, diukur di sandbox Claude chat (`npm run check` penuh pada `c8eaa5c`; pohonnya identik dengan `acdad2c`). Gate audit di mesin pemilik 0 excused / 0 blocking / OK / 22. Tanpa migrasi, tanpa dependensi baru.
+
+### S5-01 di-merge (#131)
+
+`/belajar` kini dasbor sungguhan dengan tiga keadaan:
+- **A — peserta baru** (28a/28b): kartu unggulan, "Cara belajar di BINZI", kotak "Nilai Saya masih kosong".
+- **B — peserta aktif** (8a/13d): baris "Kursus saya" dengan badge, progres, dan "Mulai materi 1"/"Lanjutkan".
+- **C — belum ada kursus terbit**: EmptyState.
+
+"Kursus lainnya" tampil di A dan B. Di belakangnya:
+- modul `progress` (`policy`/`queries`/`serializer`/`service`);
+- `POST /api/progress/courses/{id}/enroll`, idempoten 201/200, 404 seragam untuk semua yang tidak bisa didaftar;
+- `loading.tsx` di route group `(dashboard)` dengan skeleton tertunda 300 ms;
+- tiga halaman legal "Segera hadir" (Kebijakan Privasi, Syarat & Ketentuan, Disclaimer medis).
+
+**Tinjauan rencana** di Claude chat menambah 13 butir (agent tidak bisa membaca PNG 8a, jadi ukuran desain diambil dari berkas `.html`). Yang terpenting:
+- `enrollment_count` dinaikkan dengan SQL mentah supaya `updated_at` kursus tidak ikut berubah (pelajaran no. 1);
+- 404 di tombol mulai **tanpa** `router.refresh()` (pelajaran no. 6);
+- filter "punya materi" di ketiga query; `firstLessonSlugSql` ditulis sekali dengan pemecah seri `id`;
+- tes keyboard tidak menunjuk kontrol tertentu (data e2e bersama).
+
+**Tinjauan PR** — dua putaran commit kecil sebelum merge, keduanya dari screenshot:
+- `7123c25`: pil badge meregang selebar kolom (pelajaran no. 4); kotak "Nilai Saya masih kosong" ikut tampil di keadaan C; gambar baris di bawah 640 setinggi 13d.
+- `c8eaa5c`: dua tes tanpa-gulir-samping lama mengukur halaman kosong (pelajaran no. 3); salam dipindah ke atas kedua kolom seperti 28a/8a; judul kolom kanan seukuran 28a.
+
+Uji mutasi 19 baris, semua merah. Tes e2e skeleton (no. 6) diganti langkah manual sesuai aturan kartu: tiga varian penahanan request gagal deterministik, karena fallback hanya tampil saat stream lambat, bukan saat request ditahan.
+
+Screenshot akhir ditinjau di Claude chat: A dan B di 360/640/768/1024/1280, keadaan C asli (run `--grep` di DB kosong), nama 40 karakter, legal 360 — cocok dengan 28a/28b/8a/13d. **"Kursus lainnya" belum pernah terlihat di screenshot** (setiap run hanya punya satu kursus terbit); strukturnya dijaga tes komponen dan tes target sentuh.
+
+### ⚠️ Verifikasi manual S5-01 belum dijalankan
+
+PR #131 di-merge 11 Nov tanpa langkah "Verifikasi oleh kamu" kartu S5-01 (pemilik belum sempat). Jalankan **paling lambat bersamaan dengan verifikasi S2-01 (Kam 12)**, karena persiapannya sama:
+1. Lokal: `npm run dev:db && npm run db:seed:demo`, terbitkan "[DEMO] Kursus contoh 3" bila belum (langkah 1–4 kartu S1-08), `npm run dev`, MEMBER baru di jendela privat → keadaan A → "Mulai materi 1" → kembali → keadaan B ("Belum dimulai", lalu "Sedang berjalan"/"Lanjutkan" setelah S2-01).
+2. **Skeleton** (pengganti tes e2e no. 6): DevTools → Network → Slow 4G → buka `/` → klik "Belajar" → kerangka abu-abu tampil sebelum dasbor. Bila tidak pernah tampil, catat di sini — tidak berbahaya, tetapi `loading.tsx` jadi hiasan.
+3. Footer "Kebijakan Privasi"/"Syarat & Ketentuan"/"Disclaimer medis" → "Segera hadir"; 360 px tanpa gulir samping.
+4. Bila ada dua kursus terbit: lihat sekilas "Kursus lainnya".
+
+### Keputusan pemilik 11 Nov
+
+Pemilik meminta Claude chat memilih opsi terbaik; semua keputusan di bawah adalah rekomendasi Claude chat yang disetujui pemilik.
+
+1. **Tambahan 13 butir pada rencana S5-01** dan dua commit perbaikan PR (`7123c25`, `c8eaa5c`) disetujui.
+2. **Kartu S2-01 — halaman materi + progres** ([kartu](tasks/sprint-2/S2-01-halaman-materi-dan-progres.md)). ID S2 karena tabel fase `docs/design/handoff/README.md` menaruh player dan progres (7d, 28f, 29a) di Sprint 2:
+   1. Header member tetap; bar kursus di dalam halaman menggantikan header fokus 7d/7f/7t sampai setelah demo.
+   2. Semua materi di `/belajar` mewajibkan pendaftaran, termasuk materi `is_free_preview` (preview tamu tetap S6).
+   3. Materi terkunci dan "belum mengikuti kursus" menjawab 200 dengan panel tanpa isi; kursus/materi yang tidak ada atau tidak terbit menjawab 404.
+   4. "Materi dibuka" dicatat lewat POST dari klien setelah halaman tampil, tidak pernah saat GET.
+   5. Persen tonton = posisi terjauh, terhadap `lessons.video_duration_seconds` bila terisi. Celah "geser ke akhir" dicatat untuk setelah demo.
+   6. Bar bawah: sebelumnya/berikutnya + catatan kunci; tombol "Tandai selesai & mulai quiz" milik kartu quiz (Sab 14).
+   7. Tanpa `loading.tsx` untuk rute materi (pelajaran no. 2).
+3. **Jalur data demo ke binzi-dev — usulan, berlaku bila tidak diubah sampai Sen 16:**
+   - Akun demo per peran dibuat manual: daftar lewat UI di Production, verifikasi lewat tautan di log Vercel, peran lewat `npm run user:role:binzi-dev`. Tanpa skrip baru; kata sandi tidak masuk chat atau git.
+   - Kursus contoh diketik lewat CMS di Production dari konten ahli gizi, saat persiapan Sel 17–Rab 18 (sekaligus gladi alur CMS). Butuh: 1–2 materi singkat, 10 soal per quiz materi + 10 Final Quiz, setiap soal dengan pembahasan.
+   - Cadangan bila konten ahli gizi belum siap Sen 16: kartu kecil `db:seed:binzi-dev` yang memasang kursus "[DEMO]" dari seed lokal (UUID tetap, bisa dihapus bersih) — hanya layak untuk penonton internal.
+
+### Jadwal demo setelah hari ini
+
+| Hari | Kartu |
+|---|---|
+| Rab 11 | S5-01 dasbor belajar — **di-merge (#131)** |
+| Kam 12 | **S2-01 halaman materi + progres** (kartu masuk lewat PR docs ini); kartu S2-02 ditulis di Claude chat selagi agent bekerja |
+| Jum 13 | S2-02 player video (memakai cadangan Sel 17) |
+| Sab 14 – Min 15 | Peserta: mengerjakan quiz |
+| Sen 16 | Peserta: hasil & nilai; batas keputusan jalur data demo |
+| Rab 18 – Kam 19 | Production, akun demo, data contoh, gladi resik |
+| Jum 20 | Demo |
+
+### Tugas pemilik minggu ini (bukan kode)
+
+1. **Ahli gizi (K-02):** minta konten satu kursus demo (lihat keputusan no. 3), tenggat Sab 14. Ini risiko terbesar demo.
+2. **Video YouTube untuk S2-02:** akun YouTube milik proyek (Brand Account), satu video contoh *unlisted* ≤ 5 menit yang boleh dilihat umum, berkas master MP4 di drive bersama (rencana video bagian 6). Dibutuhkan untuk verifikasi Jum 13.
+3. **Metode pembayaran Cloudflare** (tenggat Kam 12): tidak memblokir demo, memblokir S1-05.
+4. **Cek pengaturan binzi-dev** di SQL Editor Supabase: `select key, value from system_settings where key in ('quiz.min_questions', 'score.lesson_weight', 'score.final_weight', 'consultation.whatsapp_number');` → `10`, `60`, `40`, nomor WhatsApp asli.
+5. **Verifikasi manual S5-01** (bagian ⚠️ di atas).
+
+### Pelajaran 11 Nov
+
+1. **`$onUpdate` drizzle ikut menulis kolomnya di setiap `update()`**, juga di cabang konflik `onConflictDoUpdate`, walau kolom itu tidak disebut. `db.update(courses).set({ enrollmentCount: … })` menjadi `… "updated_at" = $1`, sehingga setiap pendaftaran akan menaikkan kursus ke puncak "Terakhir diubah" di CMS. Untuk counter yang tidak boleh menyentuh `updated_at`, pakai SQL mentah dan buktikan dengan `toSQL()`. Untuk `enrollments.last_lesson_id` justru diinginkan (urutan "Kursus saya").
+2. **`loading.tsx` di folder halaman itu sendiri juga mengubah status.** Diuji Next 16.4.1 minimal (`build` + `start` + `curl`): dengan `loading.tsx` di folder halaman, `/ada`, `/tidak-ada`, `/pindah` menjawab 200/200/200; tanpa: 200/404/307. Melengkapi pelajaran 10 Nov no. 2 (folder di atasnya). Halaman yang butuh 404/307 tidak boleh punya `loading.tsx` di foldernya maupun di atasnya.
+3. **Tes yang mengukur langsung setelah `page.goto` bisa lulus tanpa memeriksa apa pun** bila halamannya streaming di balik `loading.tsx` (kosong 300 ms pertama). Ditemukan dari ukuran berkas screenshot: 9–17 KB (hanya header) dibanding ±170 KB (berisi). Tunggu isi (h1 atau teks bertoken) sebelum mengukur atau memotret.
+4. **Pil atau label pendek yang menjadi item grid meregang selebar kolom** (`justify-self` bawaan = stretch): pil "Belum dimulai" jadi bilah panjang. Tes jsdom tidak menghitung tata letak; hanya screenshot yang menangkapnya. Pakai `justify-self-start` atau lebar tetap.
+5. **`npm run check` sudah memuat `lint:hex`.** Badan PR #131 sempat menyatakan sebaliknya, artinya laporan "check hijau" sebelum push bukan hasil `check` penuh di commit itu. Setiap PR kini menempel 5 baris terakhir output `check` dari commit akhir.
+6. **`router.refresh()` setelah galat bisa menghapus elemen tempat pesan dan fokus berada.** Kursus yang tidak lagi terbit hilang dari daftar setelah refresh, beserta pesan galat di bawah tombolnya, dan fokus jatuh ke `body`. Tes komponen dengan router tiruan tidak bisa menangkapnya.
+7. **Tes e2e yang mengasersi daftar global kosong memaksa spec lain membersihkan datanya.** `cms-kursus` "Belum ada kursus." berjalan setelah `belajar-*` secara alfabetis, sehingga S5-01 menambah `afterAll` yang menghapus kursusnya; S2-01 memindahkannya ke helper bersama. Perbaikan sebenarnya ada di S1-01b: tes daftar kosong mengasersi ketiadaan kursus bertoken miliknya, bukan daftar global.
+8. **Agent kadang tidak bisa membaca PNG desain** (8a gagal 2× di layanan analisis gambar). Ukuran diambil dari berkas `.html` desain; Claude chat membaca PNG dan HTML saat meninjau rencana dan screenshot.
+
+### Perapian setelah demo (dari S5-01)
+
+- **Header member di 640–±650 px:** lima tautan nav (Belajar…Tentang) bertumpuk di atas tombol cari; muat di 700. Bawaan A-14b/S6-01, bukan S5-01. Tes layout hanya memakai lebar 700 — tambahkan 640.
+- **Copy 28b "Mulai dari yang paling dasar:"**, padahal kursus unggulan dipilih dari tanggal terbit terbaru, bukan level termudah.
+- **Keadaan C** melompat h1 → h3 (judul `EmptyState`).
+- **Penyimpangan desain yang diterima untuk demo:** eyebrow 28a "AKUN TERVERIFIKASI · HARI PERTAMA" tidak dibangun; `ProgressBar` tone `success` (8a merah untuk kursus berjalan); pil "Paling banyak diikuti" dan "Lihat semua kursus" tidak dibangun; tombol mulai per baris "Kursus lainnya" (28a tanpa tombol).
+- **Back setelah mendaftar** memakai cache router (tanpa refetch) — diterima.
+- **Bila verifikasi manual menunjukkan skeleton tidak pernah tampil:** pertimbangkan `<Suspense>` di dalam halaman alih-alih `loading.tsx`.
+
+### Catatan untuk kartu berikutnya
+
+- **S2-01 (Kam 12):** kartu ditinjau ulang terhadap `acdad2c` (nama ekspor dan helper e2e S5-01 yang sebenarnya, baseline 107/1138, helper pembersih bersama). Rencana agent ditinjau di chat sebelum disetujui. Kartu memuat pelajaran no. 2, 3, 4, 5, dan 7.
+- **S2-02 (Jum 13, player video):** kartu ditulis Kam 12 di Claude chat selagi agent mengerjakan S2-01. Dasarnya rencana video bagian 1, 3, 4, 5 dan "Catatan untuk kartu Jum 13" di akhir kartu S2-01. Butuh ID video contoh dari pemilik (tugas no. 2).
+- **Kartu quiz (Sab 14):** catatannya di akhir kartu S2-01 — tombol "Tandai selesai & mulai quiz", `quiz_attempted` + status `COMPLETED` di transaksi submit, rute quiz di bawah `[materi]` tanpa `loading.tsx`.
+
+## Pembaruan 10 Nov 2026 — S1-08 di-merge, region fungsi ke Singapura, kartu S5-01 siap (baca setelah 11 Nov, lalu 9 Nov, 8 Nov, 7 Nov, 6 Nov, 4 Nov malam, 4 Nov, dan 3 Nov)
 
 Bagian-bagian di bawahnya tetap berlaku. Bagian ini mengubah atau menambahnya.
 
@@ -742,6 +854,8 @@ Rencana disetujui, dengan lima tambahan berikut (hasil tinjauan C-02/C-03, belum
 
 ## Pekerjaan kecil yang masih terbuka
 
+- [ ] **Verifikasi manual S5-01 oleh pemilik** *(11 Nov: PR #131 di-merge tanpa langkah "Verifikasi oleh kamu")* — langkah dan tenggatnya di bagian "⚠️ Verifikasi manual S5-01", Pembaruan 11 Nov. Hasil skeleton Slow 4G dicatat di sini.
+- [ ] **Header member bertumpuk di 640–±650 px** *(ditemukan 11 Nov dari screenshot S5-01; setelah demo)* — lima tautan nav menimpa tombol cari; tes layout menambah lebar 640.
 - [x] **Jadwal upgrade audit — tebing gate** *(selesai 6 Nov: C-04 PR #111, `audit-exceptions.json` = `[]`)* (kartu di `docs/tasks/chore/`, semua hasil disimulasikan 24 Okt). `expires` inklusif dan dibandingkan dalam tanggal UTC runner, jadi gate merah pukul 07.00 WIB sehari setelah `expires` — dan semua PR, termasuk docs, ikut terblokir.
   - ✅ **C-01** selesai 26 Okt (PR #77): zod langsung 4.6.6, ESLint mengabaikan `.claude/**`, override vite dilepas, cooldown Dependabot 14 hari. Entri zod sengaja tetap sampai C-04.
   - ✅ **C-02** selesai 29 Okt (PR #87): `next` + `eslint-config-next` tepat 16.4.1, 3 entri next dihapus.
@@ -989,8 +1103,8 @@ Rencana disetujui, dengan lima tambahan berikut (hasil tinjauan C-02/C-03, belum
 Saya sedang membangun BINZI (platform belajar gizi) dengan Next.js 16 +
 AI coding agent (Claude Code). Terlampir docs/STATUS.md dan
 docs/tasks/URUTAN-KERJA.md dari repo saya — baca keduanya sebagai konteks.
-Baca bagian "Pembaruan 10 Nov" di STATUS.md lebih dulu, lalu
-"Pembaruan 9 Nov", "Pembaruan 8 Nov", "Pembaruan 7 Nov", "Pembaruan 6 Nov", "Pembaruan 4 Nov
+Baca bagian "Pembaruan 11 Nov" di STATUS.md lebih dulu, lalu
+"Pembaruan 10 Nov", "Pembaruan 9 Nov", "Pembaruan 8 Nov", "Pembaruan 7 Nov", "Pembaruan 6 Nov", "Pembaruan 4 Nov
 malam", "Pembaruan 4 Nov", dan "Pembaruan 3 Nov 2026 — target demo 20 Nov";
 jadwal dan keputusan di sana mengalahkan rencana sprint lama.
 Spesifikasi lengkap ada di docs/prd/ dan aturan agent di CLAUDE.md;
@@ -998,15 +1112,17 @@ repo publik di github.com/adiynsyah/binzi — clone untuk membaca kode,
 kartu, desain, dan meninjau PR (API GitHub sering kena rate limit;
 git fetch pull/N/head tetap jalan). Repo di mesin saya ada di
 ~/Project/React/binzi-new.
-Posisi terakhir (10 Nov): S1-08 kirim & terbitkan (PR #129) di-merge →
-main 1898ab6; region fungsi Vercel sudah di Singapura; kartu S5-01
-(dasbor belajar versi demo) masuk lewat PR docs. Berikutnya:
-- Rab 11: sesi S5-01; rencana agent ditinjau di chat sebelum disetujui.
-- Kam 12: tulis kartu peserta "halaman materi + progres"; catatannya ada
-  di bagian akhir kartu S5-01.
+Posisi terakhir (11 Nov): S5-01 dasbor belajar (PR #131) di-merge →
+main acdad2c; kartu S2-01 (halaman materi + progres) masuk lewat PR docs.
+Verifikasi manual S5-01 oleh pemilik belum dijalankan (STATUS 11 Nov).
+Berikutnya:
+- Kam 12: sesi S2-01; rencana agent ditinjau di chat sebelum disetujui.
+  Selagi agent bekerja, tulis kartu S2-02 (player video) dari rencana
+  video bagian 1, 3, 4, 5 + catatan di akhir kartu S2-01.
+- Tugas pemilik minggu ini: lihat "Tugas pemilik minggu ini" di 11 Nov.
 - Untuk tinjauan tampilan, Claude bisa menjalankan Chromium headless di
   sandbox (@sparticuz/chromium + playwright-core dari registry npm).
-Gate audit main: 0 excused / 0 blocking / 23 info-low-moderate. Uji
+Gate audit main: 0 excused / 0 blocking / 22–23 info-low-moderate. Uji
 lokal selalu dengan npm run dev:db. Branch main diproteksi (wajib PR,
 check ci + e2e) — docs juga lewat PR. Setiap kartu ditinjau terhadap
 main sebelum sesinya; rencana agent ditinjau di chat; PR ditinjau dari
