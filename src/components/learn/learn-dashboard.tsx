@@ -181,14 +181,14 @@ function KursusSaya({ courses }: { courses: EnrolledCourseDTO[] }) {
               aria-labelledby={titleId}
               className="rounded-card border border-border bg-surface p-4 sm:grid sm:grid-cols-[96px_minmax(0,1fr)_150px] sm:items-center sm:gap-4"
             >
-              <CoverBlock className="aspect-[3/2] w-full rounded-control sm:h-16 sm:w-24" />
+              <CoverBlock className="h-[110px] w-full rounded-control sm:h-16 sm:w-24" />
               {/* DOM order = the 360 reading order of 13d (badge → title →
                   meta → progress); the sm grid placement re-flows it into
                   8a's badge-left/meta-right rows without reordering nodes. */}
-              <div className="mt-3 grid min-w-0 gap-2 sm:mt-0 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-x-3">
+              <div className="mt-3 grid min-w-0 gap-2 sm:mt-0 sm:grid-cols-[auto_minmax(0,1fr)] sm:gap-x-3">
                 <BadgeStatus
                   status={course.badge}
-                  className="sm:col-start-1 sm:row-start-1"
+                  className="justify-self-start sm:col-start-1 sm:row-start-1"
                 />
                 <h3
                   id={titleId}
@@ -282,20 +282,22 @@ function KursusLainnya({ courses }: { courses: LearnerCourseDTO[] }) {
 }
 
 /** The shared right column: "Kursus lainnya" plus, for a NEW participant
- *  only, the 28a "Nilai Saya masih kosong" box (a returning participant's
- *  stats are a different widget, not built for the demo — card §3.B). */
+ *  with something to start (state A only), the 28a "Nilai Saya masih
+ *  kosong" box — state C shows nothing on the right: it is not the first
+ *  day the copy speaks to, and there is no stats widget for the demo
+ *  (card §3.B). */
 function RightColumn({
   others,
-  isNewParticipant,
+  showNilaiKosong,
 }: {
   others: LearnerCourseDTO[];
-  isNewParticipant: boolean;
+  showNilaiKosong: boolean;
 }) {
-  if (others.length === 0 && !isNewParticipant) return null;
+  if (others.length === 0 && !showNilaiKosong) return null;
   return (
     <div className="flex flex-col gap-7">
       {others.length > 0 ? <KursusLainnya courses={others} /> : null}
-      {isNewParticipant ? (
+      {showNilaiKosong ? (
         <div className="hidden rounded-card border border-dashed border-border-dashed bg-surface-2 p-5 sm:block">
           <h2 className="text-lg font-black tracking-tight text-text">
             Nilai Saya masih kosong
@@ -366,7 +368,10 @@ export function LearnDashboard({ firstName, dashboard }: LearnDashboardProps) {
           <KursusSaya courses={dashboard.enrolled} />
         )}
       </div>
-      <RightColumn others={others} isNewParticipant={isNewParticipant} />
+      <RightColumn
+        others={others}
+        showNilaiKosong={isNewParticipant && dashboard.available.length > 0}
+      />
     </div>
   );
 }

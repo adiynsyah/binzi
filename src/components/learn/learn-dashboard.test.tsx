@@ -199,6 +199,12 @@ describe("LearnDashboard — state C (nothing yet)", () => {
     expect(tanya.getAttribute("href")).toBe("/#tanya-ahli-gizi");
     const beranda = screen.getByRole("link", { name: "Kembali ke Beranda" });
     expect(beranda.getAttribute("href")).toBe("/");
+    // State C is not state A's "first day": the 28a empty-stats box is for
+    // a participant with something to start, and the whole right column is
+    // empty here.
+    expect(
+      screen.queryByRole("heading", { name: "Nilai Saya masih kosong" }),
+    ).toBeNull();
   });
 });
 
