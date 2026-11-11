@@ -217,6 +217,12 @@ describe("getLearnerDashboard — available", () => {
       publishedAt: new Date("2026-11-01T08:00:00Z"),
     });
     await enrollInCourse(MEMBER_B, joinedByOther.course.id);
+    const joinedBySelf = await makeCourse("av1b", {
+      lessonTitles: ["Materi satu"],
+      status: "PUBLISHED",
+      publishedAt: new Date("2026-11-01T08:00:00Z"),
+    });
+    await enrollInCourse(MEMBER, joinedBySelf.course.id);
 
     const dashboard = await getLearnerDashboard(MEMBER);
     const ids = dashboard.available.map((course) => course.id);
@@ -226,8 +232,10 @@ describe("getLearnerDashboard — available", () => {
     expect(ids).not.toContain(inReview.course.id);
     expect(ids).not.toContain(archived.course.id);
     expect(ids).not.toContain(noLessons.course.id);
-    // Another participant's enrollment does not hide a course from MEMBER.
+    // Another participant's enrollment does not hide a course from MEMBER…
     expect(ids).toContain(joinedByOther.course.id);
+    // …but the ACTOR's own enrollment does (mutation 3).
+    expect(ids).not.toContain(joinedBySelf.course.id);
   });
 
   it("orders by published_at DESC", async () => {
