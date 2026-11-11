@@ -14,7 +14,7 @@
 // - enrollInCourse: created flags, idempotency, counter increments (and
 //   courses.updated_at NOT stamped by the raw-SQL counter update), uniform
 //   404s, per-course correctness of every correlated subquery with three
-//   courses live (the bare-column trap of PR #129), unknown role → 403
+//   courses live (the bare-column trap of PR no. 129), unknown role → 403
 //   BEFORE input parsing.
 // - DTO allowlist: description/content never leave the module.
 import { fileURLToPath } from "node:url";
@@ -401,7 +401,7 @@ describe("getLearnerDashboard — enrolled", () => {
   });
 });
 
-// --- per-course correctness with several courses live (PR #129 trap) ----
+// --- per-course correctness with several courses live (PR no. 129 trap) -
 
 describe("correlated subqueries stay per-course with three courses live", () => {
   it("returns each course's own counts and first lesson slug", async () => {

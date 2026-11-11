@@ -10,7 +10,7 @@
 // the boundary explicitly allows.
 //
 // OUTER TABLE REFERENCES ARE HAND-WRITTEN in every sql`` subquery below
-// (PR #129 finding, reproduced in the card): drizzle 0.45.3 renders a
+// (PR no. 129 finding, reproduced in the card): drizzle 0.45.3 renders a
 // Column interpolated into a sql`` template by its BARE name in a
 // single-table SELECT, so `${lessons.courseId} = ${courses.id}` renders
 // "course_id" = "id" and Postgres binds BOTH sides to the subquery's own
