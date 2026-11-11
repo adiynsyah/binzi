@@ -124,7 +124,7 @@ function FeaturedCard({ course }: { course: LearnerCourseDTO }) {
   return (
     <article
       aria-labelledby={titleId}
-      className="mt-8 grid overflow-hidden rounded-card border-[1.5px] border-primary/30 bg-primary-tint sm:grid-cols-[236px_minmax(0,1fr)]"
+      className="grid overflow-hidden rounded-card border-[1.5px] border-primary/30 bg-primary-tint sm:grid-cols-[236px_minmax(0,1fr)]"
     >
       <CoverBlock className="relative min-h-[120px] sm:min-h-[190px]">
         <p className="absolute bottom-3 left-3 font-mono text-xs font-medium uppercase tracking-wide text-surface">
@@ -165,7 +165,7 @@ function FeaturedCard({ course }: { course: LearnerCourseDTO }) {
  *  progress, and a plain LINK (not a POST — already enrolled). */
 function KursusSaya({ courses }: { courses: EnrolledCourseDTO[] }) {
   return (
-    <section aria-labelledby="kursus-saya-heading" className="mt-8">
+    <section aria-labelledby="kursus-saya-heading">
       <h2
         id="kursus-saya-heading"
         className="text-xl font-black tracking-tight text-text sm:text-2xl"
@@ -239,7 +239,7 @@ function KursusLainnya({ courses }: { courses: LearnerCourseDTO[] }) {
     >
       <h2
         id="kursus-lainnya-heading"
-        className="text-lg font-black tracking-tight text-text"
+        className="text-sm font-bold text-text"
       >
         Kursus lainnya
       </h2>
@@ -299,7 +299,7 @@ function RightColumn({
       {others.length > 0 ? <KursusLainnya courses={others} /> : null}
       {showNilaiKosong ? (
         <div className="hidden rounded-card border border-dashed border-border-dashed bg-surface-2 p-5 sm:block">
-          <h2 className="text-lg font-black tracking-tight text-text">
+          <h2 className="text-[13.5px] font-bold text-text">
             Nilai Saya masih kosong
           </h2>
           <p className="mt-2 text-sm text-text-muted">
@@ -320,58 +320,67 @@ export function LearnDashboard({ firstName, dashboard }: LearnDashboardProps) {
     ? dashboard.available.slice(1)
     : dashboard.available;
   const greeting = isNewParticipant ? "Selamat datang" : "Selamat datang kembali";
+  // State A only: the greeting gets its intro paragraph, and the right
+  // column gets the empty-stats box. State C is greeted but starts nothing.
+  const isStateA = isNewParticipant && dashboard.available.length > 0;
 
   return (
-    <div className="grid gap-7 lg:grid-cols-[minmax(0,1fr)_340px]">
-      <div>
-        {/* Typography from A-14b, but with wrap-anywhere instead of its
-            break-words/text-balance: a single-word 40-character name (or a
-            70-character course title below) has no break point, and
-            break-word variants do not shrink the min-content width — the
-            no-horizontal-scroll suite caught exactly that. Same utility the
-            CMS course list and rich-content already use. */}
-        <h1 className="wrap-anywhere text-[25px] font-black leading-[1.14] tracking-[-0.022em] text-text sm:text-[32px] sm:leading-[1.16] sm:tracking-[-0.024em]">
-          {firstName ? `${greeting}, ${firstName}` : greeting}
-        </h1>
+    <>
+      {/* Typography from A-14b, but with wrap-anywhere instead of its
+          break-words/text-balance: a single-word 40-character name (or a
+          70-character course title below) has no break point, and
+          break-word variants do not shrink the min-content width — the
+          no-horizontal-scroll suite caught exactly that. Same utility the
+          CMS course list and rich-content already use. */}
+      <h1 className="wrap-anywhere text-[25px] font-black leading-[1.14] tracking-[-0.022em] text-text sm:text-[32px] sm:leading-[1.16] sm:tracking-[-0.024em]">
+        {firstName ? `${greeting}, ${firstName}` : greeting}
+      </h1>
 
-        {isNewParticipant ? (
-          dashboard.available.length > 0 ? (
-            <>
-              {/* Intro copy: 28a ≥ 640, 28b below (card §3.A). */}
-              <p className="mt-4 max-w-(--width-measure) text-text-muted sm:hidden">
-                Belum ada kursus. Mulai dari yang paling dasar:
-              </p>
-              <p className="mt-4 hidden max-w-(--width-measure) text-text-muted sm:block">
-                Belum ada kursus yang Anda ikuti. Pilih satu untuk mulai —
-                setiap materi 3–5 menit dan progress tersimpan otomatis.
-              </p>
-              <FeaturedCard course={dashboard.available[0]!} />
-              <HowItWorks />
-            </>
+      {/* The greeting spans BOTH columns (28a/8a): the two-column grid and
+          its right column start level with the featured card (A) / "Kursus
+          saya" (B), not with the salutation. */}
+      {isStateA ? (
+        <>
+          {/* Intro copy: 28a ≥ 640, 28b below (card §3.A). */}
+          <p className="mt-4 max-w-(--width-measure) text-text-muted sm:hidden">
+            Belum ada kursus. Mulai dari yang paling dasar:
+          </p>
+          <p className="mt-4 hidden max-w-(--width-measure) text-text-muted sm:block">
+            Belum ada kursus yang Anda ikuti. Pilih satu untuk mulai —
+            setiap materi 3–5 menit dan progress tersimpan otomatis.
+          </p>
+        </>
+      ) : null}
+
+      <div className="mt-8 grid gap-7 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <div>
+          {isNewParticipant ? (
+            isStateA ? (
+              <>
+                <FeaturedCard course={dashboard.available[0]!} />
+                <HowItWorks />
+              </>
+            ) : (
+              // State C: nothing published (and nothing enrolled). Only the
+              // component test can reach it — the shared e2e database always
+              // has published courses.
+              <EmptyState
+                label="KURSUS · BELUM ADA"
+                title="Belum ada kursus yang terbit"
+                description="Kursus pertama sedang disiapkan ahli gizi."
+                primaryAction={{
+                  label: "Tanya Ahli Gizi",
+                  href: "/#tanya-ahli-gizi",
+                }}
+                alternativeAction={{ label: "Kembali ke Beranda", href: "/" }}
+              />
+            )
           ) : (
-            // State C: nothing published (and nothing enrolled). Only the
-            // component test can reach it — the shared e2e database always
-            // has published courses.
-            <EmptyState
-              className="mt-8"
-              label="KURSUS · BELUM ADA"
-              title="Belum ada kursus yang terbit"
-              description="Kursus pertama sedang disiapkan ahli gizi."
-              primaryAction={{
-                label: "Tanya Ahli Gizi",
-                href: "/#tanya-ahli-gizi",
-              }}
-              alternativeAction={{ label: "Kembali ke Beranda", href: "/" }}
-            />
-          )
-        ) : (
-          <KursusSaya courses={dashboard.enrolled} />
-        )}
+            <KursusSaya courses={dashboard.enrolled} />
+          )}
+        </div>
+        <RightColumn others={others} showNilaiKosong={isStateA} />
       </div>
-      <RightColumn
-        others={others}
-        showNilaiKosong={isNewParticipant && dashboard.available.length > 0}
-      />
-    </div>
+    </>
   );
 }

@@ -23,13 +23,16 @@ export function LearnDashboardSkeleton() {
 
   return (
     <PageContainer className="pt-8">
-      <SkeletonList className="grid gap-7 lg:grid-cols-[minmax(0,1fr)_340px]">
+      {/* Same shape as the dashboard it stands in for: the heading and
+          intro paragraph span BOTH columns, the two-column grid (with its
+          right-column rows) starts mt-8 below them. */}
+      <Skeleton className="h-8 w-64 rounded-control" />
+      <Skeleton className="mt-4 h-4 w-2/3" />
+      <SkeletonList className="mt-8 grid gap-7 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div>
-          <Skeleton className="h-8 w-64 rounded-control" />
-          <Skeleton className="mt-4 h-4 w-2/3" />
           {/* Featured card twin: image block (120px stacked < 640, 190px
               side-by-side from 640) + text lines + a button block. */}
-          <div className="mt-8 grid overflow-hidden rounded-card border border-border bg-surface sm:grid-cols-[236px_minmax(0,1fr)]">
+          <div className="grid overflow-hidden rounded-card border border-border bg-surface sm:grid-cols-[236px_minmax(0,1fr)]">
             <Skeleton className="h-[120px] w-full rounded-none sm:h-[190px]" />
             <div className="p-4 sm:p-6">
               <Skeleton className="h-4 w-24" />
