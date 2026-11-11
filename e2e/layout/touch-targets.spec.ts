@@ -13,11 +13,13 @@ import {
   test,
   withE2eDb,
 } from "../fixtures";
-import type { Locator } from "@playwright/test";
+import type { BrowserContext, Locator } from "@playwright/test";
 import {
   createCourseViaApi,
+  createEditorAdminContexts,
   createLessonViaApi,
   createPublishableCourseViaApi,
+  createPublishedCourseViaApi,
   expectTouchTarget,
   measureTarget,
   openAccountDrawer,
@@ -42,6 +44,19 @@ async function expectAllTouchTargets(
 }
 
 test.describe("target sentuh >= 44px @w360", () => {
+  // Card S5-01: staff contexts once per file; dashboard courses stay
+  // per-test with token titles.
+  let editorContext: BrowserContext;
+  let adminContext: BrowserContext;
+
+  test.beforeAll(async ({ browser }) => {
+    ({ editorContext, adminContext } = await createEditorAdminContexts(browser));
+  });
+
+  test.afterAll(async () => {
+    await editorContext.close();
+    await adminContext.close();
+  });
   test("header tamu & menu ponsel", async ({ page }) => {
     await page.goto("/");
     await expectTouchTarget(
@@ -71,14 +86,51 @@ test.describe("target sentuh >= 44px @w360", () => {
     );
   });
 
-  test("header member, drawer akun & bottom nav", async ({ page, request }) => {
+  test("header member, dasbor belajar, drawer akun & bottom nav", async ({
+    page,
+    request,
+  }) => {
     const account = await createRoleAccount(request, "MEMBER");
     await signInViaApi(page.context(), account);
-    await page.goto("/belajar");
 
+    // Card S5-01: dashboard targets at w360 — the "Mulai materi 1" button
+    // (featured card or "Kursus lainnya" row, wherever the shared database
+    // slots THIS test's course) and the "Mulai materi 1" LINK in a
+    // "Kursus saya" row after enrolling. Both scoped to this test's own
+    // token-titled <article>s.
+    const t = randomToken("tb");
+    const enrolled = await createPublishedCourseViaApi(
+      editorContext,
+      adminContext,
+      `${t} Sentuh Diikuti`,
+    );
+    await createPublishedCourseViaApi(
+      editorContext,
+      adminContext,
+      `${t} Sentuh Lainnya`,
+    );
+    const enrollResponse = await page.context().request.post(
+      `/api/progress/courses/${enrolled.courseId}/enroll`,
+    );
+    expect(enrollResponse.status(), await enrollResponse.text()).toBe(201);
+
+    await page.goto("/belajar");
     await expectTouchTarget(
       page.getByRole("button", { name: "Menu akun" }),
       "Menu akun",
+    );
+    await expectTouchTarget(
+      page
+        .getByRole("article", { name: `${t} Sentuh Lainnya` })
+        .getByRole("button", { name: "Mulai materi 1" }),
+      "Mulai materi 1 (baris Kursus lainnya)",
+    );
+    await expectTouchTarget(
+      page
+        .getByRole("region", { name: "Kursus saya" })
+        .getByRole("article", { name: `${t} Sentuh Diikuti` })
+        .getByRole("link", { name: "Mulai materi 1" }),
+      "Mulai materi 1 (tautan baris Kursus saya)",
     );
     await expectAllTouchTargets(
       page.getByRole("navigation", { name: "Navigasi belajar" }).getByRole(

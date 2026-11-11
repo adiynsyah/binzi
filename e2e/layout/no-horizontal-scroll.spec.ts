@@ -100,6 +100,9 @@ test.describe("tanpa scroll horizontal", () => {
 
     await test.step("/belajar", async () => {
       await page.goto("/belajar");
+      // /belajar streams behind loading.tsx (blank for its first 300ms) —
+      // wait for the dashboard before measuring (keyboard.spec pattern).
+      await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
       await expectNoHorizontalScroll(page, "MEMBER /belajar", true);
       await maybeScreenshot(page, "member-belajar", testInfo.project.name);
     });
@@ -388,6 +391,9 @@ test.describe("tanpa scroll horizontal", () => {
     });
     await signInViaApi(page.context(), member);
     await page.goto("/belajar");
+    // Same streaming caveat as the MEMBER test above: wait for the h1 the
+    // long name renders in before measuring the page it lives on.
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     await expectNoHorizontalScroll(page, "nama panjang /belajar", true);
     await maybeScreenshot(page, "nama-panjang-belajar", testInfo.project.name);
 

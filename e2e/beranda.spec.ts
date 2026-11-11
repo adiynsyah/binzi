@@ -313,15 +313,19 @@ test.describe("beranda", () => {
     });
   }
 
-  // §8 no. 7
+  // §8 no. 7 + S5-01 §8 no. 8 (the three legal stubs join the list, and
+  // one of them provides the required 360 screenshot).
   test("halaman segera hadir: 200, h1, noindex, nav current di /kursus", async ({
     page,
-  }) => {
+  }, testInfo) => {
     const pages: readonly [string, string][] = [
       ["/kursus", "Kursus"],
       ["/artikel", "Artikel"],
       ["/tentang", "Tentang Kami"],
       ["/cari", "Cari"],
+      ["/kebijakan-privasi", "Kebijakan Privasi"],
+      ["/syarat-ketentuan", "Syarat & Ketentuan"],
+      ["/disclaimer", "Disclaimer medis"],
     ];
     for (const [path, title] of pages) {
       const response = await page.goto(path);
@@ -335,10 +339,17 @@ test.describe("beranda", () => {
       ).toHaveAttribute("content", /noindex/);
     }
 
+    // The nav assertion runs at the DEFAULT width: at 360 the guest header
+    // collapses into the hamburger and the "Kursus" link is not in the DOM.
     await page.goto("/kursus");
     await expect(
       page.locator("header").getByRole("link", { name: "Kursus", exact: true }),
     ).toHaveAttribute("aria-current", "page");
+
+    // Card S5-01 "Sebelum membuka PR": one legal page screenshot at 360.
+    await page.setViewportSize({ width: 360, height: 800 });
+    await page.goto("/kebijakan-privasi");
+    await maybeScreenshot(page, "legal-kebijakan-privasi-w360", testInfo.project.name);
   });
 
   // Tambahan 10: axe with the layout suite's tags on BOTH pause states —

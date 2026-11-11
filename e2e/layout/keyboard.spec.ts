@@ -249,6 +249,12 @@ test.describe("skip link 'Lewati ke konten utama'", () => {
     await signInViaApi(page.context(), account);
     await page.goto("/belajar");
     await waitForMemberHeader(page);
+    // S5-01: /belajar now streams the dashboard behind the route-group
+    // skeleton (blank for its first 300ms). The Tab probe below needs the
+    // focusable content to EXIST, so wait for the h1 every dashboard state
+    // renders — still without naming any specific control (shared e2e
+    // database, lesson 9 Nov no. 9).
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 
     const skip = page.getByRole("link", {
       name: "Lewati ke konten utama",
@@ -261,43 +267,23 @@ test.describe("skip link 'Lewati ke konten utama'", () => {
     await page.keyboard.press("Enter");
     await expect(page).toHaveURL(/#konten-utama$/);
     await page.keyboard.press("Tab");
-    // /belajar is still the A-14b stub (an h1, no focusables inside
-    // <main> until S5). At w360 the bottom nav (< 768) supplies the next
-    // focusable AFTER main. At w1280 NOTHING focusable follows main (the
-    // nav is md:hidden and the (learn) shell has no footer), so the Tab
-    // right after the skip link focuses nothing (activeElement = body)
-    // and the NEXT Tab wraps to the skip link again. The invariant that
-    // holds today — and the one that matters — is that focus did NOT
-    // land in the header. Tighten to the strict wording ("first element
-    // INSIDE #konten-utama") when S5 adds focusable content.
+    // S5-01 tightened this per the comment that used to live here: the
+    // dashboard ALWAYS has focusable content now (course buttons in state
+    // A/B, EmptyState actions in state C), so the stop after the skip link
+    // must land INSIDE #konten-utama — never the header, never body. The
+    // exact control is NOT asserted: which course renders depends on the
+    // shared e2e database (lesson 9 Nov no. 9).
     const landed = await page.evaluate(() => {
       const active = document.activeElement;
-      if (!(active instanceof Element)) return false;
-      const inHeader = active.closest("header") !== null;
-      const main = document.querySelector("main#konten-utama");
-      const inside = active.closest("#konten-utama") !== null;
-      const after =
-        main !== null &&
-        (main.compareDocumentPosition(active) &
-          Node.DOCUMENT_POSITION_FOLLOWING) !==
-          0;
-      const isSkip =
-        active instanceof HTMLAnchorElement &&
-        active.getAttribute("href") === "#konten-utama";
-      const isBody = active === document.body;
-      return !inHeader && (inside || after || isSkip || isBody);
-    });
-    expect(landed, "fokus berikutnya di dalam/setelah #konten-utama").toBe(true);
-    // At w1280 the Tab above focuses NOTHING (activeElement = body — see
-    // the comment above); an indicator is only checkable on a real stop.
-    const isBody = await page.evaluate(
-      () => document.activeElement === document.body,
-    );
-    if (!isBody) {
-      const indicator = await focusIndicatorOf(page);
-      expect.soft(indicator.pass, `indikator fokus: ${indicator.reason}`).toBe(
-        true,
+      return (
+        active instanceof Element &&
+        active.closest("main#konten-utama") !== null
       );
-    }
+    });
+    expect(landed, "fokus mendarat di dalam #konten-utama").toBe(true);
+    const indicator = await focusIndicatorOf(page);
+    expect.soft(indicator.pass, `indikator fokus: ${indicator.reason}`).toBe(
+      true,
+    );
   });
 });

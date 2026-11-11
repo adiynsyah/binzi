@@ -7,12 +7,18 @@ import { join } from "node:path";
 
 import type { BrowserContext, Locator, Page } from "@playwright/test";
 
-import { expect, withE2eDb } from "../fixtures";
+import {
+  createRoleAccount,
+  expect,
+  newCollectedContext,
+  signInViaApi,
+  withE2eDb,
+} from "../fixtures";
 import { widthSpecOf } from "./widths";
 
 /** Card §2 guest pages (no token on /reset-password → expired state) +
- * the S6-01 "Segera hadir" pages, so they join axe, no-scroll and
- * screenshots at every width. */
+ * the S6-01 "Segera hadir" pages and the S5-01 legal stubs, so they join
+ * axe, no-scroll and screenshots at every width. */
 export const GUEST_PAGES: readonly string[] = [
   "/",
   "/masuk",
@@ -24,6 +30,9 @@ export const GUEST_PAGES: readonly string[] = [
   "/artikel",
   "/tentang",
   "/cari",
+  "/kebijakan-privasi",
+  "/syarat-ketentuan",
+  "/disclaimer",
 ];
 
 /** 40-char no-space name (A-14b lesson: 217px overflow at 360). */
@@ -416,4 +425,83 @@ export async function createPublishableCourseViaApi(
   }
 
   return { courseId, lessonId, lessonQuizId, finalQuizId };
+}
+
+// ------------------------------------------------- S5-01 API fixtures
+
+/**
+ * The two staff contexts the dashboard specs need (card S5-01 §8): an
+ * EDITOR who builds/submits and an ADMIN who publishes. Created ONCE PER
+ * FILE (beforeAll — the accounts and the child-process role script are
+ * expensive); the courses themselves stay per-test so every title is
+ * token-unique. Each context's own request API signs its account in, so
+ * no extra request fixture is needed. Closed by the caller in afterAll.
+ */
+export async function createEditorAdminContexts(
+  browser: import("@playwright/test").Browser,
+): Promise<{ editorContext: BrowserContext; adminContext: BrowserContext }> {
+  async function staffContext(role: "EDITOR" | "ADMIN") {
+    const { context } = await newCollectedContext(browser);
+    const account = await createRoleAccount(context.request, role);
+    await signInViaApi(context, account);
+    return context;
+  }
+  const [editorContext, adminContext] = await Promise.all([
+    staffContext("EDITOR"),
+    staffContext("ADMIN"),
+  ]);
+  return { editorContext, adminContext };
+}
+
+/**
+ * A PUBLISHED course through the real endpoints only (card S5-01 §8: the
+ * e2e database is shared, so the dashboard specs address THEIR courses by
+ * tokened title, never by list position): the S1-08 helper builds the
+ * full course, the EDITOR submits it, the ADMIN publishes it, and the
+ * first lesson slug comes from the DB (order_index asc, id asc — the same
+ * fragment the dashboard itself uses).
+ */
+export async function createPublishedCourseViaApi(
+  editorContext: BrowserContext,
+  adminContext: BrowserContext,
+  title: string,
+): Promise<{
+  courseId: string;
+  courseSlug: string;
+  firstLessonSlug: string;
+  lessonId: string;
+  lessonQuizId: string;
+  finalQuizId: string;
+}> {
+  const created = await createPublishableCourseViaApi(editorContext, title);
+
+  const submit = await editorContext.request.post(
+    `/api/cms/courses/${created.courseId}/submit`,
+  );
+  expect(submit.status(), await submit.text()).toBe(200);
+
+  const publish = await adminContext.request.post(
+    `/api/cms/courses/${created.courseId}/publish`,
+  );
+  expect(publish.status(), await publish.text()).toBe(200);
+  const courseSlug = ((await publish.json()) as {
+    data: { slug: string };
+  }).data.slug;
+
+  const rows = await withE2eDb(
+    (sql) => sql`
+      select slug from lessons
+      where course_id = ${created.courseId}
+      order by order_index asc, id asc
+      limit 1
+    `,
+  );
+  const firstLessonSlug = rows[0]?.slug;
+  if (!firstLessonSlug) {
+    throw new Error(
+      `published course ${created.courseId} has no lesson to start from`,
+    );
+  }
+
+  return { ...created, courseSlug, firstLessonSlug };
 }
