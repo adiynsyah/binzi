@@ -11,7 +11,7 @@
 // and any NEW serious/critical violation (contrast included, on any
 // element) fails immediately.
 import AxeBuilder from "@axe-core/playwright";
-import type { Page } from "@playwright/test";
+import type { BrowserContext, Page } from "@playwright/test";
 import type { TestInfo } from "@playwright/test";
 
 import {
@@ -25,7 +25,9 @@ import {
   GUEST_PAGES,
   TURNSTILE_CONTAINER,
   createCourseViaApi,
+  createEditorAdminContexts,
   createPublishableCourseViaApi,
+  createPublishedCourseViaApi,
   openAccountDrawer,
   openCmsDrawer,
   openGuestMenu,
@@ -124,7 +126,21 @@ async function expectAxeClean(
 }
 
 test.describe("axe WCAG 2.1 A/AA", () => {
-  test("halaman tamu (6)", async ({ page }, testInfo) => {
+  // Card S5-01: staff contexts once per file (the publish flow is
+  // expensive); courses stay per-test with token titles.
+  let editorContext: BrowserContext;
+  let adminContext: BrowserContext;
+
+  test.beforeAll(async ({ browser }) => {
+    ({ editorContext, adminContext } = await createEditorAdminContexts(browser));
+  });
+
+  test.afterAll(async () => {
+    await editorContext.close();
+    await adminContext.close();
+  });
+
+  test(`halaman tamu (${GUEST_PAGES.length})`, async ({ page }, testInfo) => {
     for (const path of GUEST_PAGES) {
       await test.step(path, async () => {
         await page.goto(path);
@@ -133,7 +149,7 @@ test.describe("axe WCAG 2.1 A/AA", () => {
     }
   });
 
-  test("MEMBER: /belajar, 403, dan (w360) drawer akun terbuka", async (
+  test("MEMBER: /belajar keadaan A lalu B, 403, dan (w360) drawer akun terbuka", async (
     { page, request },
     testInfo,
   ) => {
@@ -141,9 +157,35 @@ test.describe("axe WCAG 2.1 A/AA", () => {
     const account = await createRoleAccount(request, "MEMBER");
     await signInViaApi(page.context(), account);
 
-    await test.step("/belajar", async () => {
+    // Card S5-01: state A is scanned with THIS test's own published course
+    // on screen — the shared database decides nothing here.
+    const token = `ax${Date.now().toString(36)}${testInfo.project.name}`;
+    const made = await createPublishedCourseViaApi(
+      editorContext,
+      adminContext,
+      `${token} kursus belajar axe`,
+    );
+
+    await test.step("/belajar keadaan A (peserta baru)", async () => {
       await page.goto("/belajar");
-      await expectAxeClean(page, "MEMBER /belajar", testInfo);
+      await expect(
+        page.getByRole("article", { name: `${token} kursus belajar axe` }),
+      ).toBeVisible();
+      await expectAxeClean(page, "MEMBER /belajar A", testInfo);
+    });
+
+    await test.step("/belajar keadaan B (setelah mendaftar via API)", async () => {
+      const enroll = await page.context().request.post(
+        `/api/progress/courses/${made.courseId}/enroll`,
+      );
+      expect(enroll.status(), await enroll.text()).toBe(201);
+      await page.goto("/belajar");
+      await expect(
+        page
+          .getByRole("region", { name: "Kursus saya" })
+          .getByRole("article", { name: `${token} kursus belajar axe` }),
+      ).toBeVisible();
+      await expectAxeClean(page, "MEMBER /belajar B", testInfo);
     });
 
     if (spec.account === "drawer") {
