@@ -416,21 +416,42 @@ describe("getLessonPage — dashboard consistency", () => {
 });
 
 describe("getLessonPage — per-participant outline", () => {
-  it("member B's COMPLETED row never leaks into member A's outline", async () => {
+  it("member B's progress never leaks into A's outline or gate (user_id in the JOIN)", async () => {
     const made = await enrolledSequentialCourse("lpmix");
     await enrollInCourse(MEMBER_B, made.course.id);
     const ids = await orderedLessonIds(made.course.id);
-    await db.insert(lessonProgress).values({
-      userId: MEMBER_B.id,
-      lessonId: ids[0]!,
-      enrollmentId: (await enrollmentOf(MEMBER_B.id, made.course.id))!.id,
-      status: "COMPLETED",
-    });
+    const bEnrollment = (await enrollmentOf(MEMBER_B.id, made.course.id))!.id;
+    // B attempted lesson 1's quiz and COMPLETED lesson 2. Lesson 2 is
+    // deliberately NOT the one A views: the serializer's "kini" outranks
+    // "selesai" on the viewed lesson, so a leak there would be masked —
+    // the original single-row version of this test missed mutation 6
+    // (JOIN without user_id) for exactly that reason. Without the filter,
+    // B's COMPLETED surfaces as "selesai" in A's outline AND B's quiz
+    // attempt unlocks lesson 2 for A, because the open/gate transactions
+    // read these same outline rows.
+    await db.insert(lessonProgress).values([
+      {
+        userId: MEMBER_B.id,
+        lessonId: ids[0]!,
+        enrollmentId: bEnrollment,
+        status: "IN_PROGRESS",
+        quizAttempted: true,
+      },
+      {
+        userId: MEMBER_B.id,
+        lessonId: ids[1]!,
+        enrollmentId: bEnrollment,
+        status: "COMPLETED",
+      },
+    ]);
 
     const dto = await getLessonPage(MEMBER, made.slug, made.lessons[0]!.slug);
     if (dto.state === "not-enrolled") throw new Error("expected enrolled page");
     expect(dto.outline).toHaveLength(3);
     expect(dto.outline.some((item) => item.state === "selesai")).toBe(false);
+    // B's quiz attempt on lesson 1 must not unlock lesson 2 for A.
+    expect(dto.outline[1]!.state).toBe("terkunci");
+    await expect(openLesson(MEMBER, ids[1]!)).rejects.toThrow(ConflictError);
   });
 });
 
