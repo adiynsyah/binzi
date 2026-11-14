@@ -18,6 +18,7 @@ import {
   createPublishedCourseViaApi,
   createEditorAdminContexts,
   createCourseViaApi,
+  deleteCoursesInE2eDb,
   expectNoHorizontalScroll,
   maybeScreenshot,
   noSpaceTitle,
@@ -48,38 +49,11 @@ test.afterAll(async () => {
   // Shared-database courtesy: the harness drops the schema once per RUN,
   // not per file, and this file runs FIRST alphabetically — older specs
   // behind it assert a pristine global course list (cms-kursus's "Belum
-  // ada kursus." for a fresh EDITOR). FKs do not cascade, so delete this
-  // file's rows children-first; every course carries an auto-made FINAL
-  // quiz on courses.final_quiz_id (no lesson quizzes in this file).
-  if (courseIds.length > 0) {
-    await withE2eDb(async (sql) => {
-      // Collect the FINAL quiz ids first: they must be freed
-      // (final_quiz_id = null) before the courses rows can go, and after
-      // that the subquery source is gone.
-      const quizRows = await sql`select final_quiz_id as id from courses
-        where id = any(${courseIds}::uuid[])`;
-      const quizIds = quizRows
-        .map((row) => row.id)
-        .filter((id): id is string => id !== null);
-      await sql`delete from lesson_progress where enrollment_id in
-        (select id from enrollments where course_id = any(${courseIds}::uuid[]))`;
-      await sql`delete from enrollments where course_id = any(${courseIds}::uuid[])`;
-      await sql`delete from lessons where course_id = any(${courseIds}::uuid[])`;
-      await sql`delete from sections where course_id = any(${courseIds}::uuid[])`;
-      await sql`delete from question_options where question_id in
-        (select q.id from questions q
-          join courses c on c.final_quiz_id = q.quiz_id
-          where c.id = any(${courseIds}::uuid[]))`;
-      await sql`delete from questions where quiz_id in
-        (select final_quiz_id from courses where id = any(${courseIds}::uuid[]))`;
-      await sql`update courses set final_quiz_id = null
-        where id = any(${courseIds}::uuid[])`;
-      if (quizIds.length > 0) {
-        await sql`delete from quizzes where id = any(${quizIds}::uuid[])`;
-      }
-      await sql`delete from courses where id = any(${courseIds}::uuid[])`;
-    });
-  }
+  // ada kursus." for a fresh EDITOR). The shared helper deletes
+  // children-first and now also collects LESSON quiz ids before the
+  // lessons rows go (this file's courses each carry one quiz per lesson
+  // plus the auto-made FINAL quiz).
+  await deleteCoursesInE2eDb(courseIds);
 });
 
 /** A fresh signed-in MEMBER on the CSP-collected page + their account. */

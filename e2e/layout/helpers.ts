@@ -366,19 +366,23 @@ async function postQuestionViaApi(
 /**
  * A course that passes the whole S1-08 publish gate, built through the real
  * APIs with the signed-in EDITOR context's cookies (card §7): filled
- * description, one lesson with content, 10 PG questions on its quiz, 10 on
- * the FINAL quiz. Copy is neutral with a token woven in (CLAUDE.md). The
- * FINAL quiz id is read from the database — it is part of no API answer
- * (same as finalQuizIdOf in cms-quiz-editor.spec.ts).
+ * description, `{lessons}` titled lessons (default 1: "{title} materi {n}")
+ * each with content and 10 PG questions on its quiz, 10 on the FINAL quiz.
+ * Copy is neutral with a token woven in (CLAUDE.md). The FINAL quiz id is
+ * read from the database — it is part of no API answer (same as
+ * finalQuizIdOf in cms-quiz-editor.spec.ts). `lessons` comes back ordered
+ * materi 1..n with each id, slug (from the create answer) and quizId.
  */
 export async function createPublishableCourseViaApi(
   context: BrowserContext,
   title: string,
+  options: { lessons?: number } = {},
 ): Promise<{
   courseId: string;
   lessonId: string;
   lessonQuizId: string;
   finalQuizId: string;
+  lessons: { id: string; slug: string; quizId: string }[];
 }> {
   const courseId = await createCourseViaApi(context, { title });
 
@@ -392,25 +396,41 @@ export async function createPublishableCourseViaApi(
   );
   expect(description.status(), await description.text()).toBe(200);
 
-  const lessonResponse = await context.request.post(
-    `/api/cms/courses/${courseId}/lessons`,
-    { data: { title: `${title} materi 1` } },
-  );
-  expect(lessonResponse.status(), await lessonResponse.text()).toBe(201);
-  const lesson = (await lessonResponse.json()) as {
-    data: { id: string; quizId: string };
-  };
-  const lessonId = lesson.data.id;
-  const lessonQuizId = lesson.data.quizId;
+  const lessons: { id: string; slug: string; quizId: string }[] = [];
+  for (let n = 1; n <= (options.lessons ?? 1); n += 1) {
+    const lessonResponse = await context.request.post(
+      `/api/cms/courses/${courseId}/lessons`,
+      { data: { title: `${title} materi ${n}` } },
+    );
+    expect(lessonResponse.status(), await lessonResponse.text()).toBe(201);
+    const lesson = (await lessonResponse.json()) as {
+      data: { id: string; slug: string; quizId: string };
+    };
+    lessons.push({
+      id: lesson.data.id,
+      slug: lesson.data.slug,
+      quizId: lesson.data.quizId,
+    });
 
-  const content = await context.request.patch(
-    `/api/cms/courses/${courseId}/lessons/${lessonId}`,
-    { data: { content: paragraphDoc(`Isi materi netral ${title} untuk tes e2e.`) } },
-  );
-  expect(content.status(), await content.text()).toBe(200);
+    const content = await context.request.patch(
+      `/api/cms/courses/${courseId}/lessons/${lesson.data.id}`,
+      {
+        data: {
+          content: paragraphDoc(
+            `Isi materi netral ${title} materi ${n} untuk tes e2e.`,
+          ),
+        },
+      },
+    );
+    expect(content.status(), await content.text()).toBe(200);
 
-  for (let n = 1; n <= 10; n += 1) {
-    await postQuestionViaApi(context, lessonQuizId, `materi ${n} ${title}`);
+    for (let q = 1; q <= 10; q += 1) {
+      await postQuestionViaApi(
+        context,
+        lesson.data.quizId,
+        `materi ${n} soal ${q} ${title}`,
+      );
+    }
   }
 
   const rows = await withE2eDb(
@@ -424,7 +444,52 @@ export async function createPublishableCourseViaApi(
     await postQuestionViaApi(context, finalQuizId, `final ${n} ${title}`);
   }
 
-  return { courseId, lessonId, lessonQuizId, finalQuizId };
+  return {
+    courseId,
+    lessonId: lessons[0]!.id,
+    lessonQuizId: lessons[0]!.quizId,
+    finalQuizId,
+    lessons,
+  };
+}
+
+/**
+ * Shared-database courtesy (S2-01): delete test courses children-first.
+ * Collect EVERY quiz id BEFORE the lessons rows go — lesson quizzes live
+ * on lessons.quiz_id, the final quiz on courses.final_quiz_id, and after
+ * those rows are deleted neither subquery source exists. Order:
+ * lesson_progress → enrollments → lessons → sections → questions for ALL
+ * collected quiz ids (question_options cascade) → courses.final_quiz_id
+ * freed → quizzes → courses. FKs do not cascade anywhere on this path.
+ */
+export async function deleteCoursesInE2eDb(
+  courseIds: string[],
+): Promise<void> {
+  if (courseIds.length === 0) return;
+  await withE2eDb(async (sql) => {
+    const lessonQuizRows = await sql`select quiz_id as id from lessons
+      where course_id = any(${courseIds}::uuid[])`;
+    const finalQuizRows = await sql`select final_quiz_id as id from courses
+      where id = any(${courseIds}::uuid[])`;
+    const quizIds = [...lessonQuizRows, ...finalQuizRows]
+      .map((row) => row.id)
+      .filter((id): id is string => id !== null);
+
+    await sql`delete from lesson_progress where enrollment_id in
+      (select id from enrollments where course_id = any(${courseIds}::uuid[]))`;
+    await sql`delete from enrollments where course_id = any(${courseIds}::uuid[])`;
+    await sql`delete from lessons where course_id = any(${courseIds}::uuid[])`;
+    await sql`delete from sections where course_id = any(${courseIds}::uuid[])`;
+    if (quizIds.length > 0) {
+      await sql`delete from questions where quiz_id = any(${quizIds}::uuid[])`;
+    }
+    await sql`update courses set final_quiz_id = null
+      where id = any(${courseIds}::uuid[])`;
+    if (quizIds.length > 0) {
+      await sql`delete from quizzes where id = any(${quizIds}::uuid[])`;
+    }
+    await sql`delete from courses where id = any(${courseIds}::uuid[])`;
+  });
 }
 
 // ------------------------------------------------- S5-01 API fixtures
@@ -457,14 +522,16 @@ export async function createEditorAdminContexts(
  * A PUBLISHED course through the real endpoints only (card S5-01 §8: the
  * e2e database is shared, so the dashboard specs address THEIR courses by
  * tokened title, never by list position): the S1-08 helper builds the
- * full course, the EDITOR submits it, the ADMIN publishes it, and the
- * first lesson slug comes from the DB (order_index asc, id asc — the same
- * fragment the dashboard itself uses).
+ * full course (`{lessons}` matters for S2-01's gate flow), the EDITOR
+ * submits it, the ADMIN publishes it, and the first lesson slug comes
+ * from the DB (order_index asc, id asc — the same fragment the dashboard
+ * itself uses).
  */
 export async function createPublishedCourseViaApi(
   editorContext: BrowserContext,
   adminContext: BrowserContext,
   title: string,
+  options: { lessons?: number } = {},
 ): Promise<{
   courseId: string;
   courseSlug: string;
@@ -472,8 +539,13 @@ export async function createPublishedCourseViaApi(
   lessonId: string;
   lessonQuizId: string;
   finalQuizId: string;
+  lessons: { id: string; slug: string; quizId: string }[];
 }> {
-  const created = await createPublishableCourseViaApi(editorContext, title);
+  const created = await createPublishableCourseViaApi(
+    editorContext,
+    title,
+    options,
+  );
 
   const submit = await editorContext.request.post(
     `/api/cms/courses/${created.courseId}/submit`,
