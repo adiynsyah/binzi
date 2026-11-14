@@ -20,11 +20,27 @@ import "server-only";
 
 import { and, asc, desc, eq, sql } from "drizzle-orm";
 
+import type { Db } from "@/db/client";
 import { db } from "@/db";
-import { courses, enrollments, lessonProgress, lessons } from "@/db/schema";
+import {
+  courses,
+  enrollments,
+  lessonProgress,
+  lessons,
+  videoStatusEnum,
+} from "@/db/schema";
 import { NotFoundError } from "@/lib/errors";
 
-import type { AvailableRow, EnrolledRow } from "./serializer";
+import type { AvailableRow, EnrolledRow, LessonOutlineRow } from "./serializer";
+
+/**
+ * Transaction executor (mirror of the quiz module's DbTx, spelled out
+ * locally — this module imports no other module's files beyond the course
+ * schema). The lesson-page reads run on `db` (pure GET) and inside the
+ * open/video transactions on `tx` with the SAME functions.
+ */
+export type DbTx = Parameters<Parameters<Db["transaction"]>[0]>[0];
+type DbOrTx = Db | DbTx;
 
 /**
  * The FIRST lesson of `courses.id` — ONE fragment shared by the two
@@ -219,4 +235,233 @@ export async function enrollUserInCourse(input: {
       lastLessonSlug,
     };
   });
+}
+
+// --------------------------------------------------------------------------
+// Lesson page + gate (card S2-01). Every read below runs on `db` for the
+// pure GET page and on `tx` inside the open/video transactions — same SQL,
+// so the page and the writes can never disagree about the gate.
+// --------------------------------------------------------------------------
+
+/** The course lookup of step 1: PUBLISHED-only, by slug. */
+export type LessonCourseRow = {
+  id: string;
+  slug: string;
+  title: string;
+  isSequential: boolean;
+};
+
+export async function selectPublishedCourseBySlug(
+  courseSlug: string,
+): Promise<LessonCourseRow | undefined> {
+  const rows = await db
+    .select({
+      id: courses.id,
+      slug: courses.slug,
+      title: courses.title,
+      isSequential: courses.isSequential,
+    })
+    .from(courses)
+    .where(and(eq(courses.slug, courseSlug), eq(courses.status, "PUBLISHED")))
+    .limit(1);
+  return rows[0];
+}
+
+/** The actor's enrollment row for the course (card step 2). */
+export async function selectEnrollmentForCourse(
+  executor: DbOrTx,
+  actorId: string,
+  courseId: string,
+): Promise<{ id: string; lastLessonId: string | null } | undefined> {
+  const rows = await executor
+    .select({ id: enrollments.id, lastLessonId: enrollments.lastLessonId })
+    .from(enrollments)
+    .where(
+      and(
+        eq(enrollments.userId, actorId),
+        eq(enrollments.courseId, courseId),
+      ),
+    )
+    .limit(1);
+  return rows[0];
+}
+
+/**
+ * The course outline with THIS participant's progress (card step 3):
+ * `order_index asc, id asc` — the exact order of firstLessonSlugSql, so
+ * "Materi 1" here and "Mulai materi 1" on the dashboard name the same
+ * lesson. The `user_id` inside the ON clause is what keeps other
+ * participants' rows out (without it every lesson with progress
+ * duplicates).
+ */
+export async function selectOutlineRows(
+  executor: DbOrTx,
+  actorId: string,
+  courseId: string,
+): Promise<LessonOutlineRow[]> {
+  return executor
+    .select({
+      id: lessons.id,
+      slug: lessons.slug,
+      title: lessons.title,
+      videoStatus: lessons.videoStatus,
+      status: lessonProgress.status,
+      quizAttempted: lessonProgress.quizAttempted,
+      videoLastPositionSeconds: lessonProgress.videoLastPositionSeconds,
+      videoWatchedPercent: lessonProgress.videoWatchedPercent,
+    })
+    .from(lessons)
+    .leftJoin(
+      lessonProgress,
+      and(
+        eq(lessonProgress.lessonId, lessons.id),
+        eq(lessonProgress.userId, actorId),
+      ),
+    )
+    .where(eq(lessons.courseId, courseId))
+    .orderBy(asc(lessons.orderIndex), asc(lessons.id));
+}
+
+/**
+ * The lesson document — a SEPARATE statement that the service runs ONLY
+ * when the page state is `open` (card §1 step 5, V-06: locked and
+ * not-enrolled never read the material, not just never show it).
+ */
+export async function selectLessonContent(
+  lessonId: string,
+): Promise<{ content: unknown } | undefined> {
+  const rows = await db
+    .select({ content: lessons.content })
+    .from(lessons)
+    .where(eq(lessons.id, lessonId))
+    .limit(1);
+  return rows[0];
+}
+
+/** The open/video transactions' first lookup: lesson + its PUBLISHED course. */
+export type LessonGateLookup = {
+  lesson: {
+    id: string;
+    videoStatus: (typeof videoStatusEnum.enumValues)[number];
+    videoDurationSeconds: number | null;
+  };
+  course: { id: string; isSequential: boolean };
+};
+
+export async function findLessonInPublishedCourse(
+  executor: DbOrTx,
+  lessonId: string,
+): Promise<LessonGateLookup | undefined> {
+  const rows = await executor
+    .select({
+      lessonId: lessons.id,
+      videoStatus: lessons.videoStatus,
+      videoDurationSeconds: lessons.videoDurationSeconds,
+      courseId: courses.id,
+      courseIsSequential: courses.isSequential,
+    })
+    .from(lessons)
+    .innerJoin(courses, eq(lessons.courseId, courses.id))
+    .where(and(eq(lessons.id, lessonId), eq(courses.status, "PUBLISHED")))
+    .limit(1);
+  const row = rows[0];
+  if (!row) return undefined;
+  return {
+    lesson: {
+      id: row.lessonId,
+      videoStatus: row.videoStatus,
+      videoDurationSeconds: row.videoDurationSeconds,
+    },
+    course: { id: row.courseId, isSequential: row.courseIsSequential },
+  };
+}
+
+/**
+ * "Materi dibuka" upsert (card §2 step 4 — the exact shape the card
+ * verified on PGlite): status never leaves COMPLETED, first_accessed_at is
+ * never overwritten. Drizzle stamps updated_at in the conflict branch via
+ * $onUpdate — intended.
+ */
+export async function upsertLessonOpen(
+  tx: DbTx,
+  input: { actorId: string; lessonId: string; enrollmentId: string },
+): Promise<void> {
+  await tx
+    .insert(lessonProgress)
+    .values({
+      userId: input.actorId,
+      lessonId: input.lessonId,
+      enrollmentId: input.enrollmentId,
+      status: "IN_PROGRESS",
+      firstAccessedAt: new Date(),
+    })
+    .onConflictDoUpdate({
+      target: [lessonProgress.userId, lessonProgress.lessonId],
+      set: {
+        status: sql`case when ${lessonProgress.status} = 'NOT_STARTED' then 'IN_PROGRESS'::progress_status else ${lessonProgress.status} end`,
+        firstAccessedAt: sql`coalesce(${lessonProgress.firstAccessedAt}, excluded.first_accessed_at)`,
+      },
+    });
+}
+
+/**
+ * PRG-02: enrollments.updated_at MUST move on every open (the "Kursus
+ * saya" order), while courses.updated_at is never touched (S5-01 lesson).
+ * The typed update is what stamps it — keep it typed.
+ */
+export async function setEnrollmentLastLesson(
+  tx: DbTx,
+  enrollmentId: string,
+  lessonId: string,
+): Promise<void> {
+  await tx
+    .update(enrollments)
+    .set({ lastLessonId: lessonId })
+    .where(eq(enrollments.id, enrollmentId));
+}
+
+/**
+ * Video-position upsert (card §3 step 3): position follows the player,
+ * watched percent only ever grows (greatest) — the farthest position ever,
+ * accepted for the demo. Returns the STORED row, not the input.
+ */
+export async function upsertLessonVideoProgress(
+  tx: DbTx,
+  input: {
+    actorId: string;
+    lessonId: string;
+    enrollmentId: string;
+    positionSeconds: number;
+    watchedPercent: number;
+  },
+): Promise<{ videoLastPositionSeconds: number; videoWatchedPercent: string }> {
+  const rows = await tx
+    .insert(lessonProgress)
+    .values({
+      userId: input.actorId,
+      lessonId: input.lessonId,
+      enrollmentId: input.enrollmentId,
+      status: "IN_PROGRESS",
+      firstAccessedAt: new Date(),
+      videoLastPositionSeconds: input.positionSeconds,
+      videoWatchedPercent: input.watchedPercent.toFixed(2),
+    })
+    .onConflictDoUpdate({
+      target: [lessonProgress.userId, lessonProgress.lessonId],
+      set: {
+        status: sql`case when ${lessonProgress.status} = 'NOT_STARTED' then 'IN_PROGRESS'::progress_status else ${lessonProgress.status} end`,
+        firstAccessedAt: sql`coalesce(${lessonProgress.firstAccessedAt}, excluded.first_accessed_at)`,
+        videoLastPositionSeconds: sql`excluded.video_last_position_seconds`,
+        videoWatchedPercent: sql`greatest(${lessonProgress.videoWatchedPercent}, excluded.video_watched_percent)`,
+      },
+    })
+    .returning({
+      videoLastPositionSeconds: lessonProgress.videoLastPositionSeconds,
+      videoWatchedPercent: lessonProgress.videoWatchedPercent,
+    });
+  const row = rows[0];
+  if (!row) {
+    throw new Error("progress queries: video upsert returned no row");
+  }
+  return row;
 }
