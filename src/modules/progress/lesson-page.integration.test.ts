@@ -557,10 +557,12 @@ describe("openLesson", () => {
 // --- recordVideoProgress ------------------------------------------------------
 
 describe("recordVideoProgress", () => {
-  /** Enrolled course whose FIRST lesson carries the given video columns. */
+  /** Enrolled course whose lesson at `lessonIndex` (default: the first)
+   *  carries the given video columns. */
   async function videoCourse(
     prefix: string,
     video: { status: "NONE" | "READY"; durationSeconds: number | null },
+    lessonIndex = 0,
   ) {
     const made = await enrolledSequentialCourse(prefix);
     await db
@@ -569,7 +571,7 @@ describe("recordVideoProgress", () => {
         videoStatus: video.status,
         videoDurationSeconds: video.durationSeconds,
       })
-      .where(eq(lessons.id, made.lessons[0]!.id));
+      .where(eq(lessons.id, made.lessons[lessonIndex]!.id));
     return made;
   }
 
@@ -653,10 +655,19 @@ describe("recordVideoProgress", () => {
       }),
     ).rejects.toThrow(ConflictError);
 
-    const ready = await videoCourse("vd6", {
-      status: "READY",
-      durationSeconds: 100,
-    });
+    // The LOCKED lesson (index 1) must itself carry the READY video: with
+    // NONE there, a skipped gate would still answer the no-video
+    // ConflictError and this half could not tell the two apart — exactly
+    // how mutation 12 (video path skipping the gate) survived the original
+    // version of this test.
+    const ready = await videoCourse(
+      "vd6",
+      {
+        status: "READY",
+        durationSeconds: 100,
+      },
+      1,
+    );
     await expect(
       recordVideoProgress(MEMBER, {
         lessonId: ready.lessons[1]!.id,
