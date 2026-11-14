@@ -387,7 +387,8 @@ test.describe("axe WCAG 2.1 A/AA", () => {
   // the <details> outline OPEN), locked, and not-enrolled — scanned with
   // this test's OWN courses (shared database). The locked panel's h1→h3
   // heading skip lands as a KNOWN moderate (same deviation family as
-  // S5-01 state C; owner decision 11 Nov — empty-state.tsx stays as is).
+  // S5-01 state C; approved with the S2-01 plan review, 14 Nov —
+  // empty-state.tsx stays as is).
   test("MEMBER: halaman materi open/locked/not-enrolled (S2-01)", async (
     { page, request },
     testInfo,

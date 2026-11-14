@@ -2,9 +2,11 @@
 // card S2-01 §1; PRD §12.6 V-01/V-05).
 //
 // Module-internal: consumers outside the module get the DTO types
-// re-exported from service.ts. Pure on purpose — only type imports from
-// the db schema plus the course module's SCHEMA file (allowed across
-// modules) — so the serializer tests run without a database.
+// re-exported from service.ts. No database access on purpose — the only
+// RUNTIME imports are the gate helpers from ./policy (same module); the
+// db schema and the course module's SCHEMA file come in as type-only
+// imports (allowed across modules) — so the serializer tests run
+// without a database.
 //
 // Every function builds a fresh object from an explicit allowlist, so a
 // column not listed (description, progressPercent, lastLessonId, …) can
