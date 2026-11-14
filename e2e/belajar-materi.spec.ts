@@ -483,14 +483,25 @@ test("7. matriks API: /open 401/401/404, /video 401/404/409/400, READY 50→20 m
     ).data;
     expect(secondData).toEqual({ positionSeconds: 20, watchedPercent: 50 });
 
-    // A locked lesson refuses video writes just like /open.
+    // A locked lesson refuses video writes just like /open. The lesson
+    // gets a READY video FIRST: left at NONE, the 409 could come from
+    // "no video" instead of the gate (the M12 lesson) — READY leaves the
+    // gate as the only possible reason, and the message proves which.
+    await withE2eDb(
+      (sql) => sql`
+          update lessons set video_status = 'READY', video_duration_seconds = 100
+          where id = ${lesson2.id}
+        `,
+    );
+    const lockedVideo = await page.context().request.post(
+      "/api/progress/video",
+      { data: { ...body, lessonId: lesson2.id } },
+    );
+    expect(lockedVideo.status()).toBe(409);
     expect(
-      (
-        await page.context().request.post("/api/progress/video", {
-          data: { ...body, lessonId: lesson2.id },
-        })
-      ).status(),
-    ).toBe(409);
+      ((await lockedVideo.json()) as { error: { message: string } }).error
+        .message,
+    ).toBe("Materi ini masih terkunci.");
   } finally {
     await guestContext.close();
     await outsiderContext.close();
