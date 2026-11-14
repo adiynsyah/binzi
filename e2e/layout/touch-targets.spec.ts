@@ -167,6 +167,76 @@ test.describe("target sentuh >= 44px @w360", () => {
     await expectTouchTarget(drawer.getByRole("button", { name: "Keluar" }), "Keluar (drawer akun)");
   });
 
+  // Card S2-01 §8: the lesson page's tap targets at w360 — "← Belajar"
+  // (course bar; the bottom nav's "Belajar" item sits OUTSIDE <main>, so
+  // the main-scoped locator stays unique), the prev/next lesson links,
+  // the outline <details> summary, and one lesson link inside it. The
+  // sequential course gets quiz materi 1 attempted via SQL (the quiz
+  // card's write), so BOTH bottom-bar links exist across the two pages.
+  test("halaman materi: ← Belajar, prev/next, summary Daftar materi, tautan materi (S2-01)", async ({
+    page,
+    request,
+  }) => {
+    const account = await createRoleAccount(request, "MEMBER");
+    await signInViaApi(page.context(), account);
+    const t = randomToken("ms");
+    const made = await createPublishedCourseViaApi(
+      editorContext,
+      adminContext,
+      `${t} Sentuh Materi`,
+      { lessons: 2 },
+    );
+    const enroll = await page.context().request.post(
+      `/api/progress/courses/${made.courseId}/enroll`,
+    );
+    expect(enroll.status(), await enroll.text()).toBe(201);
+    await withE2eDb(
+      (sql) => sql`
+        insert into lesson_progress (user_id, lesson_id, enrollment_id, quiz_attempted)
+        select e.user_id, l.id, e.id, true
+        from enrollments e
+        join lessons l on l.course_id = e.course_id
+        join users u on u.id = e.user_id
+        where u.email = ${account.email}
+          and e.course_id = ${made.courseId}
+          and l.id = ${made.lessons[0]!.id}
+        on conflict (user_id, lesson_id) do update set quiz_attempted = true
+      `,
+    );
+
+    const main = page.locator("main");
+    await page.goto(`/belajar/${made.courseSlug}/${made.lessons[0]!.slug}`);
+    await expect(
+      page.getByText(`Isi materi netral ${t} Sentuh Materi materi 1 untuk tes e2e.`),
+    ).toBeVisible();
+    await expectTouchTarget(
+      main.getByRole("link", { name: "Belajar" }),
+      "← Belajar (bar kursus)",
+    );
+    await expectTouchTarget(
+      main.getByRole("link", { name: "Materi berikutnya" }),
+      "Materi berikutnya → (bar bawah)",
+    );
+    await expectTouchTarget(
+      page.locator("details > summary"),
+      'summary "Daftar materi"',
+    );
+    await page.locator("details > summary").click();
+    await expectTouchTarget(
+      page.locator("details").getByRole("link").filter({ hasText: "materi 2" }),
+      "tautan materi 2 (dalam <details>)",
+    );
+
+    await page.goto(`/belajar/${made.courseSlug}/${made.lessons[1]!.slug}`);
+    await expect(
+      page.getByText(`Isi materi netral ${t} Sentuh Materi materi 2 untuk tes e2e.`),
+    ).toBeVisible();
+    await expectTouchTarget(
+      main.getByRole("link", { name: "Materi sebelumnya" }),
+      "← Materi sebelumnya (bar bawah)",
+    );
+  });
+
   test("CMS: bar, drawer & isinya", async ({ page, request }) => {
     const account = await createRoleAccount(request, "EDITOR");
     await signInViaApi(page.context(), account);

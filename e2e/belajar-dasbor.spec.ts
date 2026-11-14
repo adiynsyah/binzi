@@ -18,11 +18,13 @@ import {
   createPublishedCourseViaApi,
   createEditorAdminContexts,
   createCourseViaApi,
+  deleteCoursesInE2eDb,
   expectNoHorizontalScroll,
   maybeScreenshot,
   noSpaceTitle,
   randomToken,
   waitForMemberHeader,
+  waitForOpenBeacon,
 } from "./layout/helpers";
 import {
   createRoleAccount,
@@ -48,38 +50,11 @@ test.afterAll(async () => {
   // Shared-database courtesy: the harness drops the schema once per RUN,
   // not per file, and this file runs FIRST alphabetically — older specs
   // behind it assert a pristine global course list (cms-kursus's "Belum
-  // ada kursus." for a fresh EDITOR). FKs do not cascade, so delete this
-  // file's rows children-first; every course carries an auto-made FINAL
-  // quiz on courses.final_quiz_id (no lesson quizzes in this file).
-  if (courseIds.length > 0) {
-    await withE2eDb(async (sql) => {
-      // Collect the FINAL quiz ids first: they must be freed
-      // (final_quiz_id = null) before the courses rows can go, and after
-      // that the subquery source is gone.
-      const quizRows = await sql`select final_quiz_id as id from courses
-        where id = any(${courseIds}::uuid[])`;
-      const quizIds = quizRows
-        .map((row) => row.id)
-        .filter((id): id is string => id !== null);
-      await sql`delete from lesson_progress where enrollment_id in
-        (select id from enrollments where course_id = any(${courseIds}::uuid[]))`;
-      await sql`delete from enrollments where course_id = any(${courseIds}::uuid[])`;
-      await sql`delete from lessons where course_id = any(${courseIds}::uuid[])`;
-      await sql`delete from sections where course_id = any(${courseIds}::uuid[])`;
-      await sql`delete from question_options where question_id in
-        (select q.id from questions q
-          join courses c on c.final_quiz_id = q.quiz_id
-          where c.id = any(${courseIds}::uuid[]))`;
-      await sql`delete from questions where quiz_id in
-        (select final_quiz_id from courses where id = any(${courseIds}::uuid[]))`;
-      await sql`update courses set final_quiz_id = null
-        where id = any(${courseIds}::uuid[])`;
-      if (quizIds.length > 0) {
-        await sql`delete from quizzes where id = any(${quizIds}::uuid[])`;
-      }
-      await sql`delete from courses where id = any(${courseIds}::uuid[])`;
-    });
-  }
+  // ada kursus." for a fresh EDITOR). The shared helper deletes
+  // children-first and now also collects LESSON quiz ids before the
+  // lessons rows go (this file's courses each carry one quiz per lesson
+  // plus the auto-made FINAL quiz).
+  await deleteCoursesInE2eDb(courseIds);
 });
 
 /** A fresh signed-in MEMBER on the CSP-collected page + their account. */
@@ -155,12 +130,18 @@ test(
 
     const article = page.getByRole("article", { name: `${token} Memasak Sehat` });
     await expect(article).toBeVisible();
+    // The lesson page records the open via a client POST beacon — attach
+    // the listener BEFORE the click (a fast POST can otherwise slip past
+    // the wait), and only head back to the dashboard after it landed:
+    // without the wait the badge below could still read "Belum dimulai".
+    const openBeacon = waitForOpenBeacon(page, made.lessonId);
     await article.getByRole("button", { name: "Mulai materi 1" }).click();
 
     // The lesson page itself arrives Kam 12 — only the URL is asserted.
     await expect(page).toHaveURL(
       `/belajar/${made.courseSlug}/${made.firstLessonSlug}`,
     );
+    expect((await openBeacon).status()).toBe(204);
 
     const rows = await withE2eDb(
       (sql) => sql`
@@ -174,18 +155,20 @@ test(
     expect(rows).toHaveLength(1);
     expect(rows[0]?.enrollment_count).toBe(1);
 
-    // Back to the dashboard → state B.
+    // Back to the dashboard → state B. Card S2-01 moved this on: landing
+    // on the lesson page records the open (POST /open beacon), so the
+    // badge is no longer "Belum dimulai" but "Sedang berjalan" and the
+    // action becomes "Lanjutkan" — nothing is COMPLETED by opening, so
+    // the 0/1 count stays (S2-01 spec no. 2 asserts this same state).
     await page.goto("/belajar");
     await expect(page.getByRole("heading", { level: 1 })).toContainText(
       "Selamat datang kembali",
     );
     const mine = page.getByRole("region", { name: "Kursus saya" });
     const row = mine.getByRole("article", { name: `${token} Memasak Sehat` });
-    await expect(row.getByText("Belum dimulai")).toBeVisible();
+    await expect(row.getByText("Sedang berjalan")).toBeVisible();
     await expect(row.getByText("0/1 MATERI")).toBeVisible();
-    await expect(
-      row.getByRole("link", { name: "Mulai materi 1" }),
-    ).toHaveAttribute(
+    await expect(row.getByRole("link", { name: "Lanjutkan" })).toHaveAttribute(
       "href",
       `/belajar/${made.courseSlug}/${made.firstLessonSlug}`,
     );

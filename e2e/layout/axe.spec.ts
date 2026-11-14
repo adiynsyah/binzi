@@ -383,6 +383,70 @@ test.describe("axe WCAG 2.1 A/AA", () => {
     await expectAxeClean(page, "menu ponsel terbuka", testInfo);
   });
 
+  // Card S2-01 §8: the lesson page's three states — open (at w360 with
+  // the <details> outline OPEN), locked, and not-enrolled — scanned with
+  // this test's OWN courses (shared database). The locked panel's h1→h3
+  // heading skip lands as a KNOWN moderate (same deviation family as
+  // S5-01 state C; approved with the S2-01 plan review, 14 Nov —
+  // empty-state.tsx stays as is).
+  test("MEMBER: halaman materi open/locked/not-enrolled (S2-01)", async (
+    { page, request },
+    testInfo,
+  ) => {
+    const spec = widthSpecOf(testInfo.project.name);
+    const account = await createRoleAccount(request, "MEMBER");
+    await signInViaApi(page.context(), account);
+
+    const token = `axm${Date.now().toString(36)}${testInfo.project.name}`;
+    const made = await createPublishedCourseViaApi(
+      editorContext,
+      adminContext,
+      `${token} kursus materi axe`,
+      { lessons: 2 },
+    );
+    const other = await createPublishedCourseViaApi(
+      editorContext,
+      adminContext,
+      `${token} kursus lain axe`,
+    );
+
+    // not-enrolled (course `other` — this member never enrolls into it).
+    await page.goto(`/belajar/${other.courseSlug}/${other.lessons[0]!.slug}`);
+    await expect(
+      page.getByRole("heading", {
+        level: 2,
+        name: "Anda belum mengikuti kursus ini",
+      }),
+    ).toBeVisible();
+    await expectAxeClean(page, "materi not-enrolled", testInfo);
+
+    const enroll = await page.context().request.post(
+      `/api/progress/courses/${made.courseId}/enroll`,
+    );
+    expect(enroll.status(), await enroll.text()).toBe(201);
+
+    // open (materi 1) — on the phone layout the outline <details> opens
+    // before the scan so the nav rows ride along.
+    await page.goto(`/belajar/${made.courseSlug}/${made.lessons[0]!.slug}`);
+    await expect(
+      page.getByText(
+        `Isi materi netral ${token} kursus materi axe materi 1 untuk tes e2e.`,
+      ),
+    ).toBeVisible();
+    if (spec.bottomNav) {
+      await page.locator("details").locator("summary").click();
+      await expect(page.locator("details")).toHaveAttribute("open");
+    }
+    await expectAxeClean(page, "materi open", testInfo);
+
+    // locked (materi 2 before any quiz attempt).
+    await page.goto(`/belajar/${made.courseSlug}/${made.lessons[1]!.slug}`);
+    await expect(
+      page.getByRole("heading", { level: 3, name: "Materi ini belum terbuka" }),
+    ).toBeVisible();
+    await expectAxeClean(page, "materi locked", testInfo);
+  });
+
   // Card S1-08 §8: both submit dialogs (complete + 3-pending checklist),
   // the publish dialog, the ADMIN queue (with a row — never count-
   // asserted, shared e2e database), and the fresh-EDITOR empty queue +
