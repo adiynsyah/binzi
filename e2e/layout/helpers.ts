@@ -577,3 +577,17 @@ export async function createPublishedCourseViaApi(
 
   return { ...created, courseSlug, firstLessonSlug };
 }
+
+/**
+ * Listener for the S2-01 /open beacon — ALWAYS attached BEFORE the
+ * navigation (or click) that mounts the open state, so a fast POST can
+ * never slip past the wait. Await the returned promise for the Response.
+ */
+export function waitForOpenBeacon(page: Page, lessonId: string) {
+  return page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" &&
+      new URL(response.url()).pathname ===
+        `/api/progress/lessons/${lessonId}/open`,
+  );
+}

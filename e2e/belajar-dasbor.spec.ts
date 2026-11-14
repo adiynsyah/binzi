@@ -24,6 +24,7 @@ import {
   noSpaceTitle,
   randomToken,
   waitForMemberHeader,
+  waitForOpenBeacon,
 } from "./layout/helpers";
 import {
   createRoleAccount,
@@ -129,12 +130,18 @@ test(
 
     const article = page.getByRole("article", { name: `${token} Memasak Sehat` });
     await expect(article).toBeVisible();
+    // The lesson page records the open via a client POST beacon — attach
+    // the listener BEFORE the click (a fast POST can otherwise slip past
+    // the wait), and only head back to the dashboard after it landed:
+    // without the wait the badge below could still read "Belum dimulai".
+    const openBeacon = waitForOpenBeacon(page, made.lessonId);
     await article.getByRole("button", { name: "Mulai materi 1" }).click();
 
     // The lesson page itself arrives Kam 12 — only the URL is asserted.
     await expect(page).toHaveURL(
       `/belajar/${made.courseSlug}/${made.firstLessonSlug}`,
     );
+    expect((await openBeacon).status()).toBe(204);
 
     const rows = await withE2eDb(
       (sql) => sql`

@@ -27,6 +27,7 @@ import {
   noSpaceTitle,
   randomToken,
   waitForMemberHeader,
+  waitForOpenBeacon,
 } from "./layout/helpers";
 import {
   createRoleAccount,
@@ -78,20 +79,6 @@ async function enrollViaApi(page: Page, courseId: string): Promise<void> {
     .context()
     .request.post(`/api/progress/courses/${courseId}/enroll`);
   expect(response.status(), await response.text()).toBe(201);
-}
-
-/**
- * Listener for the /open beacon — ALWAYS attached BEFORE the navigation
- * (or click) that mounts the open state, so a fast POST can never slip
- * past the wait.
- */
-function waitForOpenBeacon(page: Page, lessonId: string) {
-  return page.waitForResponse(
-    (response) =>
-      response.request().method() === "POST" &&
-      new URL(response.url()).pathname ===
-        `/api/progress/lessons/${lessonId}/open`,
-  );
 }
 
 // ------------------------------------------------------------------ tests
