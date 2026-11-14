@@ -14,7 +14,10 @@ import {
   GUEST_PAGES,
   LONG_NAME,
   createCourseViaApi,
+  createEditorAdminContexts,
   createLessonViaApi,
+  createPublishedCourseViaApi,
+  deleteCoursesInE2eDb,
   expectNoHorizontalScroll,
   maybeScreenshot,
   noSpaceTitle,
@@ -52,6 +55,22 @@ async function createNoSpaceTitleCourse(context: import("@playwright/test").Brow
 }
 
 test.describe("tanpa scroll horizontal", () => {
+  // Card S2-01: staff contexts once per file for the lesson-page states;
+  // courses stay per-test with token titles and are cleaned in afterAll.
+  let editorContext: import("@playwright/test").BrowserContext;
+  let adminContext: import("@playwright/test").BrowserContext;
+  const courseIds: string[] = [];
+
+  test.beforeAll(async ({ browser }) => {
+    ({ editorContext, adminContext } = await createEditorAdminContexts(browser));
+  });
+
+  test.afterAll(async () => {
+    await editorContext.close();
+    await adminContext.close();
+    await deleteCoursesInE2eDb(courseIds);
+  });
+
   test("tamu: 6 halaman publik + menu ponsel terbuka", async (
     { page },
     testInfo,
@@ -136,6 +155,46 @@ test.describe("tanpa scroll horizontal", () => {
         );
       });
     }
+  });
+
+  // Card S2-01: the lesson page joins the per-width sweep — open and
+  // locked, this test's own token-titled course (the shared database
+  // decides nothing here). Widths here: 360/700/768/1280; the root spec's
+  // own width test adds 640/1024 in the chromium project.
+  test("MEMBER: halaman materi open & locked (S2-01)", async (
+    { page, request },
+    testInfo,
+  ) => {
+    const account = await createRoleAccount(request, "MEMBER");
+    await signInViaApi(page.context(), account);
+    const token = `mhs${Date.now().toString(36)}${testInfo.project.name}`;
+    const made = await createPublishedCourseViaApi(
+      editorContext,
+      adminContext,
+      `${token} kursus noscroll`,
+      { lessons: 2 },
+    );
+    courseIds.push(made.courseId);
+    const enroll = await page.context().request.post(
+      `/api/progress/courses/${made.courseId}/enroll`,
+    );
+    expect(enroll.status(), await enroll.text()).toBe(201);
+
+    await test.step("open (materi 1)", async () => {
+      await page.goto(`/belajar/${made.courseSlug}/${made.lessons[0]!.slug}`);
+      await expect(
+        page.getByRole("heading", { level: 1 }),
+      ).toContainText("Materi 1 ·");
+      await expectNoHorizontalScroll(page, "MEMBER materi open", true);
+    });
+
+    await test.step("locked (materi 2)", async () => {
+      await page.goto(`/belajar/${made.courseSlug}/${made.lessons[1]!.slug}`);
+      await expect(
+        page.getByRole("heading", { level: 3, name: "Materi ini belum terbuka" }),
+      ).toBeVisible();
+      await expectNoHorizontalScroll(page, "MEMBER materi locked", true);
+    });
   });
 
   test("EDITOR & SUPER_ADMIN: /cms dan /cms/kursus", async (
