@@ -9,6 +9,29 @@
 > kontrol 29a dibangun sekali di atas "mesin" pemutar yang bisa ditukar.
 > Masuk PRD v1.6 sebagai Q46 (teks usulan di bagian terakhir).
 
+> **Pembaruan 14 Nov 2026 — garis potong dipakai (keputusan pemilik).**
+> - **Demo 20 Nov memakai iframe YouTube dengan kontrol bawaannya**
+>   (`controls` bawaan, tanpa kontrol 29a), kartu
+>   [S2-02](../tasks/sprint-2/S2-02-pemutar-video-youtube.md). Alasannya
+>   jadwal: S2-01 mulai dua hari terlambat.
+> - **Tetap dibangun di S2-02** (permanen): migrasi kolom sumber video,
+>   `PlaybackDTO` + `resolvePlayback`, `LessonVideoPlayer` dengan bingkai
+>   16:9, dan pelapor posisi yang tidak tahu sumber video. Posisi tetap
+>   dicatat lewat IFrame API, karena tombol quiz menunggu video ≥ 90 %.
+> - **Iframe dirender sendiri** (`youtube-nocookie.com/embed/{id}?enablejsapi=1…`)
+>   lalu IFrame API menempel ke iframe itu, alih-alih membiarkan API membuat
+>   iframe (bagian 3c). Video tetap bisa diputar walau skrip API gagal.
+> - **Kontrol 29a + antarmuka `PlayerEngine` (bagian 3a, 3b) pindah ke kartu
+>   S2-02b**, setelah demo dan **sebelum S1-05**, supaya S1-05 tetap hanya
+>   menambah mesin file (bagian 9).
+> - **`CHECK` di bagian 1 diperbaiki.** Versi 7 Nov meloloskan baris `READY`
+>   dengan `video_provider` NULL, karena `CHECK` yang bernilai NULL dianggap
+>   lulus (diuji di PGlite 14 Nov). Bentuk yang berlaku memakai
+>   `coalesce(…, false)`.
+> - Karena kontrol bawaan YouTube dipakai, batasan bagian 7 soal logo dan
+>   iklan yang tertutup kontrol kustom tidak berlaku untuk demo. Cek video
+>   tanpa iklan saat gladi resik tetap berlaku.
+
 ## Keputusan
 
 - **Demo 20 Nov:** video contoh disimpan di YouTube dengan status *unlisted*,
@@ -63,17 +86,25 @@ CREATE TYPE video_provider AS ENUM ('R2', 'YOUTUBE');
 ALTER TABLE lessons ADD COLUMN video_provider video_provider;
 ALTER TABLE lessons ADD COLUMN video_external_id text;
 
--- Aman diulang; saat ini tidak ada baris dengan video_key (seed tidak mengisi video).
-UPDATE lessons SET video_provider = 'R2'
-  WHERE video_key IS NOT NULL AND video_provider IS NULL;
-
+-- coalesce wajib (perbaikan 14 Nov): tanpa itu video_provider NULL membuat
+-- seluruh ekspresi NULL, dan CHECK yang NULL dianggap lulus.
 ALTER TABLE lessons ADD CONSTRAINT lessons_video_source_check CHECK (
   video_status <> 'READY'
-  OR (video_provider = 'R2' AND video_key IS NOT NULL)
-  OR (video_provider = 'YOUTUBE'
-      AND video_external_id ~ '^[A-Za-z0-9_-]{11}$')
+  OR coalesce(
+       (video_provider = 'R2' AND video_key IS NOT NULL)
+       OR (video_provider = 'YOUTUBE'
+           AND video_external_id ~ '^[A-Za-z0-9_-]{11}$'),
+       false)
 );
 ```
+
+- `UPDATE … SET video_provider = 'R2' WHERE video_key IS NOT NULL` dari versi
+  7 Nov dihapus: tidak ada kode yang pernah mengisi `video_key`, jadi
+  pernyataan itu tidak mengubah apa pun. Migrasi `0001` dibuat
+  `drizzle-kit generate` dari skema (kartu S2-02 bagian 1).
+- Migrasi gagal dengan pesan jelas bila sudah ada baris `READY` tanpa
+  sumber. Sebelum `db:migrate:binzi-dev`, cek
+  `select count(*) from lessons where video_status = 'READY'` = 0.
 
 - Kolom lama (`video_key`, `video_status`, `video_duration_seconds`,
   `video_size_bytes`) tetap. R2 memakai `video_key`; YouTube memakai
@@ -265,8 +296,11 @@ tidak berubah.
     model, DTO, dan halaman tetap sama, jadi potongan ini tidak menambah
     utang migrasi.
 
-**Setelah demo:**
-1. 👤 H-04 — metode pembayaran Cloudflare, bucket dev & prod, token.
+**Setelah demo** (urutan sejak 14 Nov: S2-02b disisipkan sebelum S1-05):
+0. 🤖 S2-02b — kontrol 29a (`PlayerControls`) + antarmuka `PlayerEngine` +
+   mesin YouTube berkontrol tersembunyi (bagian 3a–3c), menggantikan
+   kontrol bawaan dari S2-02. Pelapor posisi S2-02 dipakai ulang.
+1. 👤 H-04 — metode pembayaran Cloudflare (✓ 14 Nov), bucket dev & prod, token.
 2. 🤖 A-17 — lapisan storage R2.
 3. 🤖 S1-05 — unggah video ke R2, cabang `R2` di `resolvePlayback`, mesin
    file, domain R2 di `media-src`. Kontrol 29a tidak disentuh.
@@ -305,4 +339,4 @@ semua video YouTube tersedia.
 
 ## 11. Teks usulan untuk PRD v1.6 (Q46)
 
-| Q46 | Sumber video untuk demo 20 Nov? | **YouTube unlisted** lewat IFrame API (`youtube-nocookie.com`), hanya video contoh, dipasang lewat skrip; pemutar memakai **kontrol 29a**. **Jalur produksi tetap R2** (K-06, §10.3) | Kolom sumber video (`video_provider`, `video_external_id`), satu `LessonVideoPlayer` dengan kontrol 29a di atas antarmuka `PlayerEngine` (mesin YouTube untuk demo, mesin file untuk R2). Migrasi ke R2 berjalan per materi dengan jalan mundur, tanpa mengubah tampilan. Rencana: `docs/decisions/video-sumber.md` |
+| Q46 | Sumber video untuk demo 20 Nov? | **YouTube unlisted** lewat iframe `youtube-nocookie.com` + IFrame API, hanya video contoh, dipasang lewat skrip; untuk demo pemutar memakai **kontrol bawaan YouTube** (pembaruan 14 Nov), **kontrol 29a sejak S2-02b**. **Jalur produksi tetap R2** (K-06, §10.3) | Kolom sumber video (`video_provider`, `video_external_id`), satu `LessonVideoPlayer` dengan kontrol 29a di atas antarmuka `PlayerEngine` (mesin YouTube untuk demo, mesin file untuk R2). Migrasi ke R2 berjalan per materi dengan jalan mundur, tanpa mengubah tampilan. Rencana: `docs/decisions/video-sumber.md` |

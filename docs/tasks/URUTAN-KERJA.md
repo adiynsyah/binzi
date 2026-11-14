@@ -47,7 +47,7 @@ Belum butuh secret apa pun.
 
 Semua bisa tanpa domain; kamu memakai `localhost` dan URL bawaan Vercel. Diakhiri H-10: semua kredensial masuk ke `.env.local`, Vercel, dan GitHub. Email belum dikirim sungguhan — `MAIL_TRANSPORT=log` mencetaknya ke terminal.
 
-- [ ] **8.** 👤 Kamu · [H-04](fase-0/H-04-cloudflare-r2-bucket-dan-token.md) — Cloudflare R2: bucket & token
+- [ ] **8.** 👤 Kamu · [H-04](fase-0/H-04-cloudflare-r2-bucket-dan-token.md) — Cloudflare R2: bucket & token *(metode pembayaran ✓ 14 Nov; bucket + token belum)*
 - [ ] **9.** 👤 Kamu · [H-05](fase-0/H-05-cloudflare-turnstile.md) — Cloudflare Turnstile
 - [ ] **10.** 👤 Kamu · [H-06](fase-0/H-06-google-oauth-client.md) — Google OAuth client
 - [ ] **11.** 👤 Kamu · [H-08](fase-0/H-08-vercel-hubungkan-repo.md) — Vercel: hubungkan repo
@@ -122,7 +122,7 @@ Prasyarat Sprint 1 (tanpa tanggal tetap — sebelum S1-01, tanpa branch kartu la
 
 ## Sprint 1 — CMS kursus & materi
 
-Kartu ditulis di Claude chat menjelang sesinya, terhadap kode `main` terbaru. Rencana lengkap, prasyarat, dan keputusan tertunda ada di `STATUS.md` (item "Rencana S1"). Sejak 3 Nov urutan dan lingkupnya mengikuti jadwal demo 20 Nov (bagian "Pembaruan 3 Nov", "Pembaruan 4 Nov", "Pembaruan 4 Nov malam", "Pembaruan 6 Nov", dan "Pembaruan 7 Nov" di `STATUS.md`). Sejak 8 Nov impor soal CSV pindah ke setelah demo (bagian "Pembaruan 8 Nov"). Keputusan kartu S1-08 ada di bagian "Pembaruan 9 Nov"; hasilnya di "Pembaruan 10 Nov". Jalur peserta (S5-01, S2-01, …) di "Pembaruan 11 Nov".
+Kartu ditulis di Claude chat menjelang sesinya, terhadap kode `main` terbaru. Rencana lengkap, prasyarat, dan keputusan tertunda ada di `STATUS.md` (item "Rencana S1"). Sejak 3 Nov urutan dan lingkupnya mengikuti jadwal demo 20 Nov (bagian "Pembaruan 3 Nov", "Pembaruan 4 Nov", "Pembaruan 4 Nov malam", "Pembaruan 6 Nov", dan "Pembaruan 7 Nov" di `STATUS.md`). Sejak 8 Nov impor soal CSV pindah ke setelah demo (bagian "Pembaruan 8 Nov"). Keputusan kartu S1-08 ada di bagian "Pembaruan 9 Nov"; hasilnya di "Pembaruan 10 Nov". Jalur peserta (S5-01, S2-01, …) di "Pembaruan 11 Nov"; jadwal yang disusun ulang dan versi demo pemutar video di "Pembaruan 14 Nov".
 
 - [x] 🤖 [S1-01](sprint-1/S1-01-daftar-dan-kursus-baru.md) — Daftar kursus, kursus baru, builder kosong · *✅ PR #106*
 - [ ] 🤖 [S1-01b](sprint-1/S1-01b-daftar-kursus-lanjutan.md) — Daftar kursus lanjutan: kartu 19e tablet & ponsel, "Urut ▾", perapian dialog & kode S1-01 · *setelah demo 20 Nov*
@@ -131,7 +131,8 @@ Kartu ditulis di Claude chat menjelang sesinya, terhadap kode `main` terbaru. Re
 - [x] 🤖 [S1-03a](sprint-1/S1-03a-dokumen-konten.md) — Dokumen konten: validator server, renderer, tabel (tanpa dependensi baru) · *✅ PR #110*
 - [x] 🤖 [S1-03b](sprint-1/S1-03b-editor-tiptap.md) — Editor TipTap: toolbar inti (B, I, H2, list, tautan, tabel), panel penolakan tempel 20b · *✅ PR #114*
 - [x] 🤖 [S1-04](sprint-1/S1-04-editor-materi-dan-deskripsi.md) — Editor materi (teks) + deskripsi kursus, simpan manual (tanpa auto-save, keputusan 3 Nov) · *✅ PR #116*
-- [ ] 🤖 S1-05 — Unggah video materi ke R2 + mesin file untuk kontrol 29a *(butuh H-04 + A-17; kartu belum ditulis)* · *setelah demo — demo memakai video YouTube ([rencana](../decisions/video-sumber.md))*
+- [ ] 🤖 S1-05 — Unggah video materi ke R2 + mesin file untuk kontrol 29a *(butuh H-04 + A-17 + S2-02b; kartu belum ditulis)* · *setelah demo — demo memakai video YouTube ([rencana](../decisions/video-sumber.md))*
+- [ ] 🤖 S2-02b — Kontrol 29a + antarmuka `PlayerEngine` di atas mesin YouTube berkontrol tersembunyi, menggantikan kontrol bawaan S2-02 *(kartu belum ditulis; [rencana](../decisions/video-sumber.md) bagian 3a–3c)* · *setelah demo, sebelum S1-05*
 - [ ] 🤖 S1-06 — Media library *(butuh A-17 + keputusan penyajian gambar; kartu belum ditulis)* · *setelah demo*
 - [ ] 🤖 S1-07 — Pemilih gambar, sampul, pemakaian aset *(kartu belum ditulis)* · *setelah demo; menyalakan lagi syarat sampul*
 - [ ] 🤖 Impor soal CSV (22c) — memakai aturan soal S1-09 *(kartu belum ditulis)* · *setelah demo; slot Sen 9 dipakai Beranda versi demo (keputusan 8 Nov)*
@@ -139,19 +140,19 @@ Kartu ditulis di Claude chat menjelang sesinya, terhadap kode `main` terbaru. Re
 
 ## Jalur demo 20 Nov — kartu menyusul
 
-Jadwal dan keputusannya di `STATUS.md` (bagian "Pembaruan 3 Nov", "Pembaruan 8 Nov", "Pembaruan 9 Nov", "Pembaruan 10 Nov", dan "Pembaruan 11 Nov"). Kartu ditulis di Claude chat selagi agent mengerjakan kartu sebelumnya. Urutan potong bila terlambat: halaman "Nilai Saya". Impor CSV sudah dipindah ke setelah demo (8 Nov).
+Jadwal dan keputusannya di `STATUS.md` (bagian "Pembaruan 3 Nov", "Pembaruan 8 Nov", "Pembaruan 9 Nov", "Pembaruan 10 Nov", "Pembaruan 11 Nov", dan "Pembaruan 14 Nov"). Kartu ditulis di Claude chat selagi agent mengerjakan kartu sebelumnya. Halaman "Nilai Saya" sudah dipotong (14 Nov); urutan potong berikutnya bila terlambat: Final Quiz *(usulan, putuskan Sen 16)*. Impor CSV sudah dipindah ke setelah demo (8 Nov).
 
 - [x] 🤖 [S1-09](sprint-1/S1-09-editor-quiz.md) — Editor quiz CMS: daftar soal (22a) + form satu soal (22b) · *✅ PR #120 (8 Nov); perapian kosmetik setelah demo (STATUS 8 Nov)*
 - [x] 🤖 [S6-01](sprint-6/S6-01-beranda-versi-demo.md) — Beranda versi demo: hero 1a + ilustrasi 6a (bergerak, tombol jeda), Cara kerjanya, Tanya Ahli Gizi, CTA penutup, halaman "Segera hadir" · *✅ PR #127 (9 Nov); perapian setelah demo (STATUS 9 Nov)*
 - [x] 🤖 [S5-01](sprint-5/S5-01-dasbor-belajar-versi-demo.md) — Dasbor belajar versi demo: kursus terbit, "Mulai materi 1" (pendaftaran), Kursus saya, skeleton `/belajar`, halaman legal "Segera hadir" · *✅ PR #131 (11 Nov); ⚠️ verifikasi manual pemilik belum dijalankan; perapian setelah demo (STATUS 11 Nov)* *(`cache()` sesi/profil ditunda ke setelah demo — STATUS 10 Nov)*
-- [ ] 🤖 [S2-01](sprint-2/S2-01-halaman-materi-dan-progres.md) — Halaman materi peserta + progres: gerbang akses, "materi dibuka", `POST /api/progress/video` dan posisi terakhir ([rencana video](../decisions/video-sumber.md) bagian 2) · *Kam 12 Nov*
+- [x] 🤖 [S2-01](sprint-2/S2-01-halaman-materi-dan-progres.md) — Halaman materi peserta + progres: gerbang akses, "materi dibuka", `POST /api/progress/video` dan posisi terakhir ([rencana video](../decisions/video-sumber.md) bagian 2) · *✅ PR #133 (14 Nov; terlambat 2 hari); perapian setelah demo (STATUS 14 Nov)*
 - [x] 👤 Keputusan video demo: **YouTube unlisted** · *✅ diputuskan 7 Nov; R2 tetap jalur produksi, H-04 tetap wajib sebelum S1-05 — [rencana](../decisions/video-sumber.md)*
-- [ ] 🤖 S2-02 — Peserta: player video — kolom sumber video, `LessonVideoPlayer` dengan kontrol 29a di atas mesin YouTube, CSP, skrip pasang video demo ([rencana](../decisions/video-sumber.md) bagian 1, 3, 4, 5) *(kartu ditulis Kam 12 selagi S2-01 berjalan; butuh ID video contoh dari pemilik)* · *Jum 13 Nov, memakai cadangan Sel 17; garis potong: kontrol bawaan YouTube*
-- [ ] 🤖 Peserta: mengerjakan quiz · *Sab 14 – Min 15 Nov*
-- [ ] 🤖 Peserta: hasil & nilai · *Sen 16 Nov*
-- [ ] 👤 Cadangan · *Sel 17 Nov*
+- [ ] 🤖 [S2-02](sprint-2/S2-02-pemutar-video-youtube.md) — Pemutar video versi demo: migrasi kolom sumber video (`0001`, dengan `CHECK`), iframe YouTube **berkontrol bawaan** + simpan posisi, CSP, skrip pasang video ([rencana](../decisions/video-sumber.md), pembaruan 14 Nov) · *Sab 14 malam – Min 15 Nov; binzi-dev dimigrasi **sebelum** merge*
+- [ ] 🤖 Quiz materi: tombol "Tandai selesai & mulai quiz", mengerjakan, halaman hasil dengan nilai *(kartu ditulis selagi S2-02 berjalan)* · *Sen 16 Nov*
+- [ ] 🤖 Final Quiz + nilai akhir (60/40) di halaman hasil — tanpa halaman "Nilai Saya" (dipotong 14 Nov) · *Sel 17 Nov*
+- [ ] 👤 Cadangan kode · migrasi binzi-dev · pasang video demo (`npm run video:youtube:binzi-dev`) · *Rab 18 Nov*
 - [x] 👤 Region fungsi Vercel → Singapura (Settings → Functions), ukur `/belajar` sebelum & sesudah (STATUS 9 Nov) · *✅ 10 Nov: `/belajar` 1,64 s → ±0,12 s (STATUS 10 Nov)*
-- [ ] 👤 Production: migrasi binzi-dev, akun demo per peran, data contoh, gladi resik · *Rab 18 – Kam 19 Nov*
+- [ ] 👤 Production: akun demo per peran + kursus contoh lewat CMS *(mulai Sen 16 bila konten siap)*, gladi resik · *Kam 19 Nov*
 - [ ] 👤 Demo alur utuh dengan data contoh · *Jum 20 Nov*
 
 ---
