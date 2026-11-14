@@ -1,9 +1,118 @@
 # Status Proyek BINZI — catatan untuk melanjutkan di chat baru
 
-> Terakhir diperbarui: 11 Nov 2026. File ini dikelola manual (bukan oleh agent) dan hanya untuk melanjutkan percakapan dengan Claude.
+> Terakhir diperbarui: 14 Nov 2026. File ini dikelola manual (bukan oleh agent) dan hanya untuk melanjutkan percakapan dengan Claude.
 > Untuk melanjutkan: buka chat baru, unggah file ini + `docs/tasks/URUTAN-KERJA.md`, lalu pakai prompt di bagian paling bawah.
 
-## Pembaruan 11 Nov 2026 — S5-01 di-merge, kartu S2-01 siap (baca ini dulu, lalu 10 Nov, 9 Nov, 8 Nov, 7 Nov, 6 Nov, 4 Nov malam, 4 Nov, dan 3 Nov)
+## Pembaruan 14 Nov 2026 — S2-01 di-merge, jadwal disusun ulang, kartu S2-02 versi kontrol bawaan YouTube (baca ini dulu, lalu 11 Nov, 10 Nov, 9 Nov, 8 Nov, 7 Nov, 6 Nov, 4 Nov malam, 4 Nov, dan 3 Nov)
+
+Bagian-bagian di bawahnya tetap berlaku. Bagian ini mengubah atau menambahnya.
+
+### Posisi pagi ini
+Sesi S2-01 belum dimulai sampai Sab 14 pagi (slot Kam 12 dan Jum 13 terlewat), jadi jadwal mundur ±2 hari. Sesi dimulai Sab 14 pukul ±10.30 dan di-merge pukul 16.00.
+
+### Yang di-merge hari ini
+
+| PR | Isi |
+|---|---|
+| #133 | S2-01 halaman materi + progres (11 commit + 4 commit perbaikan tinjauan) |
+
+`main` sekarang `54e7d7a`. Baseline Vitest **113 berkas / 1215 tes**, diukur di sandbox Claude chat pada `81b1700` (pohonnya identik dengan `54e7d7a`). Gate audit di mesin pemilik 0 excused / 0 blocking / OK / 22. Tanpa migrasi, tanpa dependensi baru.
+
+### S2-01 di-merge (#133)
+
+`/belajar/{kursus}/{materi}` punya tiga keadaan:
+- **open:** bar kursus, isi materi, bar bawah (sebelumnya/berikutnya atau catatan terkunci), "Daftar materi" sebagai kartu ≥ 1024 dan panel lipat < 1024;
+- **locked:** panel `EmptyState` "Materi ini belum terbuka" + "Buka materi {k}";
+- **not-enrolled:** kotak bergaris putus + "Mulai materi 1".
+
+Di belakangnya:
+- modul `progress`: `getLessonPage`, `openLesson`, `recordVideoProgress`, gerbang `isLessonUnlocked` / `firstOpenUnattempted` (pendahulu langsung);
+- `POST /api/progress/lessons/{id}/open` (204, dipanggil `LessonOpenBeacon` setelah halaman tampil — GET tidak pernah menulis);
+- `POST /api/progress/video` (permanen, `greatest` untuk persen).
+
+**Tinjauan rencana** menambah 10 butir: tes komponen, daftar screenshot lengkap, berhenti bila e2e no. 5 macet, h3 `EmptyState` dicatat, `UUID_PATTERN` untuk body, durasi > 0 + `Number()` pada persen, `text-text-muted` + `cn()`, `<nav>` di kedua tempat, urutan hapus quiz di helper pembersih, aturan kartu yang terlewat.
+
+**Agent menemukan sendiri dua tes yang lemah:** M6 (JOIN tanpa `user_id`) dan M12 (video melewati gerbang) awalnya lolos. Keduanya diperkuat dengan data yang memenuhi semua syarat kecuali yang diuji.
+
+**Tinjauan PR**, dijalankan di sandbox:
+- `tsc`, `eslint`, `lint:hex`, Vitest 113/1214;
+- SQL upsert dirender dengan nama tabel lengkap;
+- 12 mutasi Claude chat, semuanya merah;
+- 14 screenshot.
+
+Temuannya diperbaiki dalam 4 commit (`ede2694`..`81b1700`):
+1. panel lipat halaman terkunci menulis "0 SELESAI · 0 TERKUNCI", karena materi yang dibuka berstatus "kini" (celah kartu);
+2. tes dasbor no. 2 pindah ke `/belajar` tanpa menunggu POST beacon (bisa merah acak);
+3. tes e2e no. 7: 409 video materi terkunci bisa berasal dari "tidak punya video";
+4. penanda segitiga `<summary>` di Safari;
+5. dua komentar keliru.
+
+Putaran kedua diverifikasi ulang: 113/1215, mutasi `+ 1` dari dua arah merah, CSS Tailwind untuk penanda Safari keluar dengan benar.
+
+**Bonus:** "Kursus lainnya" kini terlihat di screenshot dasbor (celah 11 Nov tertutup).
+
+**Verifikasi manual pemilik S2-01:** ✓ 14 Nov.
+
+### Keputusan pemilik 14 Nov
+1. **Jadwal disusun ulang** (tabel di bawah).
+2. **S2-02 memakai garis potong rencana video:** iframe YouTube dengan kontrol bawaan. Kontrol 29a + `PlayerEngine` pindah ke **S2-02b** setelah demo, sebelum S1-05. Rinciannya di `docs/decisions/video-sumber.md`, blok "Pembaruan 14 Nov". Kartu: [S2-02](tasks/sprint-2/S2-02-pemutar-video-youtube.md).
+3. **Halaman "Nilai Saya" dipotong untuk demo** (urutan potong pertama sejak 3 Nov). Nilai tampil di halaman hasil quiz; "hasil & nilai" digabung ke kartu quiz.
+4. **Persiapan production yang tidak menunggu kode dimajukan ke Sen 16:** akun demo per peran dan kursus contoh lewat CMS di Production (bila konten ahli gizi sudah ada). Rab 18 menjadi cadangan kode + migrasi + pasang video.
+5. **Catatan auto-memory agent soal push dibiarkan sampai C-09.** Isinya: `~/.claude/projects/-Users-adiyansyah-Project-React-binzi-new/memory/git-push-credential-adiynsyah.md` + satu baris di `MEMORY.md`, tanpa nilai token. Tidak dipindah ke `CLAUDE.md` (repo publik; pengaturan dua akun GitHub khusus laptop pemilik). Lihat "Catatan untuk kartu berikutnya" soal C-09.
+6. **Metode pembayaran Cloudflare** sudah ditambahkan (14 Nov). H-04 (bucket + token) tinggal pekerjaan dashboard dan tidak memblokir demo.
+
+### Jadwal demo setelah hari ini
+
+| Hari | Pekerjaan |
+|---|---|
+| Sab 14 | S2-01 — **di-merge (#133)** · PR docs kartu S2-02 + STATUS 14 Nov |
+| Sab 14 malam – Min 15 | **S2-02 pemutar video** (kontrol bawaan YouTube). Claude chat menulis kartu quiz materi selagi agent bekerja |
+| Sen 16 | Quiz materi: tombol "Tandai selesai & mulai quiz", mengerjakan, halaman hasil dengan nilai · **batas keputusan jalur data demo** · pemilik mulai akun demo + kursus contoh di Production |
+| Sel 17 | Final Quiz + nilai akhir (60/40) di halaman hasil |
+| Rab 18 | Cadangan kode · migrasi binzi-dev · pasang video demo · data contoh |
+| Kam 19 | Gladi resik |
+| Jum 20 | Demo |
+
+Bila terlambat lagi, *(usulan, putuskan Sen 16)*: Final Quiz dipotong lebih dulu, sehingga demo cukup memakai quiz materi + halaman hasil.
+
+### Temuan saat menulis kartu S2-02 (dicek di sandbox)
+- **`CHECK` sumber video dari rencana 7 Nov punya celah:** baris `READY` dengan `video_provider` NULL lolos, karena `CHECK` yang bernilai NULL dianggap lulus. Diperbaiki dengan `coalesce(…, false)` dan diuji 10 kasus di PGlite. Rencana video bagian 1 diperbarui.
+- **Tes lama yang patah karena `CHECK`:** 6 tes Vitest di 2 berkas + 2 `UPDATE` di e2e S2-01 no. 7. Didaftar satu per satu di kartu bagian 2.
+- **binzi-dev dimigrasi SEBELUM merge S2-02.** Preview dan Production memakai binzi-dev, dan kode S2-02 membaca kolom baru di setiap halaman materi. Migrasinya aditif, jadi aman untuk kode `main` yang sedang berjalan. Cek dulu `select count(*) from lessons where video_status = 'READY';` = 0 (bila bukan 0, migrasi gagal karena `CHECK`).
+
+### Tugas pemilik (bukan kode)
+1. **Konten ahli gizi (K-02):** tenggat hari ini. Bila belum siap Sen 16, pakai cadangan seed "[DEMO]" (keputusan 11 Nov no. 3).
+2. **Video YouTube *unlisted*** dari akun proyek (Brand Account), ≤ 5 menit, dipasang saat persiapan Rab 18. Untuk verifikasi lokal S2-02 cukup video publik apa pun yang boleh disematkan (ID-nya tidak ditulis di PR atau git).
+3. **H-04 R2** (tidak mendesak): dua bucket `binzi-media-dev`/`binzi-media-prod` dengan lokasi Asia-Pacific, kelas Standard, tanpa akses publik; satu Account API token Object Read & Write khusus bucket dev. Nilainya cukup di password manager; masuk `.env.local`/Vercel saat A-17.
+4. **Verifikasi manual S5-01** (skeleton Slow 4G, tiga tautan legal footer): belum tercatat — tandai di "Pekerjaan kecil" setelah dicek.
+5. **Cek `system_settings` binzi-dev** (tugas 11 Nov no. 4), sebelum gladi.
+6. **Sebelum merge S2-02:** cek READY = 0 lalu `npm run db:migrate:binzi-dev` (kartu S2-02, "Verifikasi oleh kamu").
+
+### Pelajaran 14 Nov
+1. **`CHECK` dengan `OR` atas kolom nullable lolos bila hasilnya NULL** (logika tiga nilai SQL). Bungkus cabangnya dengan `coalesce(…, false)`, dan uji baris yang **seharusnya ditolak**, bukan hanya yang diterima.
+2. **`drizzle-kit generate` dua kali tanpa membersihkan snapshot menghasilkan migrasi selisih** (`DROP CONSTRAINT` + `ADD`) yang gagal di DB baru. Bila skema diubah setelah generate: `git checkout -- src/db/migrations && git clean -fd src/db/migrations`, lalu generate ulang.
+3. **Fitur baru mengubah asersi tes lama di halaman lain.** Dasbor "Belum dimulai" → "Sedang berjalan" setelah beacon S2-01. Tinjauan kartu mencari asersi tentang keadaan yang **akan berubah karena perilaku baru**, bukan hanya tes di berkas yang disentuh (lanjutan 8 Nov no. 1).
+4. **Tes yang pindah halaman setelah efek klien wajib menunggu efek itu.** `waitForResponse` dipasang sebelum aksi, lalu ditunggu sebelum `goto` berikutnya.
+5. **Status tampilan berprioritas bisa membuat hitungan ringkasan salah** ("kini" menutupi "terkunci"). Hitungan ringkasan dites per keadaan halaman.
+6. **Data uji harus memenuhi semua syarat kecuali yang sedang diuji.** Tolakan karena syarat lain menutupi mutasi (M6, M12, e2e no. 7).
+7. **Agent bisa bertindak di luar kode tanpa bertanya** (mengambil token dari keyring, menulis auto-memory), dan laporannya bisa kurang tepat (menyebut 2 screenshot diambil ulang, padahal 24). Tindakan dan klaim agent di luar diff tetap dicek.
+8. **Migrasi aditif yang dibaca kode baru dijalankan di binzi-dev sebelum merge**, karena Preview dan Production berbagi database itu.
+
+### Perapian setelah demo (dari S2-01)
+- Komentar basi `e2e/belajar-dasbor.spec.ts:140` ("The lesson page itself arrives Kam 12 — only the URL is asserted").
+- `progress/service.ts` mengimpor `db` dan menjalankan transaksi sendiri; di S5-01 transaksi ada di `queries.ts`. Berfungsi benar, hanya beda pola.
+- Job e2e 7,5–9,3 menit (sebelumnya 6,6) karena ±19 kursus terbit dibuat lewat API di tes baru. Percepat dengan memasang soal lewat SQL di helper.
+- Kotak "belum mengikuti kursus" selebar penuh di 1280; baris "kini" pada materi terkunci tanpa gembok.
+- Posisi video tersimpan bisa melebihi `video_duration_seconds` bila durasi pemutar lebih panjang. Tutup sebelum peserta nyata.
+- h1 → h3 di keadaan terkunci (`EmptyState`), sama dengan keadaan C S5-01.
+
+### Catatan untuk kartu berikutnya
+- **S2-02:** kartu masuk lewat PR docs ini, ditulis terhadap `54e7d7a`. Rencana agent ditinjau di chat, termasuk isi `0001_video_source.sql` (aturan A-07).
+- **Kartu quiz materi (Sen 16):** catatan di akhir kartu S2-01 dan S2-02 (tombol aktif bila tanpa video atau ≥ 90 %, persen terbaru setelah POST, keadaan API YouTube gagal). Ditulis di chat selagi S2-02 berjalan.
+- **C-09:** begitu `autoMemoryEnabled: false` berlaku, agent tidak lagi membaca catatan push di auto-memory, dan push gagal 403 lagi (`GITHUB_TOKEN` akun `adiynsyahpaperid` di shell). C-09 harus sekalian membereskan cara push di laptop pemilik (mis. `GITHUB_TOKEN` tidak diekspor di terminal repo ini, atau kredensial per-repo), lalu catatan memory itu dihapus.
+- **S2-02b (setelah demo, sebelum S1-05):** kontrol 29a + `PlayerEngine` + mesin YouTube berkontrol tersembunyi; pelapor posisi S2-02 dipakai ulang.
+
+## Pembaruan 11 Nov 2026 — S5-01 di-merge, kartu S2-01 siap (baca setelah 14 Nov, lalu 10 Nov, 9 Nov, 8 Nov, 7 Nov, 6 Nov, 4 Nov malam, 4 Nov, dan 3 Nov)
 
 Bagian-bagian di bawahnya tetap berlaku. Bagian ini mengubah atau menambahnya.
 
@@ -875,7 +984,8 @@ Rencana disetujui, dengan lima tambahan berikut (hasil tinjauan C-02/C-03, belum
 - [ ] **`db:seed:binzi-dev` belum ada.** Pembungkus `scripts/binzi-dev.ts` hanya punya `migrate` dan `set-role`, sementara pesan galat `src/db/seed.ts` menyebut pemilik bisa mengarahkan seed ke binzi-dev. Bila kartu berikutnya menambah baris `system_settings` (seed non-destruktif), tambahkan subperintah `seed` di pembungkus yang sama di kartu itu.
 - [x] **Segera:** hapus `.env.local.sebelum-c05` — ✅ sudah dijalankan 4 Nov (lihat "Pembaruan 4 Nov malam"). Catatan sebelumnya: berkas ini tidak tercakup larangan baca `.claude/settings.json` maupun aturan `CLAUDE.md` (dicek 2 Nov). Catatan asli: hapus `.env.local.sebelum-c05` (salinan secret Production sebelum C-05, ter-ignore) bila DB lokal terbukti stabil — C-02 sudah selesai 29 Okt: `rm .env.local.sebelum-c05`.
 - [ ] **Prettier belum ditegakkan** (ditemukan 30 Okt saat tinjauan C-06): `prettier --list-different src` dengan Prettier 3.9.10 → 80 berkas, dan CI tidak menjalankan `prettier --check` (`npm run check` = typecheck + lint + test + lint:hex). Kartu yang menyentuh banyak berkas melarang `npm run format` supaya diff tetap sebatas lingkup. Putuskan setelah S1-02 atau di sela kartu tanpa branch terbuka: satu PR format massal (tanpa perubahan lain) + `prettier --check` di CI, atau dibiarkan. Format massal bentrok dengan branch kartu yang terbuka.
-- [ ] Komentar `next.config.ts` baris 93–94 masih menyebut `authInterrupts` "still experimental in Next 16.3.7" (C-02 tidak boleh menyentuh berkas itu). Ganti ke 16.4.1 di kartu berikutnya yang menyentuh `next.config.ts` (mis. domain R2 di CSP).
+- [ ] Komentar `next.config.ts` baris 93–94 masih menyebut `authInterrupts` "still experimental in Next 16.3.7" (C-02 tidak boleh menyentuh berkas itu). Ganti ke 16.4.1 di kartu berikutnya yang menyentuh `next.config.ts` (mis. domain R2 di CSP). *(14 Nov: masuk kartu S2-02 bagian 7.)*
+- [ ] **Push agent & auto-memory** *(14 Nov)*: agent S2-01 mengambil token akun `adiynsyah` dari keyring per perintah, karena kredensial bawaan (`adiynsyahpaperid`, juga `GITHUB_TOKEN` di shell) tidak bisa push. Caranya dicatat di auto-memory, tanpa nilai token. Dibiarkan sampai C-09 (keputusan 14 Nov no. 5); C-09 membereskan kredensial di laptop lalu menghapus catatan itu.
 - [x] → **C-07** (PR #101, 2 Nov). **Chore token kontras — sebelum S1.** Diputuskan 24 Okt (pratinjau di Claude chat): **opsi A** — tombol merah bertuliskan putih memakai `primary-deep` `#c42d1e` (5,61), hover token baru `primary-deeper` `#a8261a` (7,10); tautan & teks merah kecil `text-primary` → `primary-deep`; nilai `text-subtle` `#8a8378` → `#706a61` (≥ 4,5 di semua latar terang, termasuk `primary-tint` 4,63 — `#726c63` di pratinjau hanya 4,495 di sana); `primary` `#f04030` tetap untuk elemen non-teks; tombol email ikut `primary-deep`. Aturan anti-regresi masuk `CLAUDE.md` & `TOKENS.md` (tabel warna layar memetakan `#f04030` → `primary`). Opsi B (token tombol baru `#d83525`, 4,71) ditolak pemilik. Temuan asal: kontras teks kecil di bawah 4,5 — `primary` vs putih 3,83, di atas `#f7f5f2` 3,52, `text-subtle` vs putih 3,75; `KNOWN_CONTRAST_FINDINGS` dikosongkan di C-07.
 - [ ] → **C-08** (a, e, f) ✅ PR #103, 2 Nov + **C-08b** (b, c, d, g, h) — dipecah 2 Nov. **Chore UI auth kecil** — dijadwalkan sebagai kartu C-08 (setelah C-07, sebelum S1-01; S1 memakai `PasswordField`/`Field`/`Checkbox`/`Button` yang sama). Isi: (a) tombol kirim form ber-Turnstile `disabled` → pola `aria-disabled` di komponen `Button`, tetap terjangkau Tab, pesan tunggu saat diaktifkan sebelum token; (b) area sentuh "Lupa password?" diperbesar ke ≥ 44 px tanpa mengubah tampilan (sebelumnya "dilaporkan saja"); (c) label mono "MASUK"/"DAFTAR" `md:` → `sm:` (`auth-panels.tsx:154`, hilang di 640–767); (d) `/daftar/verifikasi` ≥ 1024: `AuthShell` tanpa panel tetap memasang grid dua kolom → isi terdesak ke kiri tanpa logo; (e) fokus tidak pindah ke isian kata sandi/persetujuan yang salah (`Controller` tanpa `field.ref`) — di `/reset-password` pengguna pembaca layar tidak mendapat kabar apa pun; (f) tombol Google tanpa state loading; (g) chip aturan kata sandi hanya dibedakan warna titik (desain 3c memakai ✓/○); (h) baris sesi panel "Akun aktif" di 360: ikon tertinggal di kiri, teks rata tengah. Sumber: verifikasi pemilik A-19b (w700) dan H-11 langkah 5 (24 Okt). Di luar C-08: ukuran 14 px pesan utama panel sukses (keputusan desain pemilik).
 - [ ] Saat S5/S6: perketat tes skip link — redaksi ketat ("elemen pertama di dalam `#konten-utama`") menunggu konten nyata.
@@ -1103,8 +1213,8 @@ Rencana disetujui, dengan lima tambahan berikut (hasil tinjauan C-02/C-03, belum
 Saya sedang membangun BINZI (platform belajar gizi) dengan Next.js 16 +
 AI coding agent (Claude Code). Terlampir docs/STATUS.md dan
 docs/tasks/URUTAN-KERJA.md dari repo saya — baca keduanya sebagai konteks.
-Baca bagian "Pembaruan 11 Nov" di STATUS.md lebih dulu, lalu
-"Pembaruan 10 Nov", "Pembaruan 9 Nov", "Pembaruan 8 Nov", "Pembaruan 7 Nov", "Pembaruan 6 Nov", "Pembaruan 4 Nov
+Baca bagian "Pembaruan 14 Nov" di STATUS.md lebih dulu, lalu
+"Pembaruan 11 Nov", "Pembaruan 10 Nov", "Pembaruan 9 Nov", "Pembaruan 8 Nov", "Pembaruan 7 Nov", "Pembaruan 6 Nov", "Pembaruan 4 Nov
 malam", "Pembaruan 4 Nov", dan "Pembaruan 3 Nov 2026 — target demo 20 Nov";
 jadwal dan keputusan di sana mengalahkan rencana sprint lama.
 Spesifikasi lengkap ada di docs/prd/ dan aturan agent di CLAUDE.md;
@@ -1112,14 +1222,15 @@ repo publik di github.com/adiynsyah/binzi — clone untuk membaca kode,
 kartu, desain, dan meninjau PR (API GitHub sering kena rate limit;
 git fetch pull/N/head tetap jalan). Repo di mesin saya ada di
 ~/Project/React/binzi-new.
-Posisi terakhir (11 Nov): S5-01 dasbor belajar (PR #131) di-merge →
-main acdad2c; kartu S2-01 (halaman materi + progres) masuk lewat PR docs.
-Verifikasi manual S5-01 oleh pemilik belum dijalankan (STATUS 11 Nov).
+Posisi terakhir (14 Nov): S2-01 halaman materi + progres (PR #133)
+di-merge → main 54e7d7a; kartu S2-02 (pemutar video, versi kontrol
+bawaan YouTube — keputusan 14 Nov) masuk lewat PR docs.
 Berikutnya:
-- Kam 12: sesi S2-01; rencana agent ditinjau di chat sebelum disetujui.
-  Selagi agent bekerja, tulis kartu S2-02 (player video) dari rencana
-  video bagian 1, 3, 4, 5 + catatan di akhir kartu S2-01.
-- Tugas pemilik minggu ini: lihat "Tugas pemilik minggu ini" di 11 Nov.
+- Sab 14 malam – Min 15: sesi S2-02; rencana agent (termasuk isi SQL
+  migrasi 0001) ditinjau di chat sebelum disetujui. binzi-dev dimigrasi
+  SEBELUM merge S2-02 (lihat kartu). Selagi agent bekerja, tulis kartu
+  quiz materi (Sen 16) dari catatan di akhir kartu S2-01 dan S2-02.
+- Tugas pemilik: lihat "Tugas pemilik (bukan kode)" di 14 Nov.
 - Untuk tinjauan tampilan, Claude bisa menjalankan Chromium headless di
   sandbox (@sparticuz/chromium + playwright-core dari registry npm).
 Gate audit main: 0 excused / 0 blocking / 22–23 info-low-moderate. Uji
