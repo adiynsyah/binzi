@@ -13,9 +13,7 @@ import { videoProgressInput } from "@/modules/progress/schema";
 import { recordVideoProgress } from "@/modules/progress/service";
 
 function isDomainError(error: unknown): boolean {
-  return (
-    error instanceof ZodError || (isAppError(error) && error.status < 500)
-  );
+  return error instanceof ZodError || (isAppError(error) && error.status < 500);
 }
 
 export async function POST(request: Request) {

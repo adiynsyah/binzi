@@ -59,12 +59,14 @@ function outlineItem(
 
 type OpenDTO = Extract<LessonPageDTO, { state: "open" }>;
 
-function openDto(overrides: {
-  outline?: LessonOutlineItemDTO[];
-  prevHref?: string | null;
-  next?: OpenDTO["next"];
-  progress?: OpenDTO["progress"];
-} = {}): OpenDTO {
+function openDto(
+  overrides: {
+    outline?: LessonOutlineItemDTO[];
+    prevHref?: string | null;
+    next?: OpenDTO["next"];
+    progress?: OpenDTO["progress"];
+  } = {},
+): OpenDTO {
   return {
     state: "open",
     course: { ...COURSE, lessonCount: 3, completedLessonCount: 1 },
@@ -91,10 +93,12 @@ function openDto(overrides: {
   };
 }
 
-function lockedDto(unlock: { position: number; href: string } | null = {
-  position: 1,
-  href: HREF(1),
-}): LessonPageDTO {
+function lockedDto(
+  unlock: { position: number; href: string } | null = {
+    position: 1,
+    href: HREF(1),
+  },
+): LessonPageDTO {
   return {
     state: "locked",
     course: { ...COURSE, lessonCount: 3, completedLessonCount: 1 },
@@ -129,7 +133,9 @@ describe("LessonPage — shared chrome", () => {
     const h1s = screen.getAllByRole("heading", { level: 1 });
     expect(h1s).toHaveLength(1);
     const position = dto.lesson.position;
-    expect(h1s[0]!.textContent).toBe(`Materi ${position} · Judul materi ${position}`);
+    expect(h1s[0]!.textContent).toBe(
+      `Materi ${position} · Judul materi ${position}`,
+    );
   });
 
   it("course bar links back to /belajar and names the course", () => {
@@ -152,7 +158,9 @@ describe("LessonPage — shared chrome", () => {
   it("locked shows the course progress too", () => {
     render(<LessonPage data={lockedDto()} />);
     expect(
-      screen.getByRole("progressbar", { name: `Progress kursus ${COURSE.title}` }),
+      screen.getByRole("progressbar", {
+        name: `Progress kursus ${COURSE.title}`,
+      }),
     ).toBeTruthy();
   });
 
@@ -192,14 +200,20 @@ describe("LessonPage — open state", () => {
         }}
       />,
     );
-    expect(screen.queryByRole("link", { name: "Materi sebelumnya" })).toBeNull();
+    expect(
+      screen.queryByRole("link", { name: "Materi sebelumnya" }),
+    ).toBeNull();
   });
 
   it("bottom bar: locked successor → the quiz note, no next link", () => {
     render(
-      <LessonPage data={openDto({ next: { kind: "terkunci", position: 3 } })} />,
+      <LessonPage
+        data={openDto({ next: { kind: "terkunci", position: 3 } })}
+      />,
     );
-    expect(screen.queryByRole("link", { name: "Materi berikutnya" })).toBeNull();
+    expect(
+      screen.queryByRole("link", { name: "Materi berikutnya" }),
+    ).toBeNull();
     expect(
       screen.getByText("Materi 3 terbuka setelah quiz materi ini dikerjakan."),
     ).toBeTruthy();
@@ -207,7 +221,9 @@ describe("LessonPage — open state", () => {
 
   it("bottom bar: last lesson → neither next link nor note", () => {
     render(<LessonPage data={openDto({ next: null })} />);
-    expect(screen.queryByRole("link", { name: "Materi berikutnya" })).toBeNull();
+    expect(
+      screen.queryByRole("link", { name: "Materi berikutnya" }),
+    ).toBeNull();
     expect(screen.queryByText(/terbuka setelah quiz/)).toBeNull();
   });
 
@@ -231,9 +247,7 @@ describe("LessonPage — open state", () => {
     const details = counts.closest("details");
     expect(details).not.toBeNull();
     expect(
-      within(details as NonNullable<typeof details>).getByText(
-        "Daftar materi",
-      ),
+      within(details as NonNullable<typeof details>).getByText("Daftar materi"),
     ).toBeTruthy();
   });
 });
@@ -242,13 +256,18 @@ describe("LessonPage — locked state", () => {
   it("shows the panel with the unlock action and no material", () => {
     render(<LessonPage data={lockedDto()} />);
     expect(
-      screen.getByRole("heading", { level: 3, name: "Materi ini belum terbuka" }),
+      screen.getByRole("heading", {
+        level: 3,
+        name: "Materi ini belum terbuka",
+      }),
     ).toBeTruthy();
     expect(screen.getByText("MATERI 2 · TERKUNCI")).toBeTruthy();
     const open = screen.getByRole("link", { name: "Buka materi 1" });
     expect(open.getAttribute("href")).toBe(HREF(1));
     expect(
-      screen.getByRole("link", { name: "Kembali ke Belajar" }).getAttribute("href"),
+      screen
+        .getByRole("link", { name: "Kembali ke Belajar" })
+        .getAttribute("href"),
     ).toBe("/belajar");
     // V-06: the locked page never renders the material.
     expect(screen.queryByText("Isi materi uji S2-01.")).toBeNull();
@@ -274,11 +293,16 @@ describe("LessonPage — not-enrolled state", () => {
   it("shows the dashed panel wired to the h2, with no outline or beacon", async () => {
     render(<LessonPage data={NOT_ENROLLED_DTO} />);
     expect(
-      screen.getByRole("heading", { level: 2, name: "Anda belum mengikuti kursus ini" }),
+      screen.getByRole("heading", {
+        level: 2,
+        name: "Anda belum mengikuti kursus ini",
+      }),
     ).toBeTruthy();
     expect(screen.getByText("KURSUS · BELUM DIIKUTI")).toBeTruthy();
     expect(
-      screen.getByText("Mulai kursus untuk membuka materi dan menyimpan progress Anda."),
+      screen.getByText(
+        "Mulai kursus untuk membuka materi dan menyimpan progress Anda.",
+      ),
     ).toBeTruthy();
 
     const headingId = screen.getByRole("heading", {
@@ -288,10 +312,14 @@ describe("LessonPage — not-enrolled state", () => {
     const start = screen.getByRole("button", { name: "Mulai materi 1" });
     expect(start.getAttribute("aria-describedby")).toBe(headingId);
     expect(
-      screen.getByRole("link", { name: "Kembali ke Belajar" }).getAttribute("href"),
+      screen
+        .getByRole("link", { name: "Kembali ke Belajar" })
+        .getAttribute("href"),
     ).toBe("/belajar");
 
-    expect(screen.queryByRole("navigation", { name: "Daftar materi" })).toBeNull();
+    expect(
+      screen.queryByRole("navigation", { name: "Daftar materi" }),
+    ).toBeNull();
     expect(screen.queryByText("Isi materi uji S2-01.")).toBeNull();
     await actAsync();
     expect(fetchMock).not.toHaveBeenCalled();

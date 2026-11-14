@@ -64,7 +64,9 @@ describe("firstOpenUnattempted", () => {
   it("sends a jumping participant back to the first owed step", () => {
     // Quiz 2 attempted but quiz 1 not: the first open unattempted
     // position is 1, not 3.
-    expect(firstOpenUnattempted([row(false), row(true), row(null)], true)).toBe(1);
+    expect(firstOpenUnattempted([row(false), row(true), row(null)], true)).toBe(
+      1,
+    );
   });
 
   it("non-sequential: first unattempted lesson, null when all attempted", () => {
@@ -78,9 +80,7 @@ describe("assertMemberRole", () => {
 
   it("lets MEMBER+ through and fails closed for an unknown rank", () => {
     expect(() => assertMemberRole(member)).not.toThrow();
-    expect(() =>
-      assertMemberRole({ ...member, role: "EDITOR" }),
-    ).not.toThrow();
+    expect(() => assertMemberRole({ ...member, role: "EDITOR" })).not.toThrow();
     // MEMBER is the lowest real rank; a role outside the enum must fail
     // closed (same cast proof as the S5-01 integration test).
     expect(() =>

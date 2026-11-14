@@ -10,8 +10,7 @@ import type { LessonOutlineItemDTO } from "@/modules/progress/service";
 
 const ROW_CLASSES =
   "flex min-h-11 items-center gap-2.5 rounded-control border px-3";
-const LABEL_CLASSES =
-  "min-w-0 text-[13.5px] font-semibold wrap-anywhere";
+const LABEL_CLASSES = "min-w-0 text-[13.5px] font-semibold wrap-anywhere";
 
 /** The 22px round state icon (7d). `primary` on non-text elements only. */
 function StateIcon({ state }: { state: LessonOutlineItemDTO["state"] }) {
@@ -38,7 +37,10 @@ function StateIcon({ state }: { state: LessonOutlineItemDTO["state"] }) {
     );
   }
   return (
-    <span className="size-[22px] shrink-0 rounded-full bg-fill" aria-hidden="true" />
+    <span
+      className="size-[22px] shrink-0 rounded-full bg-fill"
+      aria-hidden="true"
+    />
   );
 }
 
@@ -56,7 +58,12 @@ export function LessonOutlineNav({
         if (item.state === "terkunci") {
           return (
             <li key={item.position}>
-              <p className={cn(ROW_CLASSES, "border-border-soft bg-surface text-text-muted")}>
+              <p
+                className={cn(
+                  ROW_CLASSES,
+                  "border-border-soft bg-surface text-text-muted",
+                )}
+              >
                 <StateIcon state="terkunci" />
                 <span className={LABEL_CLASSES}>
                   {item.position} · {item.title}
@@ -78,14 +85,11 @@ export function LessonOutlineNav({
                 // tailwind-merge REPLACES the border width/color and the
                 // background of the base row — they never coexist (owner
                 // review of this card).
-                isKini &&
-                  "border-[1.5px] border-primary/30 bg-primary-tint",
+                isKini && "border-[1.5px] border-primary/30 bg-primary-tint",
               )}
             >
               <StateIcon state={item.state} />
-              <span
-                className={cn(LABEL_CLASSES, isKini && "font-bold")}
-              >
+              <span className={cn(LABEL_CLASSES, isKini && "font-bold")}>
                 {item.position} · {item.title}
               </span>
               {isKini ? (

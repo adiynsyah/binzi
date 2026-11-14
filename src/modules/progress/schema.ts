@@ -34,8 +34,7 @@ export const videoProgressInput = z
   })
   .refine(
     (value) =>
-      value.positionSeconds <=
-      value.durationSeconds + VIDEO_TOLERANCE_SECONDS,
+      value.positionSeconds <= value.durationSeconds + VIDEO_TOLERANCE_SECONDS,
     {
       message: "Posisi video melebihi durasi video.",
       path: ["positionSeconds"],

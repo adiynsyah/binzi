@@ -31,7 +31,13 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import type { Db } from "@/db/client";
 import * as schema from "@/db/schema";
-import { courses, enrollments, lessonProgress, lessons, users } from "@/db/schema";
+import {
+  courses,
+  enrollments,
+  lessonProgress,
+  lessons,
+  users,
+} from "@/db/schema";
 import { ConflictError, NotFoundError } from "@/lib/errors";
 import { createCourse } from "@/modules/course/service";
 import { createLesson } from "@/modules/lesson/service";
@@ -47,10 +53,11 @@ vi.mock("@/db", () => ({
     {
       get(_target, prop) {
         const target = dbHolder.current as
-          | Record<string | symbol, unknown>
-          | undefined;
+          Record<string | symbol, unknown> | undefined;
         if (!target) {
-          throw new Error("@/db mock used before the PGlite instance was installed");
+          throw new Error(
+            "@/db mock used before the PGlite instance was installed",
+          );
         }
         const value = Reflect.get(target, prop, target);
         return typeof value === "function"
@@ -75,23 +82,55 @@ vi.setConfig({ testTimeout: 120_000, hookTimeout: 120_000 });
 let pglite: PGlite;
 let db: Db;
 
-const EDITOR = { id: "u-editor", role: "EDITOR" as const, status: "ACTIVE" as const };
-const MEMBER = { id: "u-member", role: "MEMBER" as const, status: "ACTIVE" as const };
-const MEMBER_B = { id: "u-member-b", role: "MEMBER" as const, status: "ACTIVE" as const };
+const EDITOR = {
+  id: "u-editor",
+  role: "EDITOR" as const,
+  status: "ACTIVE" as const,
+};
+const MEMBER = {
+  id: "u-member",
+  role: "MEMBER" as const,
+  status: "ACTIVE" as const,
+};
+const MEMBER_B = {
+  id: "u-member-b",
+  role: "MEMBER" as const,
+  status: "ACTIVE" as const,
+};
 
 beforeAll(async () => {
   pglite = new PGlite();
   const pgliteDb = drizzle(pglite, { schema });
   await migrate(pgliteDb, {
-    migrationsFolder: fileURLToPath(new URL("../../db/migrations", import.meta.url)),
+    migrationsFolder: fileURLToPath(
+      new URL("../../db/migrations", import.meta.url),
+    ),
   });
   db = pgliteDb as unknown as Db;
   dbHolder.current = pgliteDb;
 
   await db.insert(users).values([
-    { id: EDITOR.id, name: "Editor Satu", email: "editor@example.com", emailVerified: true, role: "EDITOR" },
-    { id: MEMBER.id, name: "Member Satu", email: "member@example.com", emailVerified: true, role: "MEMBER" },
-    { id: MEMBER_B.id, name: "Member Dua", email: "member-b@example.com", emailVerified: true, role: "MEMBER" },
+    {
+      id: EDITOR.id,
+      name: "Editor Satu",
+      email: "editor@example.com",
+      emailVerified: true,
+      role: "EDITOR",
+    },
+    {
+      id: MEMBER.id,
+      name: "Member Satu",
+      email: "member@example.com",
+      emailVerified: true,
+      role: "MEMBER",
+    },
+    {
+      id: MEMBER_B.id,
+      name: "Member Dua",
+      email: "member-b@example.com",
+      emailVerified: true,
+      role: "MEMBER",
+    },
   ]);
 });
 
@@ -104,7 +143,10 @@ afterAll(async () => {
 let counter = 0;
 function nextPair(prefix: string): { title: string; slug: string } {
   counter += 1;
-  return { title: `${prefix} kursu ${counter}`, slug: `${prefix}-kursu-${counter}` };
+  return {
+    title: `${prefix} kursu ${counter}`,
+    slug: `${prefix}-kursu-${counter}`,
+  };
 }
 
 /** PUBLISHED course with titled lessons (slugs come back from the service). */
@@ -125,7 +167,9 @@ async function makeCourse(
   });
   const lessonRows = [];
   for (const lessonTitle of options.lessonTitles ?? []) {
-    lessonRows.push(await createLesson(EDITOR, course.id, { title: lessonTitle }));
+    lessonRows.push(
+      await createLesson(EDITOR, course.id, { title: lessonTitle }),
+    );
   }
   await db
     .update(courses)
@@ -143,7 +187,9 @@ async function enrollmentOf(userId: string, courseId: string) {
   const [row] = await db
     .select()
     .from(enrollments)
-    .where(sql`${enrollments.userId} = ${userId} and ${enrollments.courseId} = ${courseId}`);
+    .where(
+      sql`${enrollments.userId} = ${userId} and ${enrollments.courseId} = ${courseId}`,
+    );
   return row;
 }
 
@@ -158,13 +204,22 @@ async function orderedLessonIds(courseId: string): Promise<string[]> {
 }
 
 /** Flip quiz_attempted for the lesson at `position` (the quiz card's write). */
-async function attemptQuizAt(userId: string, courseId: string, position: number) {
+async function attemptQuizAt(
+  userId: string,
+  courseId: string,
+  position: number,
+) {
   const enrollment = await enrollmentOf(userId, courseId);
   if (!enrollment) throw new Error("enrollment missing");
   const lessonId = (await orderedLessonIds(courseId))[position - 1]!;
   await db
     .insert(lessonProgress)
-    .values({ userId, lessonId, enrollmentId: enrollment.id, quizAttempted: true })
+    .values({
+      userId,
+      lessonId,
+      enrollmentId: enrollment.id,
+      quizAttempted: true,
+    })
     .onConflictDoUpdate({
       target: [lessonProgress.userId, lessonProgress.lessonId],
       set: { quizAttempted: true },
@@ -175,7 +230,9 @@ async function progressRow(userId: string, lessonId: string) {
   const [row] = await db
     .select()
     .from(lessonProgress)
-    .where(sql`${lessonProgress.userId} = ${userId} and ${lessonProgress.lessonId} = ${lessonId}`);
+    .where(
+      sql`${lessonProgress.userId} = ${userId} and ${lessonProgress.lessonId} = ${lessonId}`,
+    );
   return row;
 }
 
@@ -200,9 +257,9 @@ async function enrolledSequentialCourse(prefix: string) {
 
 describe("getLessonPage — 404", () => {
   it("unknown course slug", async () => {
-    await expect(getLessonPage(MEMBER, "kursus-tak-ada", "apapun")).rejects.toThrow(
-      NotFoundError,
-    );
+    await expect(
+      getLessonPage(MEMBER, "kursus-tak-ada", "apapun"),
+    ).rejects.toThrow(NotFoundError);
   });
 
   it.each(["DRAFT", "IN_REVIEW", "ARCHIVED"] as const)(
@@ -220,9 +277,9 @@ describe("getLessonPage — 404", () => {
 
   it("unknown lesson slug within a published course", async () => {
     const made = await makeCourse("lp404d", { lessonTitles: ["Materi satu"] });
-    await expect(getLessonPage(MEMBER, made.slug, "materi-tak-ada")).rejects.toThrow(
-      NotFoundError,
-    );
+    await expect(
+      getLessonPage(MEMBER, made.slug, "materi-tak-ada"),
+    ).rejects.toThrow(NotFoundError);
   });
 
   it("another course's lesson slug", async () => {
@@ -231,9 +288,9 @@ describe("getLessonPage — 404", () => {
     // courses and resolve "legitimately" in the wrong one.
     const a = await makeCourse("lp404e", { lessonTitles: ["Materi satu"] });
     const b = await makeCourse("lp404f", { lessonTitles: ["Materi lain"] });
-    await expect(getLessonPage(MEMBER, a.slug, b.lessons[0]!.slug)).rejects.toThrow(
-      NotFoundError,
-    );
+    await expect(
+      getLessonPage(MEMBER, a.slug, b.lessons[0]!.slug),
+    ).rejects.toThrow(NotFoundError);
   });
 });
 
@@ -246,7 +303,10 @@ describe("getLessonPage — not-enrolled", () => {
     expect(dto.state).toBe("not-enrolled");
     expect("content" in dto && dto.content).toBeFalsy();
     expect("progress" in dto).toBe(false);
-    expect(dto.course).toEqual({ id: made.course.id, title: made.course.title });
+    expect(dto.course).toEqual({
+      id: made.course.id,
+      title: made.course.title,
+    });
     expect(dto.lesson.position).toBe(1);
   });
 });
@@ -272,7 +332,11 @@ describe("getLessonPage — sequential gate", () => {
     const made = await enrolledSequentialCourse("lpg2");
     await attemptQuizAt(MEMBER.id, made.course.id, 1);
 
-    const stillLocked = await getLessonPage(MEMBER, made.slug, made.lessons[2]!.slug);
+    const stillLocked = await getLessonPage(
+      MEMBER,
+      made.slug,
+      made.lessons[2]!.slug,
+    );
     expect(stillLocked.state).toBe("locked");
 
     await attemptQuizAt(MEMBER.id, made.course.id, 2);
@@ -303,7 +367,10 @@ describe("getLessonPage — positions follow order_index, never its value", () =
       [made.lessons[1]!, 10],
       [made.lessons[2]!, 20],
     ] as const) {
-      await db.update(lessons).set({ orderIndex }).where(eq(lessons.id, lesson.id));
+      await db
+        .update(lessons)
+        .set({ orderIndex })
+        .where(eq(lessons.id, lesson.id));
     }
     // beta(10)=1, gamma(20)=2, alpha(30)=3 — assert via each page's outline.
     const beta = await getLessonPage(MEMBER, made.slug, made.lessons[1]!.slug);
@@ -326,7 +393,10 @@ describe("getLessonPage — dashboard consistency", () => {
     // firstLessonSlugSql and the outline's ORDER BY must tie-break by id —
     // and name the SAME lesson.
     for (const lesson of made.lessons) {
-      await db.update(lessons).set({ orderIndex: 5 }).where(eq(lessons.id, lesson.id));
+      await db
+        .update(lessons)
+        .set({ orderIndex: 5 })
+        .where(eq(lessons.id, lesson.id));
     }
 
     const dashboard = await getLearnerDashboard(MEMBER);
@@ -350,14 +420,12 @@ describe("getLessonPage — per-participant outline", () => {
     const made = await enrolledSequentialCourse("lpmix");
     await enrollInCourse(MEMBER_B, made.course.id);
     const ids = await orderedLessonIds(made.course.id);
-    await db
-      .insert(lessonProgress)
-      .values({
-        userId: MEMBER_B.id,
-        lessonId: ids[0]!,
-        enrollmentId: (await enrollmentOf(MEMBER_B.id, made.course.id))!.id,
-        status: "COMPLETED",
-      });
+    await db.insert(lessonProgress).values({
+      userId: MEMBER_B.id,
+      lessonId: ids[0]!,
+      enrollmentId: (await enrollmentOf(MEMBER_B.id, made.course.id))!.id,
+      status: "COMPLETED",
+    });
 
     const dto = await getLessonPage(MEMBER, made.slug, made.lessons[0]!.slug);
     if (dto.state === "not-enrolled") throw new Error("expected enrolled page");
@@ -377,7 +445,9 @@ describe("openLesson", () => {
     await db
       .update(enrollments)
       .set({ updatedAt: new Date("2026-11-01T08:00:00Z") })
-      .where(eq(enrollments.id, (await enrollmentOf(MEMBER.id, made.course.id))!.id));
+      .where(
+        eq(enrollments.id, (await enrollmentOf(MEMBER.id, made.course.id))!.id),
+      );
     const courseBefore = await courseUpdatedAt(made.course.id);
 
     await openLesson(MEMBER, lessonId);
@@ -408,7 +478,9 @@ describe("openLesson", () => {
     const rows = await db
       .select()
       .from(lessonProgress)
-      .where(sql`${lessonProgress.userId} = ${MEMBER.id} and ${lessonProgress.lessonId} = ${lessonId}`);
+      .where(
+        sql`${lessonProgress.userId} = ${MEMBER.id} and ${lessonProgress.lessonId} = ${lessonId}`,
+      );
     expect(rows).toHaveLength(1);
     expect(rows[0]!.firstAccessedAt?.getTime()).toBe(first?.getTime());
   });
@@ -420,7 +492,9 @@ describe("openLesson", () => {
     await db
       .update(lessonProgress)
       .set({ status: "COMPLETED" })
-      .where(sql`${lessonProgress.userId} = ${MEMBER.id} and ${lessonProgress.lessonId} = ${lessonId}`);
+      .where(
+        sql`${lessonProgress.userId} = ${MEMBER.id} and ${lessonProgress.lessonId} = ${lessonId}`,
+      );
 
     await openLesson(MEMBER, lessonId);
     expect((await progressRow(MEMBER.id, lessonId))!.status).toBe("COMPLETED");
@@ -453,7 +527,9 @@ describe("openLesson", () => {
   });
 
   it("non-UUID id → the same NotFoundError (no id probing)", async () => {
-    await expect(openLesson(MEMBER, "bukan-uuid")).rejects.toThrow(NotFoundError);
+    await expect(openLesson(MEMBER, "bukan-uuid")).rejects.toThrow(
+      NotFoundError,
+    );
   });
 });
 
@@ -468,13 +544,19 @@ describe("recordVideoProgress", () => {
     const made = await enrolledSequentialCourse(prefix);
     await db
       .update(lessons)
-      .set({ videoStatus: video.status, videoDurationSeconds: video.durationSeconds })
+      .set({
+        videoStatus: video.status,
+        videoDurationSeconds: video.durationSeconds,
+      })
       .where(eq(lessons.id, made.lessons[0]!.id));
     return made;
   }
 
   it("50% then 20%: percent stays 50 (monotonic), position follows, returned values are stored", async () => {
-    const made = await videoCourse("vd1", { status: "READY", durationSeconds: 100 });
+    const made = await videoCourse("vd1", {
+      status: "READY",
+      durationSeconds: 100,
+    });
     const lessonId = made.lessons[0]!.id;
 
     const first = await recordVideoProgress(MEMBER, {
@@ -498,7 +580,10 @@ describe("recordVideoProgress", () => {
   });
 
   it("stored video_duration_seconds wins over the player's report", async () => {
-    const made = await videoCourse("vd2", { status: "READY", durationSeconds: 200 });
+    const made = await videoCourse("vd2", {
+      status: "READY",
+      durationSeconds: 200,
+    });
     const result = await recordVideoProgress(MEMBER, {
       lessonId: made.lessons[0]!.id,
       positionSeconds: 100,
@@ -508,7 +593,10 @@ describe("recordVideoProgress", () => {
   });
 
   it("a stored duration of 0 must not divide — the player's report is used", async () => {
-    const made = await videoCourse("vd3", { status: "READY", durationSeconds: 0 });
+    const made = await videoCourse("vd3", {
+      status: "READY",
+      durationSeconds: 0,
+    });
     const result = await recordVideoProgress(MEMBER, {
       lessonId: made.lessons[0]!.id,
       positionSeconds: 50,
@@ -519,7 +607,10 @@ describe("recordVideoProgress", () => {
   });
 
   it("position past the duration caps at 100 (the 5 s tolerance ceiling)", async () => {
-    const made = await videoCourse("vd4", { status: "READY", durationSeconds: null });
+    const made = await videoCourse("vd4", {
+      status: "READY",
+      durationSeconds: null,
+    });
     const result = await recordVideoProgress(MEMBER, {
       lessonId: made.lessons[0]!.id,
       positionSeconds: 105,
@@ -529,7 +620,10 @@ describe("recordVideoProgress", () => {
   });
 
   it("video_status ≠ READY → ConflictError; locked lesson → ConflictError", async () => {
-    const made = await videoCourse("vd5", { status: "NONE", durationSeconds: 100 });
+    const made = await videoCourse("vd5", {
+      status: "NONE",
+      durationSeconds: 100,
+    });
     await expect(
       recordVideoProgress(MEMBER, {
         lessonId: made.lessons[0]!.id,
@@ -538,7 +632,10 @@ describe("recordVideoProgress", () => {
       }),
     ).rejects.toThrow(ConflictError);
 
-    const ready = await videoCourse("vd6", { status: "READY", durationSeconds: 100 });
+    const ready = await videoCourse("vd6", {
+      status: "READY",
+      durationSeconds: 100,
+    });
     await expect(
       recordVideoProgress(MEMBER, {
         lessonId: ready.lessons[1]!.id,

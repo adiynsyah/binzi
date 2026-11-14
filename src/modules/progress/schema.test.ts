@@ -6,7 +6,9 @@ import { videoProgressInput } from "./schema";
 
 const LESSON_ID = "3c9d8e2f-1111-4111-8111-111111111111";
 
-function body(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+function body(
+  overrides: Record<string, unknown> = {},
+): Record<string, unknown> {
   return {
     lessonId: LESSON_ID,
     positionSeconds: 50,
@@ -18,8 +20,9 @@ function body(overrides: Record<string, unknown> = {}): Record<string, unknown> 
 describe("videoProgressInput", () => {
   it("accepts the boundary values 0 and 86400", () => {
     expect(
-      videoProgressInput.parse(body({ positionSeconds: 0, durationSeconds: 86400 }))
-        .positionSeconds,
+      videoProgressInput.parse(
+        body({ positionSeconds: 0, durationSeconds: 86400 }),
+      ).positionSeconds,
     ).toBe(0);
     expect(
       videoProgressInput.parse(

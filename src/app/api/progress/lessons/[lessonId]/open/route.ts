@@ -12,9 +12,7 @@ import { UUID_PATTERN } from "@/modules/course/schema";
 import { openLesson } from "@/modules/progress/service";
 
 function isDomainError(error: unknown): boolean {
-  return (
-    error instanceof ZodError || (isAppError(error) && error.status < 500)
-  );
+  return error instanceof ZodError || (isAppError(error) && error.status < 500);
 }
 
 export async function POST(
