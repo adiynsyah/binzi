@@ -39,14 +39,27 @@ function OutlineCard({ outline }: { outline: LessonOutlineItemDTO[] }) {
   );
 }
 
+/** Outline rows in state "terkunci". */
+const terkunciOf = (outline: LessonOutlineItemDTO[]) =>
+  outline.filter((item) => item.state === "terkunci").length;
+
 /** The <1024 "Daftar materi" fold (7t): summary ≥ 44px with the counts,
- *  the same LessonOutlineNav inside. */
-function OutlineDetails({ outline }: { outline: LessonOutlineItemDTO[] }) {
+ *  the same LessonOutlineNav inside. `locked` arrives counted: the viewed
+ *  lesson is always "kini" (priority), so a locked PAGE must count itself
+ *  — which only the state component knows, hence the prop. The marker
+ *  classes keep Safari's ::-webkit-details-marker triangle off (Chrome
+ *  already drops it for display:flex summaries). */
+function OutlineDetails({
+  outline,
+  locked,
+}: {
+  outline: LessonOutlineItemDTO[];
+  locked: number;
+}) {
   const completed = outline.filter((item) => item.state === "selesai").length;
-  const locked = outline.filter((item) => item.state === "terkunci").length;
   return (
     <details className="rounded-card border border-border bg-surface-2">
-      <summary className="flex min-h-11 cursor-pointer items-center justify-between gap-3 px-5 py-3 text-[13px] font-bold text-text">
+      <summary className="flex list-none min-h-11 cursor-pointer items-center justify-between gap-3 px-5 py-3 text-[13px] font-bold text-text [&::-webkit-details-marker]:hidden">
         Daftar materi
         <span className="flex min-w-0 items-center gap-2">
           <span className="font-mono text-xs font-medium text-text-meta">
@@ -110,7 +123,10 @@ function OpenState({ data }: { data: OpenDTO }) {
             writes (card decision). */}
         <LessonOpenBeacon lessonId={data.lesson.id} />
         <nav aria-label="Daftar materi" className="mt-8 lg:hidden">
-          <OutlineDetails outline={data.outline} />
+          <OutlineDetails
+            outline={data.outline}
+            locked={terkunciOf(data.outline)}
+          />
         </nav>
       </div>
       <nav aria-label="Daftar materi" className="hidden lg:block">
@@ -147,7 +163,13 @@ function LockedState({ data }: { data: LockedDTO }) {
           }
         />
         <nav aria-label="Daftar materi" className="mt-8 lg:hidden">
-          <OutlineDetails outline={data.outline} />
+          {/* The viewed lesson renders "kini", never "terkunci" — the
+              locked page counts ITSELF (+1), or the summary would read
+              one locked lesson short. */}
+          <OutlineDetails
+            outline={data.outline}
+            locked={terkunciOf(data.outline) + 1}
+          />
         </nav>
       </div>
       <nav aria-label="Daftar materi" className="hidden lg:block">

@@ -275,6 +275,25 @@ describe("LessonPage — locked state", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("the summary counts the viewed locked lesson itself: a 2-lesson course shows '0 SELESAI · 1 TERKUNCI'", () => {
+    // The viewed lesson is "kini" (priority) and the only other lesson is
+    // "terbuka" — ZERO "terkunci" rows — yet the page IS locked, so the
+    // summary must count the viewed lesson itself.
+    const dto: LessonPageDTO = {
+      state: "locked",
+      course: {
+        ...COURSE,
+        lessonCount: 2,
+        completedLessonCount: 0,
+      },
+      lesson: { title: "Judul materi 2", position: 2 },
+      unlock: { position: 1, href: HREF(1) },
+      outline: [outlineItem(1, "terbuka"), outlineItem(2, "kini")],
+    };
+    render(<LessonPage data={dto} />);
+    expect(screen.getByText("0 SELESAI · 1 TERKUNCI")).toBeTruthy();
+  });
+
   it("unlock null (unreachable with valid data) falls back to the alt copy", () => {
     render(<LessonPage data={lockedDto(null)} />);
     expect(screen.queryByRole("link", { name: "Buka materi 1" })).toBeNull();
