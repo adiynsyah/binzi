@@ -148,18 +148,20 @@ test(
     expect(rows).toHaveLength(1);
     expect(rows[0]?.enrollment_count).toBe(1);
 
-    // Back to the dashboard → state B.
+    // Back to the dashboard → state B. Card S2-01 moved this on: landing
+    // on the lesson page records the open (POST /open beacon), so the
+    // badge is no longer "Belum dimulai" but "Sedang berjalan" and the
+    // action becomes "Lanjutkan" — nothing is COMPLETED by opening, so
+    // the 0/1 count stays (S2-01 spec no. 2 asserts this same state).
     await page.goto("/belajar");
     await expect(page.getByRole("heading", { level: 1 })).toContainText(
       "Selamat datang kembali",
     );
     const mine = page.getByRole("region", { name: "Kursus saya" });
     const row = mine.getByRole("article", { name: `${token} Memasak Sehat` });
-    await expect(row.getByText("Belum dimulai")).toBeVisible();
+    await expect(row.getByText("Sedang berjalan")).toBeVisible();
     await expect(row.getByText("0/1 MATERI")).toBeVisible();
-    await expect(
-      row.getByRole("link", { name: "Mulai materi 1" }),
-    ).toHaveAttribute(
+    await expect(row.getByRole("link", { name: "Lanjutkan" })).toHaveAttribute(
       "href",
       `/belajar/${made.courseSlug}/${made.firstLessonSlug}`,
     );
