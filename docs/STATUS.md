@@ -1,9 +1,129 @@
 # Status Proyek BINZI — catatan untuk melanjutkan di chat baru
 
-> Terakhir diperbarui: 14 Nov 2026. File ini dikelola manual (bukan oleh agent) dan hanya untuk melanjutkan percakapan dengan Claude.
+> Terakhir diperbarui: 16 Nov 2026. File ini dikelola manual (bukan oleh agent) dan hanya untuk melanjutkan percakapan dengan Claude.
 > Untuk melanjutkan: buka chat baru, unggah file ini + `docs/tasks/URUTAN-KERJA.md`, lalu pakai prompt di bagian paling bawah.
 
-## Pembaruan 14 Nov 2026 — S2-01 di-merge, jadwal disusun ulang, kartu S2-02 versi kontrol bawaan YouTube (baca ini dulu, lalu 11 Nov, 10 Nov, 9 Nov, 8 Nov, 7 Nov, 6 Nov, 4 Nov malam, 4 Nov, dan 3 Nov)
+## Pembaruan 16 Nov 2026 — S2-02 di-merge, kartu S3-01 quiz materi siap, jalur data demo diputuskan (baca ini dulu, lalu 14 Nov, 11 Nov, 10 Nov, 9 Nov, 8 Nov, 7 Nov, 6 Nov, 4 Nov malam, 4 Nov, dan 3 Nov)
+
+Bagian-bagian di bawahnya tetap berlaku. Bagian ini mengubah atau menambahnya.
+
+> Patch ini mengasumsikan PR #135 sudah di-merge setelah verifikasi lokal dan migrasi binzi-dev. Bila salah satunya belum, perbaiki baris yang bersangkutan sebelum PR docs dibuat.
+
+### Posisi
+Sesi S2-02 tidak berjalan Sab 14 malam–Min 15. Sesi baru dimulai Sen 16 pukul ±18.50, jadi jadwal mundur ±1,5 hari dari jadwal 14 Nov. Pukul 18.40 `main` masih `0fbdff9` (#134, docs).
+
+### Yang di-merge hari ini
+
+| PR | Isi |
+|---|---|
+| #135 | S2-02 pemutar video versi demo (satu commit `05aa379`, squash) |
+
+Baseline Vitest **119 berkas / 1322 tes** (+6 / +107), diukur di sandbox Claude chat pada `05aa379`. Gate audit 0 excused / 0 blocking / OK (23 di sandbox, 22 di mesin pemilik). Satu migrasi (`0001_video_source`), tanpa dependensi baru.
+
+### S2-02 di-merge (#135)
+Isi PR:
+- kolom `video_provider` + `video_external_id` dengan `CHECK` ber-`coalesce`;
+- `PlaybackDTO` + `resolvePlayback`;
+- `selectOpenLesson`, yang hanya dijalankan di keadaan `open`;
+- `src/lib/youtube.ts`;
+- `LessonVideoPlayer` (permanen), `YouTubePlayer` (sementara, dihapus di C-10), `createVideoProgressReporter` (permanen), `playback-clock.ts`;
+- dua entri CSP sementara;
+- skrip `video:youtube` + `video:youtube:binzi-dev`;
+- 11 tes `belajar-video` + pemindaian axe.
+
+**Tinjauan rencana** menambah 14 butir. Yang terpenting:
+- kasus tolak `evilyoutube.com`: kasus `youtube.com.contoh.com` dari kartu tidak menangkap mutasi 5;
+- baris non-READY di tes `resolvePlayback` membawa sumber YouTube yang sah;
+- tes pindah materi memakai state yang hanya direset `key`;
+- pelapor: hanya tick yang dilewati saat ada request berjalan, `playing()` ganda tetap satu timer, `dispose()` melepas `pagehide`;
+- cek `READY` di DB lokal sebelum `db:migrate`;
+- lebar uji 1024;
+- ID video tersendiri untuk materi terkunci;
+- `formatPlaybackClock` di modul murni (dipakai 13d).
+
+**Uji manual YouTube sungguhan oleh agent:** semua skenario PASS dengan Chrome asli, termasuk `pagehide` + `keepalive` saat tab ditutup, dan nol pelanggaran CSP.
+
+**Tinjauan PR**, dijalankan di sandbox:
+- `tsc`, `eslint`, `lint:hex`, Vitest 119/1322;
+- SQL migrasi identik dengan kartu;
+- diff hanya berisi berkas dari daftar kartu;
+- 21 mutasi: 10 mutasi kartu merah, 7 mutasi tambahan merah, **4 hijau** (masuk "Perapian setelah demo").
+
+**Screenshot** (lima berkas, diambil pemilik setelah PR karena agent tidak mengaturnya — pelajaran no. 3) ditinjau terhadap 7d. Bingkai 16:9 di 360/1024/1280, jarak 24 px ke judul, baris "Melanjutkan dari 00:37", banner galat. Tidak ada yang memblokir.
+
+**Verifikasi manual pemilik S2-02:** ✓ 16 Nov. **binzi-dev dimigrasi (`0001`) sebelum merge:** ✓ 16 Nov.
+
+### Keputusan pemilik 16 Nov
+1. **Final Quiz tetap masuk demo**, dikerjakan Rab 18. *(Usulan, belum diputuskan:)* titik cek Rab 18 pukul 12.00 — bila quiz materi belum di-merge, Final Quiz dipotong dan Rab sore dipakai untuk persiapan Production.
+2. **Kartu S2-02 dijalankan utuh** (urutan potongnya tidak dipakai).
+3. **Konten ahli gizi (K-02) belum ada → jalur data demo memakai cadangan:** kartu kecil `db:seed:binzi-dev` yang memasang kursus "[DEMO]" dari seed lokal (keputusan 11 Nov no. 3).
+   - Isinya teks pengganti, jadi **hanya layak untuk penonton internal**. Bila penonton 20 Nov dari luar tim, bahas lagi sebelum gladi.
+   - Kartu itu menunggu S2-02 di-merge, karena keduanya menyentuh `scripts/binzi-dev.ts` dan `package.json`.
+   - Akun demo per peran tetap dibuat manual (keputusan 11 Nov).
+4. **Kartu S3-01 quiz materi** ([kartu](tasks/sprint-3/S3-01-quiz-materi.md)). ID S3 karena tabel fase handoff menaruh mesin quiz di Sprint 3.
+   1. Dua langkah sebelum timer jalan: dialog konfirmasi di halaman materi (isi kotak PRD §6.3.2), lalu halaman aturan 7e.
+   2. Satu soal per layar (7g/7u/7n): chip nomor, Sebelumnya/Berikutnya, ragu-ragu, ringkasan. Mesinnya dipakai ulang Final Quiz.
+   3. Setelah dikumpulkan: tombol "Lihat Hasil & Pembahasan" + nilai di Daftar materi. Tanpa kartu "Nilai sementara".
+   4. Keputusan teknis kartu (no. 5–9) disetujui bersama kartu:
+      - modul baru `attempt` → `progress`, satu arah;
+      - GET tidak pernah menulis;
+      - toleransi 15 detik dengan waktu server;
+      - opsi diacak deterministik;
+      - `router.refresh()` sekali saat video melewati 90 %.
+5. **Tawaran agent menulis konvensi screenshot ke auto-memory ditolak.** Konvensinya sudah ada di `e2e/README.md`, dan aturan agent hanya resmi bila tertulis di repo.
+
+### Jadwal demo setelah hari ini
+
+| Hari | Pekerjaan |
+|---|---|
+| Sen 16 | S2-02 — **di-merge (#135)** · PR docs kartu S3-01 + STATUS 16 Nov |
+| Sel 17 | **S3-01 quiz materi** (sesi dimulai pagi). Selagi agent bekerja, Claude chat menulis kartu seed binzi-dev dan kartu S5-02 Final Quiz. Pemilik membuat akun demo per peran di Production |
+| Rab 18 | Pagi: kartu seed binzi-dev (kecil). Siang–malam: **S5-02 Final Quiz** + nilai akhir 60/40. Titik cek 12.00 (usulan) |
+| Kam 19 | Pagi: seed ke binzi-dev, terbitkan lewat CMS, pasang video *unlisted*, cek `system_settings`. Siang: gladi resik |
+| Jum 20 | Demo |
+
+### Pelajaran 16 Nov
+1. **Pertahanan berlapis bisa menutupi tes yang mengukur efek, bukan klaimnya.** Tes "`playing()` dua kali tetap satu timer" menghitung request. Dengan penjaga timer dihapus, dua timer berjalan, tetapi pengaman in-flight melewatkan tick kedua, sehingga tesnya tetap hijau. Ukur hal yang diklaim (jumlah timer, atau kiriman setelah `paused()`), bukan efek yang bisa ditutup lapis lain (lanjutan (yy)).
+2. **Kasus tolak harus menangkap mutasi yang dinamai.** Kartu meminta kasus `youtube.com.contoh.com` untuk mutasi "`endsWith` tanpa titik", padahal host itu tidak berakhiran `youtube.com`. Yang menangkap adalah `evilyoutube.com`. Saat menulis tabel mutasi, cocokkan setiap baris dengan kasus uji yang benar-benar memicunya.
+3. **Kartu yang meminta screenshot wajib menyebut `E2E_SCREENSHOT_DIR=~/binzi-<kartu>-screenshots`.** Kartu S2-02 hanya menyebut nama berkas, jadi agent menjalankan e2e tanpa variabel itu dan tidak ada berkas yang tersimpan. Kartu juga meminta jumlah berkas disebut di PR.
+4. **Branch yang di-push agent dengan token dari keyring tidak punya upstream**, sehingga `git pull --ff-only` gagal ("no tracking information"). Pemulihan: `git fetch origin && git branch --set-upstream-to=origin/<branch>`, lalu `git diff --quiet HEAD origin/<branch>` untuk memastikan isi lokal sama dengan PR.
+5. **Chromium bawaan Playwright tidak mendekode H.264.** Embed YouTube di sana hanya kotak hitam tanpa event media. Verifikasi pemutaran sungguhan memakai Chrome asli atau Safari.
+6. **IFrame API YouTube asli mengganti `title` iframe dengan judul video setelah menempel.** Locator e2e berbasis `title` hanya aman dengan stub. Nama aksesibel di Production menjadi judul video, dan ini diterima.
+7. **Iframe stub e2e transparan**, sehingga di screenshot bingkai tampak kotak gelap polos (warna latar bingkai), bukan halaman putih.
+
+### Perapian setelah demo (dari S2-02)
+- Pelapor:
+  - tes `playing()` ganda diperkuat (pelajaran no. 1);
+  - `dispose()` menyetel `stopped = true` (sekarang pelapor yang sudah dibuang bisa dihidupkan lagi oleh `playing()`; belum terjangkau);
+  - `lastSent` hanya bila `response.ok` — **sudah masuk S3-01**.
+- Tes batas baris "Melanjutkan dari" tepat di 5 detik dan di durasi − 5 (mutasi `<` → `<=` dan `>=` → `>` hijau).
+- `resolvePlayback` mengembalikan `null`, bukan `videoId: ""`, untuk baris READY + YOUTUBE tanpa ID (tidak terjangkau dengan `CHECK`).
+- Skrip `video:youtube` memuat `.env` yang tidak ada (sama dengan `user:role`).
+- Banner galat video ada di bawah bingkai; 7d menaruhnya di atas, dengan "Lewati ke teks". Samakan di S2-02b.
+- Deskripsi PR #135 menulis mutasi 5 sebagai `includes` dan "kedua cek host harus dimutasi bersama". Mutasi kartu (`endsWith` tanpa titik) merah dengan satu perubahan. Catatan saja, tidak perlu diubah.
+
+### Tugas pemilik (bukan kode)
+1. **Akun demo per peran di Production** (Sel 17; tidak menunggu kode):
+   - daftar lewat UI;
+   - tautan verifikasi dari log Vercel;
+   - peran lewat `npm run user:role:binzi-dev`.
+2. **Video YouTube *unlisted*** dari akun proyek (Brand Account), ≤ 5 menit. Dipasang Kam 19 pagi dengan `--durasi` = durasi asli, dibulatkan ke bawah. Durasi yang terlalu besar membuat persen tonton tidak pernah mencapai 90 %, sehingga tombol quiz tidak pernah aktif.
+3. **Cek `system_settings` binzi-dev** (tugas 11 Nov no. 4), paling lambat Kam 19 pagi.
+4. **Verifikasi manual S5-01** (skeleton Slow 4G, tiga tautan legal footer): masih terbuka.
+5. **Penonton demo 20 Nov** internal atau eksternal? Ini menentukan apakah kursus "[DEMO]" pantas ditampilkan (keputusan no. 3).
+6. **H-04 R2** tidak mendesak (tidak memblokir demo).
+
+### Catatan untuk kartu berikutnya
+- **S3-01 (Sel 17):** kartu masuk lewat PR docs ini, ditulis terhadap pohon `05aa379`. Rencana agent ditinjau di chat sebelum disetujui. Baseline 119 / 1322.
+- **Kartu seed binzi-dev (Rab 18 pagi):** ditulis Claude chat Sel 17.
+  - Subperintah `seed-demo` di `scripts/binzi-dev.ts`, dengan pola `set-role`/`set-video`.
+  - Isi = `db:seed:demo` minus penulis demo lokal; penulis = akun EDITOR demo di binzi-dev, dicari lewat email argumen.
+  - UUID tetap, bisa dihapus bersih (perintah hapus disertakan).
+  - Tanpa menyentuh `system_settings` yang sudah ada (seed non-destruktif).
+  - Penjaga `local-guard` tetap untuk `db:seed:demo`.
+- **S5-02 Final Quiz (Rab 18):** catatan di akhir kartu S3-01. Ditulis Sel 17 selagi S3-01 berjalan, terhadap modul `attempt` yang sebenarnya.
+
+## Pembaruan 14 Nov 2026 — S2-01 di-merge, jadwal disusun ulang, kartu S2-02 versi kontrol bawaan YouTube (baca setelah 16 Nov, lalu 11 Nov, 10 Nov, 9 Nov, 8 Nov, 7 Nov, 6 Nov, 4 Nov malam, 4 Nov, dan 3 Nov)
 
 Bagian-bagian di bawahnya tetap berlaku. Bagian ini mengubah atau menambahnya.
 
@@ -985,7 +1105,7 @@ Rencana disetujui, dengan lima tambahan berikut (hasil tinjauan C-02/C-03, belum
 - [x] **Segera:** hapus `.env.local.sebelum-c05` — ✅ sudah dijalankan 4 Nov (lihat "Pembaruan 4 Nov malam"). Catatan sebelumnya: berkas ini tidak tercakup larangan baca `.claude/settings.json` maupun aturan `CLAUDE.md` (dicek 2 Nov). Catatan asli: hapus `.env.local.sebelum-c05` (salinan secret Production sebelum C-05, ter-ignore) bila DB lokal terbukti stabil — C-02 sudah selesai 29 Okt: `rm .env.local.sebelum-c05`.
 - [ ] **Prettier belum ditegakkan** (ditemukan 30 Okt saat tinjauan C-06): `prettier --list-different src` dengan Prettier 3.9.10 → 80 berkas, dan CI tidak menjalankan `prettier --check` (`npm run check` = typecheck + lint + test + lint:hex). Kartu yang menyentuh banyak berkas melarang `npm run format` supaya diff tetap sebatas lingkup. Putuskan setelah S1-02 atau di sela kartu tanpa branch terbuka: satu PR format massal (tanpa perubahan lain) + `prettier --check` di CI, atau dibiarkan. Format massal bentrok dengan branch kartu yang terbuka.
 - [ ] Komentar `next.config.ts` baris 93–94 masih menyebut `authInterrupts` "still experimental in Next 16.3.7" (C-02 tidak boleh menyentuh berkas itu). Ganti ke 16.4.1 di kartu berikutnya yang menyentuh `next.config.ts` (mis. domain R2 di CSP). *(14 Nov: masuk kartu S2-02 bagian 7.)*
-- [ ] **Push agent & auto-memory** *(14 Nov)*: agent S2-01 mengambil token akun `adiynsyah` dari keyring per perintah, karena kredensial bawaan (`adiynsyahpaperid`, juga `GITHUB_TOKEN` di shell) tidak bisa push. Caranya dicatat di auto-memory, tanpa nilai token. Dibiarkan sampai C-09 (keputusan 14 Nov no. 5); C-09 membereskan kredensial di laptop lalu menghapus catatan itu.
+- [ ] **Push agent & auto-memory** *(14 Nov)*: agent S2-01 mengambil token akun `adiynsyah` dari keyring per perintah, karena kredensial bawaan (`adiynsyahpaperid`, juga `GITHUB_TOKEN` di shell) tidak bisa push. Caranya dicatat di auto-memory, tanpa nilai token. Dibiarkan sampai C-09 (keputusan 14 Nov no. 5); C-09 membereskan kredensial di laptop lalu menghapus catatan itu. *(16 Nov: akibat sampingan — branch yang di-push dengan cara itu tidak punya upstream, jadi `git pull` pemilik gagal; pemulihannya di pelajaran 16 Nov no. 4.)*
 - [x] → **C-07** (PR #101, 2 Nov). **Chore token kontras — sebelum S1.** Diputuskan 24 Okt (pratinjau di Claude chat): **opsi A** — tombol merah bertuliskan putih memakai `primary-deep` `#c42d1e` (5,61), hover token baru `primary-deeper` `#a8261a` (7,10); tautan & teks merah kecil `text-primary` → `primary-deep`; nilai `text-subtle` `#8a8378` → `#706a61` (≥ 4,5 di semua latar terang, termasuk `primary-tint` 4,63 — `#726c63` di pratinjau hanya 4,495 di sana); `primary` `#f04030` tetap untuk elemen non-teks; tombol email ikut `primary-deep`. Aturan anti-regresi masuk `CLAUDE.md` & `TOKENS.md` (tabel warna layar memetakan `#f04030` → `primary`). Opsi B (token tombol baru `#d83525`, 4,71) ditolak pemilik. Temuan asal: kontras teks kecil di bawah 4,5 — `primary` vs putih 3,83, di atas `#f7f5f2` 3,52, `text-subtle` vs putih 3,75; `KNOWN_CONTRAST_FINDINGS` dikosongkan di C-07.
 - [ ] → **C-08** (a, e, f) ✅ PR #103, 2 Nov + **C-08b** (b, c, d, g, h) — dipecah 2 Nov. **Chore UI auth kecil** — dijadwalkan sebagai kartu C-08 (setelah C-07, sebelum S1-01; S1 memakai `PasswordField`/`Field`/`Checkbox`/`Button` yang sama). Isi: (a) tombol kirim form ber-Turnstile `disabled` → pola `aria-disabled` di komponen `Button`, tetap terjangkau Tab, pesan tunggu saat diaktifkan sebelum token; (b) area sentuh "Lupa password?" diperbesar ke ≥ 44 px tanpa mengubah tampilan (sebelumnya "dilaporkan saja"); (c) label mono "MASUK"/"DAFTAR" `md:` → `sm:` (`auth-panels.tsx:154`, hilang di 640–767); (d) `/daftar/verifikasi` ≥ 1024: `AuthShell` tanpa panel tetap memasang grid dua kolom → isi terdesak ke kiri tanpa logo; (e) fokus tidak pindah ke isian kata sandi/persetujuan yang salah (`Controller` tanpa `field.ref`) — di `/reset-password` pengguna pembaca layar tidak mendapat kabar apa pun; (f) tombol Google tanpa state loading; (g) chip aturan kata sandi hanya dibedakan warna titik (desain 3c memakai ✓/○); (h) baris sesi panel "Akun aktif" di 360: ikon tertinggal di kiri, teks rata tengah. Sumber: verifikasi pemilik A-19b (w700) dan H-11 langkah 5 (24 Okt). Di luar C-08: ukuran 14 px pesan utama panel sukses (keputusan desain pemilik).
 - [ ] Saat S5/S6: perketat tes skip link — redaksi ketat ("elemen pertama di dalam `#konten-utama`") menunggu konten nyata.
@@ -1213,8 +1333,9 @@ Rencana disetujui, dengan lima tambahan berikut (hasil tinjauan C-02/C-03, belum
 Saya sedang membangun BINZI (platform belajar gizi) dengan Next.js 16 +
 AI coding agent (Claude Code). Terlampir docs/STATUS.md dan
 docs/tasks/URUTAN-KERJA.md dari repo saya — baca keduanya sebagai konteks.
-Baca bagian "Pembaruan 14 Nov" di STATUS.md lebih dulu, lalu
-"Pembaruan 11 Nov", "Pembaruan 10 Nov", "Pembaruan 9 Nov", "Pembaruan 8 Nov", "Pembaruan 7 Nov", "Pembaruan 6 Nov", "Pembaruan 4 Nov
+Baca bagian "Pembaruan 16 Nov" di STATUS.md lebih dulu, lalu
+"Pembaruan 14 Nov", "Pembaruan 11 Nov", "Pembaruan 10 Nov", "Pembaruan 9 Nov",
+"Pembaruan 8 Nov", "Pembaruan 7 Nov", "Pembaruan 6 Nov", "Pembaruan 4 Nov
 malam", "Pembaruan 4 Nov", dan "Pembaruan 3 Nov 2026 — target demo 20 Nov";
 jadwal dan keputusan di sana mengalahkan rencana sprint lama.
 Spesifikasi lengkap ada di docs/prd/ dan aturan agent di CLAUDE.md;
@@ -1222,20 +1343,19 @@ repo publik di github.com/adiynsyah/binzi — clone untuk membaca kode,
 kartu, desain, dan meninjau PR (API GitHub sering kena rate limit;
 git fetch pull/N/head tetap jalan). Repo di mesin saya ada di
 ~/Project/React/binzi-new.
-Posisi terakhir (14 Nov): S2-01 halaman materi + progres (PR #133)
-di-merge → main 54e7d7a; kartu S2-02 (pemutar video, versi kontrol
-bawaan YouTube — keputusan 14 Nov) masuk lewat PR docs.
+Posisi terakhir (16 Nov): S2-02 pemutar video (PR #135) di-merge;
+kartu S3-01 quiz materi masuk lewat PR docs.
 Berikutnya:
-- Sab 14 malam – Min 15: sesi S2-02; rencana agent (termasuk isi SQL
-  migrasi 0001) ditinjau di chat sebelum disetujui. binzi-dev dimigrasi
-  SEBELUM merge S2-02 (lihat kartu). Selagi agent bekerja, tulis kartu
-  quiz materi (Sen 16) dari catatan di akhir kartu S2-01 dan S2-02.
-- Tugas pemilik: lihat "Tugas pemilik (bukan kode)" di 14 Nov.
+- Sel 17: sesi S3-01; rencana agent ditinjau di chat sebelum disetujui.
+  Selagi agent bekerja, tulis kartu seed binzi-dev "[DEMO]" (Rab 18 pagi)
+  dan kartu S5-02 Final Quiz (Rab 18) dari catatan di akhir kartu S3-01.
+- Tugas pemilik: lihat "Tugas pemilik (bukan kode)" di 16 Nov.
 - Untuk tinjauan tampilan, Claude bisa menjalankan Chromium headless di
   sandbox (@sparticuz/chromium + playwright-core dari registry npm).
 Gate audit main: 0 excused / 0 blocking / 22–23 info-low-moderate. Uji
 lokal selalu dengan npm run dev:db. Branch main diproteksi (wajib PR,
 check ci + e2e) — docs juga lewat PR. Setiap kartu ditinjau terhadap
 main sebelum sesinya; rencana agent ditinjau di chat; PR ditinjau dari
-branch-nya (git fetch origin pull/N/head).
+branch-nya (git fetch origin pull/N/head). Screenshot e2e diambil dengan
+E2E_SCREENSHOT_DIR=~/binzi-<kartu>-screenshots.
 ```
