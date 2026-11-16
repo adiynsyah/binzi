@@ -591,3 +591,106 @@ export function waitForOpenBeacon(page: Page, lessonId: string) {
         `/api/progress/lessons/${lessonId}/open`,
   );
 }
+
+// ------------------------------------------------ S2-02 YouTube stub
+
+/**
+ * The fake IFrame API served from the REAL https://www.youtube.com/iframe_api
+ * URL (card S2-02 "E2E"). Playwright intercepts at the browser's network
+ * layer — NOT a Service Worker — so the page's CSP still sees a script from
+ * that exact origin: without the (temporary) script-src entry the stub is
+ * BLOCKED and these tests go red (mutation 9). The stub defines a YT.Player
+ * that attaches to the component's iframe, fires onReady, and exposes test
+ * controls on window.__ytStub: setTime(n), setDuration(n), emit(state),
+ * error(code), ready() (a player has attached).
+ */
+const STUB_API_JS = `
+(function () {
+  "use strict";
+  var state = { time: 0, duration: 0 };
+  var players = [];
+  function Player(element, config) {
+    this.element = element;
+    this.config = config;
+    players.push(this);
+    if (config.events && config.events.onReady) {
+      config.events.onReady();
+    }
+  }
+  Player.prototype.getCurrentTime = function () { return state.time; };
+  Player.prototype.getDuration = function () { return state.duration; };
+  Player.prototype.seekTo = function (seconds) { state.time = seconds; };
+  window.YT = { Player: Player };
+  window.__ytStub = {
+    setTime: function (n) { state.time = n; },
+    setDuration: function (n) { state.duration = n; },
+    emit: function (data) {
+      var last = players[players.length - 1];
+      if (last && last.config.events && last.config.events.onStateChange) {
+        last.config.events.onStateChange({ data: data });
+      }
+    },
+    error: function (code) {
+      var last = players[players.length - 1];
+      if (last && last.config.events && last.config.events.onError) {
+        last.config.events.onError({ data: code });
+      }
+    },
+    ready: function () { return players.length > 0; },
+  };
+  if (typeof window.onYouTubeIframeAPIReady === "function") {
+    window.onYouTubeIframeAPIReady();
+  }
+})();
+`;
+
+/**
+ * The embed frame body served from the REAL nocookie URL: lang + title so
+ * axe does not flag the stub document, nothing else (the real video never
+ * loads in e2e).
+ */
+const STUB_EMBED_HTML =
+  '<!doctype html><html lang="id"><head><meta charset="utf-8">' +
+  "<title>Video materi uji e2e</title></head><body></body></html>";
+
+/**
+ * Installs BOTH YouTube stub routes (IFrame API + nocookie embed) — call
+ * BEFORE the navigation that mounts the lesson video (card S2-02).
+ */
+export async function stubYouTube(page: Page): Promise<void> {
+  await page.route("https://www.youtube.com/iframe_api", (route) =>
+    route.fulfill({
+      contentType: "application/javascript",
+      body: STUB_API_JS,
+    }),
+  );
+  await page.route("https://www.youtube-nocookie.com/embed/**", (route) =>
+    route.fulfill({
+      contentType: "text/html; charset=utf-8",
+      body: STUB_EMBED_HTML,
+    }),
+  );
+}
+
+/** Attaches the demo YouTube video to one lesson (the CLI's write, card
+ *  §8) straight through SQL — the belajar-materi test 7 pattern, so no
+ *  src/db import ever runs inside a Playwright worker. */
+export async function attachVideoInE2eDb(
+  lessonId: string,
+  videoId: string,
+  durationSeconds: number,
+): Promise<void> {
+  await withE2eDb((sql) => sql`
+      update lessons set video_status = 'READY',
+        video_provider = 'YOUTUBE', video_external_id = ${videoId},
+        video_duration_seconds = ${durationSeconds}
+      where id = ${lessonId}
+    `);
+}
+
+/** Waits until the stub's fake player has attached to the iframe. */
+export async function waitForYouTubeStub(page: Page): Promise<void> {
+  await page.waitForFunction(
+    () => (window as { __ytStub?: { ready(): boolean } }).__ytStub?.ready(),
+  );
+}

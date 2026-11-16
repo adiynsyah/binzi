@@ -11,17 +11,20 @@ type HeaderEntry = { key: string; value: string };
 
 const HSTS = "max-age=63072000; includeSubDomains; preload";
 
-// PRD §12.5 v1.5 verbatim (Q45, option b+) — the production policy.
+// PRD §12.5 v1.5 verbatim (Q45, option b+) — the production policy — plus
+// the two temporary YouTube entries of card S2-02 §7 (removed in C-10,
+// docs/decisions/video-sumber.md §4): script-src for the IFrame API,
+// frame-src for the nocookie embed.
 const CSP_V1_5 = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com",
+  "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com https://www.youtube.com",
   "script-src-attr 'none'",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data:",
   "font-src 'self'",
   "media-src 'self'",
   "connect-src 'self'",
-  "frame-src https://challenges.cloudflare.com",
+  "frame-src https://challenges.cloudflare.com https://www.youtube-nocookie.com",
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",
@@ -30,15 +33,15 @@ const CSP_V1_5 = [
 
 // Development: base policy + 'unsafe-eval' for next dev tooling.
 const CSP_DEVELOPMENT = CSP_V1_5.replace(
-  "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com;",
-  "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com 'unsafe-eval';",
+  "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com https://www.youtube.com;",
+  "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com https://www.youtube.com 'unsafe-eval';",
 );
 
 // Vercel preview: base policy + toolbar origins appended per directive
 // (vercel.com/docs/vercel-toolbar/managing-toolbar). No 'unsafe-eval'.
 const CSP_VERCEL_PREVIEW = CSP_V1_5.replace(
-  "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com;",
-  "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com https://vercel.live;",
+  "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com https://www.youtube.com;",
+  "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com https://www.youtube.com https://vercel.live;",
 )
   .replace(
     "style-src 'self' 'unsafe-inline';",
@@ -57,8 +60,8 @@ const CSP_VERCEL_PREVIEW = CSP_V1_5.replace(
     "connect-src 'self' https://vercel.live wss://ws-us3.pusher.com;",
   )
   .replace(
-    "frame-src https://challenges.cloudflare.com;",
-    "frame-src https://challenges.cloudflare.com https://vercel.live;",
+    "frame-src https://challenges.cloudflare.com https://www.youtube-nocookie.com;",
+    "frame-src https://challenges.cloudflare.com https://www.youtube-nocookie.com https://vercel.live;",
   );
 
 async function loadSecurityHeaders(): Promise<HeaderEntry[]> {

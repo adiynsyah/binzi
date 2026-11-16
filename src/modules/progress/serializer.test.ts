@@ -1,17 +1,20 @@
-// Serializer tests (cards S5-01 §1 + S2-01 §1): the badge table (PRG-06),
-// the action rule, row by row, plus the allowlist proof — only DTO keys
-// leave the module — and the lesson-page union (item-state priority, next
-// forms, percent Number). Runs without a database (type-only db imports).
+// Serializer tests (cards S5-01 §1 + S2-01 §1 + S2-02 §3): the badge table
+// (PRG-06), the action rule, row by row, plus the allowlist proof — only
+// DTO keys leave the module — the lesson-page union (item-state priority,
+// next forms, percent Number), and resolvePlayback (video status/source →
+// playback DTO). Runs without a database (type-only db imports).
 import { describe, expect, it } from "vitest";
 
 import {
   lessonHref,
+  resolvePlayback,
   toEnrolledCourseDTO,
   toLearnerCourseDTO,
   toLessonPageDTO,
   type AvailableRow,
   type EnrolledRow,
   type LessonOutlineRow,
+  type PlaybackSourceRow,
 } from "./serializer";
 
 const LESSON_A = "materi-pertama";
@@ -248,6 +251,7 @@ describe("toLessonPageDTO — item states", () => {
       outline,
       targetIndex: 1,
       content: null,
+      playback: null,
     });
     expect(dto.state).toBe("open");
     if (dto.state !== "open") return;
@@ -270,6 +274,7 @@ describe("toLessonPageDTO — item states", () => {
       outline,
       targetIndex: 1,
       content: null,
+      playback: null,
     });
     if (dto.state !== "open") throw new Error("expected open");
     expect(dto.outline.map((item) => item.state)).toEqual([
@@ -304,6 +309,7 @@ describe("toLessonPageDTO — page states", () => {
       outline: threeLessons,
       targetIndex: 0,
       content: null,
+      playback: null,
     });
     expect(dto.state).toBe("not-enrolled");
     expect("content" in dto && dto.content).toBeFalsy();
@@ -320,6 +326,7 @@ describe("toLessonPageDTO — page states", () => {
       outline: threeLessons,
       targetIndex: 2,
       content: null,
+      playback: null,
     });
     expect(dto.state).toBe("locked");
     if (dto.state !== "locked") return;
@@ -342,6 +349,7 @@ describe("toLessonPageDTO — page states", () => {
       outline: [lessonRow(1), lessonRow(2)],
       targetIndex: 1,
       content: null,
+      playback: null,
     });
     expect(dto.state).toBe("locked");
     if (dto.state !== "locked") return;
@@ -365,12 +373,27 @@ describe("toLessonPageDTO — page states", () => {
       ],
       targetIndex: 0,
       content: { type: "doc", content: [] },
+      playback: {
+        kind: "youtube",
+        videoId: "e2eVideo001",
+        durationSeconds: 252,
+      },
     });
     if (dto.state !== "open") throw new Error("expected open");
     expect(dto.progress).not.toBeNull();
     expect(dto.progress?.videoWatchedPercent).toBe(50);
     expect(typeof dto.progress?.videoWatchedPercent).toBe("number");
     expect(dto.progress?.videoLastPositionSeconds).toBe(120);
+    // Open carries the resolved playback verbatim (S2-02 §3), and the
+    // allowlist is exact: hasVideo is gone, no raw video_* column leaks.
+    expect(dto.lesson.playback).toEqual({
+      kind: "youtube",
+      videoId: "e2eVideo001",
+      durationSeconds: 252,
+    });
+    expect(Object.keys(dto.lesson).sort()).toEqual(
+      ["content", "id", "playback", "position", "title"].sort(),
+    );
   });
 
   it("open without a lesson_progress row answers progress null", () => {
@@ -380,9 +403,11 @@ describe("toLessonPageDTO — page states", () => {
       outline: [lessonRow(1)],
       targetIndex: 0,
       content: null,
+      playback: null,
     });
     if (dto.state !== "open") throw new Error("expected open");
     expect(dto.progress).toBeNull();
+    expect(dto.lesson.playback).toBeNull();
   });
 });
 
@@ -398,6 +423,7 @@ describe("toLessonPageDTO — prev/next", () => {
       ],
       targetIndex: 0,
       content: null,
+      playback: null,
     });
     if (dto.state !== "open") throw new Error("expected open");
     expect(dto.prevHref).toBeNull();
@@ -418,6 +444,7 @@ describe("toLessonPageDTO — prev/next", () => {
       ],
       targetIndex: 1,
       content: null,
+      playback: null,
     });
     if (dto.state !== "open") throw new Error("expected open");
     expect(dto.prevHref).toBe(lessonHref(LESSON_COURSE.slug, "materi-1"));
@@ -435,9 +462,101 @@ describe("toLessonPageDTO — prev/next", () => {
       outline: last,
       targetIndex: 1,
       content: null,
+      playback: null,
     });
     if (dto.state !== "open") throw new Error("expected open");
     expect(dto.next).toBeNull();
     expect(dto.prevHref).toBe(lessonHref(LESSON_COURSE.slug, "materi-1"));
+  });
+});
+
+// ------------------------------------------------- resolvePlayback (S2-02 §3)
+
+/** A row with every video column overridable; the CHECK constraint the DB
+ *  enforces (lesson-video.integration.test.ts) is out of scope here — the
+ *  serializer must stay safe for ANY row it is handed. */
+function videoRow(
+  overrides: Partial<PlaybackSourceRow> = {},
+): PlaybackSourceRow {
+  return {
+    videoStatus: "READY",
+    videoProvider: "YOUTUBE",
+    videoExternalId: "e2eVideo001",
+    videoKey: null,
+    videoDurationSeconds: 252,
+    ...overrides,
+  };
+}
+
+describe("resolvePlayback", () => {
+  it("READY + YOUTUBE + valid id → the youtube DTO", () => {
+    expect(resolvePlayback(videoRow())).toEqual({
+      kind: "youtube",
+      videoId: "e2eVideo001",
+      durationSeconds: 252,
+    });
+  });
+
+  it("durationSeconds null or ≤ 0 answers null, never 0/negative", () => {
+    for (const durationSeconds of [null, 0, -30]) {
+      expect(
+        resolvePlayback(videoRow({ videoDurationSeconds: durationSeconds })),
+      ).toEqual({
+        kind: "youtube",
+        videoId: "e2eVideo001",
+        durationSeconds: null,
+      });
+    }
+  });
+
+  it("every status below READY answers null — with a VALID youtube source attached, so the status is the only reason", () => {
+    // Provider YOUTUBE + a valid 11-char id on every row: if any of these
+    // rows stopped answering null, it would be the status check that
+    // broke, not the source parsing.
+    for (const videoStatus of ["NONE", "UPLOADING", "FAILED"] as const) {
+      expect(
+        resolvePlayback(videoRow({ videoStatus })),
+        videoStatus,
+      ).toBeNull();
+    }
+  });
+
+  it("READY + R2 (with a key) and READY + no provider answer null until S1-05", () => {
+    expect(
+      resolvePlayback(
+        videoRow({
+          videoProvider: "R2",
+          videoExternalId: null,
+          videoKey: "materi/materi-1.mp4",
+        }),
+      ),
+    ).toBeNull();
+    expect(
+      resolvePlayback(
+        videoRow({ videoProvider: null, videoExternalId: null }),
+      ),
+    ).toBeNull();
+  });
+
+  it("READY + FAILED-like mismatches answer null: R2 key missing, id empty", () => {
+    // FAILED + R2 + a real video_key: status still wins (null) — the row
+    // shape the uploader leaves behind mid-retry.
+    expect(
+      resolvePlayback(
+        videoRow({
+          videoStatus: "FAILED",
+          videoProvider: "R2",
+          videoExternalId: null,
+          videoKey: "materi/materi-1.mp4",
+        }),
+      ),
+    ).toBeNull();
+    // A null id maps to "" rather than crashing on a row the DB CHECK
+    // already keeps out — mapping stays total, the constraint is the guard.
+    expect(resolvePlayback(videoRow({ videoExternalId: null }))).toEqual({
+      kind: "youtube",
+      videoId: "",
+      durationSeconds: 252,
+    });
   });
 });

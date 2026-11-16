@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import "../ui/test-env";
 
-import { act, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { ComponentProps } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -9,6 +9,7 @@ import { LessonPage } from "./lesson-page";
 import type {
   LessonOutlineItemDTO,
   LessonPageDTO,
+  PlaybackDTO,
 } from "@/modules/progress/service";
 
 // Card S2-01 §4 + "Selesai jika · Tes komponen": the three page states with
@@ -65,17 +66,19 @@ function openDto(
     prevHref?: string | null;
     next?: OpenDTO["next"];
     progress?: OpenDTO["progress"];
+    playback?: PlaybackDTO | null;
+    lessonId?: string;
   } = {},
 ): OpenDTO {
   return {
     state: "open",
     course: { ...COURSE, lessonCount: 3, completedLessonCount: 1 },
     lesson: {
-      id: LESSON_ID,
+      id: overrides.lessonId ?? LESSON_ID,
       title: "Judul materi 2",
       position: 2,
       content: CONTENT_DOC,
-      hasVideo: false,
+      playback: overrides.playback ?? null,
     },
     progress: overrides.progress ?? null,
     outline: overrides.outline ?? [
@@ -351,3 +354,153 @@ async function actAsync(): Promise<void> {
     await Promise.resolve();
   });
 }
+
+// --- the video player (card S2-02 §6) ---------------------------------------
+//
+// The REAL LessonVideoPlayer + the REAL YouTube engine run here (no
+// component mocks): placement above the h1, the no-video case, and the
+// key-driven remount between lessons (review item 3 / mutation 10) with
+// a FakePlayer double on window.YT — same pattern as the engine's own
+// tests, fresh module registry per file.
+
+type FakeConfig = {
+  events?: {
+    onReady?: () => void;
+    onStateChange?: (event: { data: number }) => void;
+    onError?: (event: { data: number }) => void;
+  };
+};
+
+class FakePlayer {
+  static instances: FakePlayer[] = [];
+  static get last(): FakePlayer {
+    return FakePlayer.instances[FakePlayer.instances.length - 1]!;
+  }
+  currentTime = 0;
+  duration = 0;
+  seeks: Array<[seconds: number, allowSeekAhead: boolean]> = [];
+  readonly config: FakeConfig;
+  constructor(_element: HTMLElement, config: FakeConfig) {
+    this.config = config;
+    FakePlayer.instances.push(this);
+  }
+  getCurrentTime(): number {
+    return this.currentTime;
+  }
+  getDuration(): number {
+    return this.duration;
+  }
+  seekTo(seconds: number, allowSeekAhead: boolean): void {
+    this.seeks.push([seconds, allowSeekAhead]);
+  }
+  ready(): void {
+    this.config.events?.onReady?.();
+  }
+  emit(data: number): void {
+    this.config.events?.onStateChange?.({ data });
+  }
+}
+
+const YOUTUBE_PLAYBACK: PlaybackDTO = {
+  kind: "youtube",
+  videoId: "e2eVideo001",
+  durationSeconds: 252,
+};
+
+function videoPosts(): Array<{ lessonId: string; positionSeconds: number }> {
+  return fetchMock.mock.calls
+    .filter(([url]) => url === "/api/progress/video")
+    .map(([, init]) =>
+      JSON.parse((init as RequestInit).body as string) as {
+        lessonId: string;
+        positionSeconds: number;
+      },
+    );
+}
+
+describe("LessonPage — video player (S2-02)", () => {
+  beforeEach(() => {
+    FakePlayer.instances = [];
+    window.YT = { Player: FakePlayer } as unknown as Window["YT"];
+  });
+
+  it("no playback → no iframe anywhere on the page", () => {
+    const view = render(<LessonPage data={openDto()} />);
+    expect(view.container.querySelector("iframe")).toBeNull();
+  });
+
+  it("the player sits ABOVE the h1 in the main column", async () => {
+    const view = render(<LessonPage data={openDto({ playback: YOUTUBE_PLAYBACK })} />);
+    const frame = view.container.querySelector(".aspect-video");
+    expect(frame).not.toBeNull();
+    const h1 = screen.getByRole("heading", { level: 1 });
+    // The frame PRECEDES the heading in document order (7d layout).
+    expect(
+      frame!.compareDocumentPosition(h1) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    await actAsync();
+    expect(view.container.querySelector("iframe")).not.toBeNull();
+  });
+
+  it("moving to another lesson resets the player state via the key (mutation 10)", async () => {
+    vi.useFakeTimers();
+    try {
+      const LESSON_ID_B = "1f0c2a34-2222-4222-8222-222222222222";
+      // Material A: resumed at 84 s.
+      const view = render(
+        <LessonPage
+          data={openDto({
+            playback: YOUTUBE_PLAYBACK,
+            progress: { videoLastPositionSeconds: 84, videoWatchedPercent: 33 },
+          })}
+        />,
+      );
+      window.onYouTubeIframeAPIReady?.();
+      await actAsync();
+      FakePlayer.last.ready();
+      await actAsync();
+
+      // Local state that ONLY a remount resets: dismiss the resume row.
+      fireEvent.click(screen.getByRole("button", { name: "Mulai dari awal" }));
+      expect(FakePlayer.last.seeks).toEqual([[0, true]]);
+      expect(screen.queryByText(/Melanjutkan dari/)).toBeNull();
+
+      // Material B: another lesson id, another video, position 84 again.
+      view.rerender(
+        <LessonPage
+          data={openDto({
+            lessonId: LESSON_ID_B,
+            playback: { ...YOUTUBE_PLAYBACK, videoId: "e2eVideo002" },
+            progress: { videoLastPositionSeconds: 84, videoWatchedPercent: 33 },
+          })}
+        />,
+      );
+      await actAsync();
+      // The row is BACK — fresh instance, the click on A did not leak.
+      expect(screen.getByText("Melanjutkan dari 01:24")).toBeTruthy();
+      const src = view.container.querySelector("iframe")!.getAttribute("src")!;
+      expect(src).toContain("e2eVideo002");
+      expect(src).toContain("start=84");
+
+      // And the NEXT progress POST belongs to lesson B, never A.
+      FakePlayer.last.ready();
+      await actAsync();
+      FakePlayer.last.currentTime = 90;
+      FakePlayer.last.duration = 100;
+      FakePlayer.last.emit(1); // playing
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(10_000);
+      });
+      const posts = videoPosts();
+      expect(posts).toHaveLength(1);
+      expect(posts[0]).toEqual({
+        lessonId: LESSON_ID_B,
+        positionSeconds: 90,
+        durationSeconds: 100,
+      });
+      expect(posts.every((post) => post.lessonId !== LESSON_ID)).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

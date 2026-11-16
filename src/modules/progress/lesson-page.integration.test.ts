@@ -21,6 +21,8 @@
 // - recordVideoProgress: monotonic percent, stored duration wins (also
 //   when the column is 0 — no Infinity), cap at 100, READY requirement,
 //   locked 409, returned values are the STORED ones (number, not string).
+// - playback (S2-02 §3): READY+YOUTUBE → the youtube DTO; no video and
+//   UPLOADING → null; locked/not-enrolled never read the lesson row.
 import { fileURLToPath } from "node:url";
 
 import { PGlite } from "@electric-sql/pglite";
@@ -45,6 +47,18 @@ import { createLesson } from "@/modules/lesson/service";
 // Same "@/db" Proxy swap as service.integration.test.ts (queries.ts pulls
 // the singleton; the tests point it at PGlite).
 const dbHolder = vi.hoisted(() => ({ current: undefined as unknown }));
+
+// Spy around selectOpenLesson (S2-02 mutation 4): the real SQL still runs
+// through the PGlite-backed `db`; only the call is counted, so the locked /
+// not-enrolled tests can prove the service never reads the material row.
+const selectOpenLessonSpy = vi.hoisted(() => vi.fn());
+vi.mock("./queries", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./queries")>();
+  selectOpenLessonSpy.mockImplementation(
+    actual.selectOpenLesson as (...args: unknown[]) => unknown,
+  );
+  return { ...actual, selectOpenLesson: selectOpenLessonSpy };
+});
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/db", () => ({
@@ -455,6 +469,126 @@ describe("getLessonPage — per-participant outline", () => {
   });
 });
 
+// --- getLessonPage: playback (card S2-02 §3) --------------------------------
+
+describe("getLessonPage — playback (S2-02)", () => {
+  /** Enrolled sequential course whose lesson at `lessonIndex` (default: the
+   *  first) carries the given video columns. A READY row needs a source to
+   *  satisfy lessons_video_source_check; UPLOADING accepts one too, so the
+   *  status is the ONLY reason its playback comes back null. */
+  async function courseWithVideo(
+    prefix: string,
+    video: {
+      status: "NONE" | "UPLOADING" | "READY";
+      provider?: "YOUTUBE" | null;
+      externalId?: string | null;
+      durationSeconds?: number | null;
+    },
+    lessonIndex = 0,
+  ) {
+    const made = await enrolledSequentialCourse(prefix);
+    await db
+      .update(lessons)
+      .set({
+        videoStatus: video.status,
+        videoProvider: video.provider ?? null,
+        videoExternalId: video.externalId ?? null,
+        videoDurationSeconds: video.durationSeconds ?? null,
+      })
+      .where(eq(lessons.id, made.lessons[lessonIndex]!.id));
+    return made;
+  }
+
+  it("open + READY YOUTUBE → playback { kind, videoId, durationSeconds }", async () => {
+    const made = await courseWithVideo("pb1", {
+      status: "READY",
+      provider: "YOUTUBE",
+      externalId: "e2eVideo001",
+      durationSeconds: 252,
+    });
+    const dto = await getLessonPage(MEMBER, made.slug, made.lessons[0]!.slug);
+    if (dto.state !== "open") throw new Error("expected open");
+    expect(dto.lesson.playback).toEqual({
+      kind: "youtube",
+      videoId: "e2eVideo001",
+      durationSeconds: 252,
+    });
+  });
+
+  it("open + READY without a stored duration → durationSeconds null", async () => {
+    const made = await courseWithVideo("pb2", {
+      status: "READY",
+      provider: "YOUTUBE",
+      externalId: "e2eVideo001",
+      durationSeconds: null,
+    });
+    const dto = await getLessonPage(MEMBER, made.slug, made.lessons[0]!.slug);
+    if (dto.state !== "open") throw new Error("expected open");
+    expect(dto.lesson.playback).toEqual({
+      kind: "youtube",
+      videoId: "e2eVideo001",
+      durationSeconds: null,
+    });
+  });
+
+  it("open + no video → playback null", async () => {
+    const made = await courseWithVideo("pb3", { status: "NONE" });
+    const dto = await getLessonPage(MEMBER, made.slug, made.lessons[0]!.slug);
+    if (dto.state !== "open") throw new Error("expected open");
+    expect(dto.lesson.playback).toBeNull();
+  });
+
+  it("open + UPLOADING with a valid YOUTUBE id → playback null (only the status is the reason)", async () => {
+    const made = await courseWithVideo("pb4", {
+      status: "UPLOADING",
+      provider: "YOUTUBE",
+      externalId: "e2eVideo001",
+    });
+    const dto = await getLessonPage(MEMBER, made.slug, made.lessons[0]!.slug);
+    if (dto.state !== "open") throw new Error("expected open");
+    expect(dto.lesson.playback).toBeNull();
+  });
+
+  it("locked and not-enrolled never read the lesson row (V-06 / mutation 4)", async () => {
+    // The LOCKED lesson (index 1) itself carries a READY video: were the
+    // service to fetch-and-drop, the spy would still record the call.
+    const made = await courseWithVideo(
+      "pb5",
+      {
+        status: "READY",
+        provider: "YOUTUBE",
+        externalId: "e2eVideo001",
+        durationSeconds: 100,
+      },
+      1,
+    );
+    selectOpenLessonSpy.mockClear();
+    const locked = await getLessonPage(
+      MEMBER,
+      made.slug,
+      made.lessons[1]!.slug,
+    );
+    expect(locked.state).toBe("locked");
+    expect(selectOpenLessonSpy).not.toHaveBeenCalled();
+
+    // Same shape, but nobody enrolled the viewer.
+    const lone = await courseWithVideo("pb6", {
+      status: "READY",
+      provider: "YOUTUBE",
+      externalId: "e2eVideo001",
+      durationSeconds: 100,
+    });
+    selectOpenLessonSpy.mockClear();
+    const notEnrolled = await getLessonPage(
+      MEMBER_B,
+      lone.slug,
+      lone.lessons[0]!.slug,
+    );
+    expect(notEnrolled.state).toBe("not-enrolled");
+    expect(selectOpenLessonSpy).not.toHaveBeenCalled();
+  });
+});
+
 // --- openLesson -------------------------------------------------------------
 
 describe("openLesson", () => {
@@ -558,7 +692,8 @@ describe("openLesson", () => {
 
 describe("recordVideoProgress", () => {
   /** Enrolled course whose lesson at `lessonIndex` (default: the first)
-   *  carries the given video columns. */
+   *  carries the given video columns. READY also needs a source to satisfy
+   *  lessons_video_source_check (S2-02) — a YouTube id is the demo path. */
   async function videoCourse(
     prefix: string,
     video: { status: "NONE" | "READY"; durationSeconds: number | null },
@@ -569,6 +704,9 @@ describe("recordVideoProgress", () => {
       .update(lessons)
       .set({
         videoStatus: video.status,
+        ...(video.status === "READY"
+          ? { videoProvider: "YOUTUBE" as const, videoExternalId: "e2eVideo001" }
+          : {}),
         videoDurationSeconds: video.durationSeconds,
       })
       .where(eq(lessons.id, made.lessons[lessonIndex]!.id));

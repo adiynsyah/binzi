@@ -31,7 +31,12 @@ import {
 } from "@/db/schema";
 import { NotFoundError } from "@/lib/errors";
 
-import type { AvailableRow, EnrolledRow, LessonOutlineRow } from "./serializer";
+import type {
+  AvailableRow,
+  EnrolledRow,
+  LessonOutlineRow,
+  PlaybackSourceRow,
+} from "./serializer";
 
 /**
  * Transaction executor (mirror of the quiz module's DbTx, spelled out
@@ -323,15 +328,23 @@ export async function selectOutlineRows(
 }
 
 /**
- * The lesson document — a SEPARATE statement that the service runs ONLY
- * when the page state is `open` (card §1 step 5, V-06: locked and
- * not-enrolled never read the material, not just never show it).
+ * The lesson document + its video-source columns — a SEPARATE statement
+ * that the service runs ONLY when the page state is `open` (card §1 step
+ * 5, card S2-02 §3, V-06: locked and not-enrolled never read the material
+ * OR the video id, not just never show them).
  */
-export async function selectLessonContent(
+export async function selectOpenLesson(
   lessonId: string,
-): Promise<{ content: unknown } | undefined> {
+): Promise<(PlaybackSourceRow & { content: unknown }) | undefined> {
   const rows = await db
-    .select({ content: lessons.content })
+    .select({
+      content: lessons.content,
+      videoStatus: lessons.videoStatus,
+      videoProvider: lessons.videoProvider,
+      videoExternalId: lessons.videoExternalId,
+      videoKey: lessons.videoKey,
+      videoDurationSeconds: lessons.videoDurationSeconds,
+    })
     .from(lessons)
     .where(eq(lessons.id, lessonId))
     .limit(1);
