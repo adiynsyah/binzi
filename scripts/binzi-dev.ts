@@ -43,6 +43,10 @@ function printUsage(): void {
   console.error("Pemakaian (lewat npm run):");
   console.error("  npm run db:migrate:binzi-dev");
   console.error("  npm run user:role:binzi-dev -- <email> <ROLE>");
+  console.error(
+    "  npm run video:youtube:binzi-dev -- --kursus <slug> --materi <slug> " +
+      "--video <id|url> --durasi <detik>",
+  );
 }
 
 /**
@@ -109,6 +113,18 @@ async function main(): Promise<void> {
     runChild(
       "tsx",
       ["scripts/set-role.ts", ...rest],
+      buildChildEnv(process.env, targets),
+    );
+  } else if (subcommand === "set-video") {
+    // Same shape as set-role (card S2-02 §8): flags forwarded AS-IS,
+    // scripts/set-lesson-youtube.ts validates and prints its own
+    // [video:youtube] target line from inside the connected process.
+    const targets = resolveFromFile(["DATABASE_URL"]);
+    const target = targets.get("DATABASE_URL");
+    if (!target) fail("DATABASE_URL tidak terpecahkan");
+    runChild(
+      "tsx",
+      ["scripts/set-lesson-youtube.ts", ...rest],
       buildChildEnv(process.env, targets),
     );
   } else {

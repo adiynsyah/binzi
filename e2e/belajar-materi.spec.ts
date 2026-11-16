@@ -440,10 +440,13 @@ test("7. matriks API: /open 401/401/404, /video 401/404/409/400, READY 50→20 m
       ).status(),
     ).toBe(400);
 
-    // READY with a stored duration of 100.
+    // READY with a stored duration of 100. S2-02: READY requires a video
+    // source (lessons_video_source_check) — the demo YouTube id.
     await withE2eDb(
       (sql) => sql`
-          update lessons set video_status = 'READY', video_duration_seconds = 100
+          update lessons set video_status = 'READY',
+            video_provider = 'YOUTUBE', video_external_id = 'e2eVideo001',
+            video_duration_seconds = 100
           where id = ${lesson1.id}
         `,
     );
@@ -489,7 +492,9 @@ test("7. matriks API: /open 401/401/404, /video 401/404/409/400, READY 50→20 m
     // gate as the only possible reason, and the message proves which.
     await withE2eDb(
       (sql) => sql`
-          update lessons set video_status = 'READY', video_duration_seconds = 100
+          update lessons set video_status = 'READY',
+            video_provider = 'YOUTUBE', video_external_id = 'e2eVideo001',
+            video_duration_seconds = 100
           where id = ${lesson2.id}
         `,
     );

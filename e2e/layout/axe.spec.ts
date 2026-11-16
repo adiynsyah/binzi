@@ -24,13 +24,16 @@ import {
 import {
   GUEST_PAGES,
   TURNSTILE_CONTAINER,
+  attachVideoInE2eDb,
   createCourseViaApi,
   createEditorAdminContexts,
   createPublishableCourseViaApi,
   createPublishedCourseViaApi,
+  deleteCoursesInE2eDb,
   openAccountDrawer,
   openCmsDrawer,
   openGuestMenu,
+  stubYouTube,
   widthSpecOf,
 } from "./helpers";
 
@@ -135,9 +138,13 @@ test.describe("axe WCAG 2.1 A/AA", () => {
     ({ editorContext, adminContext } = await createEditorAdminContexts(browser));
   });
 
+  // Course ids the S2-02 video scan created — deleted again in afterAll.
+  const videoCourseIds: string[] = [];
+
   test.afterAll(async () => {
     await editorContext.close();
     await adminContext.close();
+    await deleteCoursesInE2eDb(videoCourseIds);
   });
 
   test(`halaman tamu (${GUEST_PAGES.length})`, async ({ page }, testInfo) => {
@@ -202,6 +209,44 @@ test.describe("axe WCAG 2.1 A/AA", () => {
       ).toBeVisible();
       await expectAxeClean(page, "403", testInfo);
     });
+  });
+
+  // Card S2-02: the open lesson page WITH its video — the YouTube stub is
+  // active (served from the real URLs, so the CSP still applies) and the
+  // stub embed document itself carries lang + title precisely so axe does
+  // not flag it. Below 1024 the <details> outline opens before the scan.
+  test("MEMBER: materi open dengan video (S2-02, stub YouTube aktif)", async (
+    { page, request },
+    testInfo,
+  ) => {
+    const spec = widthSpecOf(testInfo.project.name);
+    await stubYouTube(page);
+    const account = await createRoleAccount(request, "MEMBER");
+    await signInViaApi(page.context(), account);
+
+    const token = `av${Date.now().toString(36)}${testInfo.project.name}`;
+    const made = await createPublishedCourseViaApi(
+      editorContext,
+      adminContext,
+      `${token} kursus video axe`,
+    );
+    videoCourseIds.push(made.courseId);
+    await attachVideoInE2eDb(made.lessons[0]!.id, "e2eVideo001", 100);
+    const enroll = await page.context().request.post(
+      `/api/progress/courses/${made.courseId}/enroll`,
+    );
+    expect(enroll.status(), await enroll.text()).toBe(201);
+
+    await page.goto(`/belajar/${made.courseSlug}/${made.lessons[0]!.slug}`);
+    await expect(
+      page.locator('iframe[title^="Video: "]'),
+    ).toBeVisible();
+    if (spec.viewport.width < 1024) {
+      const details = page.locator("details");
+      await details.locator("summary").click();
+      await expect(details).toHaveAttribute("open");
+    }
+    await expectAxeClean(page, "MEMBER materi open video", testInfo);
   });
 
   test("EDITOR: /cms dan (w360) drawer CMS terbuka", async (

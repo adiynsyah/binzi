@@ -88,6 +88,31 @@ Pemilik menjalankan `npm run db:migrate:binzi-dev` sebelum fitur yang
 memakainya dibuka di Production (migrasi Fase 0/S1 bersifat aditif — aman
 dijalankan sebelum atau sesaat setelah deploy).
 
+## Memasang video YouTube (demo)
+
+Sampai kartu CMS videonya ada, video YouTube dipasang lewat CLI ke **satu
+materi** (kartu S2-02):
+
+```
+npm run video:youtube -- --kursus <slug-kursus> --materi <slug-materi> --video <id-11-karakter> --durasi <detik>
+```
+
+- `--video` menerima id 11 karakter atau URL `youtube.com`/`youtu.be`
+  (diurai ke id sebelum disimpan).
+- Baris `[video:youtube] target: host:port/nama-db` dicetak **sebelum**
+  koneksi dibuat — pastikan menunjuk DB yang dimaksud (lokal:
+  `localhost:54330/binzi_local`).
+- Skrip mengunci `video_provider = 'YOUTUBE'`, `video_external_id`,
+  `video_status = 'READY'`, durasi, dan mengosongkan `video_key` R2 yang
+  mungkin tersisa. Menulis ulang ke materi yang sama menimpa video lama.
+- Tanpa baris `audit_logs` — CLI tidak punya aktor (keputusan yang sama
+  dengan `user:role`, A-12).
+
+Untuk binzi-dev (Production), pemilik menjalankan
+`npm run video:youtube:binzi-dev -- --kursus … --materi … --video … --durasi …`
+— pembungkusnya sama dengan `user:role:binzi-dev` (target dicetak duluan,
+`.env.local` tidak pernah ikut).
+
 ## Reset data demo lokal
 
 `docker rm -f binzi-local-db` lalu ulangi setup dari langkah 1. Perhatian:

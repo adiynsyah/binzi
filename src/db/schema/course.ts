@@ -6,6 +6,7 @@ import { sql } from "drizzle-orm";
 import {
   bigint,
   boolean,
+  check,
   index,
   integer,
   jsonb,
@@ -40,6 +41,10 @@ export const videoStatusEnum = pgEnum("video_status", [
   "READY",
   "FAILED",
 ]);
+
+// Video source (card S2-02 §1): R2 is the production path (S1-05),
+// YOUTUBE is the demo-only source (docs/decisions/video-sumber.md).
+export const videoProviderEnum = pgEnum("video_provider", ["R2", "YOUTUBE"]);
 
 export const courses = pgTable(
   "courses",
@@ -119,6 +124,8 @@ export const lessons = pgTable(
     content: jsonb("content").notNull(), // TipTap document
     // Object key in R2, never a (temporary) presigned URL (PRD §11.1).
     videoKey: text("video_key"),
+    videoProvider: videoProviderEnum("video_provider"),
+    videoExternalId: text("video_external_id"),
     videoStatus: videoStatusEnum("video_status").default("NONE").notNull(),
     videoDurationSeconds: integer("video_duration_seconds"),
     videoSizeBytes: bigint("video_size_bytes", { mode: "number" }),
@@ -140,5 +147,15 @@ export const lessons = pgTable(
     unique("lessons_course_slug_unique").on(table.courseId, table.slug),
     // PRD §11.3: ordered material listing per course.
     index("lessons_course_order_idx").on(table.courseId, table.orderIndex),
+    // Card S2-02 §1: READY requires a usable source. coalesce(…, false) is
+    // MANDATORY — without it a READY row with NULL video_provider makes the
+    // whole expression NULL and a NULL CHECK passes (verified on PGlite).
+    check(
+      "lessons_video_source_check",
+      sql`${table.videoStatus} <> 'READY' or coalesce(
+        (${table.videoProvider} = 'R2' and ${table.videoKey} is not null)
+        or (${table.videoProvider} = 'YOUTUBE' and ${table.videoExternalId} ~ '^[A-Za-z0-9_-]{11}$'),
+        false)`,
+    ),
   ],
 );

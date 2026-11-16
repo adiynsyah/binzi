@@ -21,6 +21,9 @@ const scriptSrc = [
   "'self'",
   "'unsafe-inline'",
   "https://challenges.cloudflare.com",
+  // sementara — mesin video YouTube untuk demo, dihapus di C-10
+  // (docs/decisions/video-sumber.md bagian 4): the IFrame API loader.
+  "https://www.youtube.com",
   ...(isDev ? ["'unsafe-eval'"] : []),
   ...(isVercelPreview ? ["https://vercel.live"] : []),
 ];
@@ -55,6 +58,9 @@ const connectSrc = [
 
 const frameSrc = [
   "https://challenges.cloudflare.com",
+  // sementara — mesin video YouTube untuk demo, dihapus di C-10
+  // (docs/decisions/video-sumber.md bagian 4): the privacy-enhanced embed.
+  "https://www.youtube-nocookie.com",
   ...(isVercelPreview ? ["https://vercel.live"] : []),
 ];
 
@@ -91,7 +97,7 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   experimental: {
     // forbidden() 403 interrupts (card A-12) — still experimental in
-    // Next 16.3.7 (docs: 03-api-reference/05-config/01-next-config-js/authInterrupts).
+    // Next 16.4.1 (docs: 03-api-reference/05-config/01-next-config-js/authInterrupts).
     authInterrupts: true,
   },
   async headers() {

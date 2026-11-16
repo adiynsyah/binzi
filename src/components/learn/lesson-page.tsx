@@ -16,6 +16,7 @@ import { LessonCourseBar } from "@/components/learn/lesson-course-bar";
 import { LessonNotEnrolled } from "@/components/learn/lesson-not-enrolled";
 import { LessonOpenBeacon } from "@/components/learn/lesson-open-beacon";
 import { LessonOutlineNav } from "@/components/learn/lesson-outline-nav";
+import { LessonVideoPlayer } from "@/components/learn/lesson-video-player";
 import { PageContainer } from "@/components/shared/page-container";
 import { RichContent } from "@/components/shared/rich-content";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -82,10 +83,23 @@ type OpenDTO = Extract<LessonPageDTO, { state: "open" }>;
 type LockedDTO = Extract<LessonPageDTO, { state: "locked" }>;
 
 function OpenState({ data }: { data: OpenDTO }) {
+  // The video player sits in the main column ABOVE the h1 (7d); the key on
+  // lesson.id remounts player + reporter when a <Link> moves to another
+  // lesson (card §6). h1 only needs its top margin when a player exists.
+  const player = data.lesson.playback ? (
+    <LessonVideoPlayer
+      key={data.lesson.id}
+      lessonId={data.lesson.id}
+      lessonTitle={data.lesson.title}
+      playback={data.lesson.playback}
+      resumeFromSeconds={data.progress?.videoLastPositionSeconds ?? 0}
+    />
+  ) : null;
   return (
     <div className="mt-6 grid lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-8">
       <div className="min-w-0">
-        <h1 className={H1_CLASSES}>
+        {player}
+        <h1 className={cn(H1_CLASSES, player && "mt-6")}>
           Materi {data.lesson.position} · {data.lesson.title}
         </h1>
         <RichContent doc={data.lesson.content} className="mt-4" />

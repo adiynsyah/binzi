@@ -311,6 +311,9 @@ describe("listLessonOutline & getLessonInCourse", () => {
           content: [{ type: "paragraph", content: [{ type: "text", text: "isi" }] }],
         },
         videoStatus: "READY",
+        // S2-02: READY now requires a video source (lessons_video_source_check).
+        videoProvider: "YOUTUBE",
+        videoExternalId: "e2eVideo001",
         videoDurationSeconds: 252,
       })
       .where(eq(lessons.id, a.id));

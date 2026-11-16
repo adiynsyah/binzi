@@ -1,12 +1,12 @@
 // Explicit serialization for the progress module (card S5-01 §1,
-// card S2-01 §1; PRD §12.6 V-01/V-05).
+// card S2-01 §1, card S2-02 §3; PRD §12.6 V-01/V-05).
 //
 // Module-internal: consumers outside the module get the DTO types
-// re-exported from service.ts. No database access on purpose — the only
-// RUNTIME imports are the gate helpers from ./policy (same module); the
-// db schema and the course module's SCHEMA file come in as type-only
-// imports (allowed across modules) — so the serializer tests run
-// without a database.
+// re-exported from service.ts. No database access on purpose — the RUNTIME
+// imports are the gate helpers from ./policy (same module) AND the course
+// module's schema file (COURSE_LEVEL_LABELS, read at runtime — allowed
+// across modules); only the db schema comes in as a type-only import — so
+// the serializer tests run without a database.
 //
 // Every function builds a fresh object from an explicit allowlist, so a
 // column not listed (description, progressPercent, lastLessonId, …) can
@@ -14,6 +14,7 @@
 import type {
   enrollmentStatusEnum,
   progressStatusEnum,
+  videoProviderEnum,
   videoStatusEnum,
 } from "@/db/schema";
 import { COURSE_LEVEL_LABELS, type CourseLevel } from "@/modules/course/schema";
@@ -93,6 +94,60 @@ export type VideoProgressResultDTO = {
 
 // ---------------------------------------------------------- lesson page
 
+/**
+ * The playback source of an OPEN lesson (card S2-02 §3, video-sumber.md
+ * §2): `youtube` is the demo source, `file` arrives with S1-05 (presigned
+ * GET, A-17). Raw video columns never leave the module — only this DTO.
+ */
+export type PlaybackDTO =
+  | { kind: "youtube"; videoId: string; durationSeconds: number | null }
+  | { kind: "file"; url: string; expiresAt: string; durationSeconds: number | null };
+
+/** The video-source columns selectOpenLesson reads (queries.ts). */
+export type PlaybackSourceRow = {
+  videoStatus: (typeof videoStatusEnum.enumValues)[number];
+  videoProvider: (typeof videoProviderEnum.enumValues)[number] | null;
+  videoExternalId: string | null;
+  videoKey: string | null;
+  videoDurationSeconds: number | null;
+};
+
+/**
+ * The ONE source picker (card §3): a full switch over video_provider, so
+ * S1-05 can only ADD the file branch. Not-READY answers null no matter
+ * the source columns; the duration follows the recordVideoProgress rule
+ * (null when the column is null or ≤ 0).
+ */
+export function resolvePlayback(row: PlaybackSourceRow): PlaybackDTO | null {
+  if (row.videoStatus !== "READY") return null;
+  switch (row.videoProvider) {
+    case "YOUTUBE":
+      return {
+        kind: "youtube",
+        // The CHECK guarantees a valid 11-char id whenever READY+YOUTUBE;
+        // the ?? "" only satisfies the DTO's string type on impossible rows.
+        videoId: row.videoExternalId ?? "",
+        durationSeconds:
+          row.videoDurationSeconds !== null && row.videoDurationSeconds > 0
+            ? row.videoDurationSeconds
+            : null,
+      };
+    case "R2":
+      // File branch: S1-05 (presigned GET, A-17).
+      return null;
+    case null:
+      // Unreachable while the lessons_video_source_check holds; still null.
+      return null;
+    default: {
+      // Exhaustiveness guard: adding an enum value without a branch fails
+      // this assignment at compile time.
+      const _exhaustive: never = row.videoProvider;
+      return _exhaustive;
+    }
+  }
+}
+
+
 /** The outline SELECT's row shape (queries.selectOutlineRows). NULLable
  *  progress columns mean "no lesson_progress row for THIS participant". */
 export type LessonOutlineRow = {
@@ -131,8 +186,9 @@ export type LessonPageDTO =
         title: string;
         position: number;
         content: unknown;
-        /** video_status = 'READY'; S2-02 replaces this with PlaybackDTO. */
-        hasVideo: boolean;
+        /** resolvePlayback of the open lesson's video columns; null = no
+         *  playable video (card S2-02 §3, replaces hasVideo). */
+        playback: PlaybackDTO | null;
       };
       progress: {
         videoLastPositionSeconds: number;
@@ -158,9 +214,10 @@ export type LessonPageDTO =
       lesson: { title: string; position: number };
     };
 
-/** What the service hands toLessonPageDTO. `content` is read ONLY when the
- *  state will be open (card §1 step 5); the enrollment's absence alone
- *  decides not-enrolled, the gate alone decides locked vs open. */
+/** What the service hands toLessonPageDTO. `content` and `playback` are
+ *  read ONLY when the state will be open (card §1 step 5, card S2-02 §3);
+ *  the enrollment's absence alone decides not-enrolled, the gate alone
+ *  decides locked vs open. */
 export type LessonPageInput = {
   course: { id: string; slug: string; title: string; isSequential: boolean };
   enrollment: { id: string } | undefined;
@@ -169,6 +226,9 @@ export type LessonPageInput = {
    *  lesson slug and answered 404 for a miss. */
   targetIndex: number;
   content: unknown;
+  /** resolvePlayback over selectOpenLesson's row — null for every
+   *  non-open state by construction (the query never runs). */
+  playback: PlaybackDTO | null;
 };
 
 /**
@@ -272,7 +332,7 @@ export function toLessonPageDTO(input: LessonPageInput): LessonPageDTO {
       title: target.title,
       position: targetIndex + 1,
       content: input.content,
-      hasVideo: target.videoStatus === "READY",
+      playback: input.playback,
     },
     progress: hasProgressRow
       ? {

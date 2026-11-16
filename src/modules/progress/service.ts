@@ -15,7 +15,7 @@ import {
   selectAvailableCourses,
   selectEnrolledCourses,
   selectEnrollmentForCourse,
-  selectLessonContent,
+  selectOpenLesson,
   selectOutlineRows,
   selectPublishedCourseBySlug,
   setEnrollmentLastLesson,
@@ -26,6 +26,7 @@ import {
 } from "./queries";
 import {
   lessonHref,
+  resolvePlayback,
   toEnrolledCourseDTO,
   toLearnerCourseDTO,
   toLessonPageDTO,
@@ -37,6 +38,7 @@ import {
   type LessonOutlineItemDTO,
   type LessonOutlineRow,
   type LessonPageDTO,
+  type PlaybackDTO,
   type VideoProgressResultDTO,
 } from "./serializer";
 
@@ -49,6 +51,7 @@ export type {
   LessonPageDTO,
   LessonOutlineItemDTO,
   LessonCourseDTO,
+  PlaybackDTO,
   VideoProgressResultDTO,
 };
 
@@ -152,10 +155,10 @@ async function loadUnlockedLessonContext(
 }
 
 /**
- * The lesson page (card S2-01 §1) — a pure GET: three SELECTs (course,
- * enrollment, outline) and a FOURTH for the document, run only when the
- * state is `open` (V-06: the material of a locked lesson is never read,
- * not just never shown).
+ * The lesson page (card S2-01 §1, S2-02 §3) — a pure GET: three SELECTs
+ * (course, enrollment, outline) and a FOURTH for the document + video
+ * source, run only when the state is `open` (V-06: the material AND the
+ * video id of a locked lesson are never read, not just never shown).
  */
 export async function getLessonPage(
   actor: SessionUser,
@@ -177,15 +180,16 @@ export async function getLessonPage(
   const willOpen =
     enrollment !== undefined &&
     isLessonUnlocked(targetIndex + 1, gateRows, course.isSequential);
-  const contentRow = willOpen
-    ? await selectLessonContent(outline[targetIndex]!.id)
+  const openRow = willOpen
+    ? await selectOpenLesson(outline[targetIndex]!.id)
     : undefined;
   return toLessonPageDTO({
     course,
     enrollment,
     outline,
     targetIndex,
-    content: contentRow?.content ?? null,
+    content: openRow?.content ?? null,
+    playback: openRow ? resolvePlayback(openRow) : null,
   });
 }
 
