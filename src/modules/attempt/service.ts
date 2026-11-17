@@ -1,0 +1,425 @@
+// Service layer for the attempt module (card S3-01 §1) — the ONLY surface
+// other modules may import (src/modules/README.md). Guard order everywhere:
+// role FIRST, then input, then ownership/timing. The one-way dependency on
+// the progress module (context gate + result recording) goes through ITS
+// service.ts, never its queries.
+import { randomInt } from "node:crypto";
+
+import type { SessionUser } from "@/lib/rbac";
+import { ConflictError, NotFoundError } from "@/lib/errors";
+import { db } from "@/db";
+import {
+  lessonHref,
+  loadLessonQuizContext,
+  recordLessonQuizResult,
+} from "@/modules/progress/service";
+
+import type { SaveQuizAnswerInput, StartQuizInput, SubmitQuizInput } from "./schema";
+import { assertMemberRole, withinTolerance } from "./policy";
+import {
+  findAttemptForUpdate,
+  finalizeAttempt,
+  insertAttempt,
+  selectAttemptAnswers,
+  selectAttemptByQuizAndUser,
+  selectLessonIdByQuizId,
+  selectNextAttemptNumber,
+  selectOptionBelongsToQuestion,
+  selectQuizLessonBySlugs,
+  selectQuizOptions,
+  selectQuizQuestions,
+  selectQuizSettings,
+  setAnswerGrade,
+  upsertQuizAnswer,
+} from "./queries";
+import {
+  toQuizResultDTO,
+  toQuizRunningDTO,
+  toQuizRulesDTO,
+  type LessonQuizPageDTO,
+  type QuizResultDTO,
+  type QuizRulesDTO,
+  type QuizRunningDTO,
+} from "./serializer";
+
+export type {
+  LessonQuizPageDTO,
+  QuizResultDTO,
+  QuizRulesDTO,
+  QuizRunningDTO,
+};
+
+/** Owner decision 8's question half: Fisher–Yates over the storage order
+ *  with node:crypto's randomInt — unbiased index picks, server-side only
+ *  (the option half is the seeded orderer in the serializer, so the result
+ *  screen can rebuild the same order without storing it). */
+function shuffleQuestionIds(ordered: readonly string[]): string[] {
+  const ids = [...ordered];
+  for (let i = ids.length - 1; i > 0; i -= 1) {
+    const j = randomInt(i + 1);
+    const swap = ids[j]!;
+    ids[j] = ids[i]!;
+    ids[i] = swap;
+  }
+  return ids;
+}
+
+// ------------------------------------------------------------------ the page
+
+/**
+ * The quiz page (card S3-01 §1) — a pure GET: NO attempt is finalized here
+ * (owner decision 6; the expiry screen's beacon submits). State machine:
+ * locked lesson or not-yet-eligible video → `kembali` (the lesson page
+ * renders both properly); no live attempt → `aturan`; IN_PROGRESS inside
+ * the tolerance window → `berjalan`; IN_PROGRESS past it → `kedaluwarsa`;
+ * a final attempt → `hasil`.
+ */
+export async function getLessonQuizPage(
+  actor: SessionUser,
+  courseSlug: string,
+  lessonSlug: string,
+): Promise<LessonQuizPageDTO> {
+  assertMemberRole(actor);
+  const target = await selectQuizLessonBySlugs(courseSlug, lessonSlug);
+  if (!target) {
+    throw new NotFoundError("Materi tidak ditemukan.");
+  }
+  if (target.quizId === null) {
+    // A lesson without a quiz has no quiz page — same 404 shape as the
+    // miss above; the card's "no-quiz defensive 404".
+    throw new NotFoundError("Quiz tidak ditemukan.");
+  }
+
+  let context;
+  try {
+    context = await loadLessonQuizContext(db, actor.id, target.lessonId);
+  } catch (error) {
+    if (error instanceof ConflictError) {
+      // Locked lesson: the lesson page owns that state — go back to it.
+      return { state: "kembali", href: lessonHref(courseSlug, lessonSlug) };
+    }
+    throw error;
+  }
+  if (!context.eligible) {
+    return {
+      state: "kembali",
+      href: lessonHref(context.courseSlug, context.lessonSlug),
+    };
+  }
+
+  const [settings, attempt] = await Promise.all([
+    selectQuizSettings(db, target.quizId),
+    selectAttemptByQuizAndUser(db, target.quizId, actor.id),
+  ]);
+  if (!settings) {
+    // Unreachable with valid data (a lesson's quiz_id is a FK); defensive.
+    throw new NotFoundError("Quiz tidak ditemukan.");
+  }
+
+  if (!attempt) {
+    const questionRows = await selectQuizQuestions(db, target.quizId);
+    return toQuizRulesDTO({
+      lessonId: target.lessonId,
+      lessonPosition: context.lessonPosition,
+      lessonTitle: target.lessonTitle,
+      settings,
+      questionRows,
+      lessonHref: lessonHref(context.courseSlug, context.lessonSlug),
+    });
+  }
+
+  const now = new Date();
+  if (attempt.status === "IN_PROGRESS") {
+    if (!withinTolerance(now, attempt.expiresAt)) {
+      // Decision 6: the GET does not write — the beacon submits this id.
+      return { state: "kedaluwarsa", attemptId: attempt.id };
+    }
+    const [questionRows, optionRows, answerRows] = await Promise.all([
+      selectQuizQuestions(db, attempt.quizId),
+      selectQuizOptions(db, attempt.quizId),
+      selectAttemptAnswers(db, attempt.id),
+    ]);
+    return toQuizRunningDTO({
+      attemptId: attempt.id,
+      questionOrder: attempt.questionOrder,
+      expiresAt: attempt.expiresAt,
+      serverNow: now,
+      settings,
+      questionRows,
+      optionRows,
+      answerRows,
+    });
+  }
+
+  // SUBMITTED / EXPIRED — the result screen. The option order is rebuilt
+  // from the SAME seed as the running screen (decision 8), so review shows
+  // exactly what the participant saw.
+  const [questionRows, optionRows, answerRows] = await Promise.all([
+    selectQuizQuestions(db, attempt.quizId),
+    selectQuizOptions(db, attempt.quizId),
+    selectAttemptAnswers(db, attempt.id),
+  ]);
+  return toQuizResultDTO({
+    attempt,
+    settings,
+    questionRows,
+    optionRows,
+    answerRows,
+    lesson: {
+      position: context.lessonPosition,
+      title: target.lessonTitle,
+      href: lessonHref(context.courseSlug, context.lessonSlug),
+    },
+    next: context.next,
+  });
+}
+
+// --------------------------------------------------------------------- start
+
+/**
+ * "Mulai quiz" (card §1) — ONE transaction, no SELECT … FOR UPDATE: the
+ * `one_active_attempt` partial unique index is the guard, so a double-click
+ * race ends with ONE attempt row and `created: false` for the loser
+ * (QZ-08: a refresh continues the same attempt, never a second one).
+ */
+export async function startLessonQuiz(
+  actor: SessionUser,
+  input: StartQuizInput,
+): Promise<{ attemptId: string; created: boolean }> {
+  assertMemberRole(actor);
+  return db.transaction(async (tx) => {
+    const context = await loadLessonQuizContext(tx, actor.id, input.lessonId);
+    if (!context.eligible) {
+      throw new ConflictError(
+        "Tonton video sampai minimal 90 % untuk membuka quiz.",
+      );
+    }
+    if (context.quizId === null) {
+      // Defensive: the start button never renders for a lesson without a
+      // quiz; a hand-made POST still answers a 404, not a crash.
+      throw new NotFoundError("Quiz tidak ditemukan.");
+    }
+
+    const existing = await selectAttemptByQuizAndUser(
+      tx,
+      context.quizId,
+      actor.id,
+    );
+    if (existing) {
+      if (existing.status === "IN_PROGRESS") {
+        // Refresh mid-quiz continues THE attempt (QZ-08).
+        return { attemptId: existing.id, created: false };
+      }
+      // One attempt per quiz, forever (until an admin reset, QZ-19).
+      throw new ConflictError("Quiz ini sudah dikerjakan.");
+    }
+
+    const [settings, questionRows] = await Promise.all([
+      selectQuizSettings(tx, context.quizId),
+      selectQuizQuestions(tx, context.quizId),
+    ]);
+    if (!settings) {
+      throw new NotFoundError("Quiz tidak ditemukan.");
+    }
+    if (questionRows.length === 0) {
+      // Defensive: the CMS requires questions before publish; a hand-made
+      // start on an empty quiz still answers 409, never a 0-question run.
+      throw new ConflictError("Quiz ini belum bisa dikerjakan.");
+    }
+
+    const orderedIds = questionRows.map((row) => row.id);
+    const questionOrder = settings.shuffleQuestions
+      ? shuffleQuestionIds(orderedIds)
+      : orderedIds;
+    const attemptNumber = await selectNextAttemptNumber(
+      tx,
+      context.quizId,
+      actor.id,
+    );
+    const startedAt = new Date();
+    const expiresAt = new Date(
+      startedAt.getTime() + settings.durationMinutes * 60_000,
+    );
+
+    const insertedId = await insertAttempt(tx, {
+      quizId: context.quizId,
+      userId: actor.id,
+      enrollmentId: context.enrollmentId,
+      attemptNumber,
+      questionOrder,
+      startedAt,
+      expiresAt,
+    });
+    if (insertedId !== undefined) {
+      return { attemptId: insertedId, created: true };
+    }
+    // The index suppressed us — the winner's row IS the same quiz for the
+    // same participant; select it back and continue their attempt.
+    const winner = await selectAttemptByQuizAndUser(
+      tx,
+      context.quizId,
+      actor.id,
+    );
+    if (!winner || winner.status !== "IN_PROGRESS") {
+      // Unreachable: the partial index only suppresses IN_PROGRESS rows.
+      throw new Error("attempt service: suppressed insert without a live attempt");
+    }
+    return { attemptId: winner.id, created: false };
+  });
+}
+
+// ----------------------------------------------------------------- save
+
+/**
+ * Auto-save (card §1, QZ-09) — ONE transaction, lock FIRST: FOR UPDATE the
+ * attempt row (ownership in the WHERE), THEN read status/timing from the
+ * locked row, then validate question+option membership, then upsert.
+ * is_correct is never read or written here (V-01).
+ */
+export async function saveQuizAnswer(
+  actor: SessionUser,
+  input: SaveQuizAnswerInput,
+): Promise<{ savedAt: string }> {
+  assertMemberRole(actor);
+  return db.transaction(async (tx) => {
+    const attempt = await findAttemptForUpdate(tx, input.attemptId, actor.id);
+    if (!attempt) {
+      throw new NotFoundError("Quiz tidak ditemukan.");
+    }
+    if (attempt.status !== "IN_PROGRESS") {
+      throw new ConflictError("Quiz ini sudah selesai.");
+    }
+    const now = new Date();
+    if (!withinTolerance(now, attempt.expiresAt)) {
+      throw new ConflictError("Waktu quiz sudah habis.");
+    }
+    if (!attempt.questionOrder.includes(input.questionId)) {
+      throw new NotFoundError("Soal tidak ditemukan.");
+    }
+    const belongs = await selectOptionBelongsToQuestion(
+      tx,
+      input.questionId,
+      input.optionId,
+    );
+    if (!belongs) {
+      // Same message as the question miss — ids cannot be probed.
+      throw new NotFoundError("Soal tidak ditemukan.");
+    }
+    await upsertQuizAnswer(tx, {
+      attemptId: attempt.id,
+      questionId: input.questionId,
+      selectedOptionId: input.optionId,
+      answeredAt: now,
+    });
+    return { savedAt: now.toISOString() };
+  });
+}
+
+// ------------------------------------------------------------------- submit
+
+/**
+ * "Kumpulkan" (card §1) — ONE transaction, lock FIRST, idempotent. An
+ * already-final attempt returns its stored status WITHOUT regrading. The
+ * verdict follows the 15-second tolerance (decision 7): inside it →
+ * SUBMITTED, past it → EXPIRED (time spent still caps at expires_at).
+ * Grading is separate statements in a fixed order: questions (order +
+ * points), answers (selected), options (is_correct) — then the attempt
+ * row, then each answer's grade, then lesson_progress via the progress
+ * module's recorder, all on the SAME transaction.
+ */
+export async function submitQuizAttempt(
+  actor: SessionUser,
+  input: SubmitQuizInput,
+): Promise<{ status: "SUBMITTED" | "EXPIRED" }> {
+  assertMemberRole(actor);
+  return db.transaction(async (tx) => {
+    const attempt = await findAttemptForUpdate(tx, input.attemptId, actor.id);
+    if (!attempt) {
+      throw new NotFoundError("Quiz tidak ditemukan.");
+    }
+    if (attempt.status !== "IN_PROGRESS") {
+      return { status: attempt.status };
+    }
+
+    const now = new Date();
+    const status = withinTolerance(now, attempt.expiresAt)
+      ? ("SUBMITTED" as const)
+      : ("EXPIRED" as const);
+
+    const [settings, questionRows, optionRows, answerRows] = await Promise.all([
+      selectQuizSettings(tx, attempt.quizId),
+      selectQuizQuestions(tx, attempt.quizId),
+      selectQuizOptions(tx, attempt.quizId),
+      selectAttemptAnswers(tx, attempt.id),
+    ]);
+    if (!settings) {
+      throw new Error("attempt service: submit without a quiz settings row");
+    }
+    const selectedByQuestion = new Map(
+      answerRows.map((row) => [row.questionId, row.selectedOptionId]),
+    );
+    const correctByOption = new Map(
+      optionRows.map((row) => [row.id, row.isCorrect]),
+    );
+
+    let score = 0;
+    // max_score counts EVERY question of the locked question_order —
+    // unanswered ones are wrong at 0 points, not excluded (card mutation 7).
+    let maxScore = 0;
+    for (const questionId of attempt.questionOrder) {
+      const question = questionRows.find((row) => row.id === questionId);
+      if (!question) {
+        // Unreachable with valid data (question_order is locked at start).
+        throw new Error("attempt service: question_order without a row");
+      }
+      maxScore += question.points;
+      const selected = selectedByQuestion.get(questionId);
+      if (selected === undefined || selected === null) {
+        continue;
+      }
+      if (correctByOption.get(selected) === true) {
+        score += question.points;
+      }
+    }
+
+    const scorePercent =
+      maxScore > 0 ? Math.round((score / maxScore) * 10000) / 100 : 0;
+    const isPassed = scorePercent >= settings.passingScorePercent;
+
+    await finalizeAttempt(tx, {
+      attemptId: attempt.id,
+      status,
+      score,
+      maxScore,
+      scorePercent,
+      isPassed,
+      submittedAt: now,
+    });
+    for (const row of answerRows) {
+      if (row.selectedOptionId === null) continue;
+      await setAnswerGrade(tx, {
+        attemptId: attempt.id,
+        questionId: row.questionId,
+        isCorrect: correctByOption.get(row.selectedOptionId) === true,
+        pointsEarned:
+          correctByOption.get(row.selectedOptionId) === true
+            ? (questionRows.find((q) => q.id === row.questionId)?.points ?? 0)
+            : 0,
+      });
+    }
+
+    const lessonId = await selectLessonIdByQuizId(tx, attempt.quizId);
+    if (!lessonId) {
+      throw new Error("attempt service: submit without a lesson row");
+    }
+    await recordLessonQuizResult(tx, {
+      actorId: actor.id,
+      lessonId,
+      enrollmentId: attempt.enrollmentId,
+      scorePercent,
+      isPassed,
+      submittedAt: now,
+    });
+    return { status };
+  });
+}

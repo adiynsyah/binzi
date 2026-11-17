@@ -55,6 +55,7 @@ function outlineItem(
     title: `Judul materi ${position}`,
     state,
     href: state === "terkunci" ? null : HREF(position),
+    scorePercent: null,
   };
 }
 
@@ -67,6 +68,7 @@ function openDto(
     next?: OpenDTO["next"];
     progress?: OpenDTO["progress"];
     playback?: PlaybackDTO | null;
+    quiz?: OpenDTO["quiz"];
     lessonId?: string;
   } = {},
 ): OpenDTO {
@@ -81,6 +83,7 @@ function openDto(
       playback: overrides.playback ?? null,
     },
     progress: overrides.progress ?? null,
+    quiz: overrides.quiz ?? null,
     outline: overrides.outline ?? [
       outlineItem(1, "selesai"),
       outlineItem(2, "kini"),

@@ -26,6 +26,7 @@ function item(
     title: `Judul materi ${position}`,
     state,
     href: state === "terkunci" ? null : `/belajar/kursus/materi-${position}`,
+    scorePercent: null,
   };
 }
 

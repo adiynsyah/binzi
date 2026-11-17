@@ -3,6 +3,7 @@
 // role before any input parsing (guard order, src/modules/README.md).
 // Everything the learner dashboard does is MEMBER+ (PRD §3.2); the route
 // layer checks the same minimum, so the two layers agree by construction.
+import type { videoStatusEnum } from "@/db/schema";
 import { roleAtLeast, type SessionUser } from "@/lib/rbac";
 import { ForbiddenError } from "@/lib/errors";
 
@@ -61,4 +62,27 @@ export function firstOpenUnattempted(
     return position;
   }
   return null;
+}
+
+// ------------------------------------------------------------- S3-01 quiz gate
+
+/**
+ * The quiz unlock threshold (CRS-08 via card S3-01): the watched percent at
+ * which a lesson's quiz opens. `>=` — 90.00 already counts (mutation 14 of
+ * the card guards exactly this boundary).
+ */
+export const QUIZ_UNLOCK_PERCENT = 90;
+
+/**
+ * Is the lesson's quiz open for this participant (card S3-01 §1)? A lesson
+ * without a READY video carries no video requirement — its quiz is eligible
+ * from the first open. `videoWatchedPercent` is the NUMERIC string as it
+ * leaves the driver (NULL = no progress row yet = 0).
+ */
+export function isQuizEligible(row: {
+  videoStatus: (typeof videoStatusEnum.enumValues)[number];
+  videoWatchedPercent: string | null;
+}): boolean {
+  if (row.videoStatus !== "READY") return true;
+  return Number(row.videoWatchedPercent ?? 0) >= QUIZ_UNLOCK_PERCENT;
 }

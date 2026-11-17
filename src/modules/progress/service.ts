@@ -8,24 +8,29 @@ import { UUID_PATTERN } from "@/modules/course/schema";
 import { db } from "@/db";
 
 import type { VideoProgressInput } from "./schema";
-import { assertMemberRole, isLessonUnlocked } from "./policy";
+import { assertMemberRole, isLessonUnlocked, isQuizEligible } from "./policy";
 import {
   enrollUserInCourse,
   findLessonInPublishedCourse,
   selectAvailableCourses,
   selectEnrolledCourses,
   selectEnrollmentForCourse,
+  selectLessonVideoGate,
   selectOpenLesson,
+  selectOpenLessonQuiz,
   selectOutlineRows,
   selectPublishedCourseBySlug,
   setEnrollmentLastLesson,
   upsertLessonOpen,
+  upsertLessonQuizResult,
   upsertLessonVideoProgress,
+  type DbOrTx,
   type DbTx,
   type LessonGateLookup,
 } from "./queries";
 import {
   lessonHref,
+  quizHref,
   resolvePlayback,
   toEnrolledCourseDTO,
   toLearnerCourseDTO,
@@ -38,11 +43,13 @@ import {
   type LessonOutlineItemDTO,
   type LessonOutlineRow,
   type LessonPageDTO,
+  type OpenQuizDTO,
+  type OpenQuizRow,
   type PlaybackDTO,
   type VideoProgressResultDTO,
 } from "./serializer";
 
-export { lessonHref };
+export { lessonHref, quizHref };
 export type {
   EnrollResultDTO,
   LearnerCourseDTO,
@@ -51,6 +58,8 @@ export type {
   LessonPageDTO,
   LessonOutlineItemDTO,
   LessonCourseDTO,
+  OpenQuizDTO,
+  OpenQuizRow,
   PlaybackDTO,
   VideoProgressResultDTO,
 };
@@ -120,7 +129,7 @@ type UnlockedLessonContext = {
  * this course's lesson) is the SAME 404; a locked lesson is 409.
  */
 async function loadUnlockedLessonContext(
-  tx: DbTx,
+  tx: DbOrTx,
   actorId: string,
   lessonId: string,
 ): Promise<UnlockedLessonContext> {
@@ -155,10 +164,12 @@ async function loadUnlockedLessonContext(
 }
 
 /**
- * The lesson page (card S2-01 §1, S2-02 §3) — a pure GET: three SELECTs
- * (course, enrollment, outline) and a FOURTH for the document + video
- * source, run only when the state is `open` (V-06: the material AND the
- * video id of a locked lesson are never read, not just never shown).
+ * The lesson page (card S2-01 §1, S2-02 §3, S3-01 §4.A) — a pure GET: three
+ * SELECTs (course, enrollment, outline) and a FOURTH for the document +
+ * video source, run only when the state is `open` (V-06: the material AND
+ * the video id of a locked lesson are never read, not just never shown).
+ * Card S3-01 adds the open lesson's quiz summary to that fourth read —
+ * still GET-only, still gated on `open`.
  */
 export async function getLessonPage(
   actor: SessionUser,
@@ -180,9 +191,13 @@ export async function getLessonPage(
   const willOpen =
     enrollment !== undefined &&
     isLessonUnlocked(targetIndex + 1, gateRows, course.isSequential);
-  const openRow = willOpen
-    ? await selectOpenLesson(outline[targetIndex]!.id)
-    : undefined;
+  const targetId = outline[targetIndex]!.id;
+  const [openRow, quizRow] = willOpen
+    ? await Promise.all([
+        selectOpenLesson(targetId),
+        selectOpenLessonQuiz(targetId, actor.id),
+      ])
+    : [undefined, undefined];
   return toLessonPageDTO({
     course,
     enrollment,
@@ -190,6 +205,7 @@ export async function getLessonPage(
     targetIndex,
     content: openRow?.content ?? null,
     playback: openRow ? resolvePlayback(openRow) : null,
+    quizRow: quizRow ?? null,
   });
 }
 
@@ -260,5 +276,90 @@ export async function recordVideoProgress(
       positionSeconds: stored.videoLastPositionSeconds,
       watchedPercent: Number(stored.videoWatchedPercent),
     };
+  });
+}
+
+// ------------------------------------------------------------- S3-01 quiz
+
+/** What the attempt module needs to know about a lesson (card S3-01 §1):
+ *  the wrap of loadUnlockedLessonContext over the SAME rows the lesson page
+ *  reads, plus the quiz gate + the next-lesson pointer the quiz page shows
+ *  on its result screen. */
+export type LessonQuizContext = {
+  enrollmentId: string;
+  /** lessons.quiz_id — null when the lesson has no quiz (defensive 404 in
+   *  the attempt service; a quiz card never rendered for such a lesson). */
+  quizId: string | null;
+  courseSlug: string;
+  lessonSlug: string;
+  lessonPosition: number;
+  /** The video gate (CRS-08): watched percent ≥ 90 or no READY video. */
+  eligible: boolean;
+  next: { position: number; href: string } | null;
+};
+
+/**
+ * The attempt module's entry into this module's gate (card S3-01 §1) —
+ * runs INSIDE the caller's transaction so start/submit decide on rows the
+ * lesson page would agree with. Throws the same errors as the open/video
+ * paths: uniform 404 for every miss, 409 for a locked lesson.
+ */
+export async function loadLessonQuizContext(
+  tx: DbOrTx,
+  actorId: string,
+  lessonId: string,
+): Promise<LessonQuizContext> {
+  const context = await loadUnlockedLessonContext(tx, actorId, lessonId);
+  const target = context.outline[context.targetIndex]!;
+  const nextRow = context.outline[context.targetIndex + 1];
+  return {
+    enrollmentId: context.enrollmentId,
+    quizId: context.lesson.quizId,
+    courseSlug: context.course.slug,
+    lessonSlug: target.slug,
+    lessonPosition: context.targetIndex + 1,
+    eligible: isQuizEligible(target),
+    next: nextRow
+      ? {
+          position: context.targetIndex + 2,
+          href: lessonHref(context.course.slug, nextRow.slug),
+        }
+      : null,
+  };
+}
+
+/**
+ * Record a lesson-quiz result INTO the caller's (submit) transaction (card
+ * S3-01 §1): quiz_attempted + score columns always; status reaches
+ * COMPLETED — with completed_at, only-if-null — exactly when the video
+ * requirement is met (CRS-08: video ≥ 90 % OR no READY video; quiz
+ * attempted, passing NOT required). The lesson_progress row may not exist
+ * yet (quiz-first visit); enrollments and courses are untouched.
+ */
+export async function recordLessonQuizResult(
+  tx: DbTx,
+  input: {
+    actorId: string;
+    lessonId: string;
+    enrollmentId: string;
+    scorePercent: number;
+    isPassed: boolean;
+    submittedAt: Date;
+  },
+): Promise<void> {
+  const gate = await selectLessonVideoGate(tx, input.actorId, input.lessonId);
+  if (!gate) {
+    // Unreachable with valid data (the attempt's quiz belongs to a lesson
+    // row) — fail loud rather than recording progress for a ghost lesson.
+    throw new Error("progress service: quiz result without a lesson row");
+  }
+  await upsertLessonQuizResult(tx, {
+    actorId: input.actorId,
+    lessonId: input.lessonId,
+    enrollmentId: input.enrollmentId,
+    videoRequirementMet: isQuizEligible(gate),
+    scorePercent: input.scorePercent,
+    isPassed: input.isPassed,
+    submittedAt: input.submittedAt,
   });
 }
