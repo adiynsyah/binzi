@@ -38,6 +38,7 @@ import {
   toQuizRulesDTO,
   type LessonQuizPageDTO,
   type QuizResultDTO,
+  type QuizResultItemDTO,
   type QuizRulesDTO,
   type QuizRunningDTO,
 } from "./serializer";
@@ -45,6 +46,7 @@ import {
 export type {
   LessonQuizPageDTO,
   QuizResultDTO,
+  QuizResultItemDTO,
   QuizRulesDTO,
   QuizRunningDTO,
 };

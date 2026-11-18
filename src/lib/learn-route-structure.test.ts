@@ -1,13 +1,15 @@
-// Route-structure test (cards S5-01 §6 + S2-01 §5): loading.tsx for
-// /belajar must live in the `(dashboard)` route GROUP, never directly in
-// belajar/ or (learn)/, and NEVER in the material route folders.
+// Route-structure test (cards S5-01 §6 + S2-01 §5 + S3-01 §5): loading.tsx
+// for /belajar must live in the `(dashboard)` route GROUP, never directly
+// in belajar/ or (learn)/, and NEVER in the material route folders.
 // Verified against a real Next 16.4.1 app (cards "Catatan tinjauan" 10–11
 // Nov): a loading.tsx in belajar/ (or in [slug]/ / [materi]/) wraps the
 // child page's notFound() into a 200 (and redirect() into 200 + meta
 // refresh) — with no fallback the answers are the real 200 / 404 / 307.
-// The future quiz route /belajar/[slug]/[materi]/quiz sits UNDER [materi]/,
-// so its loading.tsx (quiz card) is governed by the same rule. This test
-// fails the day someone "tidies" a file into the wrong folder.
+// The quiz route /belajar/[slug]/[materi]/quiz sits UNDER [materi]/, so
+// its loading.tsx (quiz card §5) is governed by the same rule — the
+// kedaluwarsa beacon's router.refresh() must not flash a fallback between
+// the expired screen and the result. This test fails the day someone
+// "tidies" a file into the wrong folder.
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -65,6 +67,42 @@ describe("material route structure (card S2-01 §5)", () => {
           "belajar",
           "[slug]",
           "[materi]",
+          "loading.tsx",
+        ),
+      ),
+    ).toBe(false);
+  });
+});
+
+describe("quiz route structure (card S3-01 §5)", () => {
+  it("has the quiz page at belajar/[slug]/[materi]/quiz/page.tsx", () => {
+    expect(
+      existsSync(
+        join(
+          APP_DIR,
+          "(learn)",
+          "belajar",
+          "[slug]",
+          "[materi]",
+          "quiz",
+          "page.tsx",
+        ),
+      ),
+    ).toBe(true);
+  });
+
+  it("has no loading.tsx in [materi]/quiz/ — no fallback before hasil", () => {
+    // The kedaluwarsa beacon POSTs then refreshes; a loading fallback here
+    // would answer 200 between the expired screen and the result render.
+    expect(
+      existsSync(
+        join(
+          APP_DIR,
+          "(learn)",
+          "belajar",
+          "[slug]",
+          "[materi]",
+          "quiz",
           "loading.tsx",
         ),
       ),
