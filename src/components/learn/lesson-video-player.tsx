@@ -16,6 +16,7 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from "react";
+import { useRouter } from "next/navigation";
 
 import { Banner } from "@/components/ui/banner";
 import type { PlaybackDTO } from "@/modules/progress/service";
@@ -39,6 +40,13 @@ export function LessonVideoPlayer(props: {
   lessonTitle: string;
   playback: PlaybackDTO;
   resumeFromSeconds: number;
+  /**
+   * Card S3-01 §3 (keputusan 9): the page passes 90 while the quiz is
+   * locked behind the video; the FIRST recorded watchedPercent ≥ value
+   * triggers ONE router.refresh() so the start button comes alive without
+   * a reload. Undefined → no refresh watching at all.
+   */
+  refreshAtPercent?: number;
 }) {
   const origin = useSyncExternalStore(
     subscribeToNothing,
@@ -59,6 +67,24 @@ export function LessonVideoPlayer(props: {
 
   const handleRef = useRef<YouTubeEngineHandle | null>(null);
 
+  // ---- the live quiz-unlock refresh (card S3-01 §3) -----------------------
+  // router.refresh and refreshAtPercent both change AFTER the refresh lands
+  // (new DTO), but the reporter effect below must keep depending on
+  // lessonId ONLY: re-running it would dispose + recreate the reporter
+  // mid-playback, and the new reporter never receives .playing() — progress
+  // recording would silently stop. Both values cross that boundary through
+  // refs updated by their own effects.
+  const router = useRouter();
+  const refreshRef = useRef(router.refresh);
+  useEffect(() => {
+    refreshRef.current = router.refresh;
+  }, [router]);
+  const refreshAtPercentRef = useRef(props.refreshAtPercent);
+  useEffect(() => {
+    refreshAtPercentRef.current = props.refreshAtPercent;
+  }, [props.refreshAtPercent]);
+  const refreshedRef = useRef(false);
+
   // One reporter per lessonId; lesson-page.tsx keys THIS component by
   // lesson.id, so moving between lessons disposes the old reporter and
   // mounts a fresh player (review item 3 / mutation 10).
@@ -68,6 +94,14 @@ export function LessonVideoPlayer(props: {
       lessonId: props.lessonId,
       read: () =>
         handleRef.current?.read() ?? { positionSeconds: 0, durationSeconds: 0 },
+      onRecorded: ({ watchedPercent }) => {
+        const threshold = refreshAtPercentRef.current;
+        if (threshold === undefined || refreshedRef.current) return;
+        if (watchedPercent >= threshold) {
+          refreshedRef.current = true;
+          refreshRef.current();
+        }
+      },
     });
     reporterRef.current = reporter;
     return () => {

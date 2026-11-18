@@ -1,7 +1,8 @@
-// LessonOutlineNav (card S2-01 §4.B) — the <ol> of course lessons, one
-// component rendered in BOTH "Daftar materi" places (the ≥1024 side card
-// and the <1024 <details>). Server component; the gate decided the states
-// server-side, "terkunci" rows are plain text (never links).
+// LessonOutlineNav (card S2-01 §4.B, S3-01 §3 PRG-10) — the <ol> of course
+// lessons, one component rendered in BOTH "Daftar materi" places (the
+// ≥1024 side card and the <1024 <details>). Server component; the gate
+// decided the states server-side, "terkunci" rows are plain text (never
+// links), attempted quizzes carry their score on the row's right side.
 import Link from "next/link";
 import { Check, Lock } from "lucide-react";
 
@@ -95,6 +96,13 @@ export function LessonOutlineNav({
               {isKini ? (
                 <span className="ml-auto shrink-0 text-xs font-semibold text-primary-deep">
                   kini
+                </span>
+              ) : item.scorePercent !== null ? (
+                // PRG-10: the recorded quiz score on the row's right side
+                // (7d, text-success, small bold). The kini row keeps its
+                // "kini" label even when a score exists.
+                <span className="ml-auto shrink-0 font-mono text-xs font-semibold text-success">
+                  {item.scorePercent}
                 </span>
               ) : null}
             </Link>

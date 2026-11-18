@@ -20,6 +20,7 @@ vi.mock("next/link", () => ({
 function item(
   position: number,
   state: LessonOutlineItemDTO["state"],
+  overrides: Partial<LessonOutlineItemDTO> = {},
 ): LessonOutlineItemDTO {
   return {
     position,
@@ -27,6 +28,7 @@ function item(
     state,
     href: state === "terkunci" ? null : `/belajar/kursus/materi-${position}`,
     scorePercent: null,
+    ...overrides,
   };
 }
 
@@ -76,5 +78,39 @@ describe("LessonOutlineNav", () => {
         .find((node) => node.getAttribute("href") === expected);
       expect(link, expected).toBeTruthy();
     }
+  });
+
+  it("PRG-10: an attempted quiz shows its score right of the row (text-success)", () => {
+    render(
+      <LessonOutlineNav
+        outline={[
+          item(1, "selesai", { scorePercent: 80 }),
+          item(2, "kini"),
+          item(3, "terbuka"),
+        ]}
+      />,
+    );
+    const score = screen.getByText("80");
+    expect(score.className).toContain("text-success");
+    const row = score.closest("a");
+    expect(row).not.toBeNull();
+    expect(row!.textContent).toContain("1 · Judul materi 1");
+  });
+
+  it("the kini row keeps its “kini” label even with a score", () => {
+    render(
+      <LessonOutlineNav
+        outline={[item(1, "selesai"), item(2, "kini", { scorePercent: 100 })]}
+      />,
+    );
+    const kini = screen.getByText("2 · Judul materi 2").closest("a");
+    expect(kini).not.toBeNull();
+    expect(kini!.textContent).toContain("kini");
+    expect(within(kini as HTMLElement).queryByText("100")).toBeNull();
+  });
+
+  it("rows without an attempted quiz show no score", () => {
+    render(<LessonOutlineNav outline={OUTLINE} />);
+    expect(screen.queryByText(/^\d+$/)).toBeNull();
   });
 });

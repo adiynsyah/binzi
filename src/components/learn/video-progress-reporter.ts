@@ -19,11 +19,20 @@
 // - 401/404/409 → stop sending for this lesson (session gone, lesson gone,
 //   or locked again); network errors and 5xx are silently ignored (the
 //   S2-01 beacon pattern — reading is never blocked by the recording).
+// - `lastSent` is recorded ONLY on response.ok (S2-02 review finding 3):
+//   a 5xx must leave the last success in place so the next tick retries.
+// - onRecorded (card S3-01 §3, keputusan 9) fires after a 2xx with the
+//   route's `data` JSON — the live signal the player refreshes on.
 
 export type VideoProgressPayload = {
   lessonId: string;
   positionSeconds: number;
   durationSeconds: number;
+};
+
+export type VideoProgressRecord = {
+  positionSeconds: number;
+  watchedPercent: number;
 };
 
 export type VideoProgressSend = (
@@ -58,6 +67,7 @@ export function createVideoProgressReporter(config: {
   lessonId: string;
   read(): { positionSeconds: number; durationSeconds: number };
   send?: VideoProgressSend;
+  onRecorded?(result: VideoProgressRecord): void;
 }): VideoProgressReporter {
   const send = config.send ?? defaultSend;
   let timer: ReturnType<typeof setInterval> | null = null;
@@ -115,7 +125,31 @@ export function createVideoProgressReporter(config: {
         stopTimer();
         return;
       }
-      lastSent = snapshot;
+      // Only a 2xx confirms the send: a 5xx must NOT become `lastSent` or
+      // the position would never be retried (S2-02 review finding 3).
+      if (response.ok) {
+        lastSent = snapshot;
+        if (config.onRecorded) {
+          try {
+            const body = (await response.json()) as {
+              data?: Partial<VideoProgressRecord>;
+            };
+            const data = body.data;
+            if (
+              typeof data?.positionSeconds === "number" &&
+              typeof data?.watchedPercent === "number"
+            ) {
+              config.onRecorded({
+                positionSeconds: data.positionSeconds,
+                watchedPercent: data.watchedPercent,
+              });
+            }
+          } catch {
+            // Body not JSON (e.g. 204): the recording itself succeeded —
+            // only the live refresh signal is skipped.
+          }
+        }
+      }
     } catch {
       // Network failure / thrown rejection: ignored — the next event or
       // tick retries. Never surfaces on the page.

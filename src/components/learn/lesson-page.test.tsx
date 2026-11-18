@@ -12,9 +12,10 @@ import type {
   PlaybackDTO,
 } from "@/modules/progress/service";
 
-// Card S2-01 §4 + "Selesai jika · Tes komponen": the three page states with
-// exactly one h1 each, the three bottom-bar `next` forms (and no prev at
-// position 1), the summary counts, and the not-enrolled wiring.
+// Card S2-01 §4 + "Selesai jika · Tes komponen" (S3-01 §3 adds the quiz
+// right slot): the three page states with exactly one h1 each, the three
+// bottom-bar `next` forms (and no prev at position 1), the quiz card's
+// four right-slot states, the summary counts, and the not-enrolled wiring.
 //
 // jsdom does NOT apply CSS, so `hidden lg:block` / `lg:hidden` never hide
 // anything: LessonOutlineNav genuinely renders TWICE per page here. The
@@ -60,6 +61,19 @@ function outlineItem(
 }
 
 type OpenDTO = Extract<LessonPageDTO, { state: "open" }>;
+
+/** The open lesson's quiz card (card S3-01 §3) — "belum + eligible". */
+function quizCard(overrides: Partial<NonNullable<OpenDTO["quiz"]>> = {}) {
+  return {
+    state: "belum" as const,
+    eligible: true,
+    title: "Quiz Judul materi 2",
+    questionCount: 5,
+    durationMinutes: 10,
+    href: `${HREF(2)}/quiz`,
+    ...overrides,
+  };
+}
 
 function openDto(
   overrides: {
@@ -211,7 +225,7 @@ describe("LessonPage — open state", () => {
     ).toBeNull();
   });
 
-  it("bottom bar: locked successor → the quiz note, no next link", () => {
+  it("bottom bar: no quiz + locked successor → the S2-01 note, no next link", () => {
     render(
       <LessonPage
         data={openDto({ next: { kind: "terkunci", position: 3 } })}
@@ -223,6 +237,87 @@ describe("LessonPage — open state", () => {
     expect(
       screen.getByText("Materi 3 terbuka setelah quiz materi ini dikerjakan."),
     ).toBeTruthy();
+  });
+
+  it("bottom bar: quiz belum + eligible → the start button replaces the note", () => {
+    render(
+      <LessonPage
+        data={openDto({
+          next: { kind: "terkunci", position: 3 },
+          quiz: quizCard(),
+        })}
+      />,
+    );
+    expect(
+      screen.getByRole("button", { name: "Tandai selesai & mulai quiz" }),
+    ).toBeTruthy();
+    expect(screen.queryByText(/terbuka setelah quiz/)).toBeNull();
+    expect(
+      screen.queryByRole("link", { name: "Materi berikutnya" }),
+    ).toBeNull();
+  });
+
+  it("bottom bar: quiz belum + !eligible → soft-disabled start + the watch line", () => {
+    render(
+      <LessonPage
+        data={openDto({
+          next: { kind: "terkunci", position: 3 },
+          quiz: quizCard({ eligible: false }),
+        })}
+      />,
+    );
+    const button = screen.getByRole("button", {
+      name: "Tandai selesai & mulai quiz",
+    });
+    expect(button.getAttribute("aria-disabled")).toBe("true");
+    const describedBy = button.getAttribute("aria-describedby");
+    expect(describedBy).toBeTruthy();
+    expect(document.getElementById(describedBy ?? "")?.textContent).toBe(
+      "Tonton video sampai minimal 90 % untuk membuka quiz.",
+    );
+    // The locked variant opens no dialog.
+    fireEvent.click(button);
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("bottom bar: quiz berjalan → the primary continue link, no next link", () => {
+    render(
+      <LessonPage data={openDto({ quiz: quizCard({ state: "berjalan" }) })} />,
+    );
+    const link = screen.getByRole("link", { name: "Lanjutkan quiz" });
+    expect(link.getAttribute("href")).toBe(`${HREF(2)}/quiz`);
+    expect(
+      screen.queryByRole("link", { name: "Materi berikutnya" }),
+    ).toBeNull();
+  });
+
+  it("bottom bar: quiz selesai → result link + the S2-01 next link", () => {
+    render(
+      <LessonPage data={openDto({ quiz: quizCard({ state: "selesai" }) })} />,
+    );
+    const result = screen.getByRole("link", {
+      name: "Lihat Hasil & Pembahasan",
+    });
+    expect(result.getAttribute("href")).toBe(`${HREF(2)}/quiz`);
+    expect(
+      screen
+        .getByRole("link", { name: "Materi berikutnya" })
+        .getAttribute("href"),
+    ).toBe(HREF(3));
+  });
+
+  it("bottom bar: quiz selesai + last lesson → result link only", () => {
+    render(
+      <LessonPage
+        data={openDto({ next: null, quiz: quizCard({ state: "selesai" }) })}
+      />,
+    );
+    expect(
+      screen.getByRole("link", { name: "Lihat Hasil & Pembahasan" }),
+    ).toBeTruthy();
+    expect(
+      screen.queryByRole("link", { name: "Materi berikutnya" }),
+    ).toBeNull();
   });
 
   it("bottom bar: last lesson → neither next link nor note", () => {

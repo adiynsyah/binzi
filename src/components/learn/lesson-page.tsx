@@ -1,8 +1,8 @@
-// LessonPage (card S2-01 §4) — every state of /belajar/{kursus}/{materi}
-// over the LessonPageDTO: the course bar (all states), then open (7d
-// content + bottom bar + outline), locked (EmptyState panel + outline),
-// or not-enrolled (dashed panel, no outline). Server component — pure
-// render; the gate ran in the service.
+// LessonPage (card S2-01 §4, S3-01 §3) — every state of
+// /belajar/{kursus}/{materi} over the LessonPageDTO: the course bar (all
+// states), then open (7d content + bottom bar + outline), locked
+// (EmptyState panel + outline), or not-enrolled (dashed panel, no
+// outline). Server component — pure render; the gate ran in the service.
 //
 // "Daftar materi" is ONE component (LessonOutlineNav) rendered in TWO
 // places: the ≥1024 side card (hidden lg:block) and the <1024 <details>
@@ -17,6 +17,7 @@ import { LessonNotEnrolled } from "@/components/learn/lesson-not-enrolled";
 import { LessonOpenBeacon } from "@/components/learn/lesson-open-beacon";
 import { LessonOutlineNav } from "@/components/learn/lesson-outline-nav";
 import { LessonVideoPlayer } from "@/components/learn/lesson-video-player";
+import { QuizStartButton } from "@/components/learn/quiz-start-button";
 import { PageContainer } from "@/components/shared/page-container";
 import { RichContent } from "@/components/shared/rich-content";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -83,6 +84,16 @@ type OpenDTO = Extract<LessonPageDTO, { state: "open" }>;
 type LockedDTO = Extract<LessonPageDTO, { state: "locked" }>;
 
 function OpenState({ data }: { data: OpenDTO }) {
+  // The quiz card decides the bottom bar's right slot (card S3-01 §3):
+  // with a quiz, its state replaces S2-01's locked-successor note; the
+  // S2-01 next-link logic survives only alongside "selesai" (and unchanged
+  // when the lesson has no quiz at all).
+  const quiz = data.quiz;
+  // 90 only while the quiz is gated behind the video (card §3): the FIRST
+  // watchedPercent ≥ 90 triggers one router.refresh() in the player, which
+  // turns the soft-disabled start button alive without a reload.
+  const refreshAtPercent =
+    quiz !== null && quiz.state === "belum" && !quiz.eligible ? 90 : undefined;
   // The video player sits in the main column ABOVE the h1 (7d); the key on
   // lesson.id remounts player + reporter when a <Link> moves to another
   // lesson (card §6). h1 only needs its top margin when a player exists.
@@ -93,6 +104,7 @@ function OpenState({ data }: { data: OpenDTO }) {
       lessonTitle={data.lesson.title}
       playback={data.lesson.playback}
       resumeFromSeconds={data.progress?.videoLastPositionSeconds ?? 0}
+      refreshAtPercent={refreshAtPercent}
     />
   ) : null;
   return (
@@ -113,24 +125,58 @@ function OpenState({ data }: { data: OpenDTO }) {
               Materi sebelumnya
             </Link>
           ) : null}
-          <div className="ml-auto flex items-center">
-            {data.next?.kind === "link" ? (
+          <div className="ml-auto flex flex-wrap items-center justify-end gap-3">
+            {quiz === null ? (
+              // No quiz on this lesson → the S2-01 right slot verbatim.
+              data.next?.kind === "link" ? (
+                <Link
+                  href={data.next.href}
+                  className={cn(
+                    buttonVariants({ variant: "secondary" }),
+                    "gap-2",
+                  )}
+                >
+                  Materi berikutnya
+                  <ArrowRight className="size-4" aria-hidden="true" />
+                </Link>
+              ) : data.next?.kind === "terkunci" ? (
+                <p className="text-sm text-text-meta">
+                  Materi {data.next.position} terbuka setelah quiz materi ini
+                  dikerjakan.
+                </p>
+              ) : null
+            ) : quiz.state === "belum" ? (
+              <QuizStartButton quiz={quiz} />
+            ) : quiz.state === "berjalan" ? (
               <Link
-                href={data.next.href}
-                className={cn(
-                  buttonVariants({ variant: "secondary" }),
-                  "gap-2",
-                )}
+                href={quiz.href}
+                className={cn(buttonVariants(), "gap-2")}
               >
-                Materi berikutnya
+                Lanjutkan quiz
                 <ArrowRight className="size-4" aria-hidden="true" />
               </Link>
-            ) : data.next?.kind === "terkunci" ? (
-              <p className="text-sm text-text-meta">
-                Materi {data.next.position} terbuka setelah quiz materi ini
-                dikerjakan.
-              </p>
-            ) : null}
+            ) : (
+              <>
+                <Link
+                  href={quiz.href}
+                  className={buttonVariants({ variant: "secondary" })}
+                >
+                  Lihat Hasil &amp; Pembahasan
+                </Link>
+                {data.next?.kind === "link" ? (
+                  <Link
+                    href={data.next.href}
+                    className={cn(
+                      buttonVariants({ variant: "secondary" }),
+                      "gap-2",
+                    )}
+                  >
+                    Materi berikutnya
+                    <ArrowRight className="size-4" aria-hidden="true" />
+                  </Link>
+                ) : null}
+              </>
+            )}
           </div>
         </div>
         {/* Records "materi dibuka" after render — the GET above never
