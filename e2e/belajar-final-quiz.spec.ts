@@ -286,7 +286,16 @@ test("1. alur utuh: hasil materi 2 → Final terbuka → aturan 60/40 → 80 →
   await expect(
     page.getByText("Soal 1 dari 10 · Satu kesempatan"),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Soal 10, belum dijawab" }).click();
+  // The API answered the first 8 questions in DB order, but the runner
+  // shuffles the display order per attempt — the two unanswered chips land
+  // on different numbers every run. Assert the COUNT, then jump via the
+  // desktop aside's navigator (the mobile copy is lg:hidden at 1280).
+  const aside = page.locator("aside");
+  await expect(
+    aside.getByRole("button", { name: /belum dijawab/ }),
+    "8 answer disimpan — dua chip masih belum dijawab",
+  ).toHaveCount(2);
+  await aside.getByRole("button", { name: /Soal 10/ }).click();
   await page.getByRole("button", { name: "Lihat ringkasan" }).click();
   await expect(
     page.getByText("8 dijawab · 2 belum dijawab · 0 ragu-ragu"),
