@@ -109,3 +109,33 @@ describe("quiz route structure (card S3-01 §5)", () => {
     ).toBe(false);
   });
 });
+
+describe("final quiz route structure (card S5-02 §6)", () => {
+  it("has the Final Quiz page at belajar/[slug]/final-quiz/page.tsx", () => {
+    // The static segment `final-quiz` wins over [materi]; the lesson slug
+    // "final-quiz" itself is rejected in lesson/queries.ts.
+    expect(
+      existsSync(
+        join(APP_DIR, "(learn)", "belajar", "[slug]", "final-quiz", "page.tsx"),
+      ),
+    ).toBe(true);
+  });
+
+  it("has no loading.tsx in [slug]/final-quiz/ — 404/307 must stay 404/307", () => {
+    // Same S2-01 sandbox finding as [materi]/quiz: with a fallback,
+    // notFound() answers 200 and the `kembali` redirect answers 200 with a
+    // meta refresh instead of a 307.
+    expect(
+      existsSync(
+        join(
+          APP_DIR,
+          "(learn)",
+          "belajar",
+          "[slug]",
+          "final-quiz",
+          "loading.tsx",
+        ),
+      ),
+    ).toBe(false);
+  });
+});

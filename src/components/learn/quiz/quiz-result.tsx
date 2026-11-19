@@ -48,7 +48,9 @@ function ItemVerdictPill({ correct }: { correct: boolean }) {
   );
 }
 
-function ResultItem({ item }: { item: QuizResultItemDTO }) {
+/** The per-question review card — shared as-is by the Final Quiz result
+ *  screen (card S5-02 §4.D); its look does not change. */
+export function ResultItem({ item }: { item: QuizResultItemDTO }) {
   const selected = item.options.find((option) => option.selected) ?? null;
   // Unanswered counts as wrong — "Salah" — and the key shows for every
   // wrong answer WHEN the policy reveals it (correct === null = hidden).

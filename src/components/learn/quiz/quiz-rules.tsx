@@ -6,16 +6,17 @@
 // one attempt; every state-changing answer (201 new, 200 resumed, 409
 // finalized-or-gated) is handled by router.refresh() — the GET re-renders
 // into berjalan / hasil / kembali. Only a transport failure keeps the
-// participant here, with the Banner (usulan copy from the card).
+// participant here, with the Banner (usulan copy from the card). The
+// button brain lives in useQuizStart, shared with FinalQuizRules (S5-02).
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
 
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { cn } from "@/lib/utils";
 import type { QuizRulesDTO } from "@/modules/attempt/service";
+
+import { useQuizStart } from "./use-quiz-start";
 
 const START_FAILED_MESSAGE =
   "Quiz belum dimulai. Periksa koneksi lalu coba lagi.";
@@ -29,11 +30,9 @@ const EXPLANATION_RULES: Record<QuizRulesDTO["explanationPolicy"], string> = {
 };
 
 export function QuizRules({ data }: { data: QuizRulesDTO }) {
-  const router = useRouter();
-  const buttonRef = useRef<HTMLButtonElement | null>(null);
-  const inFlight = useRef(false);
-  const [starting, setStarting] = useState(false);
-  const [failed, setFailed] = useState(false);
+  const { start, starting, failed, buttonRef } = useQuizStart(
+    `/api/quiz/lessons/${data.lessonId}/attempt`,
+  );
 
   const rules = [
     `${data.questionCount} soal${
@@ -46,42 +45,8 @@ export function QuizRules({ data }: { data: QuizRulesDTO }) {
     `Lulus di nilai ≥ ${data.passingScorePercent} — tidak lulus pun materi tetap tercatat selesai`,
   ];
 
-  async function handleStart() {
-    if (inFlight.current) return;
-    inFlight.current = true;
-    setStarting(true);
-    setFailed(false);
-    try {
-      const response = await fetch(
-        `/api/quiz/lessons/${data.lessonId}/attempt`,
-        { method: "POST" },
-      );
-      // 201 new · 200 resumed (QZ-08) · 409 finalized or video gate — in
-      // every case the refreshed GET lands on the right state.
-      if (
-        response.status === 201 ||
-        response.status === 200 ||
-        response.status === 409
-      ) {
-        router.refresh();
-        return; // loading + inFlight stay on until the refresh lands
-      }
-      setFailed(true);
-    } catch {
-      setFailed(true);
-    }
-    setStarting(false);
-    inFlight.current = false;
-  }
-
   // Focus returns to the button after the re-render that clears loading
   // (the disabled attribute drops focus to <body> — lesson 4 Nov).
-  useEffect(() => {
-    if (failed) {
-      buttonRef.current?.focus();
-    }
-  }, [failed]);
-
   return (
     <div className="mx-auto max-w-2xl">
       <p className="font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-primary-deep">
@@ -122,7 +87,7 @@ export function QuizRules({ data }: { data: QuizRulesDTO }) {
       <div className="mt-6 flex flex-col gap-3 sm:flex-row">
         <Button
           ref={buttonRef}
-          onClick={handleStart}
+          onClick={start}
           loading={starting}
           loadingLabel="Memulai…"
           className="sm:flex-1"
