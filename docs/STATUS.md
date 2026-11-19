@@ -1,9 +1,226 @@
 # Status Proyek BINZI — catatan untuk melanjutkan di chat baru
 
-> Terakhir diperbarui: 16 Nov 2026. File ini dikelola manual (bukan oleh agent) dan hanya untuk melanjutkan percakapan dengan Claude.
+> Terakhir diperbarui: 19 Nov 2026. File ini dikelola manual (bukan oleh agent) dan hanya untuk melanjutkan percakapan dengan Claude.
 > Untuk melanjutkan: buka chat baru, unggah file ini + `docs/tasks/URUTAN-KERJA.md`, lalu pakai prompt di bagian paling bawah.
 
-## Pembaruan 16 Nov 2026 — S2-02 di-merge, kartu S3-01 quiz materi siap, jalur data demo diputuskan (baca ini dulu, lalu 14 Nov, 11 Nov, 10 Nov, 9 Nov, 8 Nov, 7 Nov, 6 Nov, 4 Nov malam, 4 Nov, dan 3 Nov)
+## Pembaruan 19 Nov 2026 — S3-01 dan S5-02 di-merge, demo 20 Nov batal, rencana UAT internal 11 Des (baca ini dulu, lalu 16 Nov, 14 Nov, 11 Nov, 10 Nov, 9 Nov, 8 Nov, 7 Nov, 6 Nov, 4 Nov malam, 4 Nov, dan 3 Nov)
+
+Bagian-bagian di bawahnya tetap berlaku. Bagian ini mengubah atau menambahnya. **Semua jadwal demo 20 Nov di bagian 3–16 Nov tidak berlaku lagi.** Jadwal yang berlaku ada di "Rencana UAT internal 11 Des" di bawah. Frasa "setelah demo" di bagian-bagian lama kini dibaca "menurut rencana UAT di bawah".
+
+> Patch ini dibuat terpisah dari patch chore C-11 (hapus pengecualian audit). Bila PR C-11 belum di-merge saat PR docs ini dibuat, baris C-11 tetap belum dicentang.
+
+### Posisi
+- `main` = `bb30848` (#141). Semua fitur jalur demo selesai: pemutar video, quiz materi, Final Quiz + Nilai Akhir.
+- Malam 19 Nov pemilik mendapat kabar **demo Jum 20 Nov batal**. Target baru: **UAT internal Jum 11 Des 2026**, dua putaran.
+- Kursus "[DEMO]" belum diketik di CMS. Gladi tidak dijalankan.
+
+### Yang di-merge 17–19 Nov
+
+| PR | Isi |
+|---|---|
+| #137 | Chore: 4 pengecualian audit untuk advisory picomatch (`expires` 2026-11-27) |
+| #138 | S3-01 quiz materi versi demo (19 Nov; terlambat 2 hari dari jadwal 16 Nov) |
+| #139 | Docs: kartu S5-02, URUTAN-KERJA 19 Nov |
+| #140 | S5-02 Final Quiz versi demo |
+| #141 | Perbaikan e2e tes 10 `belajar-quiz.spec.ts` (akar masalah "flaky", lihat di bawah) |
+
+Baseline Vitest di `bb30848`: **129 berkas / 1500 tes**, diukur di sandbox Claude chat. Gate audit 0 excused / 0 blocking / OK, dengan 4 entri yang tidak lagi dirujuk (lihat C-11). Tidak ada migrasi atau dependensi baru sejak `0001`.
+
+### S3-01 di-merge (#138)
+- **Tinjauan PR** (sandbox): temuan wajib-perbaiki diterapkan di commit `18557d0` dan dibuktikan dengan mutasi:
+  - kontras skor di outline (`success-tint-text`);
+  - warna chip navigator (dijawab gelap, belum tersimpan bergaris putus `danger`);
+  - baris navigasi 360 dua kolom (kartu runner meluap ±17 px);
+  - hitungan SELESAI di outline;
+  - attempt yang ada dicek sebelum gerbang video;
+  - tes snapshot, spy, dan reset.
+- Dua putaran tinjauan screenshot terhadap 7e/7g/7u.
+- CI e2e 15m27s.
+- Sisa temuan masuk kartu perapian quiz (A2, di bawah).
+
+### S5-02 di-merge (#140)
+- **Rencana agent ditinjau di chat**, disetujui dengan 8 butir. Yang terpenting:
+  - bobot nilai dibaca **sebelum** transaksi kumpul (kartu keliru menyuruh membacanya di dalam transaksi; pelajaran no. 4);
+  - `finalQuizHref` di level atas DTO halaman materi, bukan di `OpenQuizDTO`;
+  - penulisan `enrollments` memakai `id` + `user_id`.
+- **Tinjauan PR** (sandbox): `npm run check` 129/1498, diff dicocokkan dengan kartu, 10 mutasi diulang. Dua mutasi lolos:
+  - rata-rata skor tanpa filter peserta;
+  - halaman hasil menghitung ulang, bukan membaca nilai tersimpan.
+
+  Agent menambah dua tes (`af46719`). Keduanya terbukti merah → hijau di sandbox; total 129/1500.
+- Agent menemukan sendiri bug wire postgres.js: `Date` mentah di fragmen `sql` drizzle (`a852c49`, pelajaran no. 3).
+- Lima screenshot ditinjau terhadap 7h; tidak ada yang memblokir.
+- CI e2e 12m50s.
+
+### Tes 10 bukan flaky (#141)
+- **Penyebab:** tes 10 `e2e/belajar-quiz.spec.ts` menjawab soal pertama menurut urutan DB lewat API, lalu menunjuk chip "Soal 2, belum dijawab" (baris 655) dan "Soal 10, belum dijawab" (baris 696). Runner mengacak urutan tampilan per attempt (`shuffle_questions` bawaan `true`). Bila soal yang dijawab tampil di posisi 2 atau 10, locator itu tidak pernah ada dan tes timeout, kira-kira 1 dari 5 run.
+- **Bukti:** run 44483177351 (`main` setelah #138) dan run `main` setelah #140 gagal persis di baris 696.
+- **Perbaikan #141:** tes menjawab soal di posisi 1 attempt (`question_order[1]`). Komentar `test.slow()` lama ("dev server compiling") dikoreksi.
+- Pola yang sama ditemukan agent di tes S5-02-nya sendiri (`6f083a8`).
+
+### Keputusan pemilik 19 Nov
+1. **Final Quiz tetap masuk demo**, dengan batas potong 3 jam sebelum demo. Gugur karena demo batal; S5-02 sudah di-merge.
+2. **Data demo diketik lewat CMS** (2 materi, 30 soal), menggantikan kartu seed binzi-dev. Teks salin-tempelnya ada di Claude Doc + PDF dari chat 19 Nov, dan tetap dipakai untuk UAT.
+3. **Penonton internal.** Kursus "[DEMO]" boleh memakai teks yang belum ditinjau ahli gizi.
+4. **Demo 20 Nov batal.** Target baru UAT internal Jum 11 Des, dua putaran:
+   - putaran 1 menguji alur inti pada 11 Des;
+   - putaran 2 menguji sisanya, perkiraan awal–pertengahan Januari.
+
+   Rencananya di bawah, dicatat atas permintaan pemilik.
+5. **Tawaran agent menjalankan upgrade keamanan Next.js ditolak** (pengingat `experimental.agentUpgrade` bawaan 16.4.1). Masuk putaran 2.
+
+### Rencana UAT internal 11 Des
+**Asumsi:**
+- satu kartu agent dalam satu waktu; kartu berikutnya ditulis Claude chat selagi agent bekerja;
+- pemilik meninjau hampir setiap hari.
+
+Waktu 20 Nov–10 Des ±21 hari. Daftar A butuh ±18 hari, jadi cadangannya ±3 hari. ID kartu masih usulan; ditetapkan saat kartu ditulis.
+
+**A. Wajib untuk UAT 11 Des** (urutan pengerjaan)
+
+| # | ID usulan | Kartu | Isi | Perkiraan |
+|---|---|---|---|---|
+| A1 | C-11 | Hapus pengecualian audit | Patch dari Claude chat, bukan sesi agent. Merge paling lambat Kam 26 Nov | ½ hari |
+| A2 | S3-02 | Perapian quiz (S3-01 + S5-02) | Lihat "Perapian quiz" di bawah | 1½ hari |
+| A3 | S5-03 | Nilai Saya `/belajar/nilai` | Tabel per kursus: nilai tiap quiz materi, Final, Nilai Akhir, Lulus/Belum Lulus, tanggal, tautan pembahasan; state kosong (PRG-04, PRG-05, QZ-20; 8b, 8f) | 2 hari |
+| A4 | S5-04 | Progres kursus + Kursus Saya | `/belajar/{kursus}`: status per materi + nilai (PRG-07, PRG-10; 8c). `/belajar/kursus-saya` + lencana status (PRG-06; 13b, 13c) | 2 hari |
+| A5 | S6-02 | Katalog + detail kursus | `/kursus` (7a, 7f, 28d); `/kursus/{slug}`: deskripsi, outline terkunci, tombol daftar (CRS-03, CRS-11; 7b, 7m). Sampul placeholder | 2½ hari |
+| A6 | S5-05 | Profil dasar `/profil` | Ubah nama, ubah password, logout semua perangkat (AUTH-06, sebagian AUTH-09; 9c) | 2 hari |
+| A7 | S3-03 | Lapor gangguan + reset attempt | Peserta: lapor → menunggu → hasil (7i, 7l). `/cms/reset-attempt`: cari user, lihat attempt, reset dengan alasan wajib yang tercatat (QZ-19, CMS-10; 26a–26c) | 3 hari |
+| A8 | S5-06 | Pengguna CMS `/cms/pengguna` | Cari, lihat progres & nilai, ubah peran, nonaktifkan (CMS-09; 25a–25d) | 2 hari |
+| A9 | — | Stabilisasi + gladi UAT | Cek 360/768/1280, checklist §12.6, perbaikan temuan, skenario UAT dijalankan sekali penuh | 2½ hari |
+
+**Yang diuji di UAT 11 Des:**
+- **Admin dan ahli gizi:** kursus → materi + video (YouTube *unlisted* lewat skrip) → soal → kirim → setujui → terbit → kelola pengguna → reset attempt.
+- **Peserta:** katalog → daftar → belajar → quiz → Final → Nilai Saya / progres / Kursus Saya → profil → lapor gangguan.
+
+**Tidak dibutuhkan untuk UAT internal:**
+- konten final ahli gizi;
+- domain dan email sungguhan (akun penguji dibuat manual).
+
+**B. Cadangan** — hanya bila A selesai lebih cepat; urutannya tetap:
+1. S1-06 + S1-07: media library + pemilih sampul (CMS-08; 24a–24d) — 3 hari
+2. S6-03: preview materi 1 tanpa login (CRS-09; 7c) — 1 hari
+3. S5-07: ulangi kursus (CRS-12; 7k, 16a) — 2 hari
+4. S5-08: hapus akun + unduh data (sisa AUTH-09, §8.4; 9e) — 2 hari
+5. S6-04: filter katalog level & durasi (SRC-02) — ½ hari
+
+**Urutan tarik maju** — bila A dan B selesai lebih cepat dari jadwal, lanjut dari atas:
+1. **Video R2:** H-04 (pemilik) → S2-02b kontrol 29a + `PlayerEngine` → S1-05 unggah video di CMS → C-10 migrasi YouTube → R2. Perkiraan 5–6 hari. Hanya dimulai bila H-04 sudah selesai. Wajib sebelum peserta penelitian.
+2. S6-05: Tentang + halaman legal — ±2 hari, tergantung teks dari pemilik
+3. S6-06: pencarian `/cari` — ±2 hari
+4. Modul artikel (S4): CMS artikel, kategori/tag, halaman publik, SEO — ±6–7 hari
+
+**Aturan:**
+- **Pembekuan fitur Sen 7 Des.** Item baru hanya dimulai bila perkiraannya selesai sebelum 7 Des. Setelah itu hanya perbaikan dan stabilisasi.
+- **Tinjauan rencana, uji mutasi, dan tinjauan screenshot tidak dilewati**, walau jadwal maju.
+- **Dua sesi agent paralel** boleh mulai minggu kedua, dengan syarat:
+  - modulnya terpisah;
+  - masing-masing di worktree sendiri;
+  - e2e lokal tidak bersamaan (port 3100);
+  - pemilik sanggup meninjau dua PR sehari.
+- **Tiap Senin posisi dicek terhadap jadwal.** Maju → tarik item berikutnya. Mundur → potong dari bawah daftar B.
+
+**C. Putaran 2** (setelah 11 Des, perkiraan awal–pertengahan Januari):
+- Sisa urutan tarik maju.
+- CMS: audit log (27c), pengaturan sistem (27a–27b), daftar quiz (22f–22g), impor soal CSV (22c).
+- Builder lanjutan S1-01b/S1-02b; alur "perlu revisi" S1-08 (butuh PRD v1.6).
+- Chore: C-08b, C-09, upgrade keamanan Next.js.
+- Sisa Fase 1.5: QA lintas perangkat, audit performa & aksesibilitas, uji keamanan, uji restore backup.
+
+**Jadwal per minggu**
+
+| Minggu | Kartu | Titik cek |
+|---|---|---|
+| Jum 20 – Kam 26 Nov | A1, A2, A3, A4 | A1 merge paling lambat Kam 26 Nov |
+| Jum 27 Nov – Kam 3 Des | A5, A6, A7 (mulai) | Sen 30 Nov: bila A1–A4 belum semua di-merge, daftar B dibatalkan |
+| Jum 4 – Kam 10 Des | A7 (selesai), A8, A9 | Sen 7 Des: pembekuan fitur |
+| Jum 11 Des | UAT internal putaran 1 | |
+
+### Perapian quiz (isi kartu A2; prioritas dipilih saat kartu ditulis)
+Dari tinjauan S3-01 (#138):
+- banner saat jam perangkat tidak sinkron dengan server;
+- beacon kedaluwarsa tanpa kirim ulang; kumpul saat timer nol tanpa tombol coba lagi;
+- banner galat di atas halaman berada di luar layar;
+- muat ulang kembali ke soal 1;
+- tanpa h1 di runner dan hasil quiz materi;
+- antrean simpan tidak di-dispose;
+- skor 69,5 tampil "70 · Belum lulus";
+- kebijakan pembahasan tersembunyi: label "Salah" + copy;
+- peserta yang belum terdaftar mendapat 404 di halaman quiz;
+- 360: tata letak timer, navigator ganda di ringkasan, lebar "Kumpulkan", "Berikutnya" tidak gelap, ikon panah gepeng (sebagian sudah diperbaiki di #140), chip belum tersimpan di atas latar gelap;
+- penyimpangan lain dari 7e/7u (catatan tinjauan).
+
+Dari tinjauan S5-02 (#140):
+- aturan Final tanpa kotak `primary-tint` 7h; pill "Lulus kursus" versi tint, bukan solid;
+- Nilai Akhir dan bar-nya tetap hijau saat "Belum lulus";
+- hasil quiz materi tetap menulis "Final Quiz sekarang terbuka" setelah Final dikerjakan;
+- rumus di hasil Final memakai bobot `system_settings` saat ini, bukan bobot saat kumpul. Sampai ada snapshot bobot (keputusan putaran 2), bobot jangan diubah setelah ada yang mengumpulkan Final;
+- "waktu pengerjaan 00:00" di screenshot e2e — kemungkinan run e2e < 1 detik; dicek di gladi dengan pengerjaan sungguhan;
+- cabang skor materi NULL (gagal keras) tanpa tes — tidak terjangkau dengan data valid.
+
+### Reset attempt manual sebelum A7 (SQL Editor binzi-dev)
+SQL di kartu S3-01 ("Catatan untuk gladi") **keliru**:
+- Attempt `IN_PROGRESS` yang hanya diberi `reset_at` tetap memegang indeks unik `one_active_attempt`, karena indeks itu tidak melihat `reset_at`.
+- Akibatnya "mulai quiz" berikutnya gagal 500.
+
+Pernyataan pertama diganti dengan versi di bawah. Pernyataan kedua (`lesson_progress`) di kartu S3-01 tetap. Ganti email dan slug:
+```sql
+update quiz_attempts
+set status = case when status = 'IN_PROGRESS' then 'EXPIRED'::attempt_status else status end,
+    reset_at = now(), reset_reason = 'gladi resik',
+    reset_by = (select id from users where email = 'email-admin-kamu')
+where user_id = (select id from users where email = 'email-akun-demo') and reset_at is null
+  and quiz_id = (select quiz_id from lessons where slug = 'slug-materi');
+```
+
+Final Quiz (S5-02) juga perlu mengembalikan baris `enrollments`:
+```sql
+update quiz_attempts
+set status = case when status = 'IN_PROGRESS' then 'EXPIRED'::attempt_status else status end,
+    reset_at = now(), reset_reason = 'gladi resik',
+    reset_by = (select id from users where email = 'email-admin-kamu')
+where user_id = (select id from users where email = 'email-akun-demo') and reset_at is null
+  and quiz_id = (select final_quiz_id from courses where slug = 'slug-kursus');
+update enrollments
+set status = 'IN_PROGRESS', final_score_percent = null, completed_at = null
+where user_id = (select id from users where email = 'email-akun-demo')
+  and course_id = (select id from courses where slug = 'slug-kursus');
+```
+
+Untuk gladi dan UAT, cara yang lebih sederhana: akun MEMBER baru untuk setiap putaran.
+
+### Pelajaran 19 Nov
+1. **Sebelum mencap tes "flaky", cek apakah locator-nya mungkin ada untuk data itu.**
+   - Tes 10 bukan korban beban. Chip yang ditunggu tidak pernah ada karena urutan soal diacak per attempt; `test.slow()` hanya memperpanjang tunggu.
+   - Tes yang menjawab lewat API menurut urutan DB tidak boleh menunjuk nomor tampilan. Baca `question_order` attempt itu, atau asersikan jumlah (lanjutan (uuu)).
+2. **Tabel mutasi kartu wajib memuat dua jenis mutasi berikut**, karena 11 mutasi kartu S5-02 lolos tanpa keduanya:
+   - untuk kueri agregat: baris milik peserta lain di tabel yang sama;
+   - untuk klaim "membaca nilai tersimpan": nilai diubah langsung di DB, lalu dibaca.
+3. **`Date` mentah di fragmen `sql` drizzle lolos di PGlite tetapi gagal di postgres.js** (diserialkan dengan `toString()` lokal). Hanya e2e yang menangkapnya. Ikat sebagai string ISO dengan cast `::timestamptz`.
+4. **Kartu dari Claude chat bisa menyuruh hal yang memacetkan tes** (lanjutan (kk)).
+   - Kartu S5-02 meminta `getScoreWeights` dipanggil "di transaksi yang sama", padahal fungsi itu membaca lewat `db`. `await` kueri `db` di dalam `db.transaction` macet di PGlite.
+   - Saat menulis kartu, cek tanda tangan fungsi (menerima `executor` atau tidak) sebelum menaruhnya di dalam transaksi.
+5. **Pengecualian audit yang kedaluwarsa memerahkan gate walau tak lagi dirujuk** (`check-audit.mjs`). Saat gate mencetak "not referenced by any excused finding", hapus entrinya sebelum `expires`, jangan menunggu tenggat.
+6. **Next 16.4.1 menghentikan sekali proses `next build`/`next dev` pertama di bawah agent** (`experimental.agentUpgrade`, bawaan `'security'`) dan menawarkan upgrade. Mengulang perintah yang sama lolos. Kartu tetap melarang `next upgrade`.
+7. **Advisory GitHub bisa berubah tanpa rilis paket** (lanjutan (eeee)). GHSA-fc5q-39xc-vjpf memblokir gate 17–18 Nov. Per 19 Nov advisory itu berstatus *Unreviewed* tanpa paket dan rentang, sehingga `npm audit` tidak lagi memetakannya ke picomatch. Gate bisa berubah warna tanpa commit apa pun.
+
+### Tugas pemilik (bukan kode)
+1. **Merge PR chore C-11** (patch dari Claude chat 19 Nov) paling lambat **Kam 26 Nov**.
+2. **H-04 R2** (bucket + token) secepatnya. Ini membuka jalan tarik maju video R2.
+3. **Akun UAT per peran** di Production, dibuat manual sebelum A9: Super admin, Admin, Ahli gizi, 2–3 peserta.
+4. **Ketik kursus "[DEMO]"** lewat CMS dan pasang video *unlisted* (`--durasi` = durasi asli), sebelum A9. Pengaturan Final Quiz: 20 menit, batas lulus 70.
+5. **Tentukan penguji dan jam UAT** 11 Des.
+6. **Nomor WhatsApp asli.** `62800000000` masih dummy. Isi lewat SQL editor binzi-dev, bukan lewat chat atau git, bila halaman konsultasi ikut diuji.
+7. **Verifikasi manual S5-01** masih terbuka.
+8. Opsional: **redirect URI Google di Production**, bila penguji login dengan Google.
+
+### Catatan untuk kartu berikutnya
+- **A2 S3-02 perapian quiz** ditulis Claude chat Jum 20 terhadap `main` terbaru (`bb30848`, atau commit C-11 bila sudah di-merge). Baseline 129 / 1500.
+- Kartu yang meminta screenshot tetap menyebut `E2E_SCREENSHOT_DIR=~/binzi-<kartu>-screenshots` dan jumlah berkasnya.
+- Kartu dengan kueri agregat atau nilai tersimpan memuat mutasi dari pelajaran no. 2.
+
+## Pembaruan 16 Nov 2026 — S2-02 di-merge, kartu S3-01 quiz materi siap, jalur data demo diputuskan (baca setelah 19 Nov, lalu 14 Nov, 11 Nov, 10 Nov, 9 Nov, 8 Nov, 7 Nov, 6 Nov, 4 Nov malam, 4 Nov, dan 3 Nov)
 
 Bagian-bagian di bawahnya tetap berlaku. Bagian ini mengubah atau menambahnya.
 
@@ -1333,26 +1550,29 @@ Rencana disetujui, dengan lima tambahan berikut (hasil tinjauan C-02/C-03, belum
 Saya sedang membangun BINZI (platform belajar gizi) dengan Next.js 16 +
 AI coding agent (Claude Code). Terlampir docs/STATUS.md dan
 docs/tasks/URUTAN-KERJA.md dari repo saya — baca keduanya sebagai konteks.
-Baca bagian "Pembaruan 16 Nov" di STATUS.md lebih dulu, lalu
-"Pembaruan 14 Nov", "Pembaruan 11 Nov", "Pembaruan 10 Nov", "Pembaruan 9 Nov",
+Baca bagian "Pembaruan 19 Nov" di STATUS.md lebih dulu, lalu
+"Pembaruan 16 Nov", "Pembaruan 14 Nov", "Pembaruan 11 Nov", "Pembaruan 10 Nov", "Pembaruan 9 Nov",
 "Pembaruan 8 Nov", "Pembaruan 7 Nov", "Pembaruan 6 Nov", "Pembaruan 4 Nov
-malam", "Pembaruan 4 Nov", dan "Pembaruan 3 Nov 2026 — target demo 20 Nov";
-jadwal dan keputusan di sana mengalahkan rencana sprint lama.
+malam", "Pembaruan 4 Nov", dan "Pembaruan 3 Nov 2026 — target demo 20 Nov".
+Demo 20 Nov batal; jadwal yang berlaku adalah "Rencana UAT internal 11 Des"
+di Pembaruan 19 Nov, dan itu mengalahkan rencana sprint lama.
 Spesifikasi lengkap ada di docs/prd/ dan aturan agent di CLAUDE.md;
 repo publik di github.com/adiynsyah/binzi — clone untuk membaca kode,
 kartu, desain, dan meninjau PR (API GitHub sering kena rate limit;
 git fetch pull/N/head tetap jalan). Repo di mesin saya ada di
 ~/Project/React/binzi-new.
-Posisi terakhir (16 Nov): S2-02 pemutar video (PR #135) di-merge;
-kartu S3-01 quiz materi masuk lewat PR docs.
+Posisi terakhir (19 Nov): S3-01 quiz materi (#138), S5-02 Final Quiz
+(#140), dan perbaikan e2e tes 10 (#141) di-merge; demo 20 Nov batal;
+target baru UAT internal Jum 11 Des (rencana A/B/C dan urutan tarik maju
+di Pembaruan 19 Nov).
 Berikutnya:
-- Sel 17: sesi S3-01; rencana agent ditinjau di chat sebelum disetujui.
-  Selagi agent bekerja, tulis kartu seed binzi-dev "[DEMO]" (Rab 18 pagi)
-  dan kartu S5-02 Final Quiz (Rab 18) dari catatan di akhir kartu S3-01.
-- Tugas pemilik: lihat "Tugas pemilik (bukan kode)" di 16 Nov.
+- PR chore C-11 (hapus pengecualian audit) di-merge paling lambat Kam 26 Nov.
+- Jum 20: tulis kartu A2 S3-02 perapian quiz terhadap main terbaru, lalu
+  kartu A3 selagi agent mengerjakan A2. Rencana agent ditinjau di chat.
+- Tugas pemilik: lihat "Tugas pemilik (bukan kode)" di 19 Nov.
 - Untuk tinjauan tampilan, Claude bisa menjalankan Chromium headless di
   sandbox (@sparticuz/chromium + playwright-core dari registry npm).
-Gate audit main: 0 excused / 0 blocking / 22–23 info-low-moderate. Uji
+Gate audit main: 0 excused / 0 blocking / 21 info-low-moderate. Uji
 lokal selalu dengan npm run dev:db. Branch main diproteksi (wajib PR,
 check ci + e2e) — docs juga lewat PR. Setiap kartu ditinjau terhadap
 main sebelum sesinya; rencana agent ditinjau di chat; PR ditinjau dari
