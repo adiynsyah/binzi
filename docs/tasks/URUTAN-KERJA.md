@@ -140,7 +140,7 @@ Kartu ditulis di Claude chat menjelang sesinya, terhadap kode `main` terbaru. Re
 
 ## Jalur demo 20 Nov — kartu menyusul
 
-Jadwal dan keputusannya di `STATUS.md` (bagian "Pembaruan 3 Nov", "Pembaruan 8 Nov", "Pembaruan 9 Nov", "Pembaruan 10 Nov", "Pembaruan 11 Nov", "Pembaruan 14 Nov", dan "Pembaruan 16 Nov"). Kartu ditulis di Claude chat selagi agent mengerjakan kartu sebelumnya. Halaman "Nilai Saya" sudah dipotong (14 Nov). Final Quiz tetap masuk demo (keputusan 16 Nov); titik cek *(usulan)*: bila quiz materi belum di-merge Rab 18 pukul 12.00, Final Quiz dipotong. Impor CSV sudah dipindah ke setelah demo (8 Nov).
+Jadwal dan keputusannya di `STATUS.md` (bagian "Pembaruan 3 Nov", "Pembaruan 8 Nov", "Pembaruan 9 Nov", "Pembaruan 10 Nov", "Pembaruan 11 Nov", "Pembaruan 14 Nov", dan "Pembaruan 16 Nov"). Kartu ditulis di Claude chat selagi agent mengerjakan kartu sebelumnya. Halaman "Nilai Saya" sudah dipotong (14 Nov). Final Quiz tetap masuk demo (keputusan 16 Nov, ditegaskan 19 Nov walau titik cek usulan Rab 18 pukul 12.00 terlewat); batas potong baru: PR S5-02 belum di-merge 3 jam sebelum demo → demo tanpa Final Quiz. Impor CSV sudah dipindah ke setelah demo (8 Nov).
 
 - [x] 🤖 [S1-09](sprint-1/S1-09-editor-quiz.md) — Editor quiz CMS: daftar soal (22a) + form satu soal (22b) · *✅ PR #120 (8 Nov); perapian kosmetik setelah demo (STATUS 8 Nov)*
 - [x] 🤖 [S6-01](sprint-6/S6-01-beranda-versi-demo.md) — Beranda versi demo: hero 1a + ilustrasi 6a (bergerak, tombol jeda), Cara kerjanya, Tanya Ahli Gizi, CTA penutup, halaman "Segera hadir" · *✅ PR #127 (9 Nov); perapian setelah demo (STATUS 9 Nov)*
@@ -148,11 +148,11 @@ Jadwal dan keputusannya di `STATUS.md` (bagian "Pembaruan 3 Nov", "Pembaruan 8 N
 - [x] 🤖 [S2-01](sprint-2/S2-01-halaman-materi-dan-progres.md) — Halaman materi peserta + progres: gerbang akses, "materi dibuka", `POST /api/progress/video` dan posisi terakhir ([rencana video](../decisions/video-sumber.md) bagian 2) · *✅ PR #133 (14 Nov; terlambat 2 hari); perapian setelah demo (STATUS 14 Nov)*
 - [x] 👤 Keputusan video demo: **YouTube unlisted** · *✅ diputuskan 7 Nov; R2 tetap jalur produksi, H-04 tetap wajib sebelum S1-05 — [rencana](../decisions/video-sumber.md)*
 - [x] 🤖 [S2-02](sprint-2/S2-02-pemutar-video-youtube.md) — Pemutar video versi demo: migrasi kolom sumber video (`0001`, dengan `CHECK`), iframe YouTube **berkontrol bawaan** + simpan posisi, CSP, skrip pasang video ([rencana](../decisions/video-sumber.md), pembaruan 14 Nov) · *✅ PR #135 (16 Nov; terlambat ±1,5 hari); binzi-dev dimigrasi sebelum merge; perapian setelah demo (STATUS 16 Nov)*
-- [ ] 🤖 [S3-01](sprint-3/S3-01-quiz-materi.md) — Quiz materi: tombol + dialog konfirmasi (7d), aturan (7e), satu soal per layar dengan navigator (7g/7u), simpan otomatis + 28c, kumpulkan, hasil & pembahasan, nilai di Daftar materi · *Sel 17 Nov*
-- [ ] 🤖 Kartu kecil seed binzi-dev "[DEMO]" — kursus contoh dari seed lokal ke binzi-dev (konten ahli gizi belum ada, keputusan 16 Nov; hanya layak untuk penonton internal) *(kartu ditulis Sel 17)* · *Rab 18 Nov pagi*
-- [ ] 🤖 S5-02 — Final Quiz + nilai akhir (60/40) di halaman hasil, memakai ulang modul `attempt` S3-01 — tanpa halaman "Nilai Saya" (dipotong 14 Nov) *(kartu ditulis Sel 17)* · *Rab 18 Nov*
+- [x] 🤖 [S3-01](sprint-3/S3-01-quiz-materi.md) — Quiz materi: tombol + dialog konfirmasi (7d), aturan (7e), satu soal per layar dengan navigator (7g/7u), simpan otomatis + 28c, kumpulkan, hasil & pembahasan, nilai di Daftar materi · *✅ PR #138 (19 Nov; terlambat 2 hari); perapian setelah demo (STATUS 19 Nov)*
+- [x] 👤 ~~Kartu kecil seed binzi-dev "[DEMO]"~~ — diganti (keputusan 19 Nov): kursus "[DEMO]" 2 materi + 30 soal diketik lewat CMS di Production; penonton internal
+- [ ] 🤖 [S5-02](sprint-5/S5-02-final-quiz-versi-demo.md) — Final Quiz versi demo: gerbang semua materi selesai, aturan 7h, runner S3-01, hasil + Nilai Akhir 60/40, status kursus Lulus/Selesai — tanpa halaman "Nilai Saya" (dipotong 14 Nov) · *Kam 19 Nov malam; batas potong: belum di-merge 3 jam sebelum demo → demo tanpa Final Quiz (keputusan 19 Nov)*
 - [ ] 👤 Akun demo per peran di Production (manual, keputusan 11 Nov) · *Sel 17 Nov*
-- [ ] 👤 Seed "[DEMO]" ke binzi-dev · terbitkan lewat CMS · pasang video *unlisted* (`npm run video:youtube:binzi-dev`, `--durasi` = durasi asli) · cek `system_settings` · *Kam 19 Nov pagi*
+- [ ] 👤 Ketik kursus "[DEMO]" lewat CMS (EDITOR) · kirim · setujui & terbitkan (ADMIN) · pasang video *unlisted* (`npm run video:youtube:binzi-dev`, `--durasi` = durasi asli) · `system_settings` ✓ 19 Nov (10/60/40) · *Kam 19 Nov*
 - [x] 👤 Region fungsi Vercel → Singapura (Settings → Functions), ukur `/belajar` sebelum & sesudah (STATUS 9 Nov) · *✅ 10 Nov: `/belajar` 1,64 s → ±0,12 s (STATUS 10 Nov)*
 - [ ] 👤 Gladi resik · *Kam 19 Nov siang*
 - [ ] 👤 Demo alur utuh dengan data contoh · *Jum 20 Nov*
@@ -175,4 +175,4 @@ Dikerjakan kamu bersama ahli gizi, **tidak menunggu** tahap di atas. Konten, buk
 
 - [x] **Proposal CSP** — diputuskan 17 Okt: opsi (b+) (PRD v1.5 Q45), diterapkan di [A-16b](fase-0/A-16b-penegakan-csp.md).
 - [x] **Jalur data demo ke binzi-dev** — diputuskan 16 Nov: konten ahli gizi belum ada, jadi akun demo dibuat manual dan kursus dipasang lewat kartu seed "[DEMO]" (`STATUS.md`, "Pembaruan 16 Nov", keputusan no. 3).
-- [ ] **Penonton demo 20 Nov internal atau eksternal?** Kursus "[DEMO]" berisi teks pengganti dan hanya layak untuk penonton internal (`STATUS.md`, "Pembaruan 16 Nov").
+- [x] **Penonton demo 20 Nov** — diputuskan 19 Nov: internal. Kursus "[DEMO]" boleh memakai konten yang belum ditinjau ahli gizi.
