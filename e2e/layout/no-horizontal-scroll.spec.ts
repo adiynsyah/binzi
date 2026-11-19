@@ -197,6 +197,67 @@ test.describe("tanpa scroll horizontal", () => {
     });
   });
 
+  // Card S3-01: the quiz page's four states join the per-width sweep —
+  // aturan, soal, ringkasan, hasil — one member driving a single attempt
+  // through all of them (the card's required SCREENSHOTS are taken by
+  // belajar-quiz.spec.ts; this sweep only measures). The chip jump to
+  // soal 10 reaches "Lihat ringkasan" without answering anything — the
+  // submit then grades 0/10, which keeps the result state "Belum lulus".
+  test("MEMBER: halaman quiz aturan/soal/ringkasan/hasil (S3-01)", async (
+    { page, request },
+    testInfo,
+  ) => {
+    const account = await createRoleAccount(request, "MEMBER");
+    await signInViaApi(page.context(), account);
+    const token = `qz${Date.now().toString(36)}${testInfo.project.name}`;
+    const made = await createPublishedCourseViaApi(
+      editorContext,
+      adminContext,
+      `${token} kursus quiz noscroll`,
+      { lessons: 2 },
+    );
+    courseIds.push(made.courseId);
+    const enroll = await page.context().request.post(
+      `/api/progress/courses/${made.courseId}/enroll`,
+    );
+    expect(enroll.status(), await enroll.text()).toBe(201);
+
+    await page.goto(`/belajar/${made.courseSlug}/${made.lessons[0]!.slug}`);
+    await page.getByRole("button", { name: "Tandai selesai & mulai quiz" }).click();
+    await page.getByRole("link", { name: "Lanjut ke aturan quiz" }).click();
+    await test.step("aturan", async () => {
+      await expect(
+        page.getByRole("heading", { name: "Aturan quiz sebelum timer jalan" }),
+      ).toBeVisible();
+      await expectNoHorizontalScroll(page, "MEMBER quiz aturan", true);
+    });
+
+    await page.getByRole("button", { name: "Saya paham, mulai quiz" }).click();
+    await test.step("soal", async () => {
+      await expect(
+        page.getByText("Soal 1 dari 10 · Satu kesempatan"),
+      ).toBeVisible();
+      await expectNoHorizontalScroll(page, "MEMBER quiz soal", true);
+    });
+
+    await test.step("ringkasan", async () => {
+      // Exactly one chip grid is visible per width (mobile row <1024,
+      // side card ≥1024) — the other copy is display:none and not matched.
+      await page.getByRole("button", { name: "Soal 10, belum dijawab" }).click();
+      await page.getByRole("button", { name: "Lihat ringkasan" }).click();
+      await expect(
+        page.getByText("0 dijawab · 10 belum dijawab · 0 ragu-ragu"),
+      ).toBeVisible();
+      await expectNoHorizontalScroll(page, "MEMBER quiz ringkasan", true);
+    });
+
+    await test.step("hasil", async () => {
+      await page.getByRole("button", { name: "Kumpulkan sekarang" }).click();
+      await expect(page.getByText("Belum lulus")).toBeVisible();
+      await expectNoHorizontalScroll(page, "MEMBER quiz hasil", true);
+    });
+  });
+
   test("EDITOR & SUPER_ADMIN: /cms dan /cms/kursus", async (
     { page, request },
     testInfo,
