@@ -102,13 +102,6 @@ export async function getLessonQuizPage(
     }
     throw error;
   }
-  if (!context.eligible) {
-    return {
-      state: "kembali",
-      href: lessonHref(context.courseSlug, context.lessonSlug),
-    };
-  }
-
   const [settings, attempt] = await Promise.all([
     selectQuizSettings(db, target.quizId),
     selectAttemptByQuizAndUser(db, target.quizId, actor.id),
@@ -119,6 +112,17 @@ export async function getLessonQuizPage(
   }
 
   if (!attempt) {
+    // No attempt yet — only now does the video gate apply. An existing
+    // attempt outranks it (owner review of PR 138): the ≥ 90 %
+    // requirement guards the FIRST start, so a READY video attached
+    // after the quiz was done never sends a finished participant back
+    // to the lesson page.
+    if (!context.eligible) {
+      return {
+        state: "kembali",
+        href: lessonHref(context.courseSlug, context.lessonSlug),
+      };
+    }
     const questionRows = await selectQuizQuestions(db, target.quizId);
     return toQuizRulesDTO({
       lessonId: target.lessonId,
@@ -191,11 +195,6 @@ export async function startLessonQuiz(
   assertMemberRole(actor);
   return db.transaction(async (tx) => {
     const context = await loadLessonQuizContext(tx, actor.id, input.lessonId);
-    if (!context.eligible) {
-      throw new ConflictError(
-        "Tonton video sampai minimal 90 % untuk membuka quiz.",
-      );
-    }
     if (context.quizId === null) {
       // Defensive: the start button never renders for a lesson without a
       // quiz; a hand-made POST still answers a 404, not a crash.
@@ -214,6 +213,14 @@ export async function startLessonQuiz(
       }
       // One attempt per quiz, forever (until an admin reset, QZ-19).
       throw new ConflictError("Quiz ini sudah dikerjakan.");
+    }
+    // No attempt yet — the video gate guards the FIRST start only, so an
+    // existing attempt above outranks it (owner review of PR 138; a
+    // READY video attached after submitting must not resurrect the gate).
+    if (!context.eligible) {
+      throw new ConflictError(
+        "Tonton video sampai minimal 90 % untuk membuka quiz.",
+      );
     }
 
     const [settings, questionRows] = await Promise.all([

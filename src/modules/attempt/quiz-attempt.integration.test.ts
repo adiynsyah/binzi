@@ -23,7 +23,7 @@
 import { fileURLToPath } from "node:url";
 
 import { PGlite } from "@electric-sql/pglite";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
@@ -1029,5 +1029,86 @@ describe("submitQuizAttempt — lesson_progress effects", () => {
 
     const after = await getLessonPage(MEMBER, made.slug, made.lessons[1]!.slug);
     expect(after.state).toBe("open");
+  });
+});
+
+// --- reset (QZ-19 rehearsal) & attempt-vs-gate priority -------------------
+
+describe("reset & gate priority (owner review of PR 138)", () => {
+  it("after the rehearsal-SQL reset: aturan again, then a NEW attempt numbered 2", async () => {
+    const made = await quizCourse("rs1");
+    const first = await startLessonQuiz(MEMBER, {
+      lessonId: made.lessons[0]!.id,
+    });
+    await submitQuizAttempt(MEMBER, { attemptId: first.attemptId });
+    expect((await attemptRow(first.attemptId))!.status).toBe("SUBMITTED");
+
+    // The card's "Catatan untuk gladi" SQL, shape for shape: the attempt
+    // row is STAMPED reset_at (history, never deleted — PRD §11.4) and
+    // lesson_progress's quiz columns are wiped.
+    await db
+      .update(quizAttempts)
+      .set({
+        resetAt: new Date(),
+        resetReason: "gladi resik",
+        resetBy: EDITOR.id,
+      })
+      .where(
+        and(
+          eq(quizAttempts.userId, MEMBER.id),
+          eq(quizAttempts.quizId, made.quiz.id),
+          sql`${quizAttempts.resetAt} is null`,
+        ),
+      );
+    await db
+      .update(lessonProgress)
+      .set({
+        quizAttempted: false,
+        quizScorePercent: null,
+        quizIsPassed: null,
+        quizSubmittedAt: null,
+        status: "IN_PROGRESS",
+        completedAt: null,
+      })
+      .where(
+        and(
+          eq(lessonProgress.userId, MEMBER.id),
+          eq(lessonProgress.lessonId, made.lessons[0]!.id),
+        ),
+      );
+
+    const page = await getLessonQuizPage(
+      MEMBER,
+      made.slug,
+      made.lessons[0]!.slug,
+    );
+    expect(page.state).toBe("aturan");
+
+    const second = await startLessonQuiz(MEMBER, {
+      lessonId: made.lessons[0]!.id,
+    });
+    expect(second.created).toBe(true);
+    expect(second.attemptId).not.toBe(first.attemptId);
+    expect((await attemptRow(second.attemptId))!.attemptNumber).toBe(2);
+  });
+
+  it("a READY video attached AFTER submit stays on hasil — the gate guards the first start only", async () => {
+    const made = await quizCourse("vg1");
+    const { attemptId } = await startLessonQuiz(MEMBER, {
+      lessonId: made.lessons[0]!.id,
+    });
+    await submitQuizAttempt(MEMBER, { attemptId });
+    // 10 % watched would fail the ≥ 90 % gate were it still consulted.
+    await seedWatchedPercent(made.lessons[0]!.id, "10.00");
+    const page = await getLessonQuizPage(
+      MEMBER,
+      made.slug,
+      made.lessons[0]!.slug,
+    );
+    expect(page.state).toBe("hasil");
+    // A start still answers the ONE-ATTEMPT 409, never the video 409.
+    await expect(
+      startLessonQuiz(MEMBER, { lessonId: made.lessons[0]!.id }),
+    ).rejects.toThrow(new ConflictError("Quiz ini sudah dikerjakan."));
   });
 });

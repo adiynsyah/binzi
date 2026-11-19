@@ -80,7 +80,7 @@ describe("LessonOutlineNav", () => {
     }
   });
 
-  it("PRG-10: an attempted quiz shows its score right of the row (text-success)", () => {
+  it("PRG-10: an attempted quiz shows its score right of the row (success-tint-text)", () => {
     render(
       <LessonOutlineNav
         outline={[
@@ -91,7 +91,9 @@ describe("LessonOutlineNav", () => {
       />,
     );
     const score = screen.getByText("80");
-    expect(score.className).toContain("text-success");
+    // The tint-text pair, not plain text-success: the kini row's
+    // bg-primary-tint would drop the plain green to 4.29:1 (12 px text).
+    expect(score.className).toContain("text-success-tint-text");
     const row = score.closest("a");
     expect(row).not.toBeNull();
     expect(row!.textContent).toContain("1 · Judul materi 1");
@@ -109,7 +111,7 @@ describe("LessonOutlineNav", () => {
     expect(kini).not.toBeNull();
     expect(kini!.textContent).toContain("kini");
     expect(within(kini as HTMLElement).getByText("100").className).toContain(
-      "text-success",
+      "text-success-tint-text",
     );
   });
 

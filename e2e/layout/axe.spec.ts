@@ -548,6 +548,14 @@ test.describe("axe WCAG 2.1 A/AA", () => {
       await expect(
         page.getByText("Soal 1 dari 10 · Satu kesempatan"),
       ).toBeVisible();
+      // Answer ONE question correctly → score 10. The score must be ≥ 2
+      // characters for axe's color-contrast to judge it (a single "0" is
+      // skipped as "content too short", which would silently un-test the
+      // outline contrast checked in the last step).
+      await page
+        .getByRole("radio", { name: /Opsi satu/ })
+        .locator("..")
+        .click();
       await expectAxeClean(page, "quiz soal", testInfo);
     });
 
@@ -557,7 +565,7 @@ test.describe("axe WCAG 2.1 A/AA", () => {
       await page.getByRole("button", { name: "Soal 10, belum dijawab" }).click();
       await page.getByRole("button", { name: "Lihat ringkasan" }).click();
       await expect(
-        page.getByText("0 dijawab · 10 belum dijawab · 0 ragu-ragu"),
+        page.getByText("1 dijawab · 9 belum dijawab · 0 ragu-ragu"),
       ).toBeVisible();
       await expectAxeClean(page, "quiz ringkasan", testInfo);
     });
@@ -566,6 +574,28 @@ test.describe("axe WCAG 2.1 A/AA", () => {
       await page.getByRole("button", { name: "Kumpulkan sekarang" }).click();
       await expect(page.getByText("Belum lulus")).toBeVisible();
       await expectAxeClean(page, "quiz hasil", testInfo);
+    });
+
+    // Back on the lesson page the outline's "kini" row now carries the
+    // score over bg-primary-tint — the contrast fix lives HERE, so the
+    // scan must cover this state too (owner review of PR #138). No dialog
+    // on this page; below 1024 the outline <details> opens for the rows.
+    await test.step("materi setelah quiz", async () => {
+      await page.getByRole("link", { name: "Kembali ke materi" }).click();
+      await expect(
+        page.getByRole("link", { name: "Lihat Hasil & Pembahasan" }),
+      ).toBeVisible();
+      if (spec.viewport.width < 1024) {
+        const details = page.locator("details");
+        await details.locator("summary").click();
+        await expect(details).toHaveAttribute("open");
+      }
+      // The score "10" itself rides the scanned tree at both widths
+      // (:visible — the details copy hides at ≥1024, the side card below).
+      await expect(
+        page.locator("ol span.font-mono:visible").filter({ hasText: "10" }),
+      ).toBeVisible();
+      await expectAxeClean(page, "materi setelah quiz", testInfo);
     });
   });
 

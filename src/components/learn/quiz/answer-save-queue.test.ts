@@ -10,12 +10,26 @@ import {
 
 import {
   createAnswerSaveQueue,
+  initialAnswerSaveState,
   type SaveAnswerSend,
 } from "./answer-save-queue";
 
 // Card S3-01 §4.B — the save queue table, tested like the S2-02 reporter:
 // injected `send`, fake timers for the 1/2/5/5 s backoff. requestAt()
 // inspects the (attemptId, questionId, optionId) each PUT carried.
+
+it("initialAnswerSaveState returns the SAME object every call", () => {
+  // The runner hands this to useSyncExternalStore as getServerSnapshot;
+  // React dev-mode requires one cached identity across server renders
+  // (owner review of PR 138 — a fresh object per call warned).
+  expect(initialAnswerSaveState()).toBe(initialAnswerSaveState());
+  expect(initialAnswerSaveState()).toEqual({
+    pending: [],
+    saving: false,
+    failingSince: null,
+    recovered: null,
+  });
+});
 
 const ATTEMPT_ID = "0b1f4a67-89ab-4cde-a012-111111111111";
 const Q1 = "11111111-2222-4333-8444-555555555555";

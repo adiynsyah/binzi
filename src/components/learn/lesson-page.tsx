@@ -48,17 +48,21 @@ const terkunciOf = (outline: LessonOutlineItemDTO[]) =>
 /** The <1024 "Daftar materi" fold (7t): summary ≥ 44px with the counts,
  *  the same LessonOutlineNav inside. `locked` arrives counted: the viewed
  *  lesson is always "kini" (priority), so a locked PAGE must count itself
- *  — which only the state component knows, hence the prop. The marker
- *  classes keep Safari's ::-webkit-details-marker triangle off (Chrome
- *  already drops it for display:flex summaries). */
+ *  — which only the state component knows, hence the prop. `completed`
+ *  arrives counted too, from course.completedLessonCount (the bar's
+ *  "1/2 SELESAI" source): counting "selesai" rows here would miss the
+ *  COMPLETED lesson being viewed — its row reads "kini" (owner review
+ *  of PR 138). The marker classes keep Safari's ::-webkit-details-marker
+ *  triangle off (Chrome already drops it for display:flex summaries). */
 function OutlineDetails({
   outline,
+  completed,
   locked,
 }: {
   outline: LessonOutlineItemDTO[];
+  completed: number;
   locked: number;
 }) {
-  const completed = outline.filter((item) => item.state === "selesai").length;
   return (
     <details className="rounded-card border border-border bg-surface-2">
       <summary className="flex list-none min-h-11 cursor-pointer items-center justify-between gap-3 px-5 py-3 text-[13px] font-bold text-text [&::-webkit-details-marker]:hidden">
@@ -185,6 +189,7 @@ function OpenState({ data }: { data: OpenDTO }) {
         <nav aria-label="Daftar materi" className="mt-8 lg:hidden">
           <OutlineDetails
             outline={data.outline}
+            completed={data.course.completedLessonCount}
             locked={terkunciOf(data.outline)}
           />
         </nav>
@@ -228,6 +233,7 @@ function LockedState({ data }: { data: LockedDTO }) {
               one locked lesson short. */}
           <OutlineDetails
             outline={data.outline}
+            completed={data.course.completedLessonCount}
             locked={terkunciOf(data.outline) + 1}
           />
         </nav>

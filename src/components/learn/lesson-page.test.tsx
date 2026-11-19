@@ -351,6 +351,22 @@ describe("LessonPage — open state", () => {
       within(details as NonNullable<typeof details>).getByText("Daftar materi"),
     ).toBeTruthy();
   });
+
+  it("the summary counts the COMPLETED lesson being viewed: '1 SELESAI' with no 'selesai' row", () => {
+    // The viewed lesson finished its quiz, so its row reads "kini"
+    // (priority over "selesai") — counting "selesai" rows here would show
+    // "0 SELESAI". The count comes from course.completedLessonCount, the
+    // same source as the bar's "1/2 SELESAI" (owner review of PR 138).
+    const base = openDto();
+    const dto: LessonPageDTO = {
+      ...base,
+      course: { ...COURSE, lessonCount: 2, completedLessonCount: 1 },
+      lesson: { ...base.lesson, title: "Judul materi 1", position: 1 },
+      outline: [outlineItem(1, "kini"), outlineItem(2, "terkunci")],
+    };
+    render(<LessonPage data={dto} />);
+    expect(screen.getByText("1 SELESAI · 1 TERKUNCI")).toBeTruthy();
+  });
 });
 
 describe("LessonPage — locked state", () => {

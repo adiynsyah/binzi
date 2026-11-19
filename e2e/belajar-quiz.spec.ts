@@ -27,6 +27,7 @@ import {
   stubYouTube,
   waitForOpenBeacon,
   waitForYouTubeStub,
+  waitStableForMeasure,
 } from "./layout/helpers";
 import {
   createRoleAccount,
@@ -616,6 +617,14 @@ test("9. gagal simpan (page.clock): indikator → banner 28c → Kumpulkan terku
 test("10. lebar 360/768/1024/1280 tanpa gulir samping; target sentuh chip & opsi ≥ 44 di 360", async ({
   page,
 }) => {
+  // The heaviest test of the spec (a full 2-lesson course with 3 quizzes,
+  // 4 resizes, 5 screenshots) passes standalone in ~2 s, but under the
+  // full-suite load — the dev server compiling per route while the E2E
+  // DB churns through tests 1–9 — the 60 s budget ran dry mid-sweep
+  // twice (the trace showed every step 10× slower; the chip the test
+  // died waiting for was present in the DOM all along). 3× is the
+  // honest budget for work that is real, not a hang to hide.
+  test.slow();
   const made = await quizCourseOnPage(page, "bq10");
   const lesson1 = made.lessons[0]!;
   const attemptId = await attemptViaApi(page, lesson1.id);
@@ -650,6 +659,38 @@ test("10. lebar 360/768/1024/1280 tanpa gulir samping; target sentuh chip & opsi
     page.getByRole("radio", { name: /Opsi satu/ }).locator(".."),
     "kartu opsi @360",
   );
+
+  // Owner review of PR #138: the document-level sweep above stayed green
+  // while the nav row's "Sebelumnya" + "Berikutnya" pair overflowed the
+  // runner CARD by ~17 px (flex-wrap kept the page width clean; the pair
+  // pressed against the card's right border). So the check targets the
+  // card itself: its scrollWidth must fit its clientWidth, and the right
+  // edge of "Berikutnya" must sit inside the card's CONTENT box (the
+  // p-4 right padding excluded).
+  const runnerCard = page
+    .getByRole("button", { name: "Berikutnya" })
+    .locator("xpath=ancestor::div[contains(@class, 'rounded-card')][1]");
+  await waitStableForMeasure(page);
+  const cardMetrics = await runnerCard.evaluate((el) => {
+    const box = el.getBoundingClientRect();
+    return {
+      scrollWidth: el.scrollWidth,
+      clientWidth: el.clientWidth,
+      contentRight: box.right - parseFloat(getComputedStyle(el).paddingRight),
+    };
+  });
+  expect(
+    cardMetrics.scrollWidth,
+    "kartu runner @360: scrollWidth <= clientWidth",
+  ).toBeLessThanOrEqual(cardMetrics.clientWidth);
+  const nextBox = await page
+    .getByRole("button", { name: "Berikutnya" })
+    .boundingBox();
+  expect(nextBox, "tombol Berikutnya @360: rendered").toBeTruthy();
+  expect(
+    nextBox!.x + nextBox!.width,
+    "tombol Berikutnya @360: right <= kanan isi kartu",
+  ).toBeLessThanOrEqual(cardMetrics.contentRight);
 
   // The summary joins the sweep at 360 (9 unanswered → the warning line).
   await page.getByRole("button", { name: "Soal 10, belum dijawab" }).click();

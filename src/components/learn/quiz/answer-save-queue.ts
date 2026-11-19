@@ -59,9 +59,21 @@ export type AnswerSaveQueue = {
  *  getServerSnapshot: the server render has no queue activity, and
  *  without this argument useSyncExternalStore 500s the whole /quiz page
  *  on a JavaScript-less request (found by the S3-01 e2e key-leak test).
- *  A module-level FUNCTION so useSyncExternalStore sees one identity. */
+ *  ONE module constant, returned by a stable function: getServerSnapshot
+ *  is called per server render and React dev-mode requires every call to
+ *  return the SAME cached object ("The result of getServerSnapshot should
+ *  be cached" — owner review of PR 138). The state is treated as
+ *  read-only everywhere (notify() replaces, never mutates), so sharing
+ *  one object is safe. */
+const INITIAL_ANSWER_SAVE_STATE: AnswerSaveState = {
+  pending: [],
+  saving: false,
+  failingSince: null,
+  recovered: null,
+};
+
 export function initialAnswerSaveState(): AnswerSaveState {
-  return { pending: [], saving: false, failingSince: null, recovered: null };
+  return INITIAL_ANSWER_SAVE_STATE;
 }
 
 const RETRY_DELAYS_MS = [1_000, 2_000, 5_000] as const;

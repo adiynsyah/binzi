@@ -88,13 +88,21 @@ function QuestionChipGrid({
             }${flagged ? ", ditandai ragu" : ""}`}
             className={cn(
               "grid size-11 place-items-center rounded-control border font-mono text-sm font-medium transition-colors",
+              // 28c contrast (owner review of PR 138): an unsaved pick is
+              // a dashed DANGER outline (border-dashed read 1.51:1); an
+              // answered chip goes dark like 7u's dots (bg-fill was
+              // 1.15:1 against white) — bg-text text-surface border-text.
               unsaved
-                ? "border-dashed border-border-dashed"
-                : "border-border-strong",
+                ? "border-dashed border-danger"
+                : flagged
+                  ? "border-warning"
+                  : answered
+                    ? "border-text"
+                    : "border-border-strong",
               flagged
-                ? "border-warning bg-warning-tint text-warning-tint-text"
+                ? "bg-warning-tint text-warning-tint-text"
                 : answered
-                  ? "bg-fill text-text"
+                  ? "bg-text text-surface"
                   : "bg-surface text-text-muted",
               current &&
                 "ring-2 ring-primary ring-offset-2 ring-offset-surface",
@@ -534,12 +542,18 @@ export function QuizRunner({ data }: { data: QuizRunningDTO }) {
                   })}
                 </fieldset>
 
-                <div className="mt-6 flex flex-wrap items-center gap-3">
+                {/* Owner review of PR 138: below 640 the old flex-wrap row
+                    let "Sebelumnya" + "Berikutnya" press ~17 px into the
+                    card's right padding — the pair becomes a two-column
+                    grid as wide as the content, stacked under a full-width
+                    "Tandai ragu-ragu"; ≥ 640 keeps the single row. */}
+                <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
                   <Button
                     variant="secondary"
                     aria-pressed={flags[question.id] === true}
                     onClick={() => toggleFlag(question.id)}
                     className={cn(
+                      "w-full sm:w-auto",
                       flags[question.id] === true &&
                         "border-warning bg-warning-tint text-warning-tint-text hover:bg-warning-tint",
                     )}
@@ -547,11 +561,12 @@ export function QuizRunner({ data }: { data: QuizRunningDTO }) {
                     <Flag className="size-4" aria-hidden="true" />
                     Tandai ragu-ragu
                   </Button>
-                  <div className="ml-auto flex items-center gap-3">
+                  <div className="grid grid-cols-2 gap-3 sm:ml-auto sm:flex sm:items-center sm:gap-3">
                     <Button
                       variant="secondary"
                       onClick={() => setIndex((value) => value - 1)}
                       disabled={index === 0}
+                      className="w-full sm:w-auto"
                     >
                       <ArrowLeft className="size-4" aria-hidden="true" />
                       Sebelumnya
@@ -560,6 +575,7 @@ export function QuizRunner({ data }: { data: QuizRunningDTO }) {
                       <Button
                         variant="secondary"
                         onClick={() => setPhase("ringkasan")}
+                        className="w-full sm:w-auto"
                       >
                         Lihat ringkasan
                         <ArrowRight className="size-4" aria-hidden="true" />
@@ -568,6 +584,7 @@ export function QuizRunner({ data }: { data: QuizRunningDTO }) {
                       <Button
                         variant="secondary"
                         onClick={() => setIndex((value) => value + 1)}
+                        className="w-full sm:w-auto"
                       >
                         Berikutnya
                         <ArrowRight className="size-4" aria-hidden="true" />
