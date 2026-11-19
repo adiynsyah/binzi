@@ -1,4 +1,4 @@
-// LessonPage (card S2-01 §4, S3-01 §3) — every state of
+// LessonPage (card S2-01 §4, S3-01 §3, S5-02 §5) — every state of
 // /belajar/{kursus}/{materi} over the LessonPageDTO: the course bar (all
 // states), then open (7d content + bottom bar + outline), locked
 // (EmptyState panel + outline), or not-enrolled (dashed panel, no
@@ -176,7 +176,19 @@ function OpenState({ data }: { data: OpenDTO }) {
                     )}
                   >
                     Materi berikutnya
-                    <ArrowRight className="size-4" aria-hidden="true" />
+                    <ArrowRight className="size-4 shrink-0" aria-hidden="true" />
+                  </Link>
+                ) : null}
+                {data.finalQuizHref !== null ? (
+                  // The second Final Quiz entry point (card S5-02 §5,
+                  // decision 8): primary, after "Lihat Hasil & Pembahasan";
+                  // the "Materi berikutnya" logic above stays as-is.
+                  <Link
+                    href={data.finalQuizHref}
+                    className={cn(buttonVariants(), "gap-2")}
+                  >
+                    Final Quiz
+                    <ArrowRight className="size-4 shrink-0" aria-hidden="true" />
                   </Link>
                 ) : null}
               </>
