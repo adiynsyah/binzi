@@ -49,6 +49,7 @@ import {
   enrollInCourse,
   getLessonPage,
   lessonHref,
+  recordFinalQuizResult,
 } from "@/modules/progress/service";
 
 // Same "@/db" Proxy swap as the progress integration tests (queries.ts
@@ -1595,6 +1596,34 @@ describe("submitQuizAttempt — FINAL branch (Nilai Akhir)", () => {
     expect(after!.finalScorePercent).toBe(before!.finalScorePercent);
     expect(after!.completedAt?.getTime()).toBe(before!.completedAt?.getTime());
     expect(after!.updatedAt.getTime()).toBe(before!.updatedAt.getTime());
+  });
+
+  it("recordFinalQuizResult never MOVES a stored completed_at (coalesce, S5-02 mutation 11)", async () => {
+    // The idempotent guard keeps the double-submit test away from the
+    // enrollment write, so the coalesce is proven HERE: record twice with
+    // different submittedAt stamps — the first completed_at wins.
+    const made = await finalCourse("ftj");
+    const enrollment = (await enrollmentRow(MEMBER.id, made.course.id))!;
+    const record = (submittedAt: Date) =>
+      db.transaction(async (tx) =>
+        recordFinalQuizResult(tx, {
+          actorId: MEMBER.id,
+          courseId: made.course.id,
+          enrollmentId: enrollment.id,
+          finalScorePercent: 80,
+          isPassed: true,
+          weights: { lessonPercent: 60, finalPercent: 40 },
+          submittedAt,
+        }),
+      );
+    await record(new Date("2026-01-01T00:00:00.000Z"));
+    const first = (await enrollmentRow(MEMBER.id, made.course.id))!
+      .completedAt;
+    expect(first, "the first submit stamps completed_at").not.toBeNull();
+    await record(new Date("2026-02-02T00:00:00.000Z"));
+    const second = (await enrollmentRow(MEMBER.id, made.course.id))!
+      .completedAt;
+    expect(second?.getTime()).toBe(first?.getTime());
   });
 
   it("the average is scoped to THIS course: another course's 0 never leaks in", async () => {
