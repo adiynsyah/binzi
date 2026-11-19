@@ -111,7 +111,7 @@ Tanggal mulai mengikuti soak 14 hari; tenggat mengikuti `expires` pengecualian a
 - [x] 🤖 [C-04](chore/C-04-shadcn-4-22-1-dan-body-parser-2-4-0.md) — shadcn 4.22.1 + body-parser 2.4.0 · *✅ selesai 6 Nov (PR #111)*
 - [ ] 🤖 [C-09](chore/C-09-penyederhanaan-audit-dan-dependabot.md) — penyederhanaan audit & Dependabot · *putaran 2 (setelah UAT 11 Des) kecuali advisory memblokir PR; kartu ditinjau ulang terhadap `main` sebelum sesi*
 - [ ] 🤖 C-10 — migrasi video YouTube → R2 + pembersihan *(kartu belum ditulis; runbook di [rencana video](../decisions/video-sumber.md) bagian 9)* · *setelah S1-05; wajib sebelum peserta penelitian atau publik memakai BINZI*
-- [ ] 👤 C-11 — hapus 4 pengecualian audit yang tidak lagi dipakai · *patch dari Claude chat 19 Nov (tanpa sesi agent); merge paling lambat Kam 26 Nov — entri kedaluwarsa 27 Nov memerahkan gate walau tak terpakai*
+- [x] 👤 C-11 — hapus 4 pengecualian audit yang tidak lagi dipakai · *✅ PR #142 (19 Nov); patch dari Claude chat, tanpa sesi agent*
 
 Prasyarat Sprint 1 (tanpa tanggal tetap — sebelum S1-01, tanpa branch kartu lain yang terbuka):
 
@@ -166,8 +166,8 @@ Rencana lengkap, asumsi, dan aturannya ada di `STATUS.md` ("Pembaruan 19 Nov", b
 
 **A. Wajib untuk UAT 11 Des** (urutan pengerjaan)
 
-- [ ] 👤 **A1** · C-11 — hapus pengecualian audit (patch, lihat "Chore terjadwal") · *paling lambat Kam 26 Nov*
-- [ ] 🤖 **A2** · S3-02 — perapian quiz materi + Final Quiz (daftar di STATUS 19 Nov) · *±1½ hari*
+- [x] 👤 **A1** · C-11 — hapus pengecualian audit (patch, lihat "Chore terjadwal") · *✅ PR #142 (19 Nov)*
+- [ ] 🤖 **A2** · [S3-02](sprint-3/S3-02-perapian-quiz.md) — perapian quiz materi + Final Quiz · *±1½ hari; kartu ditulis 19 Nov malam*
 - [ ] 🤖 **A3** · S5-03 — Nilai Saya `/belajar/nilai` (8b, 8f) · *±2 hari*
 - [ ] 🤖 **A4** · S5-04 — progres kursus `/belajar/{kursus}` (8c) + Kursus Saya `/belajar/kursus-saya` (13b, 13c) · *±2 hari*
 - [ ] 🤖 **A5** · S6-02 — katalog `/kursus` + detail `/kursus/{slug}` (7a, 7b, 7m), sampul placeholder · *±2½ hari*
