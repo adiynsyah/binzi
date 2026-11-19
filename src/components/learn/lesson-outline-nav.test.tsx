@@ -97,7 +97,9 @@ describe("LessonOutlineNav", () => {
     expect(row!.textContent).toContain("1 · Judul materi 1");
   });
 
-  it("the kini row keeps its “kini” label even with a score", () => {
+  it("the kini row keeps its “kini” label AND shows its score", () => {
+    // "Kini tetap berlabel kini" pins the label only — the card's e2e reads
+    // the score off the VIEWED lesson's page, where that row is kini.
     render(
       <LessonOutlineNav
         outline={[item(1, "selesai"), item(2, "kini", { scorePercent: 100 })]}
@@ -106,7 +108,9 @@ describe("LessonOutlineNav", () => {
     const kini = screen.getByText("2 · Judul materi 2").closest("a");
     expect(kini).not.toBeNull();
     expect(kini!.textContent).toContain("kini");
-    expect(within(kini as HTMLElement).queryByText("100")).toBeNull();
+    expect(within(kini as HTMLElement).getByText("100").className).toContain(
+      "text-success",
+    );
   });
 
   it("rows without an attempted quiz show no score", () => {

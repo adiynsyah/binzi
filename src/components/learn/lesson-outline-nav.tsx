@@ -97,10 +97,13 @@ export function LessonOutlineNav({
                 <span className="ml-auto shrink-0 text-xs font-semibold text-primary-deep">
                   kini
                 </span>
-              ) : item.scorePercent !== null ? (
+              ) : null}
+              {item.scorePercent !== null ? (
                 // PRG-10: the recorded quiz score on the row's right side
-                // (7d, text-success, small bold). The kini row keeps its
-                // "kini" label even when a score exists.
+                // (7d, text-success, small bold). It shows on the kini row
+                // too — "kini tetap berlabel kini" only pins the label, so
+                // the score of the lesson being viewed stays visible (the
+                // card's e2e reads it off materi 1's own page).
                 <span className="ml-auto shrink-0 font-mono text-xs font-semibold text-success">
                   {item.scorePercent}
                 </span>

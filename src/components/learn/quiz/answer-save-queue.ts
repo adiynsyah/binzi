@@ -55,6 +55,15 @@ export type AnswerSaveQueue = {
   dispose(): void;
 };
 
+/** The idle snapshot every queue starts from — also the runner's
+ *  getServerSnapshot: the server render has no queue activity, and
+ *  without this argument useSyncExternalStore 500s the whole /quiz page
+ *  on a JavaScript-less request (found by the S3-01 e2e key-leak test).
+ *  A module-level FUNCTION so useSyncExternalStore sees one identity. */
+export function initialAnswerSaveState(): AnswerSaveState {
+  return { pending: [], saving: false, failingSince: null, recovered: null };
+}
+
 const RETRY_DELAYS_MS = [1_000, 2_000, 5_000] as const;
 
 type Entry = {
@@ -107,12 +116,7 @@ export function createAnswerSaveQueue(config: {
 
   // The state object is CACHED and only rebuilt on a mutation, so
   // useSyncExternalStore can compare snapshots by identity.
-  let cachedState: AnswerSaveState = {
-    pending: [],
-    saving: false,
-    failingSince: null,
-    recovered: null,
-  };
+  let cachedState: AnswerSaveState = initialAnswerSaveState();
 
   function getState(): AnswerSaveState {
     return cachedState;

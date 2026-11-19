@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 import type { QuizRunningDTO } from "@/modules/attempt/service";
 import {
   createAnswerSaveQueue,
+  initialAnswerSaveState,
   type AnswerSaveState,
 } from "./answer-save-queue";
 
@@ -176,6 +177,10 @@ export function QuizRunner({ data }: { data: QuizRunningDTO }) {
   const queueState: AnswerSaveState = useSyncExternalStore(
     queue.subscribe,
     queue.getState,
+    // getServerSnapshot: without it a JavaScript-less GET of the running
+    // page dies with "Missing getServerSnapshot" (the S3-01 e2e key-leak
+    // test caught the 500). The server render has no queue activity.
+    initialAnswerSaveState,
   );
 
   // ---- timer (server clock via a mount-time offset) ----------------------
@@ -408,7 +413,12 @@ export function QuizRunner({ data }: { data: QuizRunningDTO }) {
           />
         </div>
 
-        <div className="mt-6 grid gap-8 lg:grid-cols-[minmax(0,1fr)_auto]">
+        {/* The aside column is a FIXED 288px, not `auto`: an auto track
+            sizes to the chip row UNWRAPPED (~546px for 10 chips), which
+            starves the question column to ~140px and puts the nav buttons
+            under the aside (found by the S3-01 e2e). At 288px the chips
+            wrap 5+5 like 7g. */}
+        <div className="mt-6 grid gap-8 lg:grid-cols-[minmax(0,1fr)_288px]">
           <div className="min-w-0">
             {expired ? (
               <p

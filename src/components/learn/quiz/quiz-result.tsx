@@ -118,35 +118,45 @@ export function QuizResult({ data }: { data: QuizResultDTO }) {
               </div>
             </div>
           </div>
+          {/* Each dl div holds ONLY dt/dd (axe definition-list): the visible
+              label span rides INSIDE the dd next to the value it labels. */}
           <dl className="grid grid-cols-2 gap-x-6 gap-y-2 sm:justify-self-end">
-            <div className="flex items-baseline gap-2">
+            <div>
               <dt className="sr-only">Benar</dt>
-              <dd className="font-mono text-[15px] font-medium text-text">
-                {data.correct}/{total}
+              <dd className="flex items-baseline gap-2">
+                <span className="font-mono text-[15px] font-medium text-text">
+                  {data.correct}/{total}
+                </span>
+                <span className="text-sm text-text-muted">benar</span>
               </dd>
-              <span className="text-sm text-text-muted">benar</span>
             </div>
-            <div className="flex items-baseline gap-2">
+            <div>
               <dt className="sr-only">Salah</dt>
-              <dd className="font-mono text-[15px] font-medium text-text">
-                {data.wrong}
+              <dd className="flex items-baseline gap-2">
+                <span className="font-mono text-[15px] font-medium text-text">
+                  {data.wrong}
+                </span>
+                <span className="text-sm text-text-muted">salah</span>
               </dd>
-              <span className="text-sm text-text-muted">salah</span>
             </div>
-            <div className="flex items-baseline gap-2">
+            <div>
               <dt className="sr-only">Waktu</dt>
-              <dd className="font-mono text-[15px] font-medium text-text">
-                {formatQuizDuration(data.durationSeconds)}
+              <dd className="flex items-baseline gap-2">
+                <span className="font-mono text-[15px] font-medium text-text">
+                  {formatQuizDuration(data.durationSeconds)}
+                </span>
+                <span className="text-sm text-text-muted">waktu</span>
               </dd>
-              <span className="text-sm text-text-muted">waktu</span>
             </div>
             {data.unanswered > 0 ? (
-              <div className="flex items-baseline gap-2">
+              <div>
                 <dt className="sr-only">Tidak dijawab</dt>
-                <dd className="font-mono text-[15px] font-medium text-text">
-                  {data.unanswered}
+                <dd className="flex items-baseline gap-2">
+                  <span className="font-mono text-[15px] font-medium text-text">
+                    {data.unanswered}
+                  </span>
+                  <span className="text-sm text-text-muted">tidak dijawab</span>
                 </dd>
-                <span className="text-sm text-text-muted">tidak dijawab</span>
               </div>
             ) : null}
           </dl>
