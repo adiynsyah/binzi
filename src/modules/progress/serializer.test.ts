@@ -6,7 +6,9 @@
 // database (type-only db imports).
 import { describe, expect, it } from "vitest";
 
+import { allLessonsCompleted } from "./policy";
 import {
+  finalQuizHref,
   lessonHref,
   quizHref,
   resolvePlayback,
@@ -222,6 +224,8 @@ const LESSON_COURSE = {
   slug: "gizi-seimbang",
   title: "Gizi Seimbang",
   isSequential: true,
+  // Card S5-02 §1: null by default — the Final Quiz href tests override it.
+  finalQuizId: null as string | null,
 };
 
 /** An outline row per position; `quizAttempted` drives the gate. */
@@ -496,6 +500,99 @@ describe("toLessonPageDTO — prev/next", () => {
     if (dto.state !== "open") throw new Error("expected open");
     expect(dto.next).toBeNull();
     expect(dto.prevHref).toBe(lessonHref(LESSON_COURSE.slug, "materi-1"));
+  });
+});
+
+// ------------------------------------------- finalQuizHref (S5-02 §1/§5)
+
+describe("finalQuizHref", () => {
+  it("builds /belajar/{courseSlug}/final-quiz", () => {
+    expect(finalQuizHref("gizi-seimbang")).toBe(
+      "/belajar/gizi-seimbang/final-quiz",
+    );
+  });
+});
+
+describe("toLessonPageDTO — finalQuizHref on the open state", () => {
+  const completed = [
+    lessonRow(1, { quizAttempted: true, status: "COMPLETED" }),
+    lessonRow(2, { quizAttempted: true, status: "COMPLETED" }),
+  ];
+
+  function openDto(
+    course: typeof LESSON_COURSE,
+    outline: LessonOutlineRow[],
+  ) {
+    const dto = toLessonPageDTO({
+      course,
+      enrollment: { id: "enr-1" },
+      outline,
+      targetIndex: outline.length - 1,
+      content: null,
+      playback: null,
+      quizRow: null,
+    });
+    if (dto.state !== "open") throw new Error("expected open");
+    return dto;
+  }
+
+  it("all lessons COMPLETED + final_quiz_id set → the href", () => {
+    const dto = openDto(
+      { ...LESSON_COURSE, finalQuizId: "quiz-final-uuid" },
+      completed,
+    );
+    expect(dto.finalQuizHref).toBe(finalQuizHref(LESSON_COURSE.slug));
+  });
+
+  it("all lessons COMPLETED but no final_quiz_id → null", () => {
+    expect(openDto(LESSON_COURSE, completed).finalQuizHref).toBeNull();
+  });
+
+  it("one lesson still IN_PROGRESS → null even with final_quiz_id set", () => {
+    const dto = openDto(
+      { ...LESSON_COURSE, finalQuizId: "quiz-final-uuid" },
+      [completed[0]!, lessonRow(2, { quizAttempted: true })],
+    );
+    expect(dto.finalQuizHref).toBeNull();
+  });
+
+  it("a lesson without a progress row (status null) → null — the gate needs EVERY lesson", () => {
+    const dto = openDto(
+      { ...LESSON_COURSE, finalQuizId: "quiz-final-uuid" },
+      [completed[0]!, lessonRow(2)],
+    );
+    expect(dto.finalQuizHref).toBeNull();
+  });
+
+  it("empty outline never reaches the open state — the gate helper itself answers false", () => {
+    // The serializer throws on an empty target before any state exists, so
+    // the empty-course rule lives in the policy helper the gate composes.
+    expect(allLessonsCompleted([])).toBe(false);
+    expect(allLessonsCompleted([{ status: "COMPLETED" }])).toBe(true);
+    expect(allLessonsCompleted([{ status: null }])).toBe(false);
+  });
+
+  it("locked and not-enrolled states carry no finalQuizHref key at all", () => {
+    const locked = toLessonPageDTO({
+      course: { ...LESSON_COURSE, finalQuizId: "quiz-final-uuid" },
+      enrollment: { id: "enr-1" },
+      outline: [lessonRow(1), lessonRow(2)],
+      targetIndex: 1,
+      content: null,
+      playback: null,
+      quizRow: null,
+    });
+    expect("finalQuizHref" in locked).toBe(false);
+    const notEnrolled = toLessonPageDTO({
+      course: { ...LESSON_COURSE, finalQuizId: "quiz-final-uuid" },
+      enrollment: undefined,
+      outline: [lessonRow(1)],
+      targetIndex: 0,
+      content: null,
+      playback: null,
+      quizRow: null,
+    });
+    expect("finalQuizHref" in notEnrolled).toBe(false);
   });
 });
 

@@ -84,6 +84,7 @@ function openDto(
     playback?: PlaybackDTO | null;
     quiz?: OpenDTO["quiz"];
     lessonId?: string;
+    finalQuizHref?: string | null;
   } = {},
 ): OpenDTO {
   return {
@@ -98,6 +99,7 @@ function openDto(
     },
     progress: overrides.progress ?? null,
     quiz: overrides.quiz ?? null,
+    finalQuizHref: overrides.finalQuizHref ?? null,
     outline: overrides.outline ?? [
       outlineItem(1, "selesai"),
       outlineItem(2, "kini"),

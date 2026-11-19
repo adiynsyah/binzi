@@ -20,7 +20,12 @@ import type {
 } from "@/db/schema";
 import { COURSE_LEVEL_LABELS, type CourseLevel } from "@/modules/course/schema";
 
-import { firstOpenUnattempted, isLessonUnlocked, isQuizEligible } from "./policy";
+import {
+  allLessonsCompleted,
+  firstOpenUnattempted,
+  isLessonUnlocked,
+  isQuizEligible,
+} from "./policy";
 
 /** The enrolled SELECT's row shape (queries.ts). */
 export type EnrolledRow = {
@@ -178,6 +183,12 @@ export function quizHref(courseSlug: string, lessonSlug: string): string {
   return `/belajar/${courseSlug}/${lessonSlug}/quiz`;
 }
 
+/** `/belajar/{courseSlug}/final-quiz` — the Final Quiz page href (card
+ *  S5-02 §1), the third sibling. */
+export function finalQuizHref(courseSlug: string): string {
+  return `/belajar/${courseSlug}/final-quiz`;
+}
+
 /**
  * The open quiz card's DTO: "selesai" wins when the quiz was attempted
  * (lesson_progress.quiz_attempted), then "berjalan" for a live attempt,
@@ -259,6 +270,10 @@ export type LessonPageDTO =
       } | null;
       /** The quiz card (card S3-01 §4.A); null when the lesson has no quiz. */
       quiz: OpenQuizDTO | null;
+      /** Card S5-02 §1: the Final Quiz href, TOP-LEVEL on the open state —
+       *  non-null exactly when every lesson is COMPLETED and the course HAS
+       *  a Final Quiz (the bottom bar's "Final Quiz" link). */
+      finalQuizHref: string | null;
       outline: LessonOutlineItemDTO[];
       prevHref: string | null;
       next:
@@ -284,7 +299,14 @@ export type LessonPageDTO =
  *  the enrollment's absence alone decides not-enrolled, the gate alone
  *  decides locked vs open. */
 export type LessonPageInput = {
-  course: { id: string; slug: string; title: string; isSequential: boolean };
+  course: {
+    id: string;
+    slug: string;
+    title: string;
+    isSequential: boolean;
+    /** Card S5-02 §1 — drives finalQuizHref on the open state. */
+    finalQuizId: string | null;
+  };
   enrollment: { id: string } | undefined;
   outline: readonly LessonOutlineRow[];
   /** 0-based index into `outline`; the service has already resolved the
@@ -418,6 +440,10 @@ export function toLessonPageDTO(input: LessonPageInput): LessonPageDTO {
             courseSlug: course.slug,
             lessonSlug: target.slug,
           })
+        : null,
+    finalQuizHref:
+      course.finalQuizId !== null && allLessonsCompleted(outline)
+        ? finalQuizHref(course.slug)
         : null,
     outline: items,
     prevHref:
