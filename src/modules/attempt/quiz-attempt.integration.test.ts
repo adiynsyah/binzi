@@ -1715,4 +1715,30 @@ describe("submitQuizAttempt — FINAL branch (Nilai Akhir)", () => {
     if (hasil.state !== "hasil") return;
     expect(hasil.finalQuizHref).toBe(`/belajar/${made.slug}/final-quiz`);
   });
+
+  it("the lesson-quiz result screen keeps finalQuizHref NULL until every lesson is COMPLETED (S5-02 mutation 9)", async () => {
+    // complete: false — lesson 2 untouched, so lesson 1's result closing
+    // must NOT offer the Final link yet (the gate behind finalQuizHref).
+    const made = await finalCourse("fth", { complete: false });
+    const attached = await attachQuiz(made.lessons[0]!.id, {
+      questions: [GRADED_QUESTIONS[0]!],
+    });
+    const { attemptId } = await startLessonQuiz(MEMBER, {
+      lessonId: made.lessons[0]!.id,
+    });
+    await saveQuizAnswer(MEMBER, {
+      attemptId,
+      questionId: attached.questionIds[0]!,
+      optionId: attached.optionIds[0]![0]!,
+    });
+    await submitQuizAttempt(MEMBER, { attemptId });
+    const hasil = await getLessonQuizPage(
+      MEMBER,
+      made.slug,
+      made.lessons[0]!.slug,
+    );
+    expect(hasil.state).toBe("hasil");
+    if (hasil.state !== "hasil") return;
+    expect(hasil.finalQuizHref).toBeNull();
+  });
 });
