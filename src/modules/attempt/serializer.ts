@@ -11,10 +11,12 @@ import { docToPlainText } from "@/lib/content-doc";
 export type QuizQuestionType = "SINGLE_CHOICE" | "TRUE_FALSE";
 export type ExplanationPolicy = "ALWAYS" | "ON_PASS_ONLY" | "NEVER";
 export type AttemptStatus = "IN_PROGRESS" | "SUBMITTED" | "EXPIRED";
+export type QuizType = "LESSON" | "FINAL";
 
 /** The quizzes row's settings columns the attempt flow reads (queries.ts). */
 export type QuizSettingsRow = {
   id: string;
+  type: QuizType;
   title: string;
   durationMinutes: number;
   passingScorePercent: number;
@@ -191,6 +193,11 @@ export type QuizResultDTO = {
   items: QuizResultItemDTO[];
   lesson: { position: number; title: string; href: string };
   next: { position: number; href: string } | null;
+  /** Card S5-02 §5: non-null exactly when every lesson is COMPLETED and the
+   *  course has a Final Quiz — the closing swaps "materi berikutnya" for
+   *  "Lanjut ke Final Quiz". REQUIRED on the input too, so a caller that
+   *  forgets it is a typecheck error, not a silent missing link. */
+  finalQuizHref: string | null;
 };
 
 /**
@@ -204,6 +211,60 @@ export type LessonQuizPageDTO =
   | QuizRunningDTO
   | { state: "kedaluwarsa"; attemptId: string }
   | QuizResultDTO;
+
+// -------------------------------------------------- S5-02 final quiz states
+
+/** The score split as the Final screens show it (PRG-05, from
+ *  system_settings via the quiz module's service — plain numbers here). */
+export type FinalScoreWeightsDTO = {
+  lessonPercent: number;
+  finalPercent: number;
+};
+
+/** The Final rules screen (card S5-02 §4.A, 7h left panel). */
+export type FinalQuizRulesDTO = {
+  state: "aturan-final";
+  courseId: string;
+  courseTitle: string;
+  questionCount: number;
+  durationMinutes: number;
+  passingScorePercent: number;
+  /** Rounded average of the lesson quiz scores; null is unreachable under
+   *  the gate (rendered "–" defensively). */
+  lessonAveragePercent: number | null;
+  weights: FinalScoreWeightsDTO;
+  /** "Ulas materi dulu" — the LAST lesson of the course. */
+  lastLessonHref: string;
+};
+
+/** The Final result screen's course half (card S5-02 §4.D, 7h right) — the
+ *  review half is the SAME QuizReviewDTO the lesson result shows. */
+export type FinalQuizResultDTO = QuizReviewDTO & {
+  state: "hasil-final";
+  final: {
+    durationLimitSeconds: number;
+    passingScorePercent: number;
+    /** Re-read from lesson_progress at view time, rounded. */
+    lessonAveragePercent: number | null;
+    weights: FinalScoreWeightsDTO;
+    /** The STORED Nilai Akhir from enrollments, rounded for display. */
+    finalScorePercent: number | null;
+    courseStatus: "COMPLETED" | "PASSED";
+  };
+};
+
+/**
+ * The Final Quiz page DTO (card S5-02 §2): the same state machine as the
+ * lesson quiz page — `kembali` (not enrolled / gate unmet without an
+ * attempt), `aturan-final` (QZ-18 confirmation), `berjalan` (QuizRunner
+ * as-is), `kedaluwarsa` (beacon), `hasil-final`.
+ */
+export type FinalQuizPageDTO =
+  | { state: "kembali"; href: string }
+  | FinalQuizRulesDTO
+  | QuizRunningDTO
+  | { state: "kedaluwarsa"; attemptId: string }
+  | FinalQuizResultDTO;
 
 // ------------------------------------------------------------------ builders
 
@@ -299,11 +360,24 @@ export function toQuizRunningDTO(input: {
 }
 
 /**
- * The result screen's data (card §4.C). The key (option.correct) and the
- * explanation follow explanation_policy together — hidden policy answers
- * null for BOTH, so the "Kunci:" line cannot outlive the explanation.
+ * The review half BOTH result screens share (card S5-02 §2): score, verdict,
+ * the three counters, the capped duration, and the per-item review — the
+ * key (option.correct) and the explanation follow explanation_policy
+ * together, hidden policy answers null for BOTH, so "Kunci:" can never
+ * outlive the explanation.
  */
-export function toQuizResultDTO(input: {
+export type QuizReviewDTO = {
+  status: AttemptStatus;
+  scorePercent: number;
+  isPassed: boolean;
+  correct: number;
+  wrong: number;
+  unanswered: number;
+  durationSeconds: number;
+  items: QuizResultItemDTO[];
+};
+
+export function toQuizReviewDTO(input: {
   attempt: AttemptRow;
   settings: Pick<
     QuizSettingsRow,
@@ -312,9 +386,7 @@ export function toQuizResultDTO(input: {
   questionRows: readonly AttemptQuestionRow[];
   optionRows: readonly AttemptOptionRow[];
   answerRows: readonly AttemptAnswerRow[];
-  lesson: { position: number; title: string; href: string };
-  next: { position: number; href: string } | null;
-}): QuizResultDTO {
+}): QuizReviewDTO {
   const { attempt } = input;
   const ordered = questionsInAttemptOrder(
     input.questionRows,
@@ -387,7 +459,6 @@ export function toQuizResultDTO(input: {
   );
 
   return {
-    state: "hasil",
     status: attempt.status,
     scorePercent: Math.round(Number(attempt.scorePercent ?? 0)),
     isPassed: attempt.isPassed === true,
@@ -396,7 +467,56 @@ export function toQuizResultDTO(input: {
     unanswered,
     durationSeconds,
     items,
+  };
+}
+
+/**
+ * The lesson result screen's data (card §4.C): the shared review plus the
+ * lesson pointer, the next-lesson pointer, and the Final Quiz closing href.
+ */
+export function toQuizResultDTO(input: {
+  attempt: AttemptRow;
+  settings: Pick<
+    QuizSettingsRow,
+    "shuffleOptions" | "explanationPolicy"
+  >;
+  questionRows: readonly AttemptQuestionRow[];
+  optionRows: readonly AttemptOptionRow[];
+  answerRows: readonly AttemptAnswerRow[];
+  lesson: { position: number; title: string; href: string };
+  next: { position: number; href: string } | null;
+  finalQuizHref: string | null;
+}): QuizResultDTO {
+  const review = toQuizReviewDTO(input);
+  return {
+    state: "hasil",
+    ...review,
     lesson: input.lesson,
     next: input.next,
+    finalQuizHref: input.finalQuizHref,
+  };
+}
+
+/**
+ * The Final result screen's data (card S5-02 §4.D): the SAME review half the
+ * lesson result shows, plus the course card (Nilai Akhir formula, stored
+ * score, course status).
+ */
+export function toFinalQuizResultDTO(input: {
+  attempt: AttemptRow;
+  settings: Pick<
+    QuizSettingsRow,
+    "shuffleOptions" | "explanationPolicy"
+  >;
+  questionRows: readonly AttemptQuestionRow[];
+  optionRows: readonly AttemptOptionRow[];
+  answerRows: readonly AttemptAnswerRow[];
+  final: FinalQuizResultDTO["final"];
+}): FinalQuizResultDTO {
+  const review = toQuizReviewDTO(input);
+  return {
+    state: "hasil-final",
+    ...review,
+    final: input.final,
   };
 }

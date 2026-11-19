@@ -9,6 +9,7 @@ import { describe, expect, it } from "vitest";
 import {
   orderOptions,
   questionsInAttemptOrder,
+  toFinalQuizResultDTO,
   toQuizResultDTO,
   toQuizRunningDTO,
   toQuizRulesDTO,
@@ -72,6 +73,9 @@ function settingsRow(
 ): QuizSettingsRow {
   return {
     id: QUIZ_ID,
+    // Card S5-02 §2: LESSON by default — the Final serializer tests pass
+    // type: "FINAL" explicitly.
+    type: "LESSON",
     title: "Quiz materi 1",
     durationMinutes: 10,
     passingScorePercent: 70,
@@ -339,6 +343,7 @@ describe("toQuizRunningDTO", () => {
       answerRows: [],
       lesson: { position: 1, title: "Judul materi 1", href: LESSON_HREF },
       next: null,
+      finalQuizHref: null,
     });
     expect(result.items[0]!.options.map((option) => option.label)).toEqual(
       running.questions[0]!.options.map((option) => option.label),
@@ -393,6 +398,7 @@ describe("toQuizResultDTO", () => {
       answerRows: [answerRow("q-1", "o-q-1-0"), answerRow("q-2", "o-q-2-0")],
       lesson: { position: 1, title: "Judul materi 1", href: LESSON_HREF },
       next: { position: 2, href: "/belajar/gizi-seimbang/materi-2" },
+      finalQuizHref: null,
     });
   }
 
@@ -479,5 +485,121 @@ describe("toQuizResultDTO", () => {
   it("items follow question_order numbering, not order_index", () => {
     const dto = gradedFixture({ explanationPolicy: "ALWAYS" });
     expect(dto.items.map((item) => item.number)).toEqual([1, 2, 3]);
+  });
+});
+
+// ------------------------------------------- toFinalQuizResultDTO (S5-02 §2)
+
+describe("toFinalQuizResultDTO", () => {
+  /** The SAME graded rows the lesson-result tests use, under a FINAL quiz. */
+  function finalFixture(overrides: {
+    isPassed?: boolean | null;
+    scorePercent?: string;
+  }) {
+    return toFinalQuizResultDTO({
+      attempt: attemptRow({
+        questionOrder: ["q-1", "q-2", "q-3"],
+        score: 2,
+        maxScore: 7,
+        scorePercent: overrides.scorePercent ?? "28.57",
+        isPassed: overrides.isPassed ?? false,
+      }),
+      settings: settingsRow({
+        type: "FINAL",
+        explanationPolicy: "ALWAYS",
+        shuffleOptions: false,
+      }),
+      questionRows: [
+        questionRow(1, { points: 2 }),
+        questionRow(2, { points: 1 }),
+        questionRow(3, { points: 4, explanation: null }),
+      ],
+      optionRows: [
+        ...optionRows("q-1", 0),
+        ...optionRows("q-2", 1, 2),
+        ...optionRows("q-3", 0),
+      ],
+      answerRows: [answerRow("q-1", "o-q-1-0"), answerRow("q-2", "o-q-2-0")],
+      final: {
+        durationLimitSeconds: 1200,
+        passingScorePercent: 70,
+        lessonAveragePercent: 60,
+        weights: { lessonPercent: 60, finalPercent: 40 },
+        finalScorePercent: 68,
+        courseStatus: "PASSED",
+      },
+    });
+  }
+
+  it("carries the SHARED review half — identical numbers to the lesson result", () => {
+    const dto = finalFixture({});
+    expect(dto.state).toBe("hasil-final");
+    expect(dto.status).toBe("SUBMITTED");
+    expect(dto.scorePercent).toBe(29); // "28.57" rounds to 29
+    expect(dto.isPassed).toBe(false);
+    expect(dto.correct).toBe(1);
+    expect(dto.wrong).toBe(1);
+    expect(dto.unanswered).toBe(1);
+    expect(dto.durationSeconds).toBe(450);
+    expect(dto.items).toHaveLength(3);
+  });
+
+  it("passes the course half through untouched (formula inputs + stored result)", () => {
+    const dto = finalFixture({ isPassed: true, scorePercent: "80.00" });
+    expect(dto.final).toEqual({
+      durationLimitSeconds: 1200,
+      passingScorePercent: 70,
+      lessonAveragePercent: 60,
+      weights: { lessonPercent: 60, finalPercent: 40 },
+      finalScorePercent: 68,
+      courseStatus: "PASSED",
+    });
+    // courseStatus is a VALUE from the submit, not derived here: the same
+    // builder carries COMPLETED for a failed final attempt.
+    const failed = toFinalQuizResultDTO({
+      attempt: attemptRow(),
+      settings: settingsRow({ type: "FINAL" }),
+      questionRows: [questionRow(1)],
+      optionRows: optionRows("q-1", 0),
+      answerRows: [],
+      final: {
+        durationLimitSeconds: 1200,
+        passingScorePercent: 70,
+        lessonAveragePercent: 75,
+        weights: { lessonPercent: 60, finalPercent: 40 },
+        finalScorePercent: 69,
+        courseStatus: "COMPLETED",
+      },
+    });
+    expect(failed.final.courseStatus).toBe("COMPLETED");
+    expect(failed.final.lessonAveragePercent).toBe(75);
+  });
+
+  it("the allowlist is exact: review keys + state + final, nothing else", () => {
+    const dto = finalFixture({});
+    expect(Object.keys(dto).sort()).toEqual(
+      [
+        "state",
+        "status",
+        "scorePercent",
+        "isPassed",
+        "correct",
+        "wrong",
+        "unanswered",
+        "durationSeconds",
+        "items",
+        "final",
+      ].sort(),
+    );
+    expect(Object.keys(dto.final).sort()).toEqual(
+      [
+        "durationLimitSeconds",
+        "passingScorePercent",
+        "lessonAveragePercent",
+        "weights",
+        "finalScorePercent",
+        "courseStatus",
+      ].sort(),
+    );
   });
 });

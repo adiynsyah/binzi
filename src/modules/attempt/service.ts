@@ -9,12 +9,21 @@ import type { SessionUser } from "@/lib/rbac";
 import { ConflictError, NotFoundError } from "@/lib/errors";
 import { db } from "@/db";
 import {
+  getEnrollmentFinalResult,
   lessonHref,
+  loadFinalQuizContext,
   loadLessonQuizContext,
+  recordFinalQuizResult,
   recordLessonQuizResult,
 } from "@/modules/progress/service";
+import { getScoreWeights, type ScoreWeights } from "@/modules/quiz/service";
 
-import type { SaveQuizAnswerInput, StartQuizInput, SubmitQuizInput } from "./schema";
+import type {
+  SaveQuizAnswerInput,
+  StartFinalQuizInput,
+  StartQuizInput,
+  SubmitQuizInput,
+} from "./schema";
 import { assertMemberRole, withinTolerance } from "./policy";
 import {
   findAttemptForUpdate,
@@ -22,6 +31,7 @@ import {
   insertAttempt,
   selectAttemptAnswers,
   selectAttemptByQuizAndUser,
+  selectCourseIdByFinalQuizId,
   selectLessonIdByQuizId,
   selectNextAttemptNumber,
   selectOptionBelongsToQuestion,
@@ -29,13 +39,19 @@ import {
   selectQuizOptions,
   selectQuizQuestions,
   selectQuizSettings,
+  selectSubmitPreread,
   setAnswerGrade,
   upsertQuizAnswer,
+  type DbTx,
 } from "./queries";
 import {
+  toFinalQuizResultDTO,
   toQuizResultDTO,
   toQuizRunningDTO,
   toQuizRulesDTO,
+  type FinalQuizPageDTO,
+  type FinalQuizResultDTO,
+  type FinalQuizRulesDTO,
   type LessonQuizPageDTO,
   type QuizResultDTO,
   type QuizResultItemDTO,
@@ -44,6 +60,9 @@ import {
 } from "./serializer";
 
 export type {
+  FinalQuizPageDTO,
+  FinalQuizResultDTO,
+  FinalQuizRulesDTO,
   LessonQuizPageDTO,
   QuizResultDTO,
   QuizResultItemDTO,
@@ -177,10 +196,178 @@ export async function getLessonQuizPage(
       href: lessonHref(context.courseSlug, context.lessonSlug),
     },
     next: context.next,
+    finalQuizHref: context.finalQuizHref,
+  });
+}
+
+/**
+ * The Final Quiz page (card S5-02 §2) — a pure GET, the SAME state machine
+ * as the lesson quiz page: not enrolled → `kembali` at the first lesson;
+ * gate unmet without an attempt → `kembali` at the first incomplete lesson;
+ * gate open without an attempt → `aturan-final` (the QZ-18 confirmation);
+ * IN_PROGRESS inside the tolerance → `berjalan` (QuizRunner as-is); past it
+ * → `kedaluwarsa` (the beacon submits); a final attempt → `hasil-final`.
+ * An existing attempt OUTRANKS the gate (the S3-01 rule, FINAL included).
+ */
+export async function getFinalQuizPage(
+  actor: SessionUser,
+  courseSlug: string,
+): Promise<FinalQuizPageDTO> {
+  assertMemberRole(actor);
+  const context = await loadFinalQuizContext(db, actor.id, { courseSlug });
+
+  if (!context.enrolled) {
+    return { state: "kembali", href: context.firstLessonHref };
+  }
+  const [settings, attempt] = await Promise.all([
+    selectQuizSettings(db, context.quizId),
+    selectAttemptByQuizAndUser(db, context.quizId, actor.id),
+  ]);
+  if (!settings) {
+    // Unreachable with valid data (courses.final_quiz_id is a FK).
+    throw new NotFoundError("Quiz tidak ditemukan.");
+  }
+
+  if (!attempt) {
+    if (!context.allCompleted) {
+      return { state: "kembali", href: context.firstIncompleteHref! };
+    }
+    const questionRows = await selectQuizQuestions(db, context.quizId);
+    const weights = await getScoreWeights();
+    const rules: FinalQuizRulesDTO = {
+      state: "aturan-final",
+      courseId: context.courseId,
+      courseTitle: context.courseTitle,
+      questionCount: questionRows.length,
+      durationMinutes: settings.durationMinutes,
+      passingScorePercent: settings.passingScorePercent,
+      lessonAveragePercent: context.lessonAveragePercent,
+      weights,
+      lastLessonHref: context.lastLessonHref,
+    };
+    return rules;
+  }
+
+  const now = new Date();
+  if (attempt.status === "IN_PROGRESS") {
+    if (!withinTolerance(now, attempt.expiresAt)) {
+      // Same decision-6 stance as the lesson quiz: the GET never writes.
+      return { state: "kedaluwarsa", attemptId: attempt.id };
+    }
+    const [questionRows, optionRows, answerRows] = await Promise.all([
+      selectQuizQuestions(db, attempt.quizId),
+      selectQuizOptions(db, attempt.quizId),
+      selectAttemptAnswers(db, attempt.id),
+    ]);
+    return toQuizRunningDTO({
+      attemptId: attempt.id,
+      questionOrder: attempt.questionOrder,
+      expiresAt: attempt.expiresAt,
+      serverNow: now,
+      settings,
+      questionRows,
+      optionRows,
+      answerRows,
+    });
+  }
+
+  // SUBMITTED / EXPIRED — the Final result screen: the shared review plus
+  // the course card, read from the stored rows (finalScorePercent comes
+  // from enrollments, never recomputed here).
+  const [questionRows, optionRows, answerRows, enrollmentResult, weights] =
+    await Promise.all([
+      selectQuizQuestions(db, attempt.quizId),
+      selectQuizOptions(db, attempt.quizId),
+      selectAttemptAnswers(db, attempt.id),
+      getEnrollmentFinalResult(db, actor.id, context.courseId),
+      getScoreWeights(),
+    ]);
+  if (!enrollmentResult) {
+    // Unreachable: a final attempt implies the submit wrote the enrollment.
+    throw new Error("attempt service: final result without an enrollment row");
+  }
+  return toFinalQuizResultDTO({
+    attempt,
+    settings,
+    questionRows,
+    optionRows,
+    answerRows,
+    final: {
+      durationLimitSeconds: settings.durationMinutes * 60,
+      passingScorePercent: settings.passingScorePercent,
+      lessonAveragePercent: context.lessonAveragePercent,
+      weights,
+      finalScorePercent: enrollmentResult.finalScorePercent,
+      courseStatus:
+        enrollmentResult.status === "PASSED" ? "PASSED" : "COMPLETED",
+    },
   });
 }
 
 // --------------------------------------------------------------------- start
+
+/**
+ * Steps 3–6 of BOTH starts (card S5-02 §2, extracted verbatim from
+ * startLessonQuiz): settings + questions, the shuffle, the attempt number,
+ * the guarded insert — and the suppressed-insert fallback to the winner's
+ * live row. Same transaction as the caller's gate checks.
+ */
+async function insertAttemptInTx(
+  tx: DbTx,
+  input: { quizId: string; actorId: string; enrollmentId: string },
+): Promise<{ attemptId: string; created: boolean }> {
+  const [settings, questionRows] = await Promise.all([
+    selectQuizSettings(tx, input.quizId),
+    selectQuizQuestions(tx, input.quizId),
+  ]);
+  if (!settings) {
+    throw new NotFoundError("Quiz tidak ditemukan.");
+  }
+  if (questionRows.length === 0) {
+    // Defensive: the CMS requires questions before publish; a hand-made
+    // start on an empty quiz still answers 409, never a 0-question run.
+    throw new ConflictError("Quiz ini belum bisa dikerjakan.");
+  }
+
+  const orderedIds = questionRows.map((row) => row.id);
+  const questionOrder = settings.shuffleQuestions
+    ? shuffleQuestionIds(orderedIds)
+    : orderedIds;
+  const attemptNumber = await selectNextAttemptNumber(
+    tx,
+    input.quizId,
+    input.actorId,
+  );
+  const startedAt = new Date();
+  const expiresAt = new Date(
+    startedAt.getTime() + settings.durationMinutes * 60_000,
+  );
+
+  const insertedId = await insertAttempt(tx, {
+    quizId: input.quizId,
+    userId: input.actorId,
+    enrollmentId: input.enrollmentId,
+    attemptNumber,
+    questionOrder,
+    startedAt,
+    expiresAt,
+  });
+  if (insertedId !== undefined) {
+    return { attemptId: insertedId, created: true };
+  }
+  // The index suppressed us — the winner's row IS the same quiz for the
+  // same participant; select it back and continue their attempt.
+  const winner = await selectAttemptByQuizAndUser(
+    tx,
+    input.quizId,
+    input.actorId,
+  );
+  if (!winner || winner.status !== "IN_PROGRESS") {
+    // Unreachable: the partial index only suppresses IN_PROGRESS rows.
+    throw new Error("attempt service: suppressed insert without a live attempt");
+  }
+  return { attemptId: winner.id, created: false };
+}
 
 /**
  * "Mulai quiz" (card §1) — ONE transaction, no SELECT … FOR UPDATE: the
@@ -223,57 +410,61 @@ export async function startLessonQuiz(
       );
     }
 
-    const [settings, questionRows] = await Promise.all([
-      selectQuizSettings(tx, context.quizId),
-      selectQuizQuestions(tx, context.quizId),
-    ]);
-    if (!settings) {
-      throw new NotFoundError("Quiz tidak ditemukan.");
-    }
-    if (questionRows.length === 0) {
-      // Defensive: the CMS requires questions before publish; a hand-made
-      // start on an empty quiz still answers 409, never a 0-question run.
-      throw new ConflictError("Quiz ini belum bisa dikerjakan.");
-    }
-
-    const orderedIds = questionRows.map((row) => row.id);
-    const questionOrder = settings.shuffleQuestions
-      ? shuffleQuestionIds(orderedIds)
-      : orderedIds;
-    const attemptNumber = await selectNextAttemptNumber(
-      tx,
-      context.quizId,
-      actor.id,
-    );
-    const startedAt = new Date();
-    const expiresAt = new Date(
-      startedAt.getTime() + settings.durationMinutes * 60_000,
-    );
-
-    const insertedId = await insertAttempt(tx, {
+    return insertAttemptInTx(tx, {
       quizId: context.quizId,
-      userId: actor.id,
+      actorId: actor.id,
       enrollmentId: context.enrollmentId,
-      attemptNumber,
-      questionOrder,
-      startedAt,
-      expiresAt,
     });
-    if (insertedId !== undefined) {
-      return { attemptId: insertedId, created: true };
+  });
+}
+
+// ---------------------------------------------------------- S5-02 final quiz
+
+/**
+ * "Mulai Final Quiz" (card S5-02 §2) — ONE transaction, statement order:
+ * context (not enrolled reads exactly like an unknown course → the SAME
+ * 404) → an existing attempt (IN_PROGRESS continues it, a final one is the
+ * one-attempt 409 — an attempt OUTRANKS the gate) → the all-lessons gate
+ * (409 with the way-back message) → the shared insert. No FOR UPDATE, same
+ * partial-index guard as the lesson start.
+ */
+export async function startFinalQuiz(
+  actor: SessionUser,
+  input: StartFinalQuizInput,
+): Promise<{ attemptId: string; created: boolean }> {
+  assertMemberRole(actor);
+  return db.transaction(async (tx) => {
+    const context = await loadFinalQuizContext(tx, actor.id, {
+      courseId: input.courseId,
+    });
+    if (!context.enrolled) {
+      throw new NotFoundError("Kursus tidak ditemukan.");
     }
-    // The index suppressed us — the winner's row IS the same quiz for the
-    // same participant; select it back and continue their attempt.
-    const winner = await selectAttemptByQuizAndUser(
+
+    const existing = await selectAttemptByQuizAndUser(
       tx,
       context.quizId,
       actor.id,
     );
-    if (!winner || winner.status !== "IN_PROGRESS") {
-      // Unreachable: the partial index only suppresses IN_PROGRESS rows.
-      throw new Error("attempt service: suppressed insert without a live attempt");
+    if (existing) {
+      if (existing.status === "IN_PROGRESS") {
+        // Refresh mid-Final continues THE attempt (QZ-08/QZ-13).
+        return { attemptId: existing.id, created: false };
+      }
+      // One attempt forever, FINAL included (QZ-13).
+      throw new ConflictError("Final Quiz ini sudah dikerjakan.");
     }
-    return { attemptId: winner.id, created: false };
+    if (!context.allCompleted) {
+      throw new ConflictError(
+        "Selesaikan semua materi untuk membuka Final Quiz.",
+      );
+    }
+
+    return insertAttemptInTx(tx, {
+      quizId: context.quizId,
+      actorId: actor.id,
+      enrollmentId: context.enrollmentId,
+    });
   });
 }
 
@@ -327,26 +518,49 @@ export async function saveQuizAnswer(
 // ------------------------------------------------------------------- submit
 
 /**
- * "Kumpulkan" (card §1) — ONE transaction, lock FIRST, idempotent. An
- * already-final attempt returns its stored status WITHOUT regrading. The
- * verdict follows the 15-second tolerance (decision 7): inside it →
- * SUBMITTED, past it → EXPIRED (time spent still caps at expires_at).
- * Grading is separate statements in a fixed order: questions (order +
- * points), answers (selected), options (is_correct) — then the attempt
- * row, then each answer's grade, then lesson_progress via the progress
- * module's recorder, all on the SAME transaction.
+ * "Kumpulkan" (card §1 + card S5-02 §2) — ONE transaction, lock FIRST,
+ * idempotent. An already-final attempt returns its stored status WITHOUT
+ * regrading. The verdict follows the 15-second tolerance (decision 7):
+ * inside it → SUBMITTED, past it → EXPIRED (time spent still caps at
+ * expires_at). Grading is separate statements in a fixed order: questions
+ * (order + points), answers (selected), options (is_correct) — then the
+ * attempt row, then each answer's grade, then the recorder, all on the
+ * SAME transaction. The recorder itself branches on quizzes.type INSIDE
+ * the transaction: LESSON → lesson_progress (getScoreWeights is never
+ * called); FINAL → enrollments via recordFinalQuizResult.
+ *
+ * The score weights are read BEFORE the transaction (owner addition,
+ * S5-02): getScoreWeights queries through `db`, and awaiting a `db` query
+ * inside db.transaction deadlocks on PGlite. A plain pre-read (quiz type +
+ * the actor's attempt status, no lock) decides whether they are needed; a
+ * FINAL attempt that is already final never reads them (idempotent path),
+ * and a missing attempt changes nothing — the transaction still answers
+ * the one 404. Invalid weights throw HERE, so nothing is written and the
+ * attempt stays IN_PROGRESS.
  */
 export async function submitQuizAttempt(
   actor: SessionUser,
   input: SubmitQuizInput,
 ): Promise<{ status: "SUBMITTED" | "EXPIRED" }> {
   assertMemberRole(actor);
+  const preread = await selectSubmitPreread(input.attemptId, actor.id);
+  let weights: ScoreWeights | undefined;
+  if (
+    preread !== undefined &&
+    preread.quizType === "FINAL" &&
+    preread.status === "IN_PROGRESS"
+  ) {
+    weights = await getScoreWeights();
+  }
+
   return db.transaction(async (tx) => {
     const attempt = await findAttemptForUpdate(tx, input.attemptId, actor.id);
     if (!attempt) {
       throw new NotFoundError("Quiz tidak ditemukan.");
     }
     if (attempt.status !== "IN_PROGRESS") {
+      // Already final (this request or a concurrent one that won the lock):
+      // stored status, no regrade, no weights needed.
       return { status: attempt.status };
     }
 
@@ -415,6 +629,30 @@ export async function submitQuizAttempt(
             ? (questionRows.find((q) => q.id === row.questionId)?.points ?? 0)
             : 0,
       });
+    }
+
+    if (settings.type === "FINAL") {
+      // Nilai Akhir lands on enrollments, same transaction (PRG-05): a
+      // weights failure above rolled everything back before any write; a
+      // missing weights here is unreachable (the pre-read saw IN_PROGRESS,
+      // and the idempotent guard returned otherwise).
+      const courseId = await selectCourseIdByFinalQuizId(tx, attempt.quizId);
+      if (courseId === undefined) {
+        throw new Error("attempt service: FINAL quiz without a course row");
+      }
+      if (weights === undefined) {
+        throw new Error("attempt service: FINAL submit without score weights");
+      }
+      await recordFinalQuizResult(tx, {
+        actorId: actor.id,
+        courseId,
+        enrollmentId: attempt.enrollmentId,
+        finalScorePercent: scorePercent,
+        isPassed,
+        weights,
+        submittedAt: now,
+      });
+      return { status };
     }
 
     const lessonId = await selectLessonIdByQuizId(tx, attempt.quizId);

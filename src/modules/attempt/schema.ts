@@ -12,6 +12,12 @@ export const startQuizInput = z.strictObject({
   lessonId: z.uuid(),
 });
 
+/** POST /api/quiz/courses/{courseId}/final-attempt (card S5-02 §3) — same
+ *  shape, the course the Final Quiz belongs to. */
+export const startFinalQuizInput = z.strictObject({
+  courseId: z.uuid(),
+});
+
 /** PUT …/answers/{questionId} — the JSON body is exactly one option id. */
 export const saveQuizAnswerBody = z.strictObject({
   optionId: z.uuid(),
@@ -30,6 +36,7 @@ export const submitQuizInput = z.strictObject({
 });
 
 export type StartQuizInput = z.infer<typeof startQuizInput>;
+export type StartFinalQuizInput = z.infer<typeof startFinalQuizInput>;
 export type SaveQuizAnswerBody = z.infer<typeof saveQuizAnswerBody>;
 export type SaveQuizAnswerInput = z.infer<typeof saveQuizAnswerInput>;
 export type SubmitQuizInput = z.infer<typeof submitQuizInput>;
