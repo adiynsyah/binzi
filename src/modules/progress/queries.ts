@@ -759,7 +759,11 @@ export async function updateEnrollmentFinalResult(
     .set({
       status: input.status,
       finalScorePercent: input.finalScorePercent,
-      completedAt: sql`coalesce(${enrollments.completedAt}, ${input.completedAt})`,
+      // A raw Date inside a drizzle `sql` fragment skips the column mapper:
+      // postgres.js serializes it with the locale toString() and the wire
+      // query fails (PGlite accepts it, so only e2e catches this). Bind an
+      // ISO string with an explicit cast instead.
+      completedAt: sql`coalesce(${enrollments.completedAt}, ${input.completedAt.toISOString()}::timestamptz)`,
     })
     .where(
       and(
