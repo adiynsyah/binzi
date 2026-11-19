@@ -1626,6 +1626,37 @@ describe("submitQuizAttempt — FINAL branch (Nilai Akhir)", () => {
     expect(second?.getTime()).toBe(first?.getTime());
   });
 
+  it("the average is scoped to THIS participant: a second member's 0s never leak in", async () => {
+    // Owner review before merge: member B finishes the SAME course's two
+    // lessons with score 0 — member A (data A: 70+50, Final 80) must still
+    // land on 68.00/PASSED. An unscoped lesson_progress join would average
+    // (70+0+50+0)/4 = 30 → 50.00.
+    const made = await finalCourse("ftk", { lessonScores: ["70.00", "50.00"] });
+    await enrollInCourse(MEMBER_B, made.course.id);
+    for (const lesson of made.lessons) {
+      await completeLessonWithScore(
+        MEMBER_B.id,
+        made.course.id,
+        lesson.id,
+        "0.00",
+      );
+    }
+    const { attemptId } = await startFinalQuiz(MEMBER, {
+      courseId: made.course.id,
+    });
+    await answerFinalAttempt(
+      attemptId,
+      made.correctOptionIds,
+      await finalOptions(made),
+      4,
+      1,
+    );
+    await submitQuizAttempt(MEMBER, { attemptId });
+    const enrollment = await enrollmentRow(MEMBER.id, made.course.id);
+    expect(enrollment!.finalScorePercent).toBe("68.00");
+    expect(enrollment!.status).toBe("PASSED");
+  });
+
   it("the average is scoped to THIS course: another course's 0 never leaks in", async () => {
     const made = await finalCourse("ftd");
     // A second enrolled course whose single lesson carries score 0 — an
@@ -1710,6 +1741,38 @@ describe("submitQuizAttempt — FINAL branch (Nilai Akhir)", () => {
     expect(page.final.weights).toEqual({ lessonPercent: 60, finalPercent: 40 });
     expect(page.final.durationLimitSeconds).toBe(1200);
     expect(page.items).toHaveLength(5);
+  });
+
+  it("hasil-final shows the STORED Nilai Akhir even after the row is edited (never recomputed)", async () => {
+    // Owner review before merge: overwrite final_score_percent to 77.00
+    // directly in the DB — the GET must show 77, not a recomputed 68
+    // (the value the formula would still produce).
+    const made = await finalCourse("ftl");
+    const { attemptId } = await startFinalQuiz(MEMBER, {
+      courseId: made.course.id,
+    });
+    await answerFinalAttempt(
+      attemptId,
+      made.correctOptionIds,
+      await finalOptions(made),
+      4,
+      1,
+    );
+    await submitQuizAttempt(MEMBER, { attemptId });
+    expect((await enrollmentRow(MEMBER.id, made.course.id))!.finalScorePercent)
+      .toBe("68.00");
+    await db
+      .update(enrollments)
+      .set({ finalScorePercent: "77.00" })
+      .where(
+        sql`${enrollments.userId} = ${MEMBER.id} and ${enrollments.courseId} = ${made.course.id}`,
+      );
+    const page = await getFinalQuizPage(MEMBER, made.slug);
+    expect(page.state).toBe("hasil-final");
+    if (page.state !== "hasil-final") return;
+    expect(page.final.finalScorePercent).toBe(77);
+    expect(page.scorePercent).toBe(80);
+    expect(page.final.lessonAveragePercent).toBe(60);
   });
 
   it("the lesson-quiz result screen carries finalQuizHref once every lesson is COMPLETED", async () => {
