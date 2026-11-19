@@ -458,9 +458,11 @@ export async function createPublishableCourseViaApi(
  * Collect EVERY quiz id BEFORE the lessons rows go — lesson quizzes live
  * on lessons.quiz_id, the final quiz on courses.final_quiz_id, and after
  * those rows are deleted neither subquery source exists. Order:
- * lesson_progress → enrollments → lessons → sections → questions for ALL
- * collected quiz ids (question_options cascade) → courses.final_quiz_id
- * freed → quizzes → courses. FKs do not cascade anywhere on this path.
+ * lesson_progress → quiz_answers + quiz_attempts (S3-01: attempts hang off
+ * BOTH enrollments and quizzes, answers off attempts) → enrollments →
+ * lessons → sections → questions for ALL collected quiz ids
+ * (question_options cascade) → courses.final_quiz_id freed → quizzes →
+ * courses. FKs do not cascade anywhere on this path.
  */
 export async function deleteCoursesInE2eDb(
   courseIds: string[],
@@ -477,6 +479,11 @@ export async function deleteCoursesInE2eDb(
 
     await sql`delete from lesson_progress where enrollment_id in
       (select id from enrollments where course_id = any(${courseIds}::uuid[]))`;
+    if (quizIds.length > 0) {
+      await sql`delete from quiz_answers where attempt_id in
+        (select id from quiz_attempts where quiz_id = any(${quizIds}::uuid[]))`;
+      await sql`delete from quiz_attempts where quiz_id = any(${quizIds}::uuid[])`;
+    }
     await sql`delete from enrollments where course_id = any(${courseIds}::uuid[])`;
     await sql`delete from lessons where course_id = any(${courseIds}::uuid[])`;
     await sql`delete from sections where course_id = any(${courseIds}::uuid[])`;

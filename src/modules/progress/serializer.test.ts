@@ -1,19 +1,23 @@
-// Serializer tests (cards S5-01 §1 + S2-01 §1 + S2-02 §3): the badge table
-// (PRG-06), the action rule, row by row, plus the allowlist proof — only
-// DTO keys leave the module — the lesson-page union (item-state priority,
-// next forms, percent Number), and resolvePlayback (video status/source →
-// playback DTO). Runs without a database (type-only db imports).
+// Serializer tests (cards S5-01 §1 + S2-01 §1 + S2-02 §3 + S3-01 §4.A): the
+// badge table (PRG-06), the action rule, row by row, plus the allowlist
+// proof — only DTO keys leave the module — the lesson-page union (item-state
+// priority, next forms, percent Number, outline score, quiz card), and
+// resolvePlayback (video status/source → playback DTO). Runs without a
+// database (type-only db imports).
 import { describe, expect, it } from "vitest";
 
 import {
   lessonHref,
+  quizHref,
   resolvePlayback,
   toEnrolledCourseDTO,
   toLearnerCourseDTO,
   toLessonPageDTO,
+  toOpenQuizDTO,
   type AvailableRow,
   type EnrolledRow,
   type LessonOutlineRow,
+  type OpenQuizRow,
   type PlaybackSourceRow,
 } from "./serializer";
 
@@ -229,6 +233,7 @@ function lessonRow(position: number, overrides: Partial<LessonOutlineRow> = {}) 
     videoStatus: "NONE" as const,
     status: null,
     quizAttempted: null,
+    quizScorePercent: null,
     videoLastPositionSeconds: null,
     videoWatchedPercent: null,
     ...overrides,
@@ -252,6 +257,7 @@ describe("toLessonPageDTO — item states", () => {
       targetIndex: 1,
       content: null,
       playback: null,
+      quizRow: null,
     });
     expect(dto.state).toBe("open");
     if (dto.state !== "open") return;
@@ -264,7 +270,11 @@ describe("toLessonPageDTO — item states", () => {
 
   it("href is null exactly for terkunci items; all hrefs use lessonHref", () => {
     const outline = [
-      lessonRow(1, { quizAttempted: true, status: "COMPLETED" }),
+      lessonRow(1, {
+        quizAttempted: true,
+        status: "COMPLETED",
+        quizScorePercent: "83.33",
+      }),
       lessonRow(2),
       lessonRow(3),
     ];
@@ -275,6 +285,7 @@ describe("toLessonPageDTO — item states", () => {
       targetIndex: 1,
       content: null,
       playback: null,
+      quizRow: null,
     });
     if (dto.state !== "open") throw new Error("expected open");
     expect(dto.outline.map((item) => item.state)).toEqual([
@@ -291,6 +302,13 @@ describe("toLessonPageDTO — item states", () => {
         );
       }
     }
+    // Outline score (S3-01 §4.A): rounded, ONLY on the attempted row —
+    // quizAttempted without a stored score reads 0, not null.
+    expect(dto.outline.map((item) => item.scorePercent)).toEqual([
+      83,
+      null,
+      null,
+    ]);
   });
 });
 
@@ -310,6 +328,7 @@ describe("toLessonPageDTO — page states", () => {
       targetIndex: 0,
       content: null,
       playback: null,
+      quizRow: null,
     });
     expect(dto.state).toBe("not-enrolled");
     expect("content" in dto && dto.content).toBeFalsy();
@@ -327,6 +346,7 @@ describe("toLessonPageDTO — page states", () => {
       targetIndex: 2,
       content: null,
       playback: null,
+      quizRow: null,
     });
     expect(dto.state).toBe("locked");
     if (dto.state !== "locked") return;
@@ -350,6 +370,7 @@ describe("toLessonPageDTO — page states", () => {
       targetIndex: 1,
       content: null,
       playback: null,
+      quizRow: null,
     });
     expect(dto.state).toBe("locked");
     if (dto.state !== "locked") return;
@@ -378,6 +399,7 @@ describe("toLessonPageDTO — page states", () => {
         videoId: "e2eVideo001",
         durationSeconds: 252,
       },
+      quizRow: null,
     });
     if (dto.state !== "open") throw new Error("expected open");
     expect(dto.progress).not.toBeNull();
@@ -394,6 +416,9 @@ describe("toLessonPageDTO — page states", () => {
     expect(Object.keys(dto.lesson).sort()).toEqual(
       ["content", "id", "playback", "position", "title"].sort(),
     );
+    // quizRow null (lesson without a quiz / non-open read) answers quiz
+    // null — the card simply does not render.
+    expect(dto.quiz).toBeNull();
   });
 
   it("open without a lesson_progress row answers progress null", () => {
@@ -404,6 +429,7 @@ describe("toLessonPageDTO — page states", () => {
       targetIndex: 0,
       content: null,
       playback: null,
+      quizRow: null,
     });
     if (dto.state !== "open") throw new Error("expected open");
     expect(dto.progress).toBeNull();
@@ -424,6 +450,7 @@ describe("toLessonPageDTO — prev/next", () => {
       targetIndex: 0,
       content: null,
       playback: null,
+      quizRow: null,
     });
     if (dto.state !== "open") throw new Error("expected open");
     expect(dto.prevHref).toBeNull();
@@ -445,6 +472,7 @@ describe("toLessonPageDTO — prev/next", () => {
       targetIndex: 1,
       content: null,
       playback: null,
+      quizRow: null,
     });
     if (dto.state !== "open") throw new Error("expected open");
     expect(dto.prevHref).toBe(lessonHref(LESSON_COURSE.slug, "materi-1"));
@@ -463,10 +491,101 @@ describe("toLessonPageDTO — prev/next", () => {
       targetIndex: 1,
       content: null,
       playback: null,
+      quizRow: null,
     });
     if (dto.state !== "open") throw new Error("expected open");
     expect(dto.next).toBeNull();
     expect(dto.prevHref).toBe(lessonHref(LESSON_COURSE.slug, "materi-1"));
+  });
+});
+
+// ------------------------------------------------------ quiz card (S3-01 §4.A)
+
+describe("quizHref", () => {
+  it("builds /belajar/{courseSlug}/{lessonSlug}/quiz", () => {
+    expect(quizHref("gizi-seimbang", LESSON_A)).toBe(
+      `/belajar/gizi-seimbang/${LESSON_A}/quiz`,
+    );
+  });
+});
+
+function openQuizRow(overrides: Partial<OpenQuizRow> = {}): OpenQuizRow {
+  return {
+    title: "Quiz materi 1",
+    durationMinutes: 10,
+    questionCount: 3,
+    attemptStatus: null,
+    quizAttempted: null,
+    ...overrides,
+  };
+}
+
+describe("toOpenQuizDTO", () => {
+  const hrefs = { courseSlug: "gizi-seimbang", lessonSlug: LESSON_A };
+
+  it("state: quiz_attempted beats a live attempt, a live attempt beats nothing", () => {
+    // quiz_attempted is the durable flag in lesson_progress; the live
+    // attempt only separates belum from berjalan.
+    expect(
+      toOpenQuizDTO(
+        openQuizRow({ quizAttempted: true, attemptStatus: "SUBMITTED" }),
+        { videoStatus: "READY", videoWatchedPercent: "95.00" },
+        hrefs,
+      ).state,
+    ).toBe("selesai");
+    expect(
+      toOpenQuizDTO(
+        openQuizRow({ attemptStatus: "IN_PROGRESS" }),
+        { videoStatus: "READY", videoWatchedPercent: "95.00" },
+        hrefs,
+      ).state,
+    ).toBe("berjalan");
+    expect(
+      toOpenQuizDTO(openQuizRow(), { videoStatus: "NONE", videoWatchedPercent: null }, hrefs)
+        .state,
+    ).toBe("belum");
+  });
+
+  it("eligible: >= 90 counts, below does not; no READY video is eligible from the start", () => {
+    expect(
+      toOpenQuizDTO(openQuizRow(), { videoStatus: "READY", videoWatchedPercent: "90.00" }, hrefs)
+        .eligible,
+    ).toBe(true);
+    expect(
+      toOpenQuizDTO(openQuizRow(), { videoStatus: "READY", videoWatchedPercent: "89.99" }, hrefs)
+        .eligible,
+    ).toBe(false);
+    // No progress row at all on a READY-video lesson: 0 %, not eligible.
+    expect(
+      toOpenQuizDTO(openQuizRow(), { videoStatus: "READY", videoWatchedPercent: null }, hrefs)
+        .eligible,
+    ).toBe(false);
+    expect(
+      toOpenQuizDTO(openQuizRow(), { videoStatus: "NONE", videoWatchedPercent: null }, hrefs)
+        .eligible,
+    ).toBe(true);
+  });
+
+  it("returns exactly the allowlisted keys, href through quizHref", () => {
+    const dto = toOpenQuizDTO(
+      openQuizRow(),
+      { videoStatus: "READY", videoWatchedPercent: "95.00" },
+      hrefs,
+    );
+    expect(Object.keys(dto).sort()).toEqual(
+      [
+        "state",
+        "eligible",
+        "title",
+        "questionCount",
+        "durationMinutes",
+        "href",
+      ].sort(),
+    );
+    expect(dto.href).toBe(`/belajar/gizi-seimbang/${LESSON_A}/quiz`);
+    expect(dto.title).toBe("Quiz materi 1");
+    expect(dto.questionCount).toBe(3);
+    expect(dto.durationMinutes).toBe(10);
   });
 });
 

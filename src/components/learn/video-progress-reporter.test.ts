@@ -35,11 +35,19 @@ function ok(): Promise<Response> {
   return Promise.resolve(new Response(null, { status: 200 }));
 }
 
-function makeReporter() {
+function makeReporter(
+  config: {
+    onRecorded?: (result: {
+      positionSeconds: number;
+      watchedPercent: number;
+    }) => void;
+  } = {},
+) {
   const reporter = createVideoProgressReporter({
     lessonId: LESSON_ID,
     read: () => ({ positionSeconds: position, durationSeconds: duration }),
     send,
+    onRecorded: config.onRecorded,
   });
   reporters.push(reporter);
   return reporter;
@@ -296,5 +304,72 @@ describe("createVideoProgressReporter — pagehide & dispose", () => {
     position = 42;
     reporter.paused();
     expect(sendOptionsAt(0)?.keepalive).toBeFalsy();
+  });
+});
+
+describe("createVideoProgressReporter — onRecorded & ok-gating (S3-01)", () => {
+  it("fires onRecorded with the route's data JSON after a 2xx", async () => {
+    const onRecorded = vi.fn();
+    send.mockImplementationOnce(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({ data: { positionSeconds: 12, watchedPercent: 12 } }),
+          { status: 200 },
+        ),
+      ),
+    );
+    const reporter = makeReporter({ onRecorded });
+    reporter.playing();
+
+    position = 12;
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(onRecorded).toHaveBeenCalledTimes(1);
+    expect(onRecorded).toHaveBeenCalledWith({
+      positionSeconds: 12,
+      watchedPercent: 12,
+    });
+  });
+
+  it("an empty 2xx body still records lastSent but never calls onRecorded", async () => {
+    const onRecorded = vi.fn();
+    const reporter = makeReporter({ onRecorded });
+    reporter.playing();
+
+    position = 12;
+    await vi.advanceTimersByTimeAsync(10_000); // default ok(): 200, no body
+    expect(onRecorded).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(10_000); // same position → deduped
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+
+  it("a 5xx is NOT lastSent: the same position is retried (S2-02 review 3)", async () => {
+    send.mockImplementationOnce(() =>
+      Promise.resolve(new Response(null, { status: 503 })),
+    );
+    const reporter = makeReporter();
+    reporter.playing();
+
+    position = 12;
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(send).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(10_000); // still 12 — resent
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(payloadAt(1)!.positionSeconds).toBe(12);
+  });
+
+  it("onRecorded is skipped when the body is not JSON", async () => {
+    const onRecorded = vi.fn();
+    send.mockImplementationOnce(() =>
+      Promise.resolve(new Response("not-json", { status: 200 })),
+    );
+    const reporter = makeReporter({ onRecorded });
+    reporter.playing();
+
+    position = 12;
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(send).toHaveBeenCalledTimes(1); // no throw, recording succeeded
+    expect(onRecorded).not.toHaveBeenCalled();
   });
 });

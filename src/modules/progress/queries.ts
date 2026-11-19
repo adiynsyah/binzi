@@ -27,6 +27,9 @@ import {
   enrollments,
   lessonProgress,
   lessons,
+  questions,
+  quizAttempts,
+  quizzes,
   videoStatusEnum,
 } from "@/db/schema";
 import { NotFoundError } from "@/lib/errors";
@@ -35,6 +38,7 @@ import type {
   AvailableRow,
   EnrolledRow,
   LessonOutlineRow,
+  OpenQuizRow,
   PlaybackSourceRow,
 } from "./serializer";
 
@@ -45,7 +49,9 @@ import type {
  * open/video transactions on `tx` with the SAME functions.
  */
 export type DbTx = Parameters<Parameters<Db["transaction"]>[0]>[0];
-type DbOrTx = Db | DbTx;
+/** Same functions run on `db` for pure-GET reads and on `tx` inside the
+ *  write transactions — card S3-01's quiz page passes `db` here too. */
+export type DbOrTx = Db | DbTx;
 
 /**
  * The FIRST lesson of `courses.id` — ONE fragment shared by the two
@@ -312,6 +318,7 @@ export async function selectOutlineRows(
       videoStatus: lessons.videoStatus,
       status: lessonProgress.status,
       quizAttempted: lessonProgress.quizAttempted,
+      quizScorePercent: lessonProgress.quizScorePercent,
       videoLastPositionSeconds: lessonProgress.videoLastPositionSeconds,
       videoWatchedPercent: lessonProgress.videoWatchedPercent,
     })
@@ -351,14 +358,19 @@ export async function selectOpenLesson(
   return rows[0];
 }
 
-/** The open/video transactions' first lookup: lesson + its PUBLISHED course. */
+/** The open/video transactions' first lookup: lesson + its PUBLISHED course.
+ *  Card S3-01 extends the shape with lessons.quiz_id and courses.slug — the
+ *  quiz context (loadLessonQuizContext) is built from the same single read,
+ *  so the quiz flow can never disagree with the lesson gate about which
+ *  course/lesson a lessonId belongs to. */
 export type LessonGateLookup = {
   lesson: {
     id: string;
+    quizId: string | null;
     videoStatus: (typeof videoStatusEnum.enumValues)[number];
     videoDurationSeconds: number | null;
   };
-  course: { id: string; isSequential: boolean };
+  course: { id: string; slug: string; isSequential: boolean };
 };
 
 export async function findLessonInPublishedCourse(
@@ -368,9 +380,11 @@ export async function findLessonInPublishedCourse(
   const rows = await executor
     .select({
       lessonId: lessons.id,
+      quizId: lessons.quizId,
       videoStatus: lessons.videoStatus,
       videoDurationSeconds: lessons.videoDurationSeconds,
       courseId: courses.id,
+      courseSlug: courses.slug,
       courseIsSequential: courses.isSequential,
     })
     .from(lessons)
@@ -382,10 +396,15 @@ export async function findLessonInPublishedCourse(
   return {
     lesson: {
       id: row.lessonId,
+      quizId: row.quizId,
       videoStatus: row.videoStatus,
       videoDurationSeconds: row.videoDurationSeconds,
     },
-    course: { id: row.courseId, isSequential: row.courseIsSequential },
+    course: {
+      id: row.courseId,
+      slug: row.courseSlug,
+      isSequential: row.courseIsSequential,
+    },
   };
 }
 
@@ -477,4 +496,143 @@ export async function upsertLessonVideoProgress(
     throw new Error("progress queries: video upsert returned no row");
   }
   return row;
+}
+
+// --------------------------------------------------------------------------
+// Quiz materi (card S3-01). The attempt module OWNS quiz_attempts writes;
+// this module only reads what the lesson page's quiz card needs, plus the
+// two writes that land in lesson_progress at submit time.
+// --------------------------------------------------------------------------
+
+/**
+ * The open lesson's quiz summary (card S3-01 §4.A) — read ONLY for an open
+ * lesson, next to selectOpenLesson (V-06 pattern: a locked or not-enrolled
+ * visit never reads the quiz of a lesson it cannot see). The attempt join
+ * is the actor's live (reset_at NULL) row only; `attemptStatus` NULL means
+ * "belum", IN_PROGRESS means "berjalan", a final status is unreachable here
+ * for the card's one-attempt rule but reads as "belum" defensively.
+ */
+export async function selectOpenLessonQuiz(
+  lessonId: string,
+  actorId: string,
+): Promise<OpenQuizRow | undefined> {
+  const rows = await db
+    .select({
+      title: quizzes.title,
+      durationMinutes: quizzes.durationMinutes,
+      questionCount: sql<number>`(
+        select count(*) from ${questions} as q where q.quiz_id = quizzes.id
+      )`.mapWith(Number),
+      attemptStatus: quizAttempts.status,
+      quizAttempted: lessonProgress.quizAttempted,
+    })
+    .from(quizzes)
+    .innerJoin(lessons, eq(lessons.quizId, quizzes.id))
+    .leftJoin(
+      quizAttempts,
+      and(
+        eq(quizAttempts.quizId, quizzes.id),
+        eq(quizAttempts.userId, actorId),
+        sql`${quizAttempts.resetAt} is null`,
+      ),
+    )
+    .leftJoin(
+      lessonProgress,
+      and(
+        eq(lessonProgress.lessonId, lessons.id),
+        eq(lessonProgress.userId, actorId),
+      ),
+    )
+    .where(eq(lessons.id, lessonId))
+    .orderBy(desc(quizAttempts.attemptNumber))
+    .limit(1);
+  return rows[0];
+}
+
+/**
+ * The video half of "Materi Selesai" (card S3-01 §1), read inside the submit
+ * transaction: lessons.video_status + THIS participant's stored watched
+ * percent. A missing lesson row answers `undefined` (the caller fails loud).
+ */
+export async function selectLessonVideoGate(
+  executor: DbOrTx,
+  actorId: string,
+  lessonId: string,
+): Promise<
+  | {
+      videoStatus: (typeof videoStatusEnum.enumValues)[number];
+      videoWatchedPercent: string | null;
+    }
+  | undefined
+> {
+  const rows = await executor
+    .select({
+      videoStatus: lessons.videoStatus,
+      videoWatchedPercent: lessonProgress.videoWatchedPercent,
+    })
+    .from(lessons)
+    .leftJoin(
+      lessonProgress,
+      and(
+        eq(lessonProgress.lessonId, lessons.id),
+        eq(lessonProgress.userId, actorId),
+      ),
+    )
+    .where(eq(lessons.id, lessonId))
+    .limit(1);
+  return rows[0];
+}
+
+/**
+ * The submit-time progress write (card S3-01 §1): quiz_attempted + the
+ * score columns always; status/completed_at reach COMPLETED only when the
+ * video requirement is already met (CRS-08 — the caller computes
+ * `videoRequirementMet` from selectLessonVideoGate + isQuizEligible so this
+ * query stays mechanical). The row may not exist yet (a quiz-first visit
+ * never ran the open upsert) — the insert branch mirrors upsertLessonOpen,
+ * and completed_at is only-if-null (coalesce) on the conflict branch.
+ */
+export async function upsertLessonQuizResult(
+  tx: DbTx,
+  input: {
+    actorId: string;
+    lessonId: string;
+    enrollmentId: string;
+    videoRequirementMet: boolean;
+    scorePercent: number;
+    isPassed: boolean;
+    submittedAt: Date;
+  },
+): Promise<void> {
+  await tx
+    .insert(lessonProgress)
+    .values({
+      userId: input.actorId,
+      lessonId: input.lessonId,
+      enrollmentId: input.enrollmentId,
+      status: input.videoRequirementMet ? "COMPLETED" : "IN_PROGRESS",
+      firstAccessedAt: input.submittedAt,
+      quizAttempted: true,
+      quizScorePercent: input.scorePercent.toFixed(2),
+      quizIsPassed: input.isPassed,
+      quizSubmittedAt: input.submittedAt,
+      completedAt: input.videoRequirementMet ? input.submittedAt : null,
+    })
+    .onConflictDoUpdate({
+      target: [lessonProgress.userId, lessonProgress.lessonId],
+      set: {
+        status: sql`case
+          when ${lessonProgress.status} = 'COMPLETED' then ${lessonProgress.status}
+          when excluded.status = 'COMPLETED' then 'COMPLETED'::progress_status
+          when ${lessonProgress.status} = 'NOT_STARTED' then 'IN_PROGRESS'::progress_status
+          else ${lessonProgress.status}
+        end`,
+        firstAccessedAt: sql`coalesce(${lessonProgress.firstAccessedAt}, excluded.first_accessed_at)`,
+        quizAttempted: true,
+        quizScorePercent: sql`excluded.quiz_score_percent`,
+        quizIsPassed: sql`excluded.quiz_is_passed`,
+        quizSubmittedAt: sql`excluded.quiz_submitted_at`,
+        completedAt: sql`coalesce(${lessonProgress.completedAt}, excluded.completed_at)`,
+      },
+    });
 }

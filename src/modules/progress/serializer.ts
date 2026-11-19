@@ -12,6 +12,7 @@
 // column not listed (description, progressPercent, lastLessonId, …) can
 // never leak even if a future query starts selecting it.
 import type {
+  attemptStatusEnum,
   enrollmentStatusEnum,
   progressStatusEnum,
   videoProviderEnum,
@@ -19,7 +20,7 @@ import type {
 } from "@/db/schema";
 import { COURSE_LEVEL_LABELS, type CourseLevel } from "@/modules/course/schema";
 
-import { firstOpenUnattempted, isLessonUnlocked } from "./policy";
+import { firstOpenUnattempted, isLessonUnlocked, isQuizEligible } from "./policy";
 
 /** The enrolled SELECT's row shape (queries.ts). */
 export type EnrolledRow = {
@@ -148,6 +149,62 @@ export function resolvePlayback(row: PlaybackSourceRow): PlaybackDTO | null {
 }
 
 
+// ------------------------------------------------------------- S3-01 quiz card
+
+/** selectOpenLessonQuiz's row shape (queries.ts) — read only for an open
+ *  lesson. `attemptStatus` is the actor's live (reset_at NULL) attempt. */
+export type OpenQuizRow = {
+  title: string;
+  durationMinutes: number;
+  questionCount: number;
+  attemptStatus: (typeof attemptStatusEnum.enumValues)[number] | null;
+  quizAttempted: boolean | null;
+};
+
+/** The quiz card on an open lesson (card S3-01 §4.A) — the ONLY quiz data
+ *  the lesson page carries; nothing about questions/options/answers. */
+export type OpenQuizDTO = {
+  state: "belum" | "berjalan" | "selesai";
+  eligible: boolean;
+  title: string;
+  questionCount: number;
+  durationMinutes: number;
+  href: string;
+};
+
+/** `/belajar/{courseSlug}/{lessonSlug}/quiz` — the quiz page href (card
+ *  S3-01 §4.A), sibling of lessonHref. */
+export function quizHref(courseSlug: string, lessonSlug: string): string {
+  return `/belajar/${courseSlug}/${lessonSlug}/quiz`;
+}
+
+/**
+ * The open quiz card's DTO: "selesai" wins when the quiz was attempted
+ * (lesson_progress.quiz_attempted), then "berjalan" for a live attempt,
+ * else "belum". `eligible` is the SAME video rule the start endpoint
+ * enforces (isQuizEligible) so the button never lies.
+ */
+export function toOpenQuizDTO(
+  row: OpenQuizRow,
+  target: Pick<LessonOutlineRow, "videoStatus" | "videoWatchedPercent">,
+  hrefs: { courseSlug: string; lessonSlug: string },
+): OpenQuizDTO {
+  const state: OpenQuizDTO["state"] =
+    row.quizAttempted === true
+      ? "selesai"
+      : row.attemptStatus === "IN_PROGRESS"
+        ? "berjalan"
+        : "belum";
+  return {
+    state,
+    eligible: isQuizEligible(target),
+    title: row.title,
+    questionCount: row.questionCount,
+    durationMinutes: row.durationMinutes,
+    href: quizHref(hrefs.courseSlug, hrefs.lessonSlug),
+  };
+}
+
 /** The outline SELECT's row shape (queries.selectOutlineRows). NULLable
  *  progress columns mean "no lesson_progress row for THIS participant". */
 export type LessonOutlineRow = {
@@ -157,6 +214,9 @@ export type LessonOutlineRow = {
   videoStatus: (typeof videoStatusEnum.enumValues)[number];
   status: (typeof progressStatusEnum.enumValues)[number] | null;
   quizAttempted: boolean | null;
+  /** NUMERIC as it leaves the driver — Number()'d below, shown when
+   *  quizAttempted (card S3-01 §4.A outline score). */
+  quizScorePercent: string | null;
   videoLastPositionSeconds: number | null;
   /** NUMERIC leaves the driver as a string ('50.00') — Number()'d below. */
   videoWatchedPercent: string | null;
@@ -168,6 +228,9 @@ export type LessonOutlineItemDTO = {
   state: "kini" | "selesai" | "terbuka" | "terkunci";
   /** null for "terkunci" — the gate is server-side, the row is not a link. */
   href: string | null;
+  /** The lesson-quiz score, rounded, ONLY when the quiz was attempted
+   *  (card S3-01 §4.A) — null everywhere else, including locked rows. */
+  scorePercent: number | null;
 };
 
 export type LessonCourseDTO = {
@@ -194,6 +257,8 @@ export type LessonPageDTO =
         videoLastPositionSeconds: number;
         videoWatchedPercent: number;
       } | null;
+      /** The quiz card (card S3-01 §4.A); null when the lesson has no quiz. */
+      quiz: OpenQuizDTO | null;
       outline: LessonOutlineItemDTO[];
       prevHref: string | null;
       next:
@@ -229,6 +294,9 @@ export type LessonPageInput = {
   /** resolvePlayback over selectOpenLesson's row — null for every
    *  non-open state by construction (the query never runs). */
   playback: PlaybackDTO | null;
+  /** selectOpenLessonQuiz's row — null for every non-open state AND for an
+   *  open lesson without a quiz (the query runs only when open, V-06). */
+  quizRow: OpenQuizRow | null;
 };
 
 /**
@@ -276,6 +344,10 @@ export function toLessonPageDTO(input: LessonPageInput): LessonPageDTO {
       title: row.title,
       state,
       href: state === "terkunci" ? null : lessonHref(course.slug, row.slug),
+      scorePercent:
+        row.quizAttempted === true
+          ? Math.round(Number(row.quizScorePercent ?? 0))
+          : null,
     };
   });
   const courseDTO: LessonCourseDTO = {
@@ -340,6 +412,13 @@ export function toLessonPageDTO(input: LessonPageInput): LessonPageDTO {
           videoWatchedPercent: Number(target.videoWatchedPercent ?? 0),
         }
       : null,
+    quiz:
+      input.quizRow !== null && input.quizRow !== undefined
+        ? toOpenQuizDTO(input.quizRow, target, {
+            courseSlug: course.slug,
+            lessonSlug: target.slug,
+          })
+        : null,
     outline: items,
     prevHref:
       targetIndex > 0

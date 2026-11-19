@@ -12,6 +12,19 @@ import type { PlaybackDTO } from "@/modules/progress/service";
 
 import { LessonVideoPlayer } from "./lesson-video-player";
 
+// The player calls router.refresh() for the S3-01 quiz unlock — mocked
+// like every other navigation consumer in this suite.
+const refreshMock = vi.fn();
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({
+    push: vi.fn(),
+    replace: vi.fn(),
+    prefetch: vi.fn(),
+    refresh: refreshMock,
+  }),
+}));
+
 // Card S2-02 §5.A tests: the permanent wrapper around the demo engine —
 // the 16:9 frame (server-rendered, no layout jump), the iframe appearing
 // only after mount (it needs window.location.origin), the resume row
@@ -115,6 +128,7 @@ beforeEach(() => {
   FakePlayer.instances = [];
   fetchMock.mockReset();
   fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
+  refreshMock.mockReset();
 });
 
 // --- structure: who may touch the demo engine --------------------------------
@@ -314,6 +328,127 @@ describe("LessonVideoPlayer — reporter wiring", () => {
         await vi.advanceTimersByTimeAsync(30_000);
       });
       expect(fetchMock).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+// --- the quiz-unlock refresh (card S3-01 §3, keputusan 9) ------------------------
+
+/** A 2xx progress response carrying the route's data JSON. */
+function okVideoJson(
+  positionSeconds: number,
+  watchedPercent: number,
+): Response {
+  return new Response(
+    JSON.stringify({ data: { positionSeconds, watchedPercent } }),
+    { status: 200 },
+  );
+}
+
+describe("LessonVideoPlayer — quiz-unlock refresh (S3-01)", () => {
+  it("refreshAtPercent: the FIRST watchedPercent ≥ value refreshes once", async () => {
+    vi.useFakeTimers();
+    try {
+      fetchMock.mockImplementation(async () => okVideoJson(95, 95));
+      await renderAttached({ refreshAtPercent: 90 });
+      FakePlayer.last.ready();
+      FakePlayer.last.currentTime = 95;
+      FakePlayer.last.duration = 100;
+      FakePlayer.last.emit(1); // playing
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(10_000);
+      });
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(refreshMock).toHaveBeenCalledTimes(1);
+
+      // Later recordings at/above the threshold never refresh again.
+      FakePlayer.last.currentTime = 100;
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(10_000);
+      });
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(refreshMock).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("below the threshold: the POST still happens, no refresh", async () => {
+    vi.useFakeTimers();
+    try {
+      fetchMock.mockImplementation(async () => okVideoJson(50, 50));
+      await renderAttached({ refreshAtPercent: 90 });
+      FakePlayer.last.ready();
+      FakePlayer.last.currentTime = 50;
+      FakePlayer.last.duration = 100;
+      FakePlayer.last.emit(1); // playing
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(10_000);
+      });
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(refreshMock).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("no refreshAtPercent → watching is off entirely", async () => {
+    vi.useFakeTimers();
+    try {
+      fetchMock.mockImplementation(async () => okVideoJson(95, 95));
+      await renderAttached();
+      FakePlayer.last.ready();
+      FakePlayer.last.currentTime = 95;
+      FakePlayer.last.duration = 100;
+      FakePlayer.last.emit(1); // playing
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(10_000);
+      });
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(refreshMock).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("a refreshAtPercent change after the refresh keeps the reporter ticking", async () => {
+    vi.useFakeTimers();
+    try {
+      fetchMock.mockImplementation(async () => okVideoJson(95, 95));
+      const view = await renderAttached({ refreshAtPercent: 90 });
+      FakePlayer.last.ready();
+      FakePlayer.last.currentTime = 95;
+      FakePlayer.last.duration = 100;
+      FakePlayer.last.emit(1); // playing
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(10_000);
+      });
+      expect(refreshMock).toHaveBeenCalledTimes(1);
+
+      // The refresh lands a new page → the player re-renders with the prop
+      // gone (quiz now eligible). The reporter must NOT be recreated: a
+      // fresh one never receives .playing(), so the ticks would die and
+      // progress recording would silently stop.
+      view.rerender(
+        <LessonVideoPlayer
+          lessonId={LESSON_ID}
+          lessonTitle="Judul materi"
+          playback={YOUTUBE_PLAYBACK}
+          resumeFromSeconds={0}
+        />,
+      );
+      FakePlayer.last.currentTime = 100;
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(10_000);
+      });
+      expect(fetchMock.mock.calls.filter(([url]) => url === "/api/progress/video"))
+        .toHaveLength(2);
     } finally {
       vi.useRealTimers();
     }

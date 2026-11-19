@@ -48,16 +48,25 @@ import { createLesson } from "@/modules/lesson/service";
 // the singleton; the tests point it at PGlite).
 const dbHolder = vi.hoisted(() => ({ current: undefined as unknown }));
 
-// Spy around selectOpenLesson (S2-02 mutation 4): the real SQL still runs
-// through the PGlite-backed `db`; only the call is counted, so the locked /
-// not-enrolled tests can prove the service never reads the material row.
+// Spy around selectOpenLesson (S2-02 mutation 4) and selectOpenLessonQuiz
+// (S3-01 owner review): the real SQL still runs through the PGlite-backed
+// `db`; only the call is counted, so the locked / not-enrolled tests can
+// prove the service never reads the material NOR the quiz row.
 const selectOpenLessonSpy = vi.hoisted(() => vi.fn());
+const selectOpenLessonQuizSpy = vi.hoisted(() => vi.fn());
 vi.mock("./queries", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./queries")>();
   selectOpenLessonSpy.mockImplementation(
     actual.selectOpenLesson as (...args: unknown[]) => unknown,
   );
-  return { ...actual, selectOpenLesson: selectOpenLessonSpy };
+  selectOpenLessonQuizSpy.mockImplementation(
+    actual.selectOpenLessonQuiz as (...args: unknown[]) => unknown,
+  );
+  return {
+    ...actual,
+    selectOpenLesson: selectOpenLessonSpy,
+    selectOpenLessonQuiz: selectOpenLessonQuizSpy,
+  };
 });
 
 vi.mock("server-only", () => ({}));
@@ -506,6 +515,8 @@ describe("getLessonPage — playback (S2-02)", () => {
       externalId: "e2eVideo001",
       durationSeconds: 252,
     });
+    selectOpenLessonSpy.mockClear();
+    selectOpenLessonQuizSpy.mockClear();
     const dto = await getLessonPage(MEMBER, made.slug, made.lessons[0]!.slug);
     if (dto.state !== "open") throw new Error("expected open");
     expect(dto.lesson.playback).toEqual({
@@ -513,6 +524,10 @@ describe("getLessonPage — playback (S2-02)", () => {
       videoId: "e2eVideo001",
       durationSeconds: 252,
     });
+    // An open page reads the lesson AND its quiz exactly once each
+    // (S3-01 owner review — the quiz read rides the same willOpen gate).
+    expect(selectOpenLessonSpy).toHaveBeenCalledTimes(1);
+    expect(selectOpenLessonQuizSpy).toHaveBeenCalledTimes(1);
   });
 
   it("open + READY without a stored duration → durationSeconds null", async () => {
@@ -563,6 +578,7 @@ describe("getLessonPage — playback (S2-02)", () => {
       1,
     );
     selectOpenLessonSpy.mockClear();
+    selectOpenLessonQuizSpy.mockClear();
     const locked = await getLessonPage(
       MEMBER,
       made.slug,
@@ -570,6 +586,7 @@ describe("getLessonPage — playback (S2-02)", () => {
     );
     expect(locked.state).toBe("locked");
     expect(selectOpenLessonSpy).not.toHaveBeenCalled();
+    expect(selectOpenLessonQuizSpy).not.toHaveBeenCalled();
 
     // Same shape, but nobody enrolled the viewer.
     const lone = await courseWithVideo("pb6", {
@@ -579,6 +596,7 @@ describe("getLessonPage — playback (S2-02)", () => {
       durationSeconds: 100,
     });
     selectOpenLessonSpy.mockClear();
+    selectOpenLessonQuizSpy.mockClear();
     const notEnrolled = await getLessonPage(
       MEMBER_B,
       lone.slug,
@@ -586,6 +604,7 @@ describe("getLessonPage — playback (S2-02)", () => {
     );
     expect(notEnrolled.state).toBe("not-enrolled");
     expect(selectOpenLessonSpy).not.toHaveBeenCalled();
+    expect(selectOpenLessonQuizSpy).not.toHaveBeenCalled();
   });
 });
 

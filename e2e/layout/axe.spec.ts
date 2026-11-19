@@ -140,11 +140,14 @@ test.describe("axe WCAG 2.1 A/AA", () => {
 
   // Course ids the S2-02 video scan created — deleted again in afterAll.
   const videoCourseIds: string[] = [];
+  // Card S3-01 quiz-scan course ids (attempts hang off these too).
+  const quizCourseIds: string[] = [];
 
   test.afterAll(async () => {
     await editorContext.close();
     await adminContext.close();
     await deleteCoursesInE2eDb(videoCourseIds);
+    await deleteCoursesInE2eDb(quizCourseIds);
   });
 
   test(`halaman tamu (${GUEST_PAGES.length})`, async ({ page }, testInfo) => {
@@ -490,6 +493,110 @@ test.describe("axe WCAG 2.1 A/AA", () => {
       page.getByRole("heading", { level: 3, name: "Materi ini belum terbuka" }),
     ).toBeVisible();
     await expectAxeClean(page, "materi locked", testInfo);
+  });
+
+  // Card S3-01 §8: the five quiz states — materi dengan dialog terbuka,
+  // aturan, soal, ringkasan, hasil — one member driving a single attempt
+  // through all of them (nothing answered, so the result stays "Belum
+  // lulus"). The lesson-page dialog scan follows the S2-01 pattern: below
+  // 1024 the outline <details> opens first so the nav rows ride along.
+  test("MEMBER: quiz aturan/soal/ringkasan/hasil + materi dialog (S3-01)", async (
+    { page, request },
+    testInfo,
+  ) => {
+    const spec = widthSpecOf(testInfo.project.name);
+    const account = await createRoleAccount(request, "MEMBER");
+    await signInViaApi(page.context(), account);
+
+    const token = `aq${Date.now().toString(36)}${testInfo.project.name}`;
+    const made = await createPublishedCourseViaApi(
+      editorContext,
+      adminContext,
+      `${token} kursus quiz axe`,
+      { lessons: 2 },
+    );
+    quizCourseIds.push(made.courseId);
+    const enroll = await page.context().request.post(
+      `/api/progress/courses/${made.courseId}/enroll`,
+    );
+    expect(enroll.status(), await enroll.text()).toBe(201);
+
+    await page.goto(`/belajar/${made.courseSlug}/${made.lessons[0]!.slug}`);
+    // The outline opens BEFORE the dialog — Radix's modal scrim would
+    // swallow the summary click otherwise.
+    if (spec.viewport.width < 1024) {
+      const details = page.locator("details");
+      await details.locator("summary").click();
+      await expect(details).toHaveAttribute("open");
+    }
+    await page.getByRole("button", { name: "Tandai selesai & mulai quiz" }).click();
+    await expect(page.getByRole("dialog")).toBeVisible();
+    await test.step("materi dengan dialog terbuka", async () => {
+      await expectAxeClean(page, "materi dialog quiz", testInfo);
+    });
+
+    await page.getByRole("link", { name: "Lanjut ke aturan quiz" }).click();
+    await test.step("aturan", async () => {
+      await expect(
+        page.getByRole("heading", { name: "Aturan quiz sebelum timer jalan" }),
+      ).toBeVisible();
+      await expectAxeClean(page, "quiz aturan", testInfo);
+    });
+
+    await page.getByRole("button", { name: "Saya paham, mulai quiz" }).click();
+    await test.step("soal", async () => {
+      await expect(
+        page.getByText("Soal 1 dari 10 · Satu kesempatan"),
+      ).toBeVisible();
+      // Answer ONE question correctly → score 10. The score must be ≥ 2
+      // characters for axe's color-contrast to judge it (a single "0" is
+      // skipped as "content too short", which would silently un-test the
+      // outline contrast checked in the last step).
+      await page
+        .getByRole("radio", { name: /Opsi satu/ })
+        .locator("..")
+        .click();
+      await expectAxeClean(page, "quiz soal", testInfo);
+    });
+
+    await test.step("ringkasan", async () => {
+      // Exactly one chip grid is visible per width (mobile row <1024, side
+      // card ≥1024) — the other copy is display:none and not matched.
+      await page.getByRole("button", { name: "Soal 10, belum dijawab" }).click();
+      await page.getByRole("button", { name: "Lihat ringkasan" }).click();
+      await expect(
+        page.getByText("1 dijawab · 9 belum dijawab · 0 ragu-ragu"),
+      ).toBeVisible();
+      await expectAxeClean(page, "quiz ringkasan", testInfo);
+    });
+
+    await test.step("hasil", async () => {
+      await page.getByRole("button", { name: "Kumpulkan sekarang" }).click();
+      await expect(page.getByText("Belum lulus")).toBeVisible();
+      await expectAxeClean(page, "quiz hasil", testInfo);
+    });
+
+    // Back on the lesson page the outline's "kini" row now carries the
+    // score over bg-primary-tint — the contrast fix lives HERE, so the
+    // scan must cover this state too (owner review of PR #138). No dialog
+    // on this page; below 1024 the outline <details> opens for the rows.
+    await test.step("materi setelah quiz", async () => {
+      await page.getByRole("link", { name: "Kembali ke materi" }).click();
+      await expect(
+        page.getByRole("link", { name: "Lihat Hasil & Pembahasan" }),
+      ).toBeVisible();
+      if (spec.viewport.width < 1024) {
+        const details = page.locator("details");
+        await details.locator("summary").click();
+        await expect(details).toHaveAttribute("open");
+      }
+      // The score "10" itself rides the scanned tree at both widths
+      // (:visible — the details copy hides at ≥1024, the side card below).
+      await expect(
+        page.locator("ol span.font-mono:visible").filter({ hasText: "10" }),
+      ).toBeVisible();
+      await expectAxeClean(page, "materi setelah quiz", testInfo);
+    });
   });
 
   // Card S1-08 §8: both submit dialogs (complete + 3-pending checklist),
