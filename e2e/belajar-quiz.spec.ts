@@ -618,22 +618,39 @@ test("10. lebar 360/768/1024/1280 tanpa gulir samping; target sentuh chip & opsi
   page,
 }) => {
   // The heaviest test of the spec (a full 2-lesson course with 3 quizzes,
-  // 4 resizes, 5 screenshots) passes standalone in ~2 s, but under the
-  // full-suite load — the dev server compiling per route while the E2E
-  // DB churns through tests 1–9 — the 60 s budget ran dry mid-sweep
-  // twice (the trace showed every step 10× slower; the chip the test
-  // died waiting for was present in the DOM all along). 3× is the
-  // honest budget for work that is real, not a hang to hide.
+  // 4 resizes, 5 screenshots) passes standalone in ~2 s but runs slower
+  // under the full-suite load; 3× is the honest budget for work that is
+  // real, not a hang to hide. (The two mid-sweep timeouts this test once
+  // showed were NOT load, though — the chip it died waiting for never
+  // existed: the per-attempt shuffle bug fixed below.)
   test.slow();
   const made = await quizCourseOnPage(page, "bq10");
   const lesson1 = made.lessons[0]!;
   const attemptId = await attemptViaApi(page, lesson1.id);
-  const options = await optionsFromDb(made.lessonQuizId);
+
+  // Answer the question this attempt shows at POSITION 1, not
+  // options[0] (DB order): the runner shuffles the display order per
+  // attempt, so a DB-order answer lands on a random chip number — when
+  // it landed on 2 or 10 the "belum dijawab" locators below waited for
+  // a chip that never exists (~1 run in 5; same shape as 6f083a8).
+  // question_order[1] (PG arrays are 1-indexed) is exactly the chip
+  // the runner labels "Soal 1, sudah dijawab", so positions 2 and 10
+  // stay "belum dijawab" under every shuffle.
+  const first = await withE2eDb(
+    (sql) => sql`
+        select question_order[1] as question_id
+        from quiz_attempts where id = ${attemptId}
+      `,
+  );
+  const option = (await optionsFromDb(made.lessonQuizId)).find(
+    (row) => row.question_id === first[0]?.question_id,
+  );
+  expect(option, "the position-1 question has an option").toBeTruthy();
   const saved = await page
     .context()
     .request.put(
-      `/api/quiz/attempts/${attemptId}/answers/${options[0]!.question_id}`,
-      { data: { optionId: options[0]!.option_id } },
+      `/api/quiz/attempts/${attemptId}/answers/${first[0]!.question_id}`,
+      { data: { optionId: option!.option_id } },
     );
   expect(saved.status(), await saved.text()).toBe(200);
 
