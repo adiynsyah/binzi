@@ -834,3 +834,76 @@ describe("recordVideoProgress", () => {
     ).rejects.toThrow(ConflictError);
   });
 });
+
+// --- finalQuizHref on the open state (card S5-02 §1) ----------------------
+
+/** Mark a lesson COMPLETED with a quiz score (the gate the Final href needs). */
+async function completeLessonWithScore(
+  userId: string,
+  courseId: string,
+  position: number,
+  scorePercent: string,
+) {
+  const enrollment = await enrollmentOf(userId, courseId);
+  if (!enrollment) throw new Error("enrollment missing");
+  const lessonId = (await orderedLessonIds(courseId))[position - 1]!;
+  await db
+    .insert(lessonProgress)
+    .values({
+      userId,
+      lessonId,
+      enrollmentId: enrollment.id,
+      status: "COMPLETED",
+      quizAttempted: true,
+      quizScorePercent: scorePercent,
+    })
+    .onConflictDoUpdate({
+      target: [lessonProgress.userId, lessonProgress.lessonId],
+      set: {
+        status: "COMPLETED",
+        quizAttempted: true,
+        quizScorePercent: scorePercent,
+      },
+    });
+}
+
+describe("getLessonPage — finalQuizHref (S5-02 §1/§5)", () => {
+  it("null while a lesson is unfinished, the href once every lesson is COMPLETED", async () => {
+    // createCourse attaches an empty FINAL quiz to every course (S1-08),
+    // so finalQuizId is already set — the href is gate-driven, not
+    // attach-driven.
+    const made = await enrolledSequentialCourse("fq1");
+    const slugA = made.lessons[0]!.slug;
+
+    // Only lesson 1 done (of 3): no Final link on ANY open lesson.
+    await completeLessonWithScore(MEMBER.id, made.course.id, 1, "70.00");
+    const during = await getLessonPage(MEMBER, made.slug, slugA);
+    if (during.state !== "open") throw new Error("expected open");
+    expect(during.finalQuizHref).toBeNull();
+
+    // Every lesson COMPLETED → the href appears, on the FIRST lesson too.
+    await completeLessonWithScore(MEMBER.id, made.course.id, 2, "50.00");
+    await completeLessonWithScore(MEMBER.id, made.course.id, 3, "60.00");
+    const after = await getLessonPage(MEMBER, made.slug, slugA);
+    if (after.state !== "open") throw new Error("expected open");
+    expect(after.finalQuizHref).toBe(`/belajar/${made.slug}/final-quiz`);
+  });
+
+  it("all lessons COMPLETED but final_quiz_id null → still null", async () => {
+    const made = await enrolledSequentialCourse("fq2");
+    await db
+      .update(courses)
+      .set({ finalQuizId: null })
+      .where(eq(courses.id, made.course.id));
+    await completeLessonWithScore(MEMBER.id, made.course.id, 1, "70.00");
+    await completeLessonWithScore(MEMBER.id, made.course.id, 2, "50.00");
+    await completeLessonWithScore(MEMBER.id, made.course.id, 3, "60.00");
+    const dto = await getLessonPage(
+      MEMBER,
+      made.slug,
+      made.lessons[2]!.slug,
+    );
+    if (dto.state !== "open") throw new Error("expected open");
+    expect(dto.finalQuizHref).toBeNull();
+  });
+});

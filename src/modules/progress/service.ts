@@ -8,19 +8,28 @@ import { UUID_PATTERN } from "@/modules/course/schema";
 import { db } from "@/db";
 
 import type { VideoProgressInput } from "./schema";
-import { assertMemberRole, isLessonUnlocked, isQuizEligible } from "./policy";
+import {
+  allLessonsCompleted,
+  assertMemberRole,
+  isLessonUnlocked,
+  isQuizEligible,
+} from "./policy";
 import {
   enrollUserInCourse,
   findLessonInPublishedCourse,
+  findPublishedCourseWithFinalQuiz,
   selectAvailableCourses,
+  selectCourseLessonScoreRows,
   selectEnrolledCourses,
   selectEnrollmentForCourse,
+  selectEnrollmentFinalResult,
   selectLessonVideoGate,
   selectOpenLesson,
   selectOpenLessonQuiz,
   selectOutlineRows,
   selectPublishedCourseBySlug,
   setEnrollmentLastLesson,
+  updateEnrollmentFinalResult,
   upsertLessonOpen,
   upsertLessonQuizResult,
   upsertLessonVideoProgress,
@@ -29,6 +38,7 @@ import {
   type LessonGateLookup,
 } from "./queries";
 import {
+  finalQuizHref,
   lessonHref,
   quizHref,
   resolvePlayback,
@@ -49,7 +59,7 @@ import {
   type VideoProgressResultDTO,
 } from "./serializer";
 
-export { lessonHref, quizHref };
+export { finalQuizHref, lessonHref, quizHref };
 export type {
   EnrollResultDTO,
   LearnerCourseDTO,
@@ -296,6 +306,9 @@ export type LessonQuizContext = {
   /** The video gate (CRS-08): watched percent ≥ 90 or no READY video. */
   eligible: boolean;
   next: { position: number; href: string } | null;
+  /** Card S5-02 §5: non-null exactly when every lesson is COMPLETED and
+   *  the course has a Final Quiz — the result screen's closing swap. */
+  finalQuizHref: string | null;
 };
 
 /**
@@ -325,6 +338,11 @@ export async function loadLessonQuizContext(
           href: lessonHref(context.course.slug, nextRow.slug),
         }
       : null,
+    finalQuizHref:
+      context.course.finalQuizId !== null &&
+      allLessonsCompleted(context.outline)
+        ? finalQuizHref(context.course.slug)
+        : null,
   };
 }
 
@@ -362,4 +380,191 @@ export async function recordLessonQuizResult(
     isPassed: input.isPassed,
     submittedAt: input.submittedAt,
   });
+}
+
+// ------------------------------------------------------------- S5-02 final quiz
+
+/** The score split of the Nilai Akhir formula (PRG-05), spelled out LOCALLY
+ *  (card S5-02): the quiz module's service owns the source of truth
+ *  (system_settings) and hands over plain numbers — this module takes them
+ *  as values, so no quiz-module type is imported here. */
+export type FinalScoreWeights = {
+  lessonPercent: number;
+  finalPercent: number;
+};
+
+/**
+ * What the attempt module needs to run the Final Quiz flow (card S5-02 §1):
+ * the not-enrolled redirect on one branch; on the other, the gate answers
+ * (`allCompleted`, `firstIncompleteHref`), the rules screen's pointers
+ * (`lastLessonHref`, `lessonAveragePercent` rounded for display), and the
+ * ids the start/submit transactions write with. Built from the SAME
+ * outline rows the lesson page reads.
+ */
+export type FinalQuizContext =
+  | { enrolled: false; firstLessonHref: string }
+  | {
+      enrolled: true;
+      enrollmentId: string;
+      courseId: string;
+      quizId: string;
+      courseSlug: string;
+      courseTitle: string;
+      /** The gate (QZ-13): every lesson COMPLETED. */
+      allCompleted: boolean;
+      /** Null exactly when allCompleted — where "kembali" points. */
+      firstIncompleteHref: string | null;
+      /** "Ulas materi dulu" on the rules screen (7h). */
+      lastLessonHref: string;
+      /** Rounded average of the lesson quiz scores; null before the gate
+       *  opens (the formula itself re-reads exact scores at submit). */
+      lessonAveragePercent: number | null;
+    };
+
+/**
+ * The attempt module's entry into the Final Quiz gate (card S5-02 §1) —
+ * runs INSIDE the caller's transaction (or on `db` for the pure-GET page).
+ * Unknown course, unpublished, no Final Quiz, or an empty outline → the
+ * SAME NotFoundError, so existence never leaks; not-enrolled is a VALUE,
+ * not an error (the page redirects, the start endpoint 404s uniformly).
+ */
+export async function loadFinalQuizContext(
+  executor: DbOrTx,
+  actorId: string,
+  target: { courseId: string } | { courseSlug: string },
+): Promise<FinalQuizContext> {
+  const course = await findPublishedCourseWithFinalQuiz(executor, target);
+  if (!course) {
+    throw new NotFoundError("Kursus tidak ditemukan.");
+  }
+  const enrollment = await selectEnrollmentForCourse(
+    executor,
+    actorId,
+    course.id,
+  );
+  if (!enrollment) {
+    if (course.firstLessonSlug === null) {
+      // Same unreachable-with-valid-data stance as firstLessonSlugOf.
+      throw new NotFoundError("Kursus tidak ditemukan.");
+    }
+    return {
+      enrolled: false,
+      firstLessonHref: lessonHref(course.slug, course.firstLessonSlug),
+    };
+  }
+  const outline = await selectOutlineRows(executor, actorId, course.id);
+  if (outline.length === 0) {
+    // Unreachable with valid data (enrollment implies lessons, and the
+    // gate below would never open) — fail with the uniform 404.
+    throw new NotFoundError("Kursus tidak ditemukan.");
+  }
+  const firstIncomplete = outline.find((row) => row.status !== "COMPLETED");
+  const allCompleted = allLessonsCompleted(outline);
+  return {
+    enrolled: true,
+    enrollmentId: enrollment.id,
+    courseId: course.id,
+    quizId: course.finalQuizId,
+    courseSlug: course.slug,
+    courseTitle: course.title,
+    allCompleted,
+    firstIncompleteHref: firstIncomplete
+      ? lessonHref(course.slug, firstIncomplete.slug)
+      : null,
+    lastLessonHref: lessonHref(
+      course.slug,
+      outline[outline.length - 1]!.slug,
+    ),
+    lessonAveragePercent: allCompleted
+      ? Math.round(
+          outline.reduce(
+            (total, row) => total + Number(row.quizScorePercent ?? 0),
+            0,
+          ) / outline.length,
+        )
+      : null,
+  };
+}
+
+/**
+ * Record the Final Quiz result INTO the caller's (submit) transaction (card
+ * S5-02 §1): Nilai Akhir = round2(rata-rata quiz materi × lesson% + nilai
+ * Final × final%) stored on enrollments.final_score_percent; status PASSED
+ * when the FINAL attempt passed (not when Nilai Akhir ≥ 70 — PRD QZ-13 over
+ * the 7h sketch), else COMPLETED; completed_at only-if-null. Lesson scores
+ * are RE-READ here (full-ownership read inside the same transaction), and a
+ * NULL score fails LOUD: a valid Final attempt implies every lesson
+ * COMPLETED with a score, and a silent 0 would misrecord the course result
+ * forever. lesson_progress and courses are untouched.
+ */
+export async function recordFinalQuizResult(
+  tx: DbTx,
+  input: {
+    actorId: string;
+    courseId: string;
+    enrollmentId: string;
+    /** The final attempt's score percent (0–100). */
+    finalScorePercent: number;
+    isPassed: boolean;
+    weights: FinalScoreWeights;
+    submittedAt: Date;
+  },
+): Promise<{ finalScorePercent: number; courseStatus: "COMPLETED" | "PASSED" }> {
+  const rows = await selectCourseLessonScoreRows(
+    tx,
+    input.actorId,
+    input.courseId,
+  );
+  if (rows.length === 0) {
+    // Unreachable with valid data (the gate opened ⇒ lessons exist).
+    throw new Error("progress service: final result without lessons");
+  }
+  if (rows.some((row) => row.scorePercent === null)) {
+    throw new Error("progress service: final result without a lesson score");
+  }
+  const average =
+    rows.reduce((total, row) => total + Number(row.scorePercent), 0) /
+    rows.length;
+  const finalScorePercent =
+    Math.round(
+      (average * (input.weights.lessonPercent / 100) +
+        input.finalScorePercent * (input.weights.finalPercent / 100)) *
+        100,
+    ) / 100;
+  const courseStatus = input.isPassed ? ("PASSED" as const) : ("COMPLETED" as const);
+  await updateEnrollmentFinalResult(tx, {
+    enrollmentId: input.enrollmentId,
+    actorId: input.actorId,
+    finalScorePercent: finalScorePercent.toFixed(2),
+    status: courseStatus,
+    completedAt: input.submittedAt,
+  });
+  return { finalScorePercent: finalScorePercent, courseStatus };
+}
+
+/**
+ * The Final result screen's display read (card S5-02 §2): the STORED Nilai
+ * Akhir (rounded for display, null only before a first submit — unreachable
+ * on the result screen) and the course status badge source.
+ */
+export async function getEnrollmentFinalResult(
+  executor: DbOrTx,
+  actorId: string,
+  courseId: string,
+): Promise<
+  | {
+      finalScorePercent: number | null;
+      status: "IN_PROGRESS" | "COMPLETED" | "PASSED";
+    }
+  | undefined
+> {
+  const row = await selectEnrollmentFinalResult(executor, actorId, courseId);
+  if (!row) return undefined;
+  return {
+    finalScorePercent:
+      row.finalScorePercent === null
+        ? null
+        : Math.round(Number(row.finalScorePercent)),
+    status: row.status,
+  };
 }

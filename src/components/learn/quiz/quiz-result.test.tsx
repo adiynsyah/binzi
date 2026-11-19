@@ -39,6 +39,7 @@ function resultDto(overrides: Partial<QuizResultDTO> = {}): QuizResultDTO {
     items: [item()],
     lesson: { position: 2, title: "Asam Folat & Zat Besi", href: LESSON_HREF },
     next: { position: 3, href: "/belajar/gizi-ibu-hamil/materi-ketiga" },
+    finalQuizHref: null,
     ...overrides,
   };
 }
@@ -191,6 +192,29 @@ describe("QuizResult", () => {
     expect(screen.getByText("Materi 2 ditandai selesai.")).toBeTruthy();
     expect(screen.queryByText(/sekarang terbuka/)).toBeNull();
     expect(screen.queryByRole("link", { name: /^Lanjut ke Materi/ })).toBeNull();
+    expect(screen.getByRole("link", { name: "Kembali ke materi" })).toBeTruthy();
+  });
+
+  it("closes with the Final Quiz opening when every lesson is complete", () => {
+    // finalQuizHref REPLACES the next-lesson branch — even though the
+    // fixture's data.next still points at materi 3 (card S5-02 §5).
+    render(
+      <QuizResult
+        data={resultDto({
+          finalQuizHref: "/belajar/gizi-ibu-hamil/final-quiz",
+        })}
+      />,
+    );
+    expect(
+      screen.getByText("Materi 2 ditandai selesai. Final Quiz sekarang terbuka."),
+    ).toBeTruthy();
+    const final = screen.getByRole("link", { name: "Lanjut ke Final Quiz" });
+    expect(final.getAttribute("href")).toBe(
+      "/belajar/gizi-ibu-hamil/final-quiz",
+    );
+    expect(
+      screen.queryByRole("link", { name: /^Lanjut ke Materi/ }),
+    ).toBeNull();
     expect(screen.getByRole("link", { name: "Kembali ke materi" })).toBeTruthy();
   });
 });

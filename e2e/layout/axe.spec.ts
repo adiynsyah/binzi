@@ -142,12 +142,15 @@ test.describe("axe WCAG 2.1 A/AA", () => {
   const videoCourseIds: string[] = [];
   // Card S3-01 quiz-scan course ids (attempts hang off these too).
   const quizCourseIds: string[] = [];
+  // Card S5-02 Final-quiz scan course ids.
+  const finalCourseIds: string[] = [];
 
   test.afterAll(async () => {
     await editorContext.close();
     await adminContext.close();
     await deleteCoursesInE2eDb(videoCourseIds);
     await deleteCoursesInE2eDb(quizCourseIds);
+    await deleteCoursesInE2eDb(finalCourseIds);
   });
 
   test(`halaman tamu (${GUEST_PAGES.length})`, async ({ page }, testInfo) => {
@@ -596,6 +599,102 @@ test.describe("axe WCAG 2.1 A/AA", () => {
         page.locator("ol span.font-mono:visible").filter({ hasText: "10" }),
       ).toBeVisible();
       await expectAxeClean(page, "materi setelah quiz", testInfo);
+    });
+  });
+
+  // Card S5-02: the Final rules + result screens. Everything between the
+  // two scans runs through the API (local copies of the belajar-quiz.spec.ts
+  // answer pattern — the lesson-quiz UI itself is that spec's job): both
+  // lessons completed 70/50, the Final attempt answered 8/10 → 80 → Lulus
+  // kursus, so the result scan sees the PASSED variant with the big score,
+  // the formula and the review items.
+  test("MEMBER: Final Quiz aturan & hasil (S5-02)", async (
+    { page, request },
+    testInfo,
+  ) => {
+    const account = await createRoleAccount(request, "MEMBER");
+    await signInViaApi(page.context(), account);
+
+    const token = `af${Date.now().toString(36)}${testInfo.project.name}`;
+    const made = await createPublishedCourseViaApi(
+      editorContext,
+      adminContext,
+      `${token} kursus final axe`,
+      { lessons: 2 },
+    );
+    finalCourseIds.push(made.courseId);
+    const enroll = await page.context().request.post(
+      `/api/progress/courses/${made.courseId}/enroll`,
+    );
+    expect(enroll.status(), await enroll.text()).toBe(201);
+
+    const startAttempt = async (url: string) => {
+      const response = await page.context().request.post(url, { data: {} });
+      expect(response.status(), await response.text()).toBe(201);
+      return ((await response.json()) as { data: { attemptId: string } }).data
+        .attemptId;
+    };
+    const answerAllCorrect = async (attemptId: string, quizId: string, correct: number) => {
+      const rows = (await withE2eDb((sql) => sql`
+          select q.id as question_id, qo.id as option_id, qo.is_correct as is_correct
+          from questions q
+          join question_options qo on qo.question_id = q.id
+          where q.quiz_id = ${quizId}
+          order by q.order_index asc, qo.order_index asc
+        `)) as {
+        question_id: string;
+        option_id: string;
+        is_correct: boolean;
+      }[];
+      const byQuestion = new Map<string, typeof rows>();
+      for (const row of rows) {
+        byQuestion.set(row.question_id, [
+          ...(byQuestion.get(row.question_id) ?? []),
+          row,
+        ]);
+      }
+      for (const [index, [questionId, options]] of [...byQuestion.entries()].entries()) {
+        if (index >= correct) continue;
+        const option = options.find((row) => row.is_correct);
+        const response = await page.context().request.put(
+          `/api/quiz/attempts/${attemptId}/answers/${questionId}`,
+          { data: { optionId: option!.option_id } },
+        );
+        expect(response.status(), await response.text()).toBe(200);
+      }
+    };
+    const finishQuiz = async (url: string, quizId: string, correct: number) => {
+      const attemptId = await startAttempt(url);
+      await answerAllCorrect(attemptId, quizId, correct);
+      const submitted = await page
+        .context()
+        .request.post(`/api/quiz/attempts/${attemptId}/submit`, { data: {} });
+      expect(submitted.status(), await submitted.text()).toBe(200);
+    };
+
+    for (const [lesson, correct] of [
+      [made.lessons[0]!, 7],
+      [made.lessons[1]!, 5],
+    ] as const) {
+      await finishQuiz(`/api/quiz/lessons/${lesson.id}/attempt`, lesson.quizId, correct);
+    }
+
+    await test.step("final aturan", async () => {
+      await page.goto(`/belajar/${made.courseSlug}/final-quiz`);
+      await expect(
+        page.getByRole("heading", {
+          name: /Final Quiz menentukan \d+% Nilai Akhir/,
+        }),
+      ).toBeVisible();
+      await expectAxeClean(page, "final aturan", testInfo);
+    });
+
+    await finishQuiz(`/api/quiz/courses/${made.courseId}/final-attempt`, made.finalQuizId, 8);
+
+    await test.step("final hasil", async () => {
+      await page.goto(`/belajar/${made.courseSlug}/final-quiz`);
+      await expect(page.getByText("Lulus kursus")).toBeVisible();
+      await expectAxeClean(page, "final hasil", testInfo);
     });
   });
 

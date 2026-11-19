@@ -84,6 +84,7 @@ function openDto(
     playback?: PlaybackDTO | null;
     quiz?: OpenDTO["quiz"];
     lessonId?: string;
+    finalQuizHref?: string | null;
   } = {},
 ): OpenDTO {
   return {
@@ -98,6 +99,7 @@ function openDto(
     },
     progress: overrides.progress ?? null,
     quiz: overrides.quiz ?? null,
+    finalQuizHref: overrides.finalQuizHref ?? null,
     outline: overrides.outline ?? [
       outlineItem(1, "selesai"),
       outlineItem(2, "kini"),
@@ -318,6 +320,40 @@ describe("LessonPage — open state", () => {
     expect(
       screen.queryByRole("link", { name: "Materi berikutnya" }),
     ).toBeNull();
+  });
+
+  it("bottom bar: quiz selesai + finalQuizHref → the primary Final link after the result link", () => {
+    render(
+      <LessonPage
+        data={openDto({
+          quiz: quizCard({ state: "selesai" }),
+          finalQuizHref: "/belajar/gizi-seimbang/final-quiz",
+        })}
+      />,
+    );
+    const final = screen.getByRole("link", { name: "Final Quiz" });
+    expect(final.getAttribute("href")).toBe(
+      "/belajar/gizi-seimbang/final-quiz",
+    );
+    // The result link keeps its place before it, and the S2-01 next link
+    // stays (card S5-02 §5).
+    expect(
+      screen.getByRole("link", { name: "Lihat Hasil & Pembahasan" }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("link", { name: "Materi berikutnya" }),
+    ).toBeTruthy();
+    const bar = final.closest("div")!;
+    expect(bar.textContent!.indexOf("Lihat Hasil")).toBeLessThan(
+      bar.textContent!.indexOf("Final Quiz"),
+    );
+  });
+
+  it("bottom bar: quiz selesai without finalQuizHref → no Final link", () => {
+    render(
+      <LessonPage data={openDto({ quiz: quizCard({ state: "selesai" }) })} />,
+    );
+    expect(screen.queryByRole("link", { name: "Final Quiz" })).toBeNull();
   });
 
   it("bottom bar: last lesson → neither next link nor note", () => {

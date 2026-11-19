@@ -3,7 +3,7 @@
 // role before any input parsing (guard order, src/modules/README.md).
 // Everything the learner dashboard does is MEMBER+ (PRD §3.2); the route
 // layer checks the same minimum, so the two layers agree by construction.
-import type { videoStatusEnum } from "@/db/schema";
+import type { progressStatusEnum, videoStatusEnum } from "@/db/schema";
 import { roleAtLeast, type SessionUser } from "@/lib/rbac";
 import { ForbiddenError } from "@/lib/errors";
 
@@ -85,4 +85,22 @@ export function isQuizEligible(row: {
 }): boolean {
   if (row.videoStatus !== "READY") return true;
   return Number(row.videoWatchedPercent ?? 0) >= QUIZ_UNLOCK_PERCENT;
+}
+
+// --------------------------------------------------- S5-02 final-quiz gate
+
+/**
+ * The Final Quiz gate (card S5-02 §1, QZ-13): EVERY lesson of the course is
+ * COMPLETED — and there is at least one lesson (a course without lessons
+ * can never open the Final Quiz). A NULL status (no lesson_progress row for
+ * this participant) counts as not completed, exactly like IN_PROGRESS.
+ */
+export function allLessonsCompleted(
+  outline: readonly {
+    status: (typeof progressStatusEnum.enumValues)[number] | null;
+  }[],
+): boolean {
+  return (
+    outline.length > 0 && outline.every((row) => row.status === "COMPLETED")
+  );
 }

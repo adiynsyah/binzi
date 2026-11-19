@@ -49,6 +49,7 @@ import {
   enrollInCourse,
   getLessonPage,
   lessonHref,
+  recordFinalQuizResult,
 } from "@/modules/progress/service";
 
 // Same "@/db" Proxy swap as the progress integration tests (queries.ts
@@ -79,8 +80,10 @@ vi.mock("@/db", () => ({
 }));
 
 import {
+  getFinalQuizPage,
   getLessonQuizPage,
   saveQuizAnswer,
+  startFinalQuiz,
   startLessonQuiz,
   submitQuizAttempt,
 } from "./service";
@@ -1110,5 +1113,724 @@ describe("reset & gate priority (owner review of PR 138)", () => {
     await expect(
       startLessonQuiz(MEMBER, { lessonId: made.lessons[0]!.id }),
     ).rejects.toThrow(new ConflictError("Quiz ini sudah dikerjakan."));
+  });
+});
+
+// --------------------------------------------------------------------------
+// Final Quiz (card S5-02). Same harness: createCourse attaches the FINAL
+// quiz, the builder completes every lesson with a score, and the real
+// start/submit paths run against PGlite.
+// --------------------------------------------------------------------------
+
+/** Set the score weights (system_settings, S1-09 shape; raw upsert — the
+ *  S1-09 integration file uses the same pglite.query shape). */
+async function seedScoreWeights(lesson: number, final: number): Promise<void> {
+  for (const [key, value] of [
+    ["score.lesson_weight", lesson],
+    ["score.final_weight", final],
+  ] as const) {
+    await pglite.query(
+      `insert into system_settings (key, value)
+       values ($1, $2::jsonb)
+       on conflict (key) do update set value = excluded.value`,
+      [key, JSON.stringify(value)],
+    );
+  }
+}
+
+/** Simple 1-point single-choice questions for the FINAL quiz. */
+function finalQuestions(count: number): QuestionSpec[] {
+  return Array.from({ length: count }, (_, index) => ({
+    points: 1,
+    explanation: `Pembahasan final ${index + 1}.`,
+    options: [
+      { text: `Opsi final A ${index + 1}`, isCorrect: true },
+      { text: `Opsi final B ${index + 1}`, isCorrect: false },
+      { text: `Opsi final C ${index + 1}`, isCorrect: false },
+    ],
+  }));
+}
+
+/** Fill the FINAL quiz with `count` questions and answer key ids. */
+async function fillFinalQuiz(
+  finalQuizId: string,
+  specs: QuestionSpec[],
+): Promise<{ questionIds: string[]; correctOptionIds: string[] }> {
+  const questionIds: string[] = [];
+  const correctOptionIds: string[] = [];
+  for (const [index, spec] of specs.entries()) {
+    const [question] = await db
+      .insert(questions)
+      .values({
+        quizId: finalQuizId,
+        orderIndex: index + 1,
+        type: "SINGLE_CHOICE",
+        text: {
+          type: "doc",
+          content: [
+            {
+              type: "paragraph",
+              content: [{ type: "text", text: `Soal final ${index + 1}` }],
+            },
+          ],
+        },
+        explanation: {
+          type: "doc",
+          content: [
+            {
+              type: "paragraph",
+              content: [{ type: "text", text: spec.explanation ?? "-" }],
+            },
+          ],
+        },
+        points: spec.points ?? 1,
+      })
+      .returning();
+    questionIds.push(question!.id);
+    let correct: string | null = null;
+    for (const [optionIndex, option] of spec.options.entries()) {
+      const [row] = await db
+        .insert(questionOptions)
+        .values({
+          questionId: question!.id,
+          orderIndex: optionIndex,
+          text: option.text,
+          isCorrect: option.isCorrect,
+        })
+        .returning();
+      if (option.isCorrect) correct = row!.id;
+    }
+    correctOptionIds.push(correct!);
+  }
+  return { questionIds, correctOptionIds };
+}
+
+/** Complete ONE lesson with a quiz score (direct lesson_progress write —
+ *  the lesson-quiz path itself is covered by the S3-01 tests above). */
+async function completeLessonWithScore(
+  userId: string,
+  courseId: string,
+  lessonId: string,
+  scorePercent: string,
+) {
+  const [enrollment] = await db
+    .select()
+    .from(enrollments)
+    .where(
+      sql`${enrollments.userId} = ${userId} and ${enrollments.courseId} = ${courseId}`,
+    );
+  await db
+    .insert(lessonProgress)
+    .values({
+      userId,
+      lessonId,
+      enrollmentId: enrollment!.id,
+      status: "COMPLETED",
+      quizAttempted: true,
+      quizScorePercent: scorePercent,
+    })
+    .onConflictDoUpdate({
+      target: [lessonProgress.userId, lessonProgress.lessonId],
+      set: {
+        status: "COMPLETED",
+        quizAttempted: true,
+        quizScorePercent: scorePercent,
+      },
+    });
+}
+
+/**
+ * The Final fixture: PUBLISHED 2-lesson course (createCourse's FINAL quiz
+ * filled with `questionCount` 1-point questions, shuffle off), MEMBER
+ * enrolled, every lesson COMPLETED with its score.
+ */
+async function finalCourse(
+  prefix: string,
+  options: {
+    lessonScores?: [string, string] | [string];
+    questionCount?: number;
+    passingScorePercent?: number;
+    enroll?: boolean;
+    complete?: boolean;
+  } = {},
+) {
+  await seedScoreWeights(60, 40);
+  const { title, slug } = nextPair(prefix);
+  const course = await createCourse(EDITOR, {
+    title,
+    slug,
+    level: "BEGINNER",
+    summary: "Ringkasan netral untuk tes.",
+  });
+  const lessonRows = [
+    await createLesson(EDITOR, course.id, { title: "Materi alpha" }),
+    await createLesson(EDITOR, course.id, { title: "Materi beta" }),
+  ];
+  const [courseRow] = await db
+    .select({ finalQuizId: courses.finalQuizId })
+    .from(courses)
+    .where(eq(courses.id, course.id));
+  if (!courseRow?.finalQuizId) throw new Error("course without FINAL quiz");
+  await db
+    .update(quizzes)
+    .set({
+      title: `Final Quiz ${title}`,
+      durationMinutes: 20,
+      passingScorePercent: options.passingScorePercent ?? 70,
+      shuffleQuestions: false,
+      shuffleOptions: false,
+    })
+    .where(eq(quizzes.id, courseRow.finalQuizId));
+  const filled = await fillFinalQuiz(
+    courseRow.finalQuizId,
+    finalQuestions(options.questionCount ?? 5),
+  );
+  await db.update(courses).set({ status: "PUBLISHED" }).where(eq(courses.id, course.id));
+  if (options.enroll ?? true) {
+    await enrollInCourse(MEMBER, course.id);
+  }
+  if (options.complete ?? true) {
+    const scores = options.lessonScores ?? ["70.00", "50.00"];
+    const toComplete = scores.length === 2 ? lessonRows : [lessonRows[0]!];
+    for (const [index, lesson] of toComplete.entries()) {
+      await completeLessonWithScore(
+        MEMBER.id,
+        course.id,
+        lesson.id,
+        scores[index]!,
+      );
+    }
+  }
+  return {
+    course,
+    slug,
+    lessons: lessonRows,
+    finalQuizId: courseRow.finalQuizId,
+    ...filled,
+  };
+}
+
+/** Save `correctCount` correct answers then `wrongCount` wrong ones on the
+ *  following questions (the rest stay unanswered). */
+async function answerFinalAttempt(
+  attemptId: string,
+  correctOptionIds: string[],
+  optionRowsAll: { questionId: string; id: string; isCorrect: boolean }[],
+  correctCount: number,
+  wrongCount: number,
+) {
+  const questionOf = (optionId: string) =>
+    optionRowsAll.find((row) => row.id === optionId)!.questionId;
+  const wrongOptionOf = (questionId: string) =>
+    optionRowsAll.find(
+      (row) => row.questionId === questionId && !row.isCorrect,
+    )!.id;
+  for (let index = 0; index < correctCount; index += 1) {
+    await saveQuizAnswer(MEMBER, {
+      attemptId,
+      questionId: questionOf(correctOptionIds[index]!),
+      optionId: correctOptionIds[index]!,
+    });
+  }
+  for (let index = 0; index < wrongCount; index += 1) {
+    const questionId = questionOf(correctOptionIds[correctCount + index]!);
+    await saveQuizAnswer(MEMBER, {
+      attemptId,
+      questionId,
+      optionId: wrongOptionOf(questionId),
+    });
+  }
+}
+
+async function enrollmentRow(userId: string, courseId: string) {
+  const [row] = await db
+    .select()
+    .from(enrollments)
+    .where(
+      sql`${enrollments.userId} = ${userId} and ${enrollments.courseId} = ${courseId}`,
+    );
+  return row;
+}
+
+describe("getFinalQuizPage", () => {
+  it("not enrolled → kembali at the FIRST lesson", async () => {
+    const made = await finalCourse("fqa", { enroll: false, complete: false });
+    const page = await getFinalQuizPage(MEMBER, made.slug);
+    expect(page).toEqual({
+      state: "kembali",
+      href: `/belajar/${made.slug}/${made.lessons[0]!.slug}`,
+    });
+  });
+
+  it("1 of 2 lessons COMPLETED, no attempt → kembali at the INCOMPLETE lesson", async () => {
+    const made = await finalCourse("fqb", {
+      lessonScores: ["70.00"],
+    });
+    const page = await getFinalQuizPage(MEMBER, made.slug);
+    expect(page).toEqual({
+      state: "kembali",
+      href: `/belajar/${made.slug}/${made.lessons[1]!.slug}`,
+    });
+  });
+
+  it("all COMPLETED, no attempt → aturan-final: average 60 (70,50), weights, pointers", async () => {
+    const made = await finalCourse("fqc", { lessonScores: ["70.00", "50.00"] });
+    const page = await getFinalQuizPage(MEMBER, made.slug);
+    expect(page.state).toBe("aturan-final");
+    if (page.state !== "aturan-final") return;
+    expect(page.courseId).toBe(made.course.id);
+    expect(page.courseTitle).toBe(made.course.title);
+    expect(page.questionCount).toBe(5);
+    expect(page.durationMinutes).toBe(20);
+    expect(page.passingScorePercent).toBe(70);
+    expect(page.lessonAveragePercent).toBe(60);
+    expect(page.weights).toEqual({ lessonPercent: 60, finalPercent: 40 });
+    expect(page.lastLessonHref).toBe(
+      `/belajar/${made.slug}/${made.lessons[1]!.slug}`,
+    );
+    // The allowlist is exact (serializer proof, card "Selesai jika").
+    expect(Object.keys(page).sort()).toEqual(
+      [
+        "state",
+        "courseId",
+        "courseTitle",
+        "questionCount",
+        "durationMinutes",
+        "passingScorePercent",
+        "lessonAveragePercent",
+        "weights",
+        "lastLessonHref",
+      ].sort(),
+    );
+  });
+
+  it("no final_quiz_id, unpublished, and unknown slug → the SAME 404", async () => {
+    const made = await finalCourse("fqd");
+    await db
+      .update(courses)
+      .set({ finalQuizId: null })
+      .where(eq(courses.id, made.course.id));
+    await expect(getFinalQuizPage(MEMBER, made.slug)).rejects.toThrow(
+      NotFoundError,
+    );
+
+    const draft = await finalCourse("fqe", { enroll: false, complete: false });
+    await db
+      .update(courses)
+      .set({ status: "DRAFT" })
+      .where(eq(courses.id, draft.course.id));
+    await expect(getFinalQuizPage(MEMBER, draft.slug)).rejects.toThrow(
+      NotFoundError,
+    );
+
+    await expect(getFinalQuizPage(MEMBER, "slug-tidak-ada")).rejects.toThrow(
+      NotFoundError,
+    );
+  });
+
+  it("an expired attempt → kedaluwarsa, and the GET does NOT finalize the row", async () => {
+    const made = await finalCourse("fqf");
+    const { attemptId } = await startFinalQuiz(MEMBER, {
+      courseId: made.course.id,
+    });
+    await expireAttempt(attemptId);
+    const page = await getFinalQuizPage(MEMBER, made.slug);
+    expect(page).toEqual({ state: "kedaluwarsa", attemptId });
+    expect((await attemptRow(attemptId))!.status).toBe("IN_PROGRESS");
+  });
+
+  it("a running attempt → berjalan with NO grading keys anywhere (recursive scan)", async () => {
+    const made = await finalCourse("fqg");
+    const { attemptId } = await startFinalQuiz(MEMBER, {
+      courseId: made.course.id,
+    });
+    const page = await getFinalQuizPage(MEMBER, made.slug);
+    expect(page.state).toBe("berjalan");
+    if (page.state !== "berjalan") return;
+    expect(page.attemptId).toBe(attemptId);
+    expect(page.questions).toHaveLength(5);
+    const keys = new Set<string>();
+    const scan = (value: unknown) => {
+      if (Array.isArray(value)) value.forEach(scan);
+      else if (value && typeof value === "object") {
+        for (const [key, child] of Object.entries(value)) {
+          keys.add(key);
+          scan(child);
+        }
+      }
+    };
+    scan(page);
+    expect(keys.has("isCorrect")).toBe(false);
+    expect(keys.has("correct")).toBe(false);
+    expect(keys.has("explanation")).toBe(false);
+  });
+});
+
+describe("startFinalQuiz", () => {
+  it("the gate: 1 of 2 lessons COMPLETED → 409 with the exact copy", async () => {
+    const made = await finalCourse("fsa", { lessonScores: ["70.00"] });
+    await expect(
+      startFinalQuiz(MEMBER, { courseId: made.course.id }),
+    ).rejects.toThrow(
+      new ConflictError("Selesaikan semua materi untuk membuka Final Quiz."),
+    );
+  });
+
+  it("all COMPLETED → creates ONE attempt on the FINAL quiz; a second start continues it", async () => {
+    const made = await finalCourse("fsb");
+    const first = await startFinalQuiz(MEMBER, { courseId: made.course.id });
+    expect(first.created).toBe(true);
+    const row = await attemptRow(first.attemptId);
+    expect(row!.quizId).toBe(made.finalQuizId);
+    expect(row!.status).toBe("IN_PROGRESS");
+
+    const second = await startFinalQuiz(MEMBER, { courseId: made.course.id });
+    expect(second.created).toBe(false);
+    expect(second.attemptId).toBe(first.attemptId);
+  });
+
+  it("after submit → 409 Final Quiz ini sudah dikerjakan (one attempt forever)", async () => {
+    const made = await finalCourse("fsc");
+    const { attemptId } = await startFinalQuiz(MEMBER, {
+      courseId: made.course.id,
+    });
+    await submitQuizAttempt(MEMBER, { attemptId });
+    await expect(
+      startFinalQuiz(MEMBER, { courseId: made.course.id }),
+    ).rejects.toThrow(new ConflictError("Final Quiz ini sudah dikerjakan."));
+  });
+
+  it("not enrolled → the uniform 404 (an unknown course reads the same)", async () => {
+    const made = await finalCourse("fsd", { enroll: false, complete: false });
+    await expect(
+      startFinalQuiz(MEMBER, { courseId: made.course.id }),
+    ).rejects.toThrow(NotFoundError);
+    await expect(
+      startFinalQuiz(MEMBER, {
+        courseId: "00000000-0000-4000-8000-000000000000",
+      }),
+    ).rejects.toThrow(NotFoundError);
+  });
+});
+
+describe("submitQuizAttempt — FINAL branch (Nilai Akhir)", () => {
+  /** Option rows of the final quiz with questionId + isCorrect, for the
+   *  answer helpers. */
+  async function finalOptions(made: {
+    finalQuizId: string;
+    correctOptionIds: string[];
+  }) {
+    const rows = await db
+      .select({
+        questionId: questionOptions.questionId,
+        id: questionOptions.id,
+        isCorrect: questionOptions.isCorrect,
+      })
+      .from(questionOptions)
+      .innerJoin(questions, eq(questionOptions.questionId, questions.id))
+      .where(eq(questions.quizId, made.finalQuizId));
+    return rows;
+  }
+
+  it("data A: 70+50, final 80 % ≥ 70 → final_score 68.00, PASSED, completed_at set", async () => {
+    const made = await finalCourse("fta", { lessonScores: ["70.00", "50.00"] });
+    const { attemptId } = await startFinalQuiz(MEMBER, {
+      courseId: made.course.id,
+    });
+    await answerFinalAttempt(
+      attemptId,
+      made.correctOptionIds,
+      await finalOptions(made),
+      4,
+      1,
+    );
+    const result = await submitQuizAttempt(MEMBER, { attemptId });
+    expect(result.status).toBe("SUBMITTED");
+    const attempt = await attemptRow(attemptId);
+    expect(attempt!.scorePercent).toBe("80.00");
+    expect(attempt!.isPassed).toBe(true);
+
+    const enrollment = await enrollmentRow(MEMBER.id, made.course.id);
+    expect(enrollment!.finalScorePercent).toBe("68.00");
+    expect(enrollment!.status).toBe("PASSED");
+    expect(enrollment!.completedAt).not.toBeNull();
+  });
+
+  it("data B: 100+50, final 60 % < 70 → final_score 69.00, COMPLETED", async () => {
+    const made = await finalCourse("ftb", {
+      lessonScores: ["100.00", "50.00"],
+    });
+    const { attemptId } = await startFinalQuiz(MEMBER, {
+      courseId: made.course.id,
+    });
+    await answerFinalAttempt(
+      attemptId,
+      made.correctOptionIds,
+      await finalOptions(made),
+      3,
+      1,
+    );
+    await submitQuizAttempt(MEMBER, { attemptId });
+    const enrollment = await enrollmentRow(MEMBER.id, made.course.id);
+    expect(enrollment!.finalScorePercent).toBe("69.00");
+    expect(enrollment!.status).toBe("COMPLETED");
+  });
+
+  it("double submit → the same status, enrollments UNTOUCHED (idempotent)", async () => {
+    const made = await finalCourse("ftc");
+    const { attemptId } = await startFinalQuiz(MEMBER, {
+      courseId: made.course.id,
+    });
+    await answerFinalAttempt(
+      attemptId,
+      made.correctOptionIds,
+      await finalOptions(made),
+      4,
+      1,
+    );
+    await submitQuizAttempt(MEMBER, { attemptId });
+    const before = await enrollmentRow(MEMBER.id, made.course.id);
+    const second = await submitQuizAttempt(MEMBER, { attemptId });
+    expect(second.status).toBe("SUBMITTED");
+    const after = await enrollmentRow(MEMBER.id, made.course.id);
+    expect(after!.finalScorePercent).toBe(before!.finalScorePercent);
+    expect(after!.completedAt?.getTime()).toBe(before!.completedAt?.getTime());
+    expect(after!.updatedAt.getTime()).toBe(before!.updatedAt.getTime());
+  });
+
+  it("recordFinalQuizResult never MOVES a stored completed_at (coalesce, S5-02 mutation 11)", async () => {
+    // The idempotent guard keeps the double-submit test away from the
+    // enrollment write, so the coalesce is proven HERE: record twice with
+    // different submittedAt stamps — the first completed_at wins.
+    const made = await finalCourse("ftj");
+    const enrollment = (await enrollmentRow(MEMBER.id, made.course.id))!;
+    const record = (submittedAt: Date) =>
+      db.transaction(async (tx) =>
+        recordFinalQuizResult(tx, {
+          actorId: MEMBER.id,
+          courseId: made.course.id,
+          enrollmentId: enrollment.id,
+          finalScorePercent: 80,
+          isPassed: true,
+          weights: { lessonPercent: 60, finalPercent: 40 },
+          submittedAt,
+        }),
+      );
+    await record(new Date("2026-01-01T00:00:00.000Z"));
+    const first = (await enrollmentRow(MEMBER.id, made.course.id))!
+      .completedAt;
+    expect(first, "the first submit stamps completed_at").not.toBeNull();
+    await record(new Date("2026-02-02T00:00:00.000Z"));
+    const second = (await enrollmentRow(MEMBER.id, made.course.id))!
+      .completedAt;
+    expect(second?.getTime()).toBe(first?.getTime());
+  });
+
+  it("the average is scoped to THIS participant: a second member's 0s never leak in", async () => {
+    // Owner review before merge: member B finishes the SAME course's two
+    // lessons with score 0 — member A (data A: 70+50, Final 80) must still
+    // land on 68.00/PASSED. An unscoped lesson_progress join would average
+    // (70+0+50+0)/4 = 30 → 50.00.
+    const made = await finalCourse("ftk", { lessonScores: ["70.00", "50.00"] });
+    await enrollInCourse(MEMBER_B, made.course.id);
+    for (const lesson of made.lessons) {
+      await completeLessonWithScore(
+        MEMBER_B.id,
+        made.course.id,
+        lesson.id,
+        "0.00",
+      );
+    }
+    const { attemptId } = await startFinalQuiz(MEMBER, {
+      courseId: made.course.id,
+    });
+    await answerFinalAttempt(
+      attemptId,
+      made.correctOptionIds,
+      await finalOptions(made),
+      4,
+      1,
+    );
+    await submitQuizAttempt(MEMBER, { attemptId });
+    const enrollment = await enrollmentRow(MEMBER.id, made.course.id);
+    expect(enrollment!.finalScorePercent).toBe("68.00");
+    expect(enrollment!.status).toBe("PASSED");
+  });
+
+  it("the average is scoped to THIS course: another course's 0 never leaks in", async () => {
+    const made = await finalCourse("ftd");
+    // A second enrolled course whose single lesson carries score 0 — an
+    // unscoped average would read (70+50+0)/3 and change the result.
+    const other = await quizCourse("fte");
+    await enrollInCourse(MEMBER, other.course.id).catch(() => undefined);
+    await completeLessonWithScore(
+      MEMBER.id,
+      other.course.id,
+      other.lessons[0]!.id,
+      "0.00",
+    );
+
+    const { attemptId } = await startFinalQuiz(MEMBER, {
+      courseId: made.course.id,
+    });
+    await answerFinalAttempt(
+      attemptId,
+      made.correctOptionIds,
+      await finalOptions(made),
+      4,
+      1,
+    );
+    await submitQuizAttempt(MEMBER, { attemptId });
+    const enrollment = await enrollmentRow(MEMBER.id, made.course.id);
+    expect(enrollment!.finalScorePercent).toBe("68.00");
+  });
+
+  it("invalid weights → FINAL submit fails BEFORE the transaction: attempt stays IN_PROGRESS, enrollments untouched", async () => {
+    const made = await finalCourse("ftf");
+    await seedScoreWeights(50, 40); // sum 90 ≠ 100 → getScoreWeights throws
+    const { attemptId } = await startFinalQuiz(MEMBER, {
+      courseId: made.course.id,
+    });
+    await expect(submitQuizAttempt(MEMBER, { attemptId })).rejects.toBeInstanceOf(
+      Error,
+    );
+    expect((await attemptRow(attemptId))!.status).toBe("IN_PROGRESS");
+    const enrollment = await enrollmentRow(MEMBER.id, made.course.id);
+    expect(enrollment!.finalScorePercent).toBeNull();
+    expect(enrollment!.status).toBe("IN_PROGRESS");
+    await seedScoreWeights(60, 40); // restore for the tests after this one
+  });
+
+  it("invalid weights → a LESSON submit still succeeds (LESSON never reads the weights)", async () => {
+    const made = await quizCourse("ftg");
+    await seedScoreWeights(50, 40);
+    const { attemptId } = await startLessonQuiz(MEMBER, {
+      lessonId: made.lessons[0]!.id,
+    });
+    const result = await submitQuizAttempt(MEMBER, { attemptId });
+    expect(result.status).toBe("SUBMITTED");
+    const progress = await progressRowOf(MEMBER.id, made.lessons[0]!.id);
+    expect(progress!.quizAttempted).toBe(true);
+    await seedScoreWeights(60, 40);
+  });
+
+  it("hasil-final: the GET after submit reads the STORED final score + course status", async () => {
+    const made = await finalCourse("fth");
+    const { attemptId } = await startFinalQuiz(MEMBER, {
+      courseId: made.course.id,
+    });
+    await answerFinalAttempt(
+      attemptId,
+      made.correctOptionIds,
+      await finalOptions(made),
+      4,
+      1,
+    );
+    await submitQuizAttempt(MEMBER, { attemptId });
+    const page = await getFinalQuizPage(MEMBER, made.slug);
+    expect(page.state).toBe("hasil-final");
+    if (page.state !== "hasil-final") return;
+    expect(page.scorePercent).toBe(80);
+    expect(page.isPassed).toBe(true);
+    expect(page.correct).toBe(4);
+    expect(page.wrong).toBe(1);
+    expect(page.unanswered).toBe(0);
+    expect(page.final.finalScorePercent).toBe(68);
+    expect(page.final.courseStatus).toBe("PASSED");
+    expect(page.final.lessonAveragePercent).toBe(60);
+    expect(page.final.weights).toEqual({ lessonPercent: 60, finalPercent: 40 });
+    expect(page.final.durationLimitSeconds).toBe(1200);
+    expect(page.items).toHaveLength(5);
+  });
+
+  it("hasil-final shows the STORED Nilai Akhir even after the row is edited (never recomputed)", async () => {
+    // Owner review before merge: overwrite final_score_percent to 77.00
+    // directly in the DB — the GET must show 77, not a recomputed 68
+    // (the value the formula would still produce).
+    const made = await finalCourse("ftl");
+    const { attemptId } = await startFinalQuiz(MEMBER, {
+      courseId: made.course.id,
+    });
+    await answerFinalAttempt(
+      attemptId,
+      made.correctOptionIds,
+      await finalOptions(made),
+      4,
+      1,
+    );
+    await submitQuizAttempt(MEMBER, { attemptId });
+    expect((await enrollmentRow(MEMBER.id, made.course.id))!.finalScorePercent)
+      .toBe("68.00");
+    await db
+      .update(enrollments)
+      .set({ finalScorePercent: "77.00" })
+      .where(
+        sql`${enrollments.userId} = ${MEMBER.id} and ${enrollments.courseId} = ${made.course.id}`,
+      );
+    const page = await getFinalQuizPage(MEMBER, made.slug);
+    expect(page.state).toBe("hasil-final");
+    if (page.state !== "hasil-final") return;
+    expect(page.final.finalScorePercent).toBe(77);
+    expect(page.scorePercent).toBe(80);
+    expect(page.final.lessonAveragePercent).toBe(60);
+  });
+
+  it("the lesson-quiz result screen carries finalQuizHref once every lesson is COMPLETED", async () => {
+    const made = await finalCourse("fti");
+    // A real lesson quiz on lesson 1, attempted and submitted.
+    const attached = await attachQuiz(made.lessons[0]!.id, {
+      questions: [GRADED_QUESTIONS[0]!],
+    });
+    const page = await getLessonQuizPage(
+      MEMBER,
+      made.slug,
+      made.lessons[0]!.slug,
+    );
+    // No attempt yet: the rules screen exists; finalQuizHref lives on the
+    // RESULT DTO — run the real start+submit to see it.
+    expect(page.state).toBe("aturan");
+    const { attemptId } = await startLessonQuiz(MEMBER, {
+      lessonId: made.lessons[0]!.id,
+    });
+    await saveQuizAnswer(MEMBER, {
+      attemptId,
+      questionId: attached.questionIds[0]!,
+      optionId: attached.optionIds[0]![0]!,
+    });
+    await submitQuizAttempt(MEMBER, { attemptId });
+    const hasil = await getLessonQuizPage(
+      MEMBER,
+      made.slug,
+      made.lessons[0]!.slug,
+    );
+    expect(hasil.state).toBe("hasil");
+    if (hasil.state !== "hasil") return;
+    expect(hasil.finalQuizHref).toBe(`/belajar/${made.slug}/final-quiz`);
+  });
+
+  it("the lesson-quiz result screen keeps finalQuizHref NULL until every lesson is COMPLETED (S5-02 mutation 9)", async () => {
+    // complete: false — lesson 2 untouched, so lesson 1's result closing
+    // must NOT offer the Final link yet (the gate behind finalQuizHref).
+    const made = await finalCourse("fth", { complete: false });
+    const attached = await attachQuiz(made.lessons[0]!.id, {
+      questions: [GRADED_QUESTIONS[0]!],
+    });
+    const { attemptId } = await startLessonQuiz(MEMBER, {
+      lessonId: made.lessons[0]!.id,
+    });
+    await saveQuizAnswer(MEMBER, {
+      attemptId,
+      questionId: attached.questionIds[0]!,
+      optionId: attached.optionIds[0]![0]!,
+    });
+    await submitQuizAttempt(MEMBER, { attemptId });
+    const hasil = await getLessonQuizPage(
+      MEMBER,
+      made.slug,
+      made.lessons[0]!.slug,
+    );
+    expect(hasil.state).toBe("hasil");
+    if (hasil.state !== "hasil") return;
+    expect(hasil.finalQuizHref).toBeNull();
   });
 });

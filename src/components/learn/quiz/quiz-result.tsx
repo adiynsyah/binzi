@@ -48,7 +48,9 @@ function ItemVerdictPill({ correct }: { correct: boolean }) {
   );
 }
 
-function ResultItem({ item }: { item: QuizResultItemDTO }) {
+/** The per-question review card — shared as-is by the Final Quiz result
+ *  screen (card S5-02 §4.D); its look does not change. */
+export function ResultItem({ item }: { item: QuizResultItemDTO }) {
   const selected = item.options.find((option) => option.selected) ?? null;
   // Unanswered counts as wrong — "Salah" — and the key shows for every
   // wrong answer WHEN the policy reveals it (correct === null = hidden).
@@ -184,12 +186,24 @@ export function QuizResult({ data }: { data: QuizResultDTO }) {
 
       <section className="mt-8 rounded-card border border-border bg-surface-2 p-6">
         <p className="text-[15px] leading-relaxed text-text">
-          {data.next
-            ? `Materi ${data.lesson.position} ditandai selesai. Materi ${data.next.position} sekarang terbuka.`
-            : `Materi ${data.lesson.position} ditandai selesai.`}
+          {data.finalQuizHref !== null
+            ? // Every lesson is COMPLETED and the course has a Final Quiz —
+              // that opening REPLACES the next-lesson branch (card S5-02 §5,
+              // even when a next lesson exists).
+              `Materi ${data.lesson.position} ditandai selesai. Final Quiz sekarang terbuka.`
+            : data.next
+              ? `Materi ${data.lesson.position} ditandai selesai. Materi ${data.next.position} sekarang terbuka.`
+              : `Materi ${data.lesson.position} ditandai selesai.`}
         </p>
         <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-          {data.next ? (
+          {data.finalQuizHref !== null ? (
+            <Link
+              href={data.finalQuizHref}
+              className={cn(buttonVariants({ variant: "primary" }), "sm:flex-1")}
+            >
+              Lanjut ke Final Quiz
+            </Link>
+          ) : data.next ? (
             <Link
               href={data.next.href}
               className={cn(buttonVariants({ variant: "primary" }), "sm:flex-1")}

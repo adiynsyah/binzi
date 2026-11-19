@@ -21,7 +21,9 @@ import type {
   AttemptOptionRow,
   AttemptQuestionRow,
   AttemptRow,
+  AttemptStatus,
   QuizSettingsRow,
+  QuizType,
 } from "./serializer";
 
 /** Transaction executor, spelled out locally (progress-module pattern). */
@@ -61,7 +63,8 @@ export async function selectQuizLessonBySlugs(
   return rows[0];
 }
 
-/** The quizzes settings row (duration, passing score, shuffle, policy). */
+/** The quizzes settings row (duration, passing score, shuffle, policy).
+ *  Card S5-02 §2 adds `type` — the submit path branches on LESSON/FINAL. */
 export async function selectQuizSettings(
   executor: DbOrTx,
   quizId: string,
@@ -69,6 +72,7 @@ export async function selectQuizSettings(
   const rows = await executor
     .select({
       id: quizzes.id,
+      type: quizzes.type,
       title: quizzes.title,
       durationMinutes: quizzes.durationMinutes,
       passingScorePercent: quizzes.passingScorePercent,
@@ -407,4 +411,50 @@ export async function selectLessonIdByQuizId(
     .where(eq(lessons.quizId, quizId))
     .limit(1);
   return rows[0]?.id;
+}
+
+// ------------------------------------------------------ S5-02 final quiz
+
+/**
+ * The course a FINAL quiz belongs to (card S5-02 §2): courses.final_quiz_id
+ * is UNIQUE, so at most one row. The submit transaction needs the courseId
+ * for the progress module's recordFinalQuizResult.
+ */
+export async function selectCourseIdByFinalQuizId(
+  executor: DbOrTx,
+  quizId: string,
+): Promise<string | undefined> {
+  const rows = await executor
+    .select({ id: courses.id })
+    .from(courses)
+    .where(eq(courses.finalQuizId, quizId))
+    .limit(1);
+  return rows[0]?.id;
+}
+
+/**
+ * The submit PRE-READ (card S5-02 §2, owner addition): the actor's
+ * attempt's quiz type + status, WITHOUT a lock and on plain `db` — used
+ * only to decide whether getScoreWeights must run BEFORE the transaction
+ * (awaiting a `db` query inside db.transaction deadlocks on PGlite). The
+ * transaction re-reads everything under its lock and stays the only
+ * decision maker; a missing attempt here changes nothing (the transaction
+ * answers the one 404). Ownership is in the WHERE (anti-IDOR, V-05).
+ */
+export async function selectSubmitPreread(
+  attemptId: string,
+  actorId: string,
+): Promise<{ quizType: QuizType; status: AttemptStatus } | undefined> {
+  const rows = await db
+    .select({
+      quizType: quizzes.type,
+      status: quizAttempts.status,
+    })
+    .from(quizAttempts)
+    .innerJoin(quizzes, eq(quizAttempts.quizId, quizzes.id))
+    .where(
+      and(eq(quizAttempts.id, attemptId), eq(quizAttempts.userId, actorId)),
+    )
+    .limit(1);
+  return rows[0];
 }

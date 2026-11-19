@@ -25,6 +25,7 @@ import { db } from "@/db";
 import {
   courses,
   enrollments,
+  enrollmentStatusEnum,
   lessonProgress,
   lessons,
   questions,
@@ -254,12 +255,15 @@ export async function enrollUserInCourse(input: {
 // so the page and the writes can never disagree about the gate.
 // --------------------------------------------------------------------------
 
-/** The course lookup of step 1: PUBLISHED-only, by slug. */
+/** The course lookup of step 1: PUBLISHED-only, by slug. Card S5-02 §1
+ *  adds final_quiz_id — the lesson page serializer turns it into the Final
+ *  Quiz href once every lesson is COMPLETED. */
 export type LessonCourseRow = {
   id: string;
   slug: string;
   title: string;
   isSequential: boolean;
+  finalQuizId: string | null;
 };
 
 export async function selectPublishedCourseBySlug(
@@ -271,6 +275,7 @@ export async function selectPublishedCourseBySlug(
       slug: courses.slug,
       title: courses.title,
       isSequential: courses.isSequential,
+      finalQuizId: courses.finalQuizId,
     })
     .from(courses)
     .where(and(eq(courses.slug, courseSlug), eq(courses.status, "PUBLISHED")))
@@ -370,7 +375,12 @@ export type LessonGateLookup = {
     videoStatus: (typeof videoStatusEnum.enumValues)[number];
     videoDurationSeconds: number | null;
   };
-  course: { id: string; slug: string; isSequential: boolean };
+  course: {
+    id: string;
+    slug: string;
+    isSequential: boolean;
+    finalQuizId: string | null;
+  };
 };
 
 export async function findLessonInPublishedCourse(
@@ -386,6 +396,7 @@ export async function findLessonInPublishedCourse(
       courseId: courses.id,
       courseSlug: courses.slug,
       courseIsSequential: courses.isSequential,
+      courseFinalQuizId: courses.finalQuizId,
     })
     .from(lessons)
     .innerJoin(courses, eq(lessons.courseId, courses.id))
@@ -404,6 +415,7 @@ export async function findLessonInPublishedCourse(
       id: row.courseId,
       slug: row.courseSlug,
       isSequential: row.courseIsSequential,
+      finalQuizId: row.courseFinalQuizId,
     },
   };
 }
@@ -635,4 +647,159 @@ export async function upsertLessonQuizResult(
         completedAt: sql`coalesce(${lessonProgress.completedAt}, excluded.completed_at)`,
       },
     });
+}
+
+// --------------------------------------------------------------------------
+// Final Quiz (card S5-02). The attempt module still OWNS quiz_attempts; this
+// module owns the course gate (all lessons COMPLETED) and the enrollment
+// write that records Nilai Akhir at submit time.
+// --------------------------------------------------------------------------
+
+/**
+ * The Final Quiz course lookup (card S5-02 §1): PUBLISHED-only, by id (the
+ * start/submit transactions) or by slug (the pure-GET page), WITH a
+ * final_quiz_id — every miss (unknown, unpublished, no Final Quiz) is the
+ * SAME undefined, so a draft's or a quiz-less course's existence never
+ * leaks (anti-IDOR shape). firstLessonSlug rides along for the
+ * not-enrolled redirect.
+ */
+export async function findPublishedCourseWithFinalQuiz(
+  executor: DbOrTx,
+  target: { courseId: string } | { courseSlug: string },
+): Promise<
+  | {
+      id: string;
+      slug: string;
+      title: string;
+      finalQuizId: string;
+      firstLessonSlug: string | null;
+    }
+  | undefined
+> {
+  const rows = await executor
+    .select({
+      id: courses.id,
+      slug: courses.slug,
+      title: courses.title,
+      finalQuizId: courses.finalQuizId,
+      firstLessonSlug: firstLessonSlugSql,
+    })
+    .from(courses)
+    .where(
+      and(
+        "courseId" in target
+          ? eq(courses.id, target.courseId)
+          : eq(courses.slug, target.courseSlug),
+        eq(courses.status, "PUBLISHED"),
+        sql`${courses.finalQuizId} is not null`,
+      ),
+    )
+    .limit(1);
+  const row = rows[0];
+  if (!row || row.finalQuizId === null) return undefined;
+  return {
+    id: row.id,
+    slug: row.slug,
+    title: row.title,
+    finalQuizId: row.finalQuizId,
+    firstLessonSlug: row.firstLessonSlug,
+  };
+}
+
+/**
+ * Every lesson's quiz score of the course for THIS participant (card S5-02
+ * §1): the submit transaction re-reads them to compute Nilai Akhir. Rows,
+ * not an aggregate — avg() would silently skip a NULL score, and the caller
+ * fails loud on one instead (a valid Final attempt implies every lesson
+ * COMPLETED with a score). Typed builder on purpose: no interpolated column
+ * inside sql`` (the bare-name pitfall in the file header cannot occur).
+ */
+export async function selectCourseLessonScoreRows(
+  executor: DbOrTx,
+  actorId: string,
+  courseId: string,
+): Promise<{ lessonId: string; scorePercent: string | null }[]> {
+  return executor
+    .select({
+      lessonId: lessons.id,
+      scorePercent: lessonProgress.quizScorePercent,
+    })
+    .from(lessons)
+    .leftJoin(
+      lessonProgress,
+      and(
+        eq(lessonProgress.lessonId, lessons.id),
+        eq(lessonProgress.userId, actorId),
+      ),
+    )
+    .where(eq(lessons.courseId, courseId))
+    .orderBy(asc(lessons.orderIndex), asc(lessons.id));
+}
+
+/**
+ * The Final Quiz's enrollment write (card S5-02 §1): final_score_percent +
+ * status (PASSED when the final attempt passed, else COMPLETED) +
+ * completed_at only-if-null. The WHERE carries BOTH the id and the actor's
+ * user_id (anti-IDOR in the write, matching every read). Typed on purpose —
+ * updated_at moves with the result (PRG-02, course activity).
+ */
+export async function updateEnrollmentFinalResult(
+  tx: DbTx,
+  input: {
+    enrollmentId: string;
+    actorId: string;
+    /** scorePercent.toFixed(2) — NUMERIC(5,2) takes a string. */
+    finalScorePercent: string;
+    status: "COMPLETED" | "PASSED";
+    completedAt: Date;
+  },
+): Promise<void> {
+  await tx
+    .update(enrollments)
+    .set({
+      status: input.status,
+      finalScorePercent: input.finalScorePercent,
+      // A raw Date inside a drizzle `sql` fragment skips the column mapper:
+      // postgres.js serializes it with the locale toString() and the wire
+      // query fails (PGlite accepts it, so only e2e catches this). Bind an
+      // ISO string with an explicit cast instead.
+      completedAt: sql`coalesce(${enrollments.completedAt}, ${input.completedAt.toISOString()}::timestamptz)`,
+    })
+    .where(
+      and(
+        eq(enrollments.id, input.enrollmentId),
+        eq(enrollments.userId, input.actorId),
+      ),
+    );
+}
+
+/**
+ * The Final result screen's display read (card S5-02 §2): the STORED Nilai
+ * Akhir + the course status — read AFTER submit, never written here.
+ */
+export async function selectEnrollmentFinalResult(
+  executor: DbOrTx,
+  actorId: string,
+  courseId: string,
+): Promise<
+  | {
+      finalScorePercent: string | null;
+      status: (typeof enrollmentStatusEnum.enumValues)[number];
+    }
+  | undefined
+> {
+  const rows = await executor
+    .select({
+      finalScorePercent: enrollments.finalScorePercent,
+      status: enrollments.status,
+    })
+    .from(enrollments)
+    .where(
+      and(
+        eq(enrollments.userId, actorId),
+        eq(enrollments.courseId, courseId),
+      ),
+    )
+    .limit(1);
+  return rows[0];
 }
