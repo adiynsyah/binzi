@@ -162,12 +162,12 @@ Jadwal dan keputusannya di `STATUS.md` (bagian "Pembaruan 3 Nov", "Pembaruan 8 N
 
 ## Jalur UAT internal 11 Des — rencana 19 Nov
 
-Rencana lengkap, asumsi, dan aturannya ada di `STATUS.md` ("Pembaruan 19 Nov", bagian "Rencana UAT internal 11 Des"). ID kartu masih usulan. Kartu ditulis di Claude chat menjelang sesinya, terhadap `main` terbaru. Pembekuan fitur **Sen 7 Des**; posisi dicek tiap Senin.
+Rencana lengkap, asumsi, dan aturannya ada di `STATUS.md` ("Pembaruan 19 Nov", bagian "Rencana UAT internal 11 Des"); kemajuan terbaru di "Pembaruan 20 Nov". ID kartu masih usulan. Kartu ditulis di Claude chat menjelang sesinya, terhadap `main` terbaru. Pembekuan fitur **Sen 7 Des**; posisi dicek tiap Senin.
 
 **A. Wajib untuk UAT 11 Des** (urutan pengerjaan)
 
 - [x] 👤 **A1** · C-11 — hapus pengecualian audit (patch, lihat "Chore terjadwal") · *✅ PR #142 (19 Nov)*
-- [ ] 🤖 **A2** · [S3-02](sprint-3/S3-02-perapian-quiz.md) — perapian quiz materi + Final Quiz · *±1½ hari; kartu ditulis 19 Nov malam*
+- [x] 🤖 **A2** · [S3-02](sprint-3/S3-02-perapian-quiz.md) — perapian quiz materi + Final Quiz · *✅ PR #145 (20 Nov, satu sesi); perapian putaran 2 di STATUS 20 Nov*
 - [ ] 🤖 **A3** · S5-03 — Nilai Saya `/belajar/nilai` (8b, 8f) · *±2 hari*
 - [ ] 🤖 **A4** · S5-04 — progres kursus `/belajar/{kursus}` (8c) + Kursus Saya `/belajar/kursus-saya` (13b, 13c) · *±2 hari*
 - [ ] 🤖 **A5** · S6-02 — katalog `/kursus` + detail `/kursus/{slug}` (7a, 7b, 7m), sampul placeholder · *±2½ hari*

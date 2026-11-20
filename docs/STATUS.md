@@ -1,9 +1,107 @@
 # Status Proyek BINZI — catatan untuk melanjutkan di chat baru
 
-> Terakhir diperbarui: 19 Nov 2026. File ini dikelola manual (bukan oleh agent) dan hanya untuk melanjutkan percakapan dengan Claude.
+> Terakhir diperbarui: 20 Nov 2026. File ini dikelola manual (bukan oleh agent) dan hanya untuk melanjutkan percakapan dengan Claude.
 > Untuk melanjutkan: buka chat baru, unggah file ini + `docs/tasks/URUTAN-KERJA.md`, lalu pakai prompt di bagian paling bawah.
 
-## Pembaruan 19 Nov 2026 — S3-01 dan S5-02 di-merge, demo 20 Nov batal, rencana UAT internal 11 Des (baca ini dulu, lalu 16 Nov, 14 Nov, 11 Nov, 10 Nov, 9 Nov, 8 Nov, 7 Nov, 6 Nov, 4 Nov malam, 4 Nov, dan 3 Nov)
+## Pembaruan 20 Nov 2026 — A2 S3-02 perapian quiz di-merge (baca ini dulu, lalu 19 Nov, 16 Nov, 14 Nov, 11 Nov, 10 Nov, 9 Nov, 8 Nov, 7 Nov, 6 Nov, 4 Nov malam, 4 Nov, dan 3 Nov)
+
+Bagian-bagian di bawahnya tetap berlaku. Bagian ini mengubah atau menambahnya. Jadwal yang berlaku tetap "Rencana UAT internal 11 Des" di Pembaruan 19 Nov.
+
+### Posisi
+- `main` = `cd82860` (#145). **A1 (C-11, #142) dan A2 (S3-02, #145) selesai.** Berikutnya A3 S5-03 Nilai Saya.
+- A2 diperkirakan ±1½ hari; selesai dalam satu sesi pada Jum 20 (rencana ditinjau ±10.10, merge ±13.00), tanpa putaran perbaikan PR. Cadangan jadwal UAT bertambah ±1 hari.
+- Baseline Vitest **129 berkas / 1532 tes** (diukur di sandbox Claude chat pada `0c8e62b`, pohonnya identik dengan `cd82860`). E2E penuh 230 lulus / 14 dilewati. Gate audit 0 excused / 0 blocking / OK. Tanpa migrasi, tanpa dependensi baru.
+
+### Yang di-merge 20 Nov
+
+| PR | Isi |
+|---|---|
+| #144 | Docs: kartu S3-02 perapian quiz, C-11 dicentang di URUTAN-KERJA |
+| #145 | S3-02 perapian quiz materi + Final Quiz (squash dari 5 commit, head `0c8e62b`) |
+
+### S3-02 di-merge (#145)
+Isi PR:
+- **Runner:**
+  - muat ulang mendarat di soal pertama yang belum dijawab (urutan tampilan attempt); semua terjawab → soal terakhir;
+  - banner 28c tahap 2 membandingkan jam perangkat dengan jam perangkat (timer tetap jam server);
+  - banner tahap 2 **dan** tahap 3 `sticky top-[69px] sm:top-[81px] z-20` (header 68/80 + `border-b`);
+  - kumpul gagal → banner inline + "Coba kumpulkan lagi" di baris sendiri, fokus pindah ke pesan (`focus({ preventScroll: true })` + `scrollIntoView({ block: "center" })`, karena bottom nav `fixed` < 768). Di ringkasan memanggil `handleCollect`; di keadaan waktu habis memanggil `collectAndRefresh`;
+  - h1 bergaya eyebrow dari `heading` DTO ("Quiz Materi {n} · {judul}" / "Final Quiz · {kursus}");
+  - baris kepala satu baris; ringkasan satu navigator dan selebar penuh (kelas grid hanya di fase soal); "Kumpulkan sekarang" `w-full sm:w-auto`; "Berikutnya"/"Lihat ringkasan" `dark` + `size="md"`; panah `shrink-0`;
+  - chip belum tersimpan mengikuti 28c: `border-2 border-dashed border-danger bg-surface text-danger`, mengalahkan warna ragu-ragu.
+- **Beacon kedaluwarsa:** 200/409 → refresh; gagal → teks "Waktu habis." + banner + "Coba lagi".
+- **Hasil:**
+  - nilai dibulatkan ke bawah (`Math.floor`) di hasil quiz dan Daftar materi; Nilai Akhir tetap dibulatkan biasa;
+  - `reviewAccess` (`ALWAYS` / `PASSED` / `HIDDEN_NEVER` / `HIDDEN_NOT_PASSED`) menggantikan rencana `explanationHidden`. Tersembunyi → judul "Jawaban Anda", pill "Dijawab"/"Tidak dijawab", kalimat per kebijakan, tombol Final "Lihat jawaban Anda". `PASSED` tanpa kalimat "apa pun nilainya";
+  - hasil quiz materi punya h1; pill "Lulus kursus" solid; angka Nilai Akhir hijau hanya bila Lulus; aturan Final dalam kotak 7h (`bg-primary-tint`, garis `border-danger-tint-line`).
+- **`finalQuizDone`** = gerbang `finalQuizHref` + `enrollments.status` ≠ `IN_PROGRESS` (nilai tersimpan, bukan hitung ulang dari attempt). Penutup hasil quiz materi: "Final Quiz sudah dikerjakan." + "Lihat hasil Final Quiz"; bar bawah materi: "Hasil Final Quiz".
+- **Peserta belum terdaftar** di halaman quiz materi → dialihkan ke halaman materi; slug salah, kursus belum terbit, materi tanpa quiz tetap 404.
+- **E2E:** tes 3/10/Final 1 mengikuti posisi baru (Final 1 menghitung posisi persis dari `question_order`), tes 9 memeriksa banner menempel, tiga tes baru (kumpul gagal 360+1280, beacon gagal, kebijakan NEVER).
+
+**Tinjauan rencana** (chat 20 Nov pagi) menambah 16 butir. Yang terpenting:
+- tabel mutasi dengan prediksi per baris, plus mutasi nilai tersimpan (pelajaran 19 Nov no. 2);
+- `npm run e2e` penuh sebelum PR;
+- `size="md"` untuk tombol `dark` (tanpa itu 52 px, sedangkan 7u 48 px);
+- grid ringkasan bersyarat fase; pesan kumpul gagal di luar pembungkus `sm:text-right`;
+- fixture bercelah 1, 2, 4 (fixture kartu 1–3 tidak membedakan "jumlah jawaban" dari "soal pertama belum dijawab");
+- asersi negatif Benar/Salah hanya di dalam `article` (kartu skor punya `<dt>` sr-only "Benar"/"Salah"/"Tidak dijawab").
+
+**Tinjauan PR**, dijalankan di sandbox:
+- `tsc`, `eslint`, `lint:hex`, Vitest 129/1532;
+- 22 berkas, semuanya dari daftar kartu; diff berkas terlarang kosong; tanpa atribusi AI; tanpa sisa mutasi (skrip mutasi agent sempat salah jalur dan `git restore` lewat stdin gagal; agent mengulang baris yang terdampak);
+- 15 mutasi diulang: 12 merah sesuai harapan, **3 hijau** (masuk "Perapian putaran 2");
+- 24 screenshot ditinjau terhadap 7u/7g/7h/28c — tidak ada yang memblokir;
+- CI `ci` 2m51s, `e2e` 9m29s (PR 140: 12m50s).
+
+**Verifikasi manual pemilik S3-02:** ✓ 20 Nov.
+
+### Keputusan pemilik 20 Nov
+1. **Rencana S3-02 disetujui dengan 16 tambahan**, termasuk empat keputusan di luar kartu:
+   - field pembahasan empat keadaan (`reviewAccess`), karena `null` untuk ALWAYS dan ON_PASS_ONLY-lulus membuat kalimat "apa pun nilainya" keliru;
+   - chip belum tersimpan mengikuti 28c (angka merah, garis 2 px), bukan `text-text` dari kartu;
+   - banner tahap 3 ("Tersambung…") ikut sticky;
+   - screenshot ke-24 `quiz-kumpul-gagal-1280`.
+2. **#145 di-merge** setelah verifikasi manual.
+
+### Perapian putaran 2 (dari S3-02)
+- Asersi e2e tes 9 dan tes 11 mengukur `<p>` judul banner, bukan kotak `role="alert"`. Geser kecil (banner tertutup header ≤ ±16 px) lolos; tombol "Coba kumpulkan lagi" tidak ikut diukur terhadap bottom nav. Screenshot saat ini benar.
+- `QuizExpiredSubmit`: tombol "Coba lagi" tanpa `loading` (klik ganda = dua POST, aman karena idempoten); gagal kedua tidak diumumkan ulang (banner tetap terpasang, teks sama). Copy "Waktu habis." adalah copy baru.
+- Tiga mutasi hijau (kode benar, tanpa tes): tombol coba lagi ringkasan tanpa penjaga `pending`; `key` banner gagal (memang redundan — `setSubmitFailed(false)` di awal percobaan sudah melepas banner; komentar dan nama tes melebih-lebihkan); `size="md"` tombol `dark`.
+- JSDoc lama `QuizReviewDTO` di `attempt/serializer.ts` terpisah dari tipenya (di atas doc `QuizReviewAccess`).
+- Bawaan S3-01: judul "NAVIGATOR SOAL" menempel ke chip di ≥ 1024.
+- Keadaan "Final sudah dikerjakan" dan Nilai Akhir status Selesai tidak ada di screenshot (dijaga tes unit + integrasi dan verifikasi manual).
+
+### Tugas pemilik (bukan kode)
+Pengganti daftar 19 Nov (C-11 sudah selesai):
+1. **`AGENTS.md`** tidak terlacak di folder repo (menurut agent dibuat otomatis oleh `next dev`). Jangan di-commit. Lihat isinya, lalu hapus atau putuskan di C-09.
+2. **H-04 R2** (bucket + token) secepatnya — membuka jalan tarik maju video R2.
+3. **Akun UAT per peran** di Production, dibuat manual sebelum A9: Super admin, Admin, Ahli gizi, 2–3 peserta.
+4. **Ketik kursus "[DEMO]"** lewat CMS dan pasang video *unlisted* (`--durasi` = durasi asli), sebelum A9. Final Quiz: 20 menit, batas lulus 70.
+5. **Tentukan penguji dan jam UAT** 11 Des.
+6. **Nomor WhatsApp asli** lewat SQL editor binzi-dev, bila halaman konsultasi ikut diuji.
+7. **Verifikasi manual S5-01** masih terbuka.
+8. Opsional: **redirect URI Google di Production**, bila penguji login dengan Google.
+
+### Pelajaran 20 Nov
+1. **Asersi kotak e2e mengukur wadahnya, bukan teks di dalamnya.** Padding wadah (±16 px) menutupi geser posisi. Untuk banner: kotak `role="alert"`; untuk "tidak tertutup nav bawah": sampai tombol aksi terbawah.
+2. **Tinggi header member 69/81 px, bukan 68/80.** `HEADER_HEIGHT_CLASS` hanya tinggi isi; `border-b` header menambah 1 px. Offset `sticky` di bawah header memakai 69/81.
+3. **`Button` memberi varian `primary`/`dark` ukuran lg (52 px), yang lain md (48 px).** Tombol berpasangan beda varian butuh `size` eksplisit.
+4. **Pencocokan nama berbeda antara Testing Library dan Playwright.** Testing Library: string = persis (tes negatif "Final Quiz" tidak menangkap "Hasil Final Quiz" → pakai regex). Playwright `getByText`/`getByRole`: sebagian teks, tanpa beda huruf besar-kecil (menangkap `<dt>` sr-only dan label "benar"/"salah" → batasi ke `article`, `exact: true`).
+5. **Mutasi membuktikan juga apa yang TIDAK dibutuhkan.** `key` banner gagal tampak penting, tetapi mutasinya hijau karena unmount di awal percobaan sudah me-remount banner. Komentar yang melebih-lebihkan dikoreksi saat menyentuh berkasnya.
+6. **Hasil mutasi agent tetap diulang di sandbox.** Skrip mutasi agent S3-02 sempat menjalankan target Vitest yang salah dan gagal me-restore lewat stdin; yang membuktikan isi akhir bersih adalah tinjauan diff + mutasi ulang.
+7. **Tinjauan rencana yang detail memangkas waktu PR.** S3-02: 16 butir ditambahkan sebelum kode ditulis; PR tuntas tanpa putaran perbaikan dalam satu sesi.
+
+### Catatan untuk kartu berikutnya
+- **A3 S5-03 Nilai Saya `/belajar/nilai`** (8b, 8f; PRG-04, PRG-05, QZ-20) ditulis Claude chat terhadap `main` terbaru (`cd82860`). Baseline 129 / 1532.
+- Aturan nilai yang sudah berlaku dan wajib diikuti kartu:
+  - nilai quiz materi dan Final **dibulatkan ke bawah** (`Math.floor`), Nilai Akhir dibulatkan biasa;
+  - status Lulus/Belum Lulus dari `is_passed`/`enrollments.status` tersimpan, bukan dihitung ulang;
+  - tautan pembahasan mengikuti `reviewAccess` (kebijakan tersembunyi → label tanpa kata "pembahasan").
+- Halaman ini memakai kueri agregat lintas kursus → tabel mutasi memuat baris milik peserta lain di tabel yang sama dan nilai yang diubah langsung di DB (pelajaran 19 Nov no. 2).
+- Screenshot: `E2E_SCREENSHOT_DIR=~/binzi-s5-03-screenshots` dan jumlah berkas disebut di PR.
+- Bawa pelajaran 20 Nov no. 1–4 ke kartu.
+
+## Pembaruan 19 Nov 2026 — S3-01 dan S5-02 di-merge, demo 20 Nov batal, rencana UAT internal 11 Des (baca setelah 20 Nov, lalu 16 Nov, 14 Nov, 11 Nov, 10 Nov, 9 Nov, 8 Nov, 7 Nov, 6 Nov, 4 Nov malam, 4 Nov, dan 3 Nov)
 
 Bagian-bagian di bawahnya tetap berlaku. Bagian ini mengubah atau menambahnya. **Semua jadwal demo 20 Nov di bagian 3–16 Nov tidak berlaku lagi.** Jadwal yang berlaku ada di "Rencana UAT internal 11 Des" di bawah. Frasa "setelah demo" di bagian-bagian lama kini dibaca "menurut rencana UAT di bawah".
 
@@ -1550,8 +1648,8 @@ Rencana disetujui, dengan lima tambahan berikut (hasil tinjauan C-02/C-03, belum
 Saya sedang membangun BINZI (platform belajar gizi) dengan Next.js 16 +
 AI coding agent (Claude Code). Terlampir docs/STATUS.md dan
 docs/tasks/URUTAN-KERJA.md dari repo saya — baca keduanya sebagai konteks.
-Baca bagian "Pembaruan 19 Nov" di STATUS.md lebih dulu, lalu
-"Pembaruan 16 Nov", "Pembaruan 14 Nov", "Pembaruan 11 Nov", "Pembaruan 10 Nov", "Pembaruan 9 Nov",
+Baca bagian "Pembaruan 20 Nov" di STATUS.md lebih dulu, lalu
+"Pembaruan 19 Nov", "Pembaruan 16 Nov", "Pembaruan 14 Nov", "Pembaruan 11 Nov", "Pembaruan 10 Nov", "Pembaruan 9 Nov",
 "Pembaruan 8 Nov", "Pembaruan 7 Nov", "Pembaruan 6 Nov", "Pembaruan 4 Nov
 malam", "Pembaruan 4 Nov", dan "Pembaruan 3 Nov 2026 — target demo 20 Nov".
 Demo 20 Nov batal; jadwal yang berlaku adalah "Rencana UAT internal 11 Des"
@@ -1561,15 +1659,15 @@ repo publik di github.com/adiynsyah/binzi — clone untuk membaca kode,
 kartu, desain, dan meninjau PR (API GitHub sering kena rate limit;
 git fetch pull/N/head tetap jalan). Repo di mesin saya ada di
 ~/Project/React/binzi-new.
-Posisi terakhir (19 Nov): S3-01 quiz materi (#138), S5-02 Final Quiz
-(#140), dan perbaikan e2e tes 10 (#141) di-merge; demo 20 Nov batal;
-target baru UAT internal Jum 11 Des (rencana A/B/C dan urutan tarik maju
-di Pembaruan 19 Nov).
+Posisi terakhir (20 Nov): A1 C-11 (#142) dan A2 S3-02 perapian quiz
+(#145) di-merge; main = cd82860; baseline Vitest 129 / 1532. Target UAT
+internal Jum 11 Des (rencana A/B/C dan urutan tarik maju di Pembaruan
+19 Nov); jadwal maju ±1 hari.
 Berikutnya:
-- PR chore C-11 (hapus pengecualian audit) di-merge paling lambat Kam 26 Nov.
-- Jum 20: tulis kartu A2 S3-02 perapian quiz terhadap main terbaru, lalu
-  kartu A3 selagi agent mengerjakan A2. Rencana agent ditinjau di chat.
-- Tugas pemilik: lihat "Tugas pemilik (bukan kode)" di 19 Nov.
+- Tulis kartu A3 S5-03 Nilai Saya terhadap main terbaru (catatan di
+  "Catatan untuk kartu berikutnya", 20 Nov), lalu kartu A4 selagi agent
+  mengerjakan A3. Rencana agent ditinjau di chat.
+- Tugas pemilik: lihat "Tugas pemilik (bukan kode)" di 20 Nov.
 - Untuk tinjauan tampilan, Claude bisa menjalankan Chromium headless di
   sandbox (@sparticuz/chromium + playwright-core dari registry npm).
 Gate audit main: 0 excused / 0 blocking / 21 info-low-moderate. Uji
