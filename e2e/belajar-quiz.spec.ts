@@ -1,10 +1,12 @@
-// The S3-01 lesson quiz (card §7 "E2E"): the dialog → rules → start flow,
-// the no-key-leak rule on the wire, auto-save + QZ-08 persistence, the
-// summary gate, the result + review, the lesson page's selesai state, the
-// video-gated button that comes alive WITHOUT a reload (keputusan 9), the
-// EXPIRED finalization, the API matrix (404/409 walls, idempotent submit,
-// anti-IDOR), the 28c save-failure stages under page.clock, and the width
-// sweep with touch targets.
+// The S3-01 lesson quiz (card §7 "E2E") + the S3-02 perapian additions:
+// the dialog → rules → start flow, the no-key-leak rule on the wire,
+// auto-save + QZ-08 persistence, the summary gate, the result + review,
+// the lesson page's selesai state, the video-gated button that comes
+// alive WITHOUT a reload (keputusan 9), the EXPIRED finalization, the
+// API matrix (404/409 walls, idempotent submit, anti-IDOR), the 28c
+// save-failure stages under page.clock (with the sticky-banner check),
+// the width sweep with touch targets, and the S3-02 tests 11–13
+// (collect-fail retry, expired-beacon retry, NEVER policy).
 //
 // Root spec → chromium project only; widths via page.setViewportSize (same
 // as belajar-materi.spec.ts). Shared-database rule: only token-titled
@@ -308,11 +310,11 @@ test("3. auto-save per jawaban (PUT 200) + muat ulang: jawaban dan soal tetap (Q
   await expect(page.getByText("Soal 10 dari 10 · Satu kesempatan")).toBeVisible();
   await expect(page.getByText("tersimpan otomatis")).toBeVisible();
 
-  // Reload mid-attempt: the persisted answers come back (QZ-08). The
-  // current POSITION is client-only, so the remounted runner starts back
-  // at soal 1 — the answers are what must survive.
+  // Reload mid-attempt: the persisted answers come back (QZ-08), and the
+  // runner re-enters at the FIRST unanswered question (S3-02 §1) — 9
+  // answered, so soal 10.
   await page.reload();
-  await expect(page.getByText("Soal 1 dari 10 · Satu kesempatan")).toBeVisible();
+  await expect(page.getByText("Soal 10 dari 10 · Satu kesempatan")).toBeVisible();
   await page.getByRole("button", { name: "Soal 1, sudah dijawab" }).click();
   await expect(page.getByRole("radio", { name: /Opsi satu/ })).toBeChecked();
   await page.getByRole("button", { name: "Soal 8, sudah dijawab" }).click();
@@ -600,6 +602,32 @@ test("9. gagal simpan (page.clock): indikator → banner 28c → Kumpulkan terku
   ).toBeVisible();
   await page.getByRole("button", { name: "Soal 10, belum dijawab" }).click();
   await page.getByRole("button", { name: "Lihat ringkasan" }).click();
+
+  // 28c "banner menempel di atas" (S3-02 §1): scrolled to the bottom of
+  // the 360 summary, the stage-2 banner must still be FULLY in view and
+  // sit below the header's box. 360×560 makes the summary tall enough
+  // to scroll — the premise is asserted first (lesson (hhh)); toBeVisible
+  // alone does not prove on-screen (lesson (fff)).
+  await page.setViewportSize({ width: 360, height: 560 });
+  await page.evaluate(() =>
+    window.scrollTo(0, document.documentElement.scrollHeight),
+  );
+  expect(
+    await page.evaluate(() => window.scrollY),
+    "premis: halaman ringkasan 360 tergulir",
+  ).toBeGreaterThan(0);
+  const offlineBanner = page.getByText("1 jawaban belum tersimpan di server");
+  await expect(offlineBanner).toBeInViewport({ ratio: 1 });
+  const bannerBox = await offlineBanner.boundingBox();
+  const headerBox = await page.locator("header").first().boundingBox();
+  expect(bannerBox, "kotak banner").toBeTruthy();
+  expect(headerBox, "kotak header").toBeTruthy();
+  expect(
+    bannerBox!.y,
+    "banner menempel di bawah header",
+  ).toBeGreaterThanOrEqual(headerBox!.y + headerBox!.height);
+  await page.setViewportSize({ width: 360, height: 800 });
+
   const collect = page.getByRole("button", { name: "Kumpulkan sekarang" });
   await expect(collect).toHaveAttribute("aria-disabled", "true");
   await expect(page.getByText("Tunggu, jawaban sedang disimpan…")).toBeVisible();
@@ -661,7 +689,8 @@ test("10. lebar 360/768/1024/1280 tanpa gulir samping; target sentuh chip & opsi
   await page.goto(quizUrlOf(made.courseSlug, lesson1.slug));
   for (const width of [360, 768, 1024, 1280] as const) {
     await page.setViewportSize({ width, height: 800 });
-    await expect(page.getByText("Soal 1 dari 10 · Satu kesempatan")).toBeVisible();
+    // Position-1 is answered → re-entry lands on position 2 (S3-02 §1).
+    await expect(page.getByText("Soal 2 dari 10 · Satu kesempatan")).toBeVisible();
     await expectNoHorizontalScroll(page, `quiz-soal-${width}`);
     await maybeScreenshot(page, `quiz-soal-${width}`, test.info().project.name);
   }
@@ -715,4 +744,162 @@ test("10. lebar 360/768/1024/1280 tanpa gulir samping; target sentuh chip & opsi
   await expect(page.getByText("1 dijawab · 9 belum dijawab · 0 ragu-ragu")).toBeVisible();
   await expectNoHorizontalScroll(page, "quiz-ringkasan-360");
   await maybeScreenshot(page, "quiz-ringkasan-360", test.info().project.name);
+});
+
+test("11. kumpul gagal di 360: pesan + Coba kumpulkan lagi di bawah tombol → POST kedua → hasil", async ({
+  page,
+}) => {
+  const made = await quizCourseOnPage(page, "bq11");
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.goto(lessonUrl(made.courseSlug, made.lessons[0]!.slug));
+  await startQuizViaUi(page);
+
+  // The FIRST submit POST dies on the network.
+  const submitGlob = "**/api/quiz/attempts/*/submit";
+  await page.route(submitGlob, (route) => route.abort());
+
+  // Straight to the summary with nothing answered (all gates open).
+  await page.getByRole("button", { name: "Soal 10, belum dijawab" }).click();
+  await page.getByRole("button", { name: "Lihat ringkasan" }).click();
+  await page.getByRole("button", { name: "Kumpulkan sekarang" }).click();
+
+  // Inline failure: its own row BELOW the collect button (not squeezed
+  // into the button column), fully on screen above the fixed bottom nav
+  // (< 768), and holding focus (S3-02 §1).
+  const failure = page.getByText(
+    "Jawaban belum terkumpulkan. Periksa koneksi lalu coba lagi.",
+  );
+  await expect(failure).toBeVisible();
+  const failureBox = await failure.boundingBox();
+  const collectBox = await page
+    .getByRole("button", { name: "Kumpulkan sekarang" })
+    .boundingBox();
+  expect(failureBox, "kotak pesan").toBeTruthy();
+  expect(collectBox, "kotak tombol Kumpulkan").toBeTruthy();
+  expect(
+    failureBox!.y,
+    "pesan di bawah baris tombol",
+  ).toBeGreaterThanOrEqual(collectBox!.y + collectBox!.height);
+  const navBox = await page
+    .getByRole("navigation", { name: "Navigasi belajar" })
+    .boundingBox();
+  expect(navBox, "kotak nav bawah").toBeTruthy();
+  expect(
+    failureBox!.y + failureBox!.height,
+    "pesan tidak tertutup nav bawah",
+  ).toBeLessThanOrEqual(navBox!.y);
+  await expect(failure).toBeInViewport({ ratio: 1 });
+  expect(
+    await page.evaluate(
+      () => document.activeElement?.textContent ?? "",
+    ),
+    "fokus pindah ke pesan",
+  ).toContain("Jawaban belum terkumpulkan");
+  await maybeScreenshot(page, "quiz-kumpul-gagal-360", test.info().project.name);
+
+  // The same state at 1280 for review (amendment: 24th screenshot).
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await expect(failure).toBeInViewport({ ratio: 1 });
+  await maybeScreenshot(page, "quiz-kumpul-gagal-1280", test.info().project.name);
+
+  // Heal + retry: the same collect path runs again → the result page.
+  await page.unroute(submitGlob);
+  const submitted = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" &&
+      response.url().endsWith("/submit"),
+  );
+  await page.getByRole("button", { name: "Coba kumpulkan lagi" }).click();
+  expect((await submitted).status()).toBe(200);
+  // 0 answered → 0 → Belum lulus; the runner is NOT stuck anymore.
+  await expect(page.getByText("Belum lulus")).toBeVisible();
+});
+
+test("12. kedaluwarsa + beacon gagal: Coba lagi → POST kedua → hasil EXPIRED", async ({
+  page,
+}) => {
+  const made = await quizCourseOnPage(page, "bq12");
+  const lesson1 = made.lessons[0]!;
+  const attemptId = await attemptViaApi(page, lesson1.id);
+  await answerViaApi(page, attemptId, made.lessonQuizId, 3, 0);
+  await withE2eDb(
+    (sql) => sql`
+        update quiz_attempts set expires_at = now() - interval '1 minute'
+        where id = ${attemptId}
+      `,
+  );
+
+  await page.setViewportSize({ width: 360, height: 800 });
+  // The beacon's FIRST POST dies on the network — route BEFORE the goto:
+  // the beacon fires on mount (S3-02 §2).
+  const submitGlob = "**/api/quiz/attempts/*/submit";
+  await page.route(submitGlob, (route) => route.abort(), { times: 1 });
+  await page.goto(quizUrlOf(made.courseSlug, lesson1.slug));
+
+  await expect(
+    page.getByText("Jawaban belum terkumpulkan. Periksa koneksi lalu coba lagi."),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Coba lagi" })).toBeVisible();
+  await maybeScreenshot(page, "quiz-kedaluwarsa-gagal-360", test.info().project.name);
+
+  // Retry: the beacon POSTs again → hasil EXPIRED (3/10 → 30).
+  const submitted = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" &&
+      response.url().endsWith("/submit"),
+  );
+  await page.getByRole("button", { name: "Coba lagi" }).click();
+  expect((await submitted).status()).toBe(200);
+  await expect(
+    page.getByText(
+      "Waktu habis — jawaban yang sudah tersimpan dikumpulkan otomatis.",
+    ),
+  ).toBeVisible();
+  await expect(page.getByText("30", { exact: true })).toBeVisible();
+});
+
+test("13. kebijakan NEVER: hasil tanpa Benar/Salah/Kunci, kalimat NEVER, pill netral", async ({
+  page,
+}) => {
+  const made = await quizCourseOnPage(page, "bq13");
+  const lesson1 = made.lessons[0]!;
+  // Flip the policy BEFORE the attempt starts (card S3-02 §3).
+  await withE2eDb(
+    (sql) => sql`
+        update quizzes set explanation_policy = 'NEVER'
+        where id = ${made.lessonQuizId}
+      `,
+  );
+  const attemptId = await attemptViaApi(page, lesson1.id);
+  await answerViaApi(page, attemptId, made.lessonQuizId, 7, 2);
+  const submitted = await page
+    .context()
+    .request.post(`/api/quiz/attempts/${attemptId}/submit`, { data: {} });
+  expect(submitted.status(), await submitted.text()).toBe(200);
+
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.goto(quizUrlOf(made.courseSlug, lesson1.slug));
+
+  // The score card still reports the aggregate (QZ-10)…
+  await expect(page.getByText("70", { exact: true })).toBeVisible();
+  // …but the review is neutral: title, intro sentence, pills.
+  await expect(page.getByRole("heading", { name: "Jawaban Anda" })).toBeVisible();
+  await expect(
+    page.getByText(
+      "Kunci jawaban dan pembahasan tidak ditampilkan untuk quiz ini.",
+    ),
+  ).toBeVisible();
+  const articles = page.getByRole("article");
+  await expect(articles.first()).toBeVisible();
+  expect(await articles.count()).toBe(10);
+  // Nothing per-item inside the articles (the score card's sr-only
+  // labels live OUTSIDE them): no verdict, no key, no explanation.
+  await expect(articles.getByText("Benar")).toHaveCount(0);
+  await expect(articles.getByText("Salah")).toHaveCount(0);
+  await expect(articles.getByText(/^Kunci:/)).toHaveCount(0);
+  await expect(articles.getByText(/Pembahasan PG/)).toHaveCount(0);
+  // 9 answered + 1 unanswered → the neutral pills.
+  expect(await page.getByText("Dijawab", { exact: true }).count()).toBe(9);
+  expect(await page.getByText("Tidak dijawab", { exact: true }).count()).toBe(1);
+  await maybeScreenshot(page, "quiz-hasil-tertutup-360", test.info().project.name);
 });
