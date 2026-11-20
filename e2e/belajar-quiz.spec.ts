@@ -898,8 +898,9 @@ test("13. kebijakan NEVER: hasil tanpa Benar/Salah/Kunci, kalimat NEVER, pill ne
   await expect(articles.getByText("Salah")).toHaveCount(0);
   await expect(articles.getByText(/^Kunci:/)).toHaveCount(0);
   await expect(articles.getByText(/Pembahasan PG/)).toHaveCount(0);
-  // 9 answered + 1 unanswered → the neutral pills.
-  expect(await page.getByText("Dijawab", { exact: true }).count()).toBe(9);
-  expect(await page.getByText("Tidak dijawab", { exact: true }).count()).toBe(1);
+  // 9 answered + 1 unanswered → the neutral pills (article-scoped: the
+  // score card's sr-only "Tidak dijawab" dt also matches page-wide).
+  expect(await articles.getByText("Dijawab", { exact: true }).count()).toBe(9);
+  expect(await articles.getByText("Tidak dijawab", { exact: true }).count()).toBe(1);
   await maybeScreenshot(page, "quiz-hasil-tertutup-360", test.info().project.name);
 });
