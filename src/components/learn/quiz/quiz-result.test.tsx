@@ -7,8 +7,10 @@ import { describe, expect, it } from "vitest";
 import { formatQuizDuration, QuizResult } from "./quiz-result";
 import type { QuizResultDTO, QuizResultItemDTO } from "@/modules/attempt/service";
 
-// Card S3-01 §4.C — the 7u copy, the stats row, the per-item review with
-// the policy-gated key/explanation pair, and the closing actions.
+// Card S3-01 §4.C + perapian S3-02 §3/§5 — the 7u copy, the stats row,
+// the h1 eyebrow, the per-item review with the policy-gated
+// key/explanation pair (hidden policies also hide the Benar/Salah pill),
+// and the closing actions including the finalQuizDone variant.
 
 const LESSON_HREF = "/belajar/gizi-ibu-hamil/asam-folat";
 
@@ -59,12 +61,13 @@ describe("formatQuizDuration", () => {
 });
 
 describe("QuizResult", () => {
-  it("renders the eyebrow, pill, score card and stats", () => {
+  it("renders the eyebrow as the single h1, pill, score card and stats", () => {
     render(
       <QuizResult data={resultDto({ correct: 1, wrong: 0 })} />,
     );
 
-    expect(screen.getByText("Materi 2 · Hasil Quiz")).toBeTruthy();
+    const h1 = screen.getByRole("heading", { level: 1 });
+    expect(h1.textContent).toBe("Materi 2 · Hasil Quiz");
     expect(screen.getByText("Terkunci permanen")).toBeTruthy();
     expect(screen.getByText("80")).toBeTruthy();
     expect(screen.getByText("Nilai")).toBeTruthy();
@@ -133,14 +136,18 @@ describe("QuizResult", () => {
 
   it("shows no Kunci for a correct answer", () => {
     render(<QuizResult data={resultDto()} />);
-    expect(within(screen.getByRole("article")).getByText("Benar")).toBeTruthy();
-    expect(screen.queryByText(/^Kunci:/)).toBeNull();
+    const article = screen.getByRole("article");
+    expect(within(article).getByText("Benar")).toBeTruthy();
+    expect(within(article).queryByText(/^Kunci:/)).toBeNull();
   });
 
-  it("hides Kunci AND explanation together behind the policy (null correct)", () => {
+  it("hidden policy NEVER: neutral pills, “Jawaban Anda”, no Kunci/pembahasan", () => {
+    // The serializer nulls correct/explanation under a hidden policy —
+    // the fixture mirrors that real shape.
     render(
       <QuizResult
         data={resultDto({
+          reviewAccess: "HIDDEN_NEVER",
           items: [
             item({
               options: [
@@ -153,9 +160,79 @@ describe("QuizResult", () => {
         })}
       />,
     );
-    expect(within(screen.getByRole("article")).getByText("Salah")).toBeTruthy();
-    expect(screen.queryByText(/^Kunci:/)).toBeNull();
-    expect(screen.queryByText("Karena opsi B memang benar.")).toBeNull();
+    // The section title switches (found via heading — items contain
+    // “Jawaban Anda: …” text).
+    expect(screen.getByRole("heading", { name: "Jawaban Anda" })).toBeTruthy();
+    expect(
+      screen.getByText(
+        "Kunci jawaban dan pembahasan tidak ditampilkan untuk quiz ini.",
+      ),
+    ).toBeTruthy();
+    const article = screen.getByRole("article");
+    expect(within(article).getByText("Dijawab")).toBeTruthy();
+    // No Benar/Salah/Kunci/pembahasan anywhere inside the item (the
+    // score card's sr-only "Benar"/"Salah" dt labels stay — QZ-10).
+    expect(within(article).queryByText("Benar")).toBeNull();
+    expect(within(article).queryByText("Salah")).toBeNull();
+    expect(within(article).queryByText(/^Kunci:/)).toBeNull();
+    expect(within(article).queryByText("Karena opsi B memang benar.")).toBeNull();
+    // The participant's own pick still shows.
+    expect(within(article).getByText("Jawaban Anda: Opsi A")).toBeTruthy();
+  });
+
+  it("hidden policy not-passed: “Tidak dijawab” pill + the ON_PASS_ONLY sentence", () => {
+    render(
+      <QuizResult
+        data={resultDto({
+          reviewAccess: "HIDDEN_NOT_PASSED",
+          isPassed: false,
+          items: [
+            item({
+              options: [
+                { label: "A", text: "Opsi A", selected: false, correct: null },
+                { label: "B", text: "Opsi B", selected: false, correct: null },
+              ],
+              explanation: null,
+            }),
+          ],
+        })}
+      />,
+    );
+    expect(
+      screen.getByText(
+        "Kunci jawaban dan pembahasan hanya ditampilkan bila nilai lulus.",
+      ),
+    ).toBeTruthy();
+    const article = screen.getByRole("article");
+    expect(within(article).getByText("Tidak dijawab")).toBeTruthy();
+    expect(within(article).queryByText("Salah")).toBeNull();
+  });
+
+  it("PASSED reveals like ALWAYS but carries no intro sentence", () => {
+    render(
+      <QuizResult
+        data={resultDto({
+          reviewAccess: "PASSED",
+          items: [
+            item({
+              options: [
+                { label: "A", text: "Opsi A", selected: true, correct: false },
+                { label: "B", text: "Opsi B", selected: false, correct: true },
+              ],
+            }),
+          ],
+        })}
+      />,
+    );
+    expect(
+      screen.getByRole("heading", { name: "Pembahasan lengkap" }),
+    ).toBeTruthy();
+    // Neither the ALWAYS sentence nor a hidden-policy sentence.
+    expect(screen.queryByText(/Ditampilkan untuk semua soal/)).toBeNull();
+    expect(screen.queryByText(/Kunci jawaban dan pembahasan/)).toBeNull();
+    const article = screen.getByRole("article");
+    expect(within(article).getByText("Salah")).toBeTruthy();
+    expect(within(article).getByText(/^Kunci:/)).toBeTruthy();
   });
 
   it("says “tidak dijawab” for an unanswered question", () => {
@@ -217,6 +294,29 @@ describe("QuizResult", () => {
     expect(
       screen.queryByRole("link", { name: /^Lanjut ke Materi/ }),
     ).toBeNull();
+    expect(screen.getByRole("link", { name: "Kembali ke materi" })).toBeTruthy();
+  });
+
+  it("closes with the Final already collected (finalQuizDone, S3-02 §5)", () => {
+    render(
+      <QuizResult
+        data={resultDto({
+          finalQuizHref: "/belajar/gizi-ibu-hamil/final-quiz",
+          finalQuizDone: true,
+        })}
+      />,
+    );
+    expect(
+      screen.getByText("Materi 2 ditandai selesai. Final Quiz sudah dikerjakan."),
+    ).toBeTruthy();
+    const result = screen.getByRole("link", { name: "Lihat hasil Final Quiz" });
+    expect(result.getAttribute("href")).toBe(
+      "/belajar/gizi-ibu-hamil/final-quiz",
+    );
+    expect(
+      screen.queryByRole("link", { name: "Lanjut ke Final Quiz" }),
+    ).toBeNull();
+    expect(screen.queryByText(/sekarang terbuka/)).toBeNull();
     expect(screen.getByRole("link", { name: "Kembali ke materi" })).toBeTruthy();
   });
 });

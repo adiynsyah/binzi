@@ -1,13 +1,42 @@
-// QuizResult (card S3-01 §4.C; screen 7u) — the "hasil" state: the score
-// card, the per-question review and the closing actions. Server component,
-// pure render — everything graded arrived in the DTO, and the key /
-// explanation pair is already gated by explanation_policy in the
-// serializer (options.correct === null means "hidden", never "wrong").
+// QuizResult (card S3-01 §4.C; screen 7u; perapian S3-02 §3) — the
+// "hasil" state: the score card, the per-question review and the closing
+// actions. Server component, pure render — everything graded arrived in
+// the DTO, and the key / explanation pair is already gated by
+// explanation_policy in the serializer (options.correct === null means
+// "hidden", never "wrong"). A hidden policy (reviewAccess HIDDEN_*),
+// also hides the per-item Benar/Salah verdict — on a Benar/Salah
+// question the "Salah" pill itself would leak the key (card decision 4).
 import Link from "next/link";
 
 import { buttonVariants } from "@/components/ui/button-variants";
 import { cn } from "@/lib/utils";
-import type { QuizResultDTO, QuizResultItemDTO } from "@/modules/attempt/service";
+import type {
+  QuizResultDTO,
+  QuizResultItemDTO,
+  QuizReviewAccess,
+} from "@/modules/attempt/service";
+
+/** Whether this policy reveals the key + explanation. PASSED is
+ *  ON_PASS_ONLY with the bar cleared — it reveals like ALWAYS. */
+export function reviewReveals(reviewAccess: QuizReviewAccess): boolean {
+  return reviewAccess === "ALWAYS" || reviewAccess === "PASSED";
+}
+
+/** The intro line under the review title. ALWAYS keeps the 7u sentence;
+ *  the hidden policies say why; PASSED gets none (the reveal is
+ *  conditional, so the "apa pun nilainya" wording would be wrong). */
+export function reviewIntro(reviewAccess: QuizReviewAccess): string | null {
+  switch (reviewAccess) {
+    case "ALWAYS":
+      return "Ditampilkan untuk semua soal, apa pun nilainya — karena tidak ada percobaan kedua.";
+    case "HIDDEN_NEVER":
+      return "Kunci jawaban dan pembahasan tidak ditampilkan untuk quiz ini.";
+    case "HIDDEN_NOT_PASSED":
+      return "Kunci jawaban dan pembahasan hanya ditampilkan bila nilai lulus.";
+    default:
+      return null;
+  }
+}
 
 /** "3m 12d" — minutes unbounded (a quiz longer than an hour shows "75m",
  *  no hours unit is invented), seconds zero-padded. */
@@ -48,12 +77,29 @@ function ItemVerdictPill({ correct }: { correct: boolean }) {
   );
 }
 
+/** Neutral pill for a hidden policy — says only whether the question was
+ *  answered; "Salah" would leak the key on a Benar/Salah question. */
+function AnsweredPill({ answered }: { answered: boolean }) {
+  return (
+    <span className="inline-flex items-center rounded-pill border border-border-strong bg-fill px-2.5 py-0.5 font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-text-muted">
+      {answered ? "Dijawab" : "Tidak dijawab"}
+    </span>
+  );
+}
+
 /** The per-question review card — shared as-is by the Final Quiz result
- *  screen (card S5-02 §4.D); its look does not change. */
-export function ResultItem({ item }: { item: QuizResultItemDTO }) {
+ *  screen (card S5-02 §4.D); its look does not change. `reveals` false
+ *  (hidden policy) swaps the verdict pill and drops Kunci + explanation. */
+export function ResultItem({
+  item,
+  reveals,
+}: {
+  item: QuizResultItemDTO;
+  reveals: boolean;
+}) {
   const selected = item.options.find((option) => option.selected) ?? null;
-  // Unanswered counts as wrong — "Salah" — and the key shows for every
-  // wrong answer WHEN the policy reveals it (correct === null = hidden).
+  // Revealed: unanswered counts as wrong — "Salah" — and the key shows
+  // for every wrong answer (correct === null = hidden, not "wrong").
   const answeredCorrectly = item.options.some(
     (option) => option.selected && option.correct === true,
   );
@@ -65,7 +111,11 @@ export function ResultItem({ item }: { item: QuizResultItemDTO }) {
         <h3 className="font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-text-meta">
           Soal {item.number}
         </h3>
-        <ItemVerdictPill correct={answeredCorrectly} />
+        {reveals ? (
+          <ItemVerdictPill correct={answeredCorrectly} />
+        ) : (
+          <AnsweredPill answered={selected !== null} />
+        )}
       </div>
       <p className="mt-3 wrap-anywhere text-[15px] font-bold leading-relaxed text-text">
         {item.text}
@@ -78,12 +128,12 @@ export function ResultItem({ item }: { item: QuizResultItemDTO }) {
           <span className="text-text-muted">tidak dijawab</span>
         )}
       </p>
-      {!answeredCorrectly && keyOption ? (
+      {reveals && !answeredCorrectly && keyOption ? (
         <p className="mt-1 text-sm text-text-body">
           Kunci: <span className="font-bold text-text">{keyOption.text}</span>
         </p>
       ) : null}
-      {item.explanation !== null ? (
+      {reveals && item.explanation !== null ? (
         <p className="mt-3 max-w-(--width-measure) text-sm leading-relaxed text-text-muted">
           {item.explanation}
         </p>
@@ -94,12 +144,16 @@ export function ResultItem({ item }: { item: QuizResultItemDTO }) {
 
 export function QuizResult({ data }: { data: QuizResultDTO }) {
   const total = data.items.length;
+  const reveals = reviewReveals(data.reviewAccess);
+  const intro = reviewIntro(data.reviewAccess);
   return (
     <div className="mx-auto max-w-2xl">
       <div className="flex flex-wrap items-center gap-3">
-        <p className="font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-primary-deep">
+        {/* The eyebrow is the page's single h1 (S3-02 §3) — same pattern
+            as the Final result screen. */}
+        <h1 className="font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-primary-deep">
           Materi {data.lesson.position} · Hasil Quiz
-        </p>
+        </h1>
         <span className="rounded-pill border border-border bg-fill px-3 py-1 font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-text-meta">
           Terkunci permanen
         </span>
@@ -171,32 +225,42 @@ export function QuizResult({ data }: { data: QuizResultDTO }) {
       </section>
 
       <h2 className="mt-8 text-[20px] font-bold text-text sm:text-[22px]">
-        Pembahasan lengkap
+        {reveals ? "Pembahasan lengkap" : "Jawaban Anda"}
       </h2>
-      <p className="mt-2 text-sm leading-relaxed text-text-muted">
-        Ditampilkan untuk semua soal, apa pun nilainya — karena tidak ada
-        percobaan kedua.
-      </p>
+      {intro !== null ? (
+        <p className="mt-2 text-sm leading-relaxed text-text-muted">{intro}</p>
+      ) : null}
 
       <div className="mt-5 space-y-4">
         {data.items.map((item) => (
-          <ResultItem key={item.number} item={item} />
+          <ResultItem key={item.number} item={item} reveals={reveals} />
         ))}
       </div>
 
       <section className="mt-8 rounded-card border border-border bg-surface-2 p-6">
         <p className="text-[15px] leading-relaxed text-text">
-          {data.finalQuizHref !== null
-            ? // Every lesson is COMPLETED and the course has a Final Quiz —
-              // that opening REPLACES the next-lesson branch (card S5-02 §5,
-              // even when a next lesson exists).
+          {data.finalQuizHref !== null && data.finalQuizDone
+            ? // The Final was already collected — the stored enrollment
+              // status says so (S3-02 §5), never a recomputation here.
+              `Materi ${data.lesson.position} ditandai selesai. Final Quiz sudah dikerjakan.`
+            : data.finalQuizHref !== null
+              ? // Every lesson is COMPLETED and the course has a Final Quiz —
+                // that opening REPLACES the next-lesson branch (card S5-02
+                // §5, even when a next lesson exists).
               `Materi ${data.lesson.position} ditandai selesai. Final Quiz sekarang terbuka.`
-            : data.next
-              ? `Materi ${data.lesson.position} ditandai selesai. Materi ${data.next.position} sekarang terbuka.`
-              : `Materi ${data.lesson.position} ditandai selesai.`}
+              : data.next
+                ? `Materi ${data.lesson.position} ditandai selesai. Materi ${data.next.position} sekarang terbuka.`
+                : `Materi ${data.lesson.position} ditandai selesai.`}
         </p>
         <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-          {data.finalQuizHref !== null ? (
+          {data.finalQuizHref !== null && data.finalQuizDone ? (
+            <Link
+              href={data.finalQuizHref}
+              className={cn(buttonVariants({ variant: "primary" }), "sm:flex-1")}
+            >
+              Lihat hasil Final Quiz
+            </Link>
+          ) : data.finalQuizHref !== null ? (
             <Link
               href={data.finalQuizHref}
               className={cn(buttonVariants({ variant: "primary" }), "sm:flex-1")}

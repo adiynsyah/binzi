@@ -1,11 +1,10 @@
-// FinalQuizResult (card S5-02 §4.D; screen 7h right) — the "hasil-final"
-// state. Server component, pure render: everything graded or recorded
-// arrived in the DTO (the stored Nilai Akhir is READ here, never
-// recomputed). The review half reuses the S3-01 ResultItem as-is
-// (exported from quiz-result.tsx); "Lulus kursus" is the Final Quiz's own
-// verdict (decision 4 — never "Nilai Akhir ≥ 70"). The 7h CRS-12 box is
-// NOT built (out of scope). Unlike the S3-01 result, this page HAS an h1
-// (the S3-01 review finding) — styled as the eyebrow, mono uppercase.
+// FinalQuizResult (card S5-02 §4.D; screen 7h right; perapian S3-02 §3)
+// — the "hasil-final" state. Server component, pure render: everything
+// graded or recorded arrived in the DTO (the stored Nilai Akhir is READ
+// here, never recomputed). The review half reuses the S3-01 ResultItem
+// (exported from quiz-result.tsx) with the same reviewAccess gating;
+// "Lulus kursus" is the Final Quiz's own verdict (decision 4 — never
+// "Nilai Akhir ≥ 70"). The 7h CRS-12 box is NOT built (out of scope).
 import Link from "next/link";
 
 import { buttonVariants } from "@/components/ui/button-variants";
@@ -13,7 +12,7 @@ import { ProgressBar } from "@/components/ui/progress-bar";
 import { cn } from "@/lib/utils";
 import type { FinalQuizResultDTO } from "@/modules/attempt/service";
 
-import { ResultItem } from "./quiz-result";
+import { ResultItem, reviewIntro, reviewReveals } from "./quiz-result";
 
 /** "14:26" — the Final screens' mm:ss (a zero-padded clock, unlike the
  *  lesson result's "14m 26d"); the limit "20:00" is the same function. */
@@ -29,8 +28,11 @@ function FinalVerdictPill({ passed }: { passed: boolean }) {
     <span
       className={cn(
         "inline-flex items-center rounded-pill border px-3 py-1 text-[13px] font-bold",
+        // 7h (S3-02 §3): the passing pill is SOLID success — bg-success
+        // on white is 4.96:1, above AA for the bold 13px label. The
+        // failing pill keeps its tint pair.
         passed
-          ? "border-success bg-success-tint text-success-tint-text"
+          ? "border-success bg-success text-surface"
           : "border-danger-tint-line bg-danger-tint text-danger-tint-text",
       )}
     >
@@ -42,6 +44,8 @@ function FinalVerdictPill({ passed }: { passed: boolean }) {
 export function FinalQuizResult({ data }: { data: FinalQuizResultDTO }) {
   const total = data.items.length;
   const { final } = data;
+  const reveals = reviewReveals(data.reviewAccess);
+  const intro = reviewIntro(data.reviewAccess);
   // Unreachable in the recorded flow (submit wrote the score); "–" is the
   // defensive render and the bar just stays empty.
   const finalScore = final.finalScorePercent;
@@ -89,7 +93,14 @@ export function FinalQuizResult({ data }: { data: FinalQuizResultDTO }) {
       <section className="mt-4 rounded-card border border-border bg-surface p-6">
         <h2 className="text-[15px] font-bold text-text">Nilai Akhir Kursus</h2>
         <div className="mt-3 flex flex-wrap items-end gap-x-6 gap-y-3">
-          <p className="font-mono text-[40px] font-medium leading-none text-success">
+          {/* 7h (S3-02 §3): success color ONLY while the course verdict
+              is Lulus — a Selesai course shows the number in text. */}
+          <p
+            className={cn(
+              "font-mono text-[40px] font-medium leading-none",
+              final.courseStatus === "PASSED" ? "text-success" : "text-text",
+            )}
+          >
             {finalScore ?? "–"}
           </p>
           <p className="font-mono text-[13px] leading-relaxed text-text-muted">
@@ -131,7 +142,7 @@ export function FinalQuizResult({ data }: { data: FinalQuizResultDTO }) {
           href="#pembahasan"
           className={cn(buttonVariants({ variant: "primary" }), "sm:flex-1")}
         >
-          Lihat pembahasan {total} soal
+          {reveals ? `Lihat pembahasan ${total} soal` : "Lihat jawaban Anda"}
         </Link>
         <Link
           href="/belajar"
@@ -141,18 +152,21 @@ export function FinalQuizResult({ data }: { data: FinalQuizResultDTO }) {
         </Link>
       </div>
 
-      {/* tabIndex lets the "Lihat pembahasan" link land focus here. */}
+      {/* tabIndex lets the link above land focus here. */}
       <h2
         id="pembahasan"
         tabIndex={-1}
         className="mt-8 text-[20px] font-bold text-text sm:text-[22px]"
       >
-        Pembahasan lengkap
+        {reveals ? "Pembahasan lengkap" : "Jawaban Anda"}
       </h2>
+      {intro !== null ? (
+        <p className="mt-2 text-sm leading-relaxed text-text-muted">{intro}</p>
+      ) : null}
 
       <div className="mt-5 space-y-4">
         {data.items.map((item) => (
-          <ResultItem key={item.number} item={item} />
+          <ResultItem key={item.number} item={item} reveals={reveals} />
         ))}
       </div>
     </div>

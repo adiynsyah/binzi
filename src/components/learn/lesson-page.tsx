@@ -182,12 +182,14 @@ function OpenState({ data }: { data: OpenDTO }) {
                 {data.finalQuizHref !== null ? (
                   // The second Final Quiz entry point (card S5-02 §5,
                   // decision 8): primary, after "Lihat Hasil & Pembahasan";
-                  // the "Materi berikutnya" logic above stays as-is.
+                  // the "Materi berikutnya" logic above stays as-is. Once
+                  // the Final is collected (stored enrollment status, card
+                  // S3-02 §5) the label points at the result instead.
                   <Link
                     href={data.finalQuizHref}
                     className={cn(buttonVariants(), "gap-2")}
                   >
-                    Final Quiz
+                    {data.finalQuizDone ? "Hasil Final Quiz" : "Final Quiz"}
                     <ArrowRight className="size-4 shrink-0" aria-hidden="true" />
                   </Link>
                 ) : null}

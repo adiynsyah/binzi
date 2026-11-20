@@ -57,6 +57,7 @@ import {
   type QuizResultItemDTO,
   type QuizRulesDTO,
   type QuizRunningDTO,
+  type QuizReviewAccess,
 } from "./serializer";
 
 export type {
@@ -68,6 +69,7 @@ export type {
   QuizResultItemDTO,
   QuizRulesDTO,
   QuizRunningDTO,
+  QuizReviewAccess,
 };
 
 /** Owner decision 8's question half: Fisher–Yates over the storage order
