@@ -256,7 +256,7 @@ describe("toLessonPageDTO — item states", () => {
     ];
     const dto = toLessonPageDTO({
       course: LESSON_COURSE,
-      enrollment: { id: "enr-1" },
+      enrollment: { id: "enr-1", status: "IN_PROGRESS" },
       outline,
       targetIndex: 1,
       content: null,
@@ -284,7 +284,7 @@ describe("toLessonPageDTO — item states", () => {
     ];
     const dto = toLessonPageDTO({
       course: LESSON_COURSE,
-      enrollment: { id: "enr-1" },
+      enrollment: { id: "enr-1", status: "IN_PROGRESS" },
       outline,
       targetIndex: 1,
       content: null,
@@ -306,13 +306,38 @@ describe("toLessonPageDTO — item states", () => {
         );
       }
     }
-    // Outline score (S3-01 §4.A): rounded, ONLY on the attempted row —
-    // quizAttempted without a stored score reads 0, not null.
+    // Outline score (S3-01 §4.A): FLOORED (S3-02 §3), ONLY on the
+    // attempted row — quizAttempted without a stored score reads 0, not
+    // null.
     expect(dto.outline.map((item) => item.scorePercent)).toEqual([
       83,
       null,
       null,
     ]);
+  });
+
+  it("outline score FLOORS: 69.5 → 69, 69.99 → 69, 70 → 70 (never rounds up)", () => {
+    // Card S3-02 §3: the Daftar materi number follows the result screen's
+    // rule — a .5 or .99 fraction never rounds up to a passing-looking 70.
+    for (const [stored, expected] of [
+      ["69.50", 69],
+      ["69.99", 69],
+      ["70.00", 70],
+    ] as const) {
+      const dto = toLessonPageDTO({
+        course: LESSON_COURSE,
+        enrollment: { id: "enr-1", status: "IN_PROGRESS" },
+        outline: [
+          lessonRow(1, { quizAttempted: true, quizScorePercent: stored }),
+        ],
+        targetIndex: 0,
+        content: null,
+        playback: null,
+        quizRow: null,
+      });
+      if (dto.state !== "open") throw new Error("expected open");
+      expect(dto.outline[0]!.scorePercent, stored).toBe(expected);
+    }
   });
 });
 
@@ -345,7 +370,7 @@ describe("toLessonPageDTO — page states", () => {
   it("locked answers unlock { position, href } and no content/progress", () => {
     const dto = toLessonPageDTO({
       course: LESSON_COURSE,
-      enrollment: { id: "enr-1" },
+      enrollment: { id: "enr-1", status: "IN_PROGRESS" },
       outline: threeLessons,
       targetIndex: 2,
       content: null,
@@ -369,7 +394,7 @@ describe("toLessonPageDTO — page states", () => {
     // (the unlock-null panel copy is the unreachable-data fallback).
     const dto = toLessonPageDTO({
       course: LESSON_COURSE,
-      enrollment: { id: "enr-1" },
+      enrollment: { id: "enr-1", status: "IN_PROGRESS" },
       outline: [lessonRow(1), lessonRow(2)],
       targetIndex: 1,
       content: null,
@@ -387,7 +412,7 @@ describe("toLessonPageDTO — page states", () => {
   it("open turns the NUMERIC string percent into a number", () => {
     const dto = toLessonPageDTO({
       course: LESSON_COURSE,
-      enrollment: { id: "enr-1" },
+      enrollment: { id: "enr-1", status: "IN_PROGRESS" },
       outline: [
         lessonRow(1, {
           quizAttempted: true,
@@ -428,7 +453,7 @@ describe("toLessonPageDTO — page states", () => {
   it("open without a lesson_progress row answers progress null", () => {
     const dto = toLessonPageDTO({
       course: LESSON_COURSE,
-      enrollment: { id: "enr-1" },
+      enrollment: { id: "enr-1", status: "IN_PROGRESS" },
       outline: [lessonRow(1)],
       targetIndex: 0,
       content: null,
@@ -445,7 +470,7 @@ describe("toLessonPageDTO — prev/next", () => {
   it("position 1 with quiz 1 attempted: prevHref null, next unlocked → link", () => {
     const dto = toLessonPageDTO({
       course: LESSON_COURSE,
-      enrollment: { id: "enr-1" },
+      enrollment: { id: "enr-1", status: "IN_PROGRESS" },
       outline: [
         lessonRow(1, { quizAttempted: true }),
         lessonRow(2),
@@ -467,7 +492,7 @@ describe("toLessonPageDTO — prev/next", () => {
   it("middle with a locked successor: prevHref set, next terkunci", () => {
     const dto = toLessonPageDTO({
       course: LESSON_COURSE,
-      enrollment: { id: "enr-1" },
+      enrollment: { id: "enr-1", status: "IN_PROGRESS" },
       outline: [
         lessonRow(1, { quizAttempted: true, status: "COMPLETED" }),
         lessonRow(2),
@@ -490,7 +515,7 @@ describe("toLessonPageDTO — prev/next", () => {
     ];
     const dto = toLessonPageDTO({
       course: LESSON_COURSE,
-      enrollment: { id: "enr-1" },
+      enrollment: { id: "enr-1", status: "IN_PROGRESS" },
       outline: last,
       targetIndex: 1,
       content: null,
@@ -522,10 +547,11 @@ describe("toLessonPageDTO — finalQuizHref on the open state", () => {
   function openDto(
     course: typeof LESSON_COURSE,
     outline: LessonOutlineRow[],
+    status: "IN_PROGRESS" | "COMPLETED" | "PASSED" = "IN_PROGRESS",
   ) {
     const dto = toLessonPageDTO({
       course,
-      enrollment: { id: "enr-1" },
+      enrollment: { id: "enr-1", status },
       outline,
       targetIndex: outline.length - 1,
       content: null,
@@ -575,7 +601,7 @@ describe("toLessonPageDTO — finalQuizHref on the open state", () => {
   it("locked and not-enrolled states carry no finalQuizHref key at all", () => {
     const locked = toLessonPageDTO({
       course: { ...LESSON_COURSE, finalQuizId: "quiz-final-uuid" },
-      enrollment: { id: "enr-1" },
+      enrollment: { id: "enr-1", status: "IN_PROGRESS" },
       outline: [lessonRow(1), lessonRow(2)],
       targetIndex: 1,
       content: null,
@@ -583,6 +609,7 @@ describe("toLessonPageDTO — finalQuizHref on the open state", () => {
       quizRow: null,
     });
     expect("finalQuizHref" in locked).toBe(false);
+    expect("finalQuizDone" in locked).toBe(false);
     const notEnrolled = toLessonPageDTO({
       course: { ...LESSON_COURSE, finalQuizId: "quiz-final-uuid" },
       enrollment: undefined,
@@ -593,6 +620,53 @@ describe("toLessonPageDTO — finalQuizHref on the open state", () => {
       quizRow: null,
     });
     expect("finalQuizHref" in notEnrolled).toBe(false);
+    expect("finalQuizDone" in notEnrolled).toBe(false);
+  });
+});
+
+describe("toLessonPageDTO — finalQuizDone on the open state (S3-02 §5)", () => {
+  const completed = [
+    lessonRow(1, { quizAttempted: true, status: "COMPLETED" }),
+    lessonRow(2, { quizAttempted: true, status: "COMPLETED" }),
+  ];
+  const withFinal = { ...LESSON_COURSE, finalQuizId: "quiz-final-uuid" };
+
+  function openDto(
+    course: typeof LESSON_COURSE,
+    outline: LessonOutlineRow[],
+    status: "IN_PROGRESS" | "COMPLETED" | "PASSED" = "IN_PROGRESS",
+  ) {
+    const dto = toLessonPageDTO({
+      course,
+      enrollment: { id: "enr-1", status },
+      outline,
+      targetIndex: outline.length - 1,
+      content: null,
+      playback: null,
+      quizRow: null,
+    });
+    if (dto.state !== "open") throw new Error("expected open");
+    return dto;
+  }
+
+  it("IN_PROGRESS → false even with the gate open (Final not worked yet)", () => {
+    expect(openDto(withFinal, completed).finalQuizDone).toBe(false);
+  });
+
+  it("COMPLETED → true — a failed Final was still WORKED", () => {
+    expect(openDto(withFinal, completed, "COMPLETED").finalQuizDone).toBe(true);
+  });
+
+  it("PASSED → true", () => {
+    expect(openDto(withFinal, completed, "PASSED").finalQuizDone).toBe(true);
+  });
+
+  it("no final_quiz_id (finalQuizHref null) + PASSED → false", () => {
+    // A course without a Final Quiz never says "Hasil Final Quiz", no
+    // matter how the enrollment status reads.
+    expect(openDto(LESSON_COURSE, completed, "PASSED").finalQuizDone).toBe(
+      false,
+    );
   });
 });
 

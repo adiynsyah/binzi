@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import "../../ui/test-env";
 
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -11,10 +11,13 @@ import {
 } from "./quiz-runner";
 import type { QuizRunningDTO } from "@/modules/attempt/service";
 
-// Card S3-01 §4.B — the runner contract: header/timer/indicator, chip
-// names + aria-current, focus on question change, PUT per pick, the
-// summary gate, the 2-minute announcement, timer-zero → flush → collect →
-// refresh, and the three 28c stages.
+// Card S3-01 §4.B + perapian S3-02 §1 — the runner contract: page h1,
+// header/timer/indicator, chip names + aria-current, focus on question
+// change, PUT per pick, the summary gate (exactly ONE navigator), the
+// 2-minute announcement, timer-zero → flush → collect → refresh, the
+// three 28c stages (stage 2 aged on the DEVICE clock), re-entry landing
+// on the first unanswered question, and the inline collect-failure
+// banner with its focus/retry contract.
 
 const refreshMock = vi.fn();
 
@@ -35,14 +38,19 @@ const Q1 = "11111111-2222-4333-8444-555555555555";
 const Q2 = "11111111-2222-4333-8444-666666666666";
 const Q1_OPTION_A = "aaaaaaaa-2222-4333-8444-555555555555";
 const Q1_OPTION_B = "bbbbbbbb-2222-4333-8444-555555555555";
+const COLLECT_FAILED_MESSAGE =
+  "Jawaban belum terkumpulkan. Periksa koneksi lalu coba lagi.";
 
-// Fixed server pair: 5 minutes on the clock at first paint.
+// Fixed server pair: 5 minutes on the clock at first paint. The device
+// clock starts AT SERVER_NOW (vi.setSystemTime) — the ±60 s skew tests
+// below shift only the DTO's pair.
 const SERVER_NOW = Date.UTC(2026, 10, 18, 7, 0, 0);
 const EXPIRES_AT = SERVER_NOW + 5 * 60_000;
 
 function runningDto(overrides: Partial<QuizRunningDTO> = {}): QuizRunningDTO {
   return {
     state: "berjalan",
+    heading: "Quiz Materi 2 · Asam Folat & Zat Besi",
     attemptId: ATTEMPT_ID,
     expiresAt: new Date(EXPIRES_AT).toISOString(),
     serverNow: new Date(SERVER_NOW).toISOString(),
@@ -73,6 +81,20 @@ function runningDto(overrides: Partial<QuizRunningDTO> = {}): QuizRunningDTO {
   };
 }
 
+/** 4-question fixture for the re-entry index tests (numbers 1–4). */
+function fourQuestionDto(answers: Record<string, string>): QuizRunningDTO {
+  return runningDto({
+    questions: [1, 2, 3, 4].map((n) => ({
+      id: `q${n}`,
+      number: n,
+      text: `Teks soal ${n}`,
+      type: "SINGLE_CHOICE" as const,
+      options: [{ id: `o${n}`, label: "A", text: `Opsi ${n}` }],
+    })),
+    answers,
+  });
+}
+
 function okSave(): Response {
   return new Response(
     JSON.stringify({ data: { savedAt: "2026-11-18T07:00:01.000Z" } }),
@@ -86,9 +108,24 @@ function okSubmit(): Response {
   });
 }
 
+function failedSubmit(): Response {
+  return new Response(JSON.stringify({ error: "boom" }), { status: 500 });
+}
+
+/** Answers PUTs fail like a dropped connection; submit follows `submit`. */
+function offlineAnswersMock(submit: () => Response | Promise<Response>) {
+  fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+    if (String(input).includes("/answers/")) throw new TypeError("Failed to fetch");
+    return submit();
+  });
+}
+
 beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(SERVER_NOW);
+  // jsdom does not implement scrollIntoView; the collect-fail focus
+  // effect calls it.
+  window.HTMLElement.prototype.scrollIntoView = vi.fn();
   fetchMock.mockReset();
   refreshMock.mockReset();
   fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
@@ -122,9 +159,13 @@ describe("formatNumberList", () => {
 });
 
 describe("QuizRunner", () => {
-  it("renders the header, timer landmark and save-free initial state", () => {
+  it("renders the h1, header, timer landmark and save-free initial state", () => {
     render(<QuizRunner data={runningDto()} />);
 
+    // The DTO heading is the page's single h1 (S3-02 §1).
+    const h1 = screen.getByRole("heading", { level: 1 });
+    expect(h1.textContent).toBe("Quiz Materi 2 · Asam Folat & Zat Besi");
+    // No answers → re-entry index 0 → Soal 1.
     expect(screen.getByText("Soal 1 dari 2 · Satu kesempatan")).toBeTruthy();
     const timer = screen.getByRole("timer");
     expect(timer.getAttribute("aria-label")).toBe("Sisa waktu");
@@ -178,15 +219,46 @@ describe("QuizRunner", () => {
     expect(screen.getByText("tersimpan otomatis")).toBeTruthy();
   });
 
-  it("hydrates persisted answers without re-sending them (QZ-08)", () => {
+  it("hydrates persisted answers without re-sending them — landing on the first unanswered (QZ-08)", () => {
     render(
       <QuizRunner data={runningDto({ answers: { [Q1]: Q1_OPTION_A } })} />,
     );
     expect(fetchMock).not.toHaveBeenCalled();
+    // Q1 answered → re-entry lands on Soal 2, not Soal 1.
+    expect(screen.getByText("Soal 2 dari 2 · Satu kesempatan")).toBeTruthy();
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Pertanyaan kedua?" }),
+    ).toBeTruthy();
     expect(
       screen.getAllByRole("button", { name: "Soal 1, sudah dijawab" }),
     ).toHaveLength(2);
+
+    // Walking back shows the persisted pick checked.
+    fireEvent.click(screen.getByRole("button", { name: "Sebelumnya" }));
     expect(screen.getByRole("radio", { name: "Opsi A" }).hasAttribute("checked")).toBe(true);
+  });
+
+  it("re-entry index: gap answers (1, 2, 4) land on Soal 3, not Soal 3-by-count", () => {
+    render(<QuizRunner data={fourQuestionDto({ q1: "o1", q2: "o2", q4: "o4" })} />);
+    expect(screen.getByText("Soal 3 dari 4 · Satu kesempatan")).toBeTruthy();
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Teks soal 3" }),
+    ).toBeTruthy();
+  });
+
+  it("re-entry index: answers 1–3 land on Soal 4", () => {
+    render(<QuizRunner data={fourQuestionDto({ q1: "o1", q2: "o2", q3: "o3" })} />);
+    expect(screen.getByText("Soal 4 dari 4 · Satu kesempatan")).toBeTruthy();
+  });
+
+  it("re-entry index: all answered → the last question", () => {
+    render(
+      <QuizRunner data={fourQuestionDto({ q1: "o1", q2: "o2", q3: "o3", q4: "o4" })} />,
+    );
+    expect(screen.getByText("Soal 4 dari 4 · Satu kesempatan")).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Lihat ringkasan" }),
+    ).toBeTruthy();
   });
 
   it("moves focus to the question heading on every change", () => {
@@ -204,11 +276,19 @@ describe("QuizRunner", () => {
     const prev = screen.getByRole("button", { name: "Sebelumnya" });
     expect((prev as HTMLButtonElement).disabled).toBe(true);
 
-    fireEvent.click(screen.getByRole("button", { name: "Berikutnya" }));
+    // Forward is the pair's visual primary — dark at the md band (7u),
+    // never the 52px lg band.
+    const next = screen.getByRole("button", { name: "Berikutnya" });
+    expect(next.className).toContain("bg-text");
+    expect(next.className).not.toContain("bg-primary-deep");
+
+    fireEvent.click(next);
     expect(
       screen.getByRole("button", { name: "Sebelumnya", hidden: true }),
     ).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Lihat ringkasan" }));
+    const summary = screen.getByRole("button", { name: "Lihat ringkasan" });
+    expect(summary.className).toContain("bg-text");
+    fireEvent.click(summary);
 
     expect(
       screen.getByRole("heading", { level: 2, name: "Ringkasan sebelum dikumpulkan" }),
@@ -222,6 +302,18 @@ describe("QuizRunner", () => {
     ).toBeTruthy();
     expect(
       screen.getByRole("button", { name: "Kumpulkan sekarang" }),
+    ).toBeTruthy();
+  });
+
+  it("ringkasan renders exactly ONE Navigator group (7u/S3-02 §1)", () => {
+    render(<QuizRunner data={runningDto()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Berikutnya" }));
+    fireEvent.click(screen.getByRole("button", { name: "Lihat ringkasan" }));
+
+    const navigators = screen.getAllByRole("group", { name: "Navigator soal" });
+    expect(navigators).toHaveLength(1);
+    expect(
+      within(navigators[0]!).getByRole("button", { name: "Soal 1, belum dijawab" }),
     ).toBeTruthy();
   });
 
@@ -242,6 +334,60 @@ describe("QuizRunner", () => {
     expect(
       screen.getByRole("button", { name: "Mengumpulkan…" }).getAttribute("aria-busy"),
     ).toBe("true");
+  });
+
+  it("collect failure in ringkasan → inline banner below the button row, focused; retry re-POSTs", async () => {
+    offlineAnswersMock(() => failedSubmit());
+    render(<QuizRunner data={runningDto()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Berikutnya" }));
+    fireEvent.click(screen.getByRole("button", { name: "Lihat ringkasan" }));
+    fireEvent.click(screen.getByRole("button", { name: "Kumpulkan sekarang" }));
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const banner = screen.getByText(COLLECT_FAILED_MESSAGE).closest('[role="alert"]')!;
+    expect(banner).toBeTruthy();
+    // Its OWN row below the button row — not inside the right-aligned
+    // button column.
+    const collect = screen.getByRole("button", { name: "Kumpulkan sekarang" });
+    expect(
+      (collect.compareDocumentPosition(banner) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0,
+    ).toBe(true);
+    // Focus moved into the banner's wrapper (keyboard users learn the
+    // miss) — the wrapper carries tabIndex={-1} around the alert.
+    expect(document.activeElement?.textContent).toContain(COLLECT_FAILED_MESSAGE);
+
+    fireEvent.click(screen.getByRole("button", { name: "Coba kumpulkan lagi" }));
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(
+      fetchMock.mock.calls.filter(([url]) => String(url).endsWith("/submit")),
+    ).toHaveLength(2);
+  });
+
+  it("a second collect failure remounts the banner and moves focus again", async () => {
+    offlineAnswersMock(() => failedSubmit());
+    render(<QuizRunner data={runningDto()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Berikutnya" }));
+    fireEvent.click(screen.getByRole("button", { name: "Lihat ringkasan" }));
+    fireEvent.click(screen.getByRole("button", { name: "Kumpulkan sekarang" }));
+    await act(async () => {
+      await Promise.resolve();
+    });
+    const firstBanner = screen.getByRole("alert");
+
+    fireEvent.click(screen.getByRole("button", { name: "Coba kumpulkan lagi" }));
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    // `key` remount → a fresh alert node (re-announced), focus moved in.
+    const secondBanner = screen.getByRole("alert");
+    expect(secondBanner).not.toBe(firstBanner);
+    expect(document.activeElement?.textContent).toContain(COLLECT_FAILED_MESSAGE);
+    expect(screen.getByText(COLLECT_FAILED_MESSAGE)).toBeTruthy();
   });
 
   it("soft-disables collect while an answer is unsaved, with the wait line", async () => {
@@ -324,12 +470,29 @@ describe("QuizRunner", () => {
     expect(refreshMock).toHaveBeenCalledTimes(1);
   });
 
-  it("28c: indicator only below 10 s offline, banner above, recovery banner", async () => {
-    fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
-      const url = String(input);
-      if (url.includes("/answers/")) throw new TypeError("Failed to fetch");
-      return okSubmit();
+  it("expired state collect failure → inline banner; Coba kumpulkan lagi re-POSTs", async () => {
+    offlineAnswersMock(() => failedSubmit());
+    render(<QuizRunner data={runningDto()} />);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5 * 60_000 + 2_000);
     });
+
+    expect(screen.getByText("Waktu habis — mengumpulkan jawaban…")).toBeTruthy();
+    expect(screen.getByText(COLLECT_FAILED_MESSAGE)).toBeTruthy();
+    expect(document.activeElement?.textContent).toContain(COLLECT_FAILED_MESSAGE);
+
+    fireEvent.click(screen.getByRole("button", { name: "Coba kumpulkan lagi" }));
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(
+      fetchMock.mock.calls.filter(([url]) => String(url).endsWith("/submit")),
+    ).toHaveLength(2);
+  });
+
+  it("28c: indicator only below 10 s offline, sticky banner above, recovery banner", async () => {
+    offlineAnswersMock(() => okSubmit());
     render(<QuizRunner data={runningDto()} />);
 
     fireEvent.click(screen.getByRole("radio", { name: "Opsi A" }));
@@ -343,10 +506,14 @@ describe("QuizRunner", () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(11_001);
     });
-    // Stage 2 (> 10 s): the error banner sticks above the runner.
+    // Stage 2 (> 10 s): the error banner sticks below the header
+    // (top-[69px] sm:top-[81px] — header height + border-b).
     expect(
       screen.getByText("1 jawaban belum tersimpan di server"),
     ).toBeTruthy();
+    const offline = screen.getByRole("alert");
+    expect(offline.className).toContain("sticky");
+    expect(offline.className).toContain("top-[69px]");
     expect(
       screen.getByText(
         "Koneksi terputus. Jawaban soal 1 disimpan sementara di perangkat ini dan dikirim otomatis begitu tersambung. Jangan tutup atau muat ulang halaman ini.",
@@ -371,11 +538,63 @@ describe("QuizRunner", () => {
     expect(screen.queryByText(/belum tersimpan di server/)).toBeNull();
   });
 
-  it("shows the dashed unsaved chip style marker class while offline", async () => {
-    fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
-      if (String(input).includes("/answers/")) throw new TypeError("Failed to fetch");
-      return okSubmit();
+  it("stage 2 ages on the DEVICE clock — a 60 s FAST server clock must not trip it early", async () => {
+    offlineAnswersMock(() => okSubmit());
+    // Server pair shifted +60 s: the timer (server domain) still counts
+    // 05:00 → …, but failingSince is a device-side stamp.
+    render(
+      <QuizRunner
+        data={runningDto({
+          serverNow: new Date(SERVER_NOW + 60_000).toISOString(),
+          expiresAt: new Date(SERVER_NOW + 60_000 + 5 * 60_000).toISOString(),
+        })}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("radio", { name: "Opsi A" }));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2_000);
     });
+    // ~2 device seconds since the failure — no banner yet, even though a
+    // server-domain comparison would read ~62 s.
+    expect(screen.queryByText(/belum tersimpan di server/)).toBeNull();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(9_000);
+    });
+    expect(
+      screen.getByText("1 jawaban belum tersimpan di server"),
+    ).toBeTruthy();
+    // The timer itself IS server-clock: 11 s of device time elapsed →
+    // 11 s off the countdown.
+    expect(screen.getByRole("timer").textContent).toBe("04:49");
+  });
+
+  it("stage 2 lands on time when the server clock runs 60 s SLOW", async () => {
+    offlineAnswersMock(() => okSubmit());
+    render(
+      <QuizRunner
+        data={runningDto({
+          serverNow: new Date(SERVER_NOW - 60_000).toISOString(),
+          expiresAt: new Date(SERVER_NOW - 60_000 + 5 * 60_000).toISOString(),
+        })}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("radio", { name: "Opsi A" }));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(11_001);
+    });
+    // A server-domain comparison would read −49 s and never arm the
+    // banner; the device clock fires it right at 10 s.
+    expect(
+      screen.getByText("1 jawaban belum tersimpan di server"),
+    ).toBeTruthy();
+    expect(screen.getByRole("timer").textContent).toBe("04:49");
+  });
+
+  it("styles the unsaved chip danger-on-light, and unsaved outranks the ragu tint", async () => {
+    offlineAnswersMock(() => okSubmit());
     render(<QuizRunner data={runningDto()} />);
 
     fireEvent.click(screen.getByRole("radio", { name: "Opsi A" }));
@@ -384,5 +603,19 @@ describe("QuizRunner", () => {
     });
     const chip = screen.getAllByRole("button", { name: "Soal 1, sudah dijawab" })[0]!;
     expect(chip.className).toContain("border-dashed");
+    expect(chip.className).toContain("border-danger");
+    expect(chip.className).toContain("bg-surface");
+    expect(chip.className).toContain("text-danger");
+
+    // Flag it too: the name gains “ditandai ragu”, but the chip KEEPS
+    // the unsaved look — unsaved is the more severe state (S3-02 §1).
+    fireEvent.click(screen.getByRole("button", { name: "Tandai ragu-ragu" }));
+    const flagged = screen.getAllByRole("button", {
+      name: "Soal 1, sudah dijawab, ditandai ragu",
+    })[0]!;
+    expect(flagged.className).toContain("border-dashed");
+    expect(flagged.className).toContain("bg-surface");
+    expect(flagged.className).toContain("text-danger");
+    expect(flagged.className).not.toContain("bg-warning-tint");
   });
 });

@@ -278,6 +278,7 @@ describe("toQuizRunningDTO", () => {
 
   it("numbers questions by question_order and maps answers without nulls", () => {
     const dto = toQuizRunningDTO({
+      heading: "Quiz Materi 2 · Judul materi 2",
       attemptId: ATTEMPT_ID,
       questionOrder: ["q-2", "q-1"],
       expiresAt: new Date("2026-11-18T08:10:00Z"),
@@ -288,6 +289,7 @@ describe("toQuizRunningDTO", () => {
       answerRows,
     });
     expect(dto.state).toBe("berjalan");
+    expect(dto.heading).toBe("Quiz Materi 2 · Judul materi 2");
     expect(dto.attemptId).toBe(ATTEMPT_ID);
     expect(dto.expiresAt).toBe("2026-11-18T08:10:00.000Z");
     expect(dto.serverNow).toBe("2026-11-18T08:01:00.000Z");
@@ -305,6 +307,7 @@ describe("toQuizRunningDTO", () => {
 
   it("carries NO grading key anywhere in the DTO (recursive scan, mutation 1)", () => {
     const dto = toQuizRunningDTO({
+      heading: "Quiz Materi 1 · Judul materi 1",
       attemptId: ATTEMPT_ID,
       questionOrder: ["q-1", "q-2"],
       expiresAt: new Date("2026-11-18T08:10:00Z"),
@@ -323,8 +326,34 @@ describe("toQuizRunningDTO", () => {
     expect(JSON.stringify(dto)).not.toContain("Pembahasan");
   });
 
+  it("the top-level key allowlist is exact, heading included (card S3-02 §1e)", () => {
+    const dto = toQuizRunningDTO({
+      heading: "Quiz Materi 1 · Judul materi 1",
+      attemptId: ATTEMPT_ID,
+      questionOrder: ["q-1"],
+      expiresAt: new Date("2026-11-18T08:10:00Z"),
+      serverNow: new Date("2026-11-18T08:01:00Z"),
+      settings: settingsRow(),
+      questionRows: [questionRows[0]!],
+      optionRows: optionRowsAll.filter((o) => o.questionId === "q-1"),
+      answerRows: [],
+    });
+    expect(Object.keys(dto).sort()).toEqual(
+      [
+        "state",
+        "heading",
+        "attemptId",
+        "expiresAt",
+        "serverNow",
+        "questions",
+        "answers",
+      ].sort(),
+    );
+  });
+
   it("options use the attempt:question seed — same order as a later result build", () => {
     const config = {
+      heading: "Quiz Materi 1 · Judul materi 1",
       attemptId: ATTEMPT_ID,
       questionOrder: ["q-1"] as const,
       expiresAt: new Date("2026-11-18T08:10:00Z"),
@@ -344,6 +373,7 @@ describe("toQuizRunningDTO", () => {
       lesson: { position: 1, title: "Judul materi 1", href: LESSON_HREF },
       next: null,
       finalQuizHref: null,
+      finalQuizDone: false,
     });
     expect(result.items[0]!.options.map((option) => option.label)).toEqual(
       running.questions[0]!.options.map((option) => option.label),
@@ -365,6 +395,7 @@ describe("toQuizResultDTO", () => {
     isPassed?: boolean | null;
     submittedAt?: Date | null;
     status?: AttemptRow["status"];
+    finalQuizDone?: boolean;
   }) {
     const questionRows = [
       questionRow(1, { points: 2 }),
@@ -399,6 +430,7 @@ describe("toQuizResultDTO", () => {
       lesson: { position: 1, title: "Judul materi 1", href: LESSON_HREF },
       next: { position: 2, href: "/belajar/gizi-seimbang/materi-2" },
       finalQuizHref: null,
+      finalQuizDone: overrides.finalQuizDone ?? false,
     });
   }
 
@@ -409,7 +441,7 @@ describe("toQuizResultDTO", () => {
     expect(dto.correct).toBe(1);
     expect(dto.wrong).toBe(1);
     expect(dto.unanswered).toBe(1);
-    expect(dto.scorePercent).toBe(29); // "28.57" rounds to 29
+    expect(dto.scorePercent).toBe(28); // "28.57" FLOORS to 28 (S3-02 §3)
     expect(dto.isPassed).toBe(false);
     expect(dto.durationSeconds).toBe(450); // 08:00:00 → 08:07:30
     expect(dto.lesson).toEqual({
@@ -421,6 +453,33 @@ describe("toQuizResultDTO", () => {
       position: 2,
       href: "/belajar/gizi-seimbang/materi-2",
     });
+  });
+
+  it("FLOORS scorePercent: 69.5 → 69, 69.99 → 69, 70 → 70 (never rounds up)", () => {
+    // Card S3-02 §3: a 69.95 % attempt must not read as 70 next to a
+    // "lulus di ≥ 70" verdict — same for the exact .5 and .99 cases.
+    expect(
+      gradedFixture({ explanationPolicy: "ALWAYS", scorePercent: "69.50" })
+        .scorePercent,
+    ).toBe(69);
+    expect(
+      gradedFixture({ explanationPolicy: "ALWAYS", scorePercent: "69.99" })
+        .scorePercent,
+    ).toBe(69);
+    expect(
+      gradedFixture({ explanationPolicy: "ALWAYS", scorePercent: "70.00" })
+        .scorePercent,
+    ).toBe(70);
+  });
+
+  it("passes finalQuizDone through untouched (the closing's swap, S3-02 §5)", () => {
+    expect(gradedFixture({ explanationPolicy: "ALWAYS" }).finalQuizDone).toBe(
+      false,
+    );
+    expect(
+      gradedFixture({ explanationPolicy: "ALWAYS", finalQuizDone: true })
+        .finalQuizDone,
+    ).toBe(true);
   });
 
   it("ALWAYS: marks selected + correct on the options and shows explanations", () => {
@@ -448,6 +507,7 @@ describe("toQuizResultDTO", () => {
       explanationPolicy: "ON_PASS_ONLY",
       isPassed: true,
     });
+    expect(passed.reviewAccess).toBe("PASSED");
     expect(passed.items[0]!.options[0]!.correct).toBe(true);
     expect(passed.items[0]!.explanation).toBe("Pembahasan 1");
 
@@ -455,6 +515,7 @@ describe("toQuizResultDTO", () => {
       explanationPolicy: "ON_PASS_ONLY",
       isPassed: false,
     });
+    expect(failed.reviewAccess).toBe("HIDDEN_NOT_PASSED");
     expect(failed.items[0]!.options.every((option) => option.correct === null))
       .toBe(true);
     expect(failed.items.every((item) => item.explanation === null)).toBe(true);
@@ -462,6 +523,7 @@ describe("toQuizResultDTO", () => {
 
   it("NEVER: correct is null and explanations are null (no key leak)", () => {
     const dto = gradedFixture({ explanationPolicy: "NEVER" });
+    expect(dto.reviewAccess).toBe("HIDDEN_NEVER");
     expect(dto.items.every((item) => item.explanation === null)).toBe(true);
     expect(
       dto.items.every((item) =>
@@ -472,6 +534,50 @@ describe("toQuizResultDTO", () => {
     expect(dto.items[1]!.options[0]!.selected).toBe(true);
   });
 
+  it("reviewAccess maps all four states: ALWAYS, PASSED, HIDDEN_NEVER, HIDDEN_NOT_PASSED", () => {
+    // The screens pick their copy from this ONE value (card S3-02 §3) —
+    // pin the full mapping, not just the two hidden cases above.
+    expect(gradedFixture({ explanationPolicy: "ALWAYS" }).reviewAccess).toBe(
+      "ALWAYS",
+    );
+    expect(
+      gradedFixture({ explanationPolicy: "ON_PASS_ONLY", isPassed: true })
+        .reviewAccess,
+    ).toBe("PASSED");
+    expect(
+      gradedFixture({ explanationPolicy: "NEVER" }).reviewAccess,
+    ).toBe("HIDDEN_NEVER");
+    expect(
+      gradedFixture({ explanationPolicy: "ON_PASS_ONLY", isPassed: false })
+        .reviewAccess,
+    ).toBe("HIDDEN_NOT_PASSED");
+  });
+
+  it("HIDDEN_*: no per-question right/wrong data anywhere in the DTO (recursive value scan)", () => {
+    // deepKeys proves the KEY never appears; this walks the VALUES — under
+    // a hidden policy, an option's `correct` must be null at EVERY depth.
+    // Scoped to dto.items: the top-level `correct` is the aggregate
+    // counter the score card shows, not per-question data.
+    function deepCorrectIsAlwaysNull(value: unknown): boolean {
+      if (Array.isArray(value)) {
+        return value.every(deepCorrectIsAlwaysNull);
+      }
+      if (value !== null && typeof value === "object") {
+        for (const [key, child] of Object.entries(value)) {
+          if (key === "correct" && child !== null) return false;
+          if (!deepCorrectIsAlwaysNull(child)) return false;
+        }
+      }
+      return true;
+    }
+    for (const dto of [
+      gradedFixture({ explanationPolicy: "NEVER" }),
+      gradedFixture({ explanationPolicy: "ON_PASS_ONLY", isPassed: false }),
+    ]) {
+      expect(deepCorrectIsAlwaysNull(dto.items)).toBe(true);
+    }
+  });
+
   it("EXPIRED: duration caps at expires_at even when submittedAt landed later", () => {
     const dto = gradedFixture({
       explanationPolicy: "ALWAYS",
@@ -480,6 +586,28 @@ describe("toQuizResultDTO", () => {
     });
     expect(dto.status).toBe("EXPIRED");
     expect(dto.durationSeconds).toBe(600); // 08:00:00 → 08:10:00, capped
+  });
+
+  it("the lesson-result allowlist is exact: review keys + state + pointers", () => {
+    const dto = gradedFixture({ explanationPolicy: "ALWAYS" });
+    expect(Object.keys(dto).sort()).toEqual(
+      [
+        "state",
+        "reviewAccess",
+        "status",
+        "scorePercent",
+        "isPassed",
+        "correct",
+        "wrong",
+        "unanswered",
+        "durationSeconds",
+        "items",
+        "lesson",
+        "next",
+        "finalQuizHref",
+        "finalQuizDone",
+      ].sort(),
+    );
   });
 
   it("items follow question_order numbering, not order_index", () => {
@@ -535,7 +663,8 @@ describe("toFinalQuizResultDTO", () => {
     const dto = finalFixture({});
     expect(dto.state).toBe("hasil-final");
     expect(dto.status).toBe("SUBMITTED");
-    expect(dto.scorePercent).toBe(29); // "28.57" rounds to 29
+    expect(dto.scorePercent).toBe(28); // "28.57" floors to 28 (S3-02 §3)
+    expect(dto.reviewAccess).toBe("ALWAYS");
     expect(dto.isPassed).toBe(false);
     expect(dto.correct).toBe(1);
     expect(dto.wrong).toBe(1);
@@ -580,6 +709,7 @@ describe("toFinalQuizResultDTO", () => {
     expect(Object.keys(dto).sort()).toEqual(
       [
         "state",
+        "reviewAccess",
         "status",
         "scorePercent",
         "isPassed",

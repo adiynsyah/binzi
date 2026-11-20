@@ -239,8 +239,10 @@ export type LessonOutlineItemDTO = {
   state: "kini" | "selesai" | "terbuka" | "terkunci";
   /** null for "terkunci" — the gate is server-side, the row is not a link. */
   href: string | null;
-  /** The lesson-quiz score, rounded, ONLY when the quiz was attempted
-   *  (card S3-01 §4.A) — null everywhere else, including locked rows. */
+  /** The lesson-quiz score, FLOORED (card S3-02 §3 — never rounds up;
+   *  same rule as the result screen's scorePercent), ONLY when the quiz
+   *  was attempted (card S3-01 §4.A) — null everywhere else, including
+   *  locked rows. */
   scorePercent: number | null;
 };
 
@@ -274,6 +276,13 @@ export type LessonPageDTO =
        *  non-null exactly when every lesson is COMPLETED and the course HAS
        *  a Final Quiz (the bottom bar's "Final Quiz" link). */
       finalQuizHref: string | null;
+      /** Card S3-02 §5: the Final was already WORKED — the href's gate
+       *  plus the STORED enrollment status having left IN_PROGRESS (the
+       *  "nilai tersimpan" lesson, 19 Nov no. 2: the gladi-reset SQL
+       *  pattern flips the status back to re-open the Final, so the
+       *  status — never a recompute from attempts — is the source of
+       *  truth). The bottom bar's label becomes "Hasil Final Quiz". */
+      finalQuizDone: boolean;
       outline: LessonOutlineItemDTO[];
       prevHref: string | null;
       next:
@@ -307,7 +316,16 @@ export type LessonPageInput = {
     /** Card S5-02 §1 — drives finalQuizHref on the open state. */
     finalQuizId: string | null;
   };
-  enrollment: { id: string } | undefined;
+  /** Card S3-02 §5: `status` joins the id — the STORED course result
+   *  drives finalQuizDone on the open state (the "nilai tersimpan"
+   *  lesson, 19 Nov no. 2: read the stored status, never recompute it
+   *  from attempts). */
+  enrollment:
+    | {
+        id: string;
+        status: (typeof enrollmentStatusEnum.enumValues)[number];
+      }
+    | undefined;
   outline: readonly LessonOutlineRow[];
   /** 0-based index into `outline`; the service has already resolved the
    *  lesson slug and answered 404 for a miss. */
@@ -368,7 +386,7 @@ export function toLessonPageDTO(input: LessonPageInput): LessonPageDTO {
       href: state === "terkunci" ? null : lessonHref(course.slug, row.slug),
       scorePercent:
         row.quizAttempted === true
-          ? Math.round(Number(row.quizScorePercent ?? 0))
+          ? Math.floor(Number(row.quizScorePercent ?? 0))
           : null,
     };
   });
@@ -418,6 +436,11 @@ export function toLessonPageDTO(input: LessonPageInput): LessonPageDTO {
   // for this participant (every real row carries a status).
   const hasProgressRow = target.status !== null;
 
+  const openFinalQuizHref =
+    course.finalQuizId !== null && allLessonsCompleted(outline)
+      ? finalQuizHref(course.slug)
+      : null;
+
   return {
     state: "open",
     course: courseDTO,
@@ -441,10 +464,14 @@ export function toLessonPageDTO(input: LessonPageInput): LessonPageDTO {
             lessonSlug: target.slug,
           })
         : null,
-    finalQuizHref:
-      course.finalQuizId !== null && allLessonsCompleted(outline)
-        ? finalQuizHref(course.slug)
-        : null,
+    finalQuizHref: openFinalQuizHref,
+    /** Card S3-02 §5: the Final was already worked — the href's gate plus
+     *  the STORED enrollment status having left IN_PROGRESS (the "nilai
+     *  tersimpan" lesson, 19 Nov no. 2: the gladi-reset SQL pattern flips
+     *  the status back to re-open the Final, so status — not a probe of
+     *  attempts — is the source of truth). */
+    finalQuizDone:
+      openFinalQuizHref !== null && input.enrollment.status !== "IN_PROGRESS",
     outline: items,
     prevHref:
       targetIndex > 0

@@ -57,6 +57,7 @@ import {
   type QuizResultItemDTO,
   type QuizRulesDTO,
   type QuizRunningDTO,
+  type QuizReviewAccess,
 } from "./serializer";
 
 export type {
@@ -68,6 +69,7 @@ export type {
   QuizResultItemDTO,
   QuizRulesDTO,
   QuizRunningDTO,
+  QuizReviewAccess,
 };
 
 /** Owner decision 8's question half: Fisher–Yates over the storage order
@@ -115,8 +117,14 @@ export async function getLessonQuizPage(
   try {
     context = await loadLessonQuizContext(db, actor.id, target.lessonId);
   } catch (error) {
-    if (error instanceof ConflictError) {
-      // Locked lesson: the lesson page owns that state — go back to it.
+    if (
+      error instanceof ConflictError ||
+      error instanceof NotFoundError
+    ) {
+      // Locked lesson (ConflictError) or a NOT-enrolled actor (card S3-02
+      // §6): the lesson page owns both states — go back to it. The slug
+      // lookup above already ran, so a NotFoundError from the context load
+      // can only be the not-enrolled/inconsistent case, never a bad slug.
       return { state: "kembali", href: lessonHref(courseSlug, lessonSlug) };
     }
     throw error;
@@ -165,6 +173,9 @@ export async function getLessonQuizPage(
       selectAttemptAnswers(db, attempt.id),
     ]);
     return toQuizRunningDTO({
+      // Card S3-02 §1e: the runner's eyebrow h1 — same shape as the rules
+      // screen's eyebrow ("Quiz Materi {posisi} · {judul materi}").
+      heading: `Quiz Materi ${context.lessonPosition} · ${target.lessonTitle}`,
       attemptId: attempt.id,
       questionOrder: attempt.questionOrder,
       expiresAt: attempt.expiresAt,
@@ -197,6 +208,7 @@ export async function getLessonQuizPage(
     },
     next: context.next,
     finalQuizHref: context.finalQuizHref,
+    finalQuizDone: context.finalQuizDone,
   });
 }
 
@@ -260,6 +272,8 @@ export async function getFinalQuizPage(
       selectAttemptAnswers(db, attempt.id),
     ]);
     return toQuizRunningDTO({
+      // Card S3-02 §1e: the Final runner's eyebrow h1.
+      heading: `Final Quiz · ${context.courseTitle}`,
       attemptId: attempt.id,
       questionOrder: attempt.questionOrder,
       expiresAt: attempt.expiresAt,

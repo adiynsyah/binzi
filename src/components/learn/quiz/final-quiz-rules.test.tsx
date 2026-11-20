@@ -76,6 +76,24 @@ describe("FinalQuizRules", () => {
     expect(screen.getByText(/10 soal dari seluruh materi kursus/)).toBeTruthy();
     expect(screen.getByText("satu kesempatan")).toBeTruthy();
 
+    // 7h (S3-02 §4): title, intro, rules and BOTH buttons sit in one
+    // primary-tint box (line pair border-danger-tint-line); the eyebrow
+    // stays outside it.
+    const box = screen.getByRole("heading", { level: 1 }).closest("div")!;
+    expect(box.className).toContain("bg-primary-tint");
+    expect(box.className).toContain("border-danger-tint-line");
+    expect(
+      box.contains(
+        screen.getByRole("button", { name: "Saya siap, mulai Final Quiz" }),
+      ),
+    ).toBe(true);
+    expect(
+      box.contains(screen.getByRole("link", { name: "Ulas materi dulu" })),
+    ).toBe(true);
+    expect(
+      box.contains(screen.getByText("FINAL QUIZ · Gizi Ibu Hamil T1")),
+    ).toBe(false);
+
     expect(screen.getByText("84")).toBeTruthy();
     expect(
       screen.getByText(/Rata-rata quiz materi Anda sekarang/),

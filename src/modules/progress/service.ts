@@ -125,6 +125,10 @@ export async function enrollInCourse(
 /** Everything the open/video transactions need after the gate checks. */
 type UnlockedLessonContext = {
   enrollmentId: string;
+  /** Card S3-02 §5: the STORED enrollment status, carried through for
+   *  loadLessonQuizContext's finalQuizDone (only recordFinalQuizResult
+   *  ever moves it off IN_PROGRESS). */
+  enrollmentStatus: "IN_PROGRESS" | "COMPLETED" | "PASSED";
   outline: LessonOutlineRow[];
   targetIndex: number;
   course: LessonGateLookup["course"];
@@ -166,6 +170,7 @@ async function loadUnlockedLessonContext(
   }
   return {
     enrollmentId: enrollment.id,
+    enrollmentStatus: enrollment.status,
     outline,
     targetIndex,
     course: found.course,
@@ -309,6 +314,13 @@ export type LessonQuizContext = {
   /** Card S5-02 §5: non-null exactly when every lesson is COMPLETED and
    *  the course has a Final Quiz — the result screen's closing swap. */
   finalQuizHref: string | null;
+  /** Card S3-02 §5: the Final Quiz was already worked — finalQuizHref's
+   *  gate plus the STORED enrollment status having left IN_PROGRESS. The
+   *  status is the source of truth, not a recompute from attempts (the
+   *  "nilai tersimpan" lesson, 19 Nov no. 2): the gladi-reset SQL pattern
+   *  in STATUS flips the status back so the Final re-opens, and a probe
+   *  of quiz_attempts would fight that reset. */
+  finalQuizDone: boolean;
 };
 
 /**
@@ -325,6 +337,11 @@ export async function loadLessonQuizContext(
   const context = await loadUnlockedLessonContext(tx, actorId, lessonId);
   const target = context.outline[context.targetIndex]!;
   const nextRow = context.outline[context.targetIndex + 1];
+  const finalHref =
+    context.course.finalQuizId !== null &&
+    allLessonsCompleted(context.outline)
+      ? finalQuizHref(context.course.slug)
+      : null;
   return {
     enrollmentId: context.enrollmentId,
     quizId: context.lesson.quizId,
@@ -338,11 +355,9 @@ export async function loadLessonQuizContext(
           href: lessonHref(context.course.slug, nextRow.slug),
         }
       : null,
-    finalQuizHref:
-      context.course.finalQuizId !== null &&
-      allLessonsCompleted(context.outline)
-        ? finalQuizHref(context.course.slug)
-        : null,
+    finalQuizHref: finalHref,
+    finalQuizDone:
+      finalHref !== null && context.enrollmentStatus !== "IN_PROGRESS",
   };
 }
 

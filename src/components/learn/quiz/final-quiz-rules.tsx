@@ -53,44 +53,51 @@ export function FinalQuizRules({ data }: { data: FinalQuizRulesDTO }) {
       <p className="font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-primary-deep">
         FINAL QUIZ · {data.courseTitle}
       </p>
-      <h1 className="mt-3 wrap-anywhere text-[22px] font-black leading-[1.22] tracking-[-0.02em] text-text sm:text-[26px]">
-        Final Quiz menentukan {data.weights.finalPercent}% Nilai Akhir
-      </h1>
-      <p className="mt-4 text-[15px] leading-relaxed text-text-body">
-        {data.questionCount} soal dari seluruh materi kursus. Sama seperti quiz
-        materi: <strong className="font-bold text-text">satu kesempatan</strong>
-        , nilai tercatat permanen.
-      </p>
+      {/* 7h (S3-02 §4): title, intro, rules and both buttons sit in ONE
+          primary-tint box (line pair border-danger-tint-line — TOKENS has
+          no primary-tint line token). The eyebrow and the failure banner
+          stay outside. */}
+      <div className="mt-3 rounded-card border border-danger-tint-line bg-primary-tint p-6">
+        <h1 className="wrap-anywhere text-[22px] font-black leading-[1.22] tracking-[-0.02em] text-text sm:text-[26px]">
+          Final Quiz menentukan {data.weights.finalPercent}% Nilai Akhir
+        </h1>
+        <p className="mt-4 text-[15px] leading-relaxed text-text-body">
+          {data.questionCount} soal dari seluruh materi kursus. Sama seperti
+          quiz materi:{" "}
+          <strong className="font-bold text-text">satu kesempatan</strong>,
+          nilai tercatat permanen.
+        </p>
 
-      <ol className="mt-6 space-y-4">
-        {rules.map((rule, index) => (
-          <li key={index} className="flex gap-4">
-            <span className="font-mono text-[13px] font-medium text-primary-deep">
-              {String(index + 1).padStart(2, "0")}
-            </span>
-            <span className="min-w-0 text-[15px] leading-relaxed text-text">
-              {rule}
-            </span>
-          </li>
-        ))}
-      </ol>
+        <ol className="mt-6 space-y-4">
+          {rules.map((rule, index) => (
+            <li key={index} className="flex gap-4">
+              <span className="font-mono text-[13px] font-medium text-primary-deep">
+                {String(index + 1).padStart(2, "0")}
+              </span>
+              <span className="min-w-0 text-[15px] leading-relaxed text-text">
+                {rule}
+              </span>
+            </li>
+          ))}
+        </ol>
 
-      <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-        <Button
-          ref={buttonRef}
-          onClick={start}
-          loading={starting}
-          loadingLabel="Memulai…"
-          className="sm:flex-1"
-        >
-          Saya siap, mulai Final Quiz
-        </Button>
-        <Link
-          href={data.lastLessonHref}
-          className={cn(buttonVariants({ variant: "secondary" }), "sm:flex-1")}
-        >
-          Ulas materi dulu
-        </Link>
+        <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+          <Button
+            ref={buttonRef}
+            onClick={start}
+            loading={starting}
+            loadingLabel="Memulai…"
+            className="sm:flex-1"
+          >
+            Saya siap, mulai Final Quiz
+          </Button>
+          <Link
+            href={data.lastLessonHref}
+            className={cn(buttonVariants({ variant: "secondary" }), "sm:flex-1")}
+          >
+            Ulas materi dulu
+          </Link>
+        </div>
       </div>
 
       {failed ? (

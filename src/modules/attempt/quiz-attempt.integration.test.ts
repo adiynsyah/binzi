@@ -460,6 +460,7 @@ describe("getLessonQuizPage — berjalan / kedaluwarsa", () => {
     const dto = await getLessonQuizPage(MEMBER, made.slug, made.lessons[0]!.slug);
     expect(dto.state).toBe("berjalan");
     if (dto.state !== "berjalan") return;
+    expect(dto.heading).toBe(`Quiz Materi 1 · ${made.lessons[0]!.title}`);
     expect(dto.attemptId).toBe(attemptId);
     expect(dto.questions).toHaveLength(4);
     // Storage order (shuffle off) + numbering.
@@ -521,7 +522,7 @@ describe("getLessonQuizPage — hasil", () => {
     expect(dto.state).toBe("hasil");
     if (dto.state !== "hasil") return;
     expect(dto.status).toBe("SUBMITTED");
-    expect(dto.scorePercent).toBe(29); // 2/7 = 28.57 → 29
+    expect(dto.scorePercent).toBe(28); // 2/7 = 28.57 FLOORS to 28 (S3-02 §3)
     expect(dto.isPassed).toBe(false);
     expect(dto.correct).toBe(1);
     expect(dto.wrong).toBe(1);
@@ -593,7 +594,7 @@ describe("getLessonQuizPage — kembali + 404s", () => {
     });
   });
 
-  it("unknown course slug, unknown lesson slug, not enrolled, and a quiz-less lesson all answer 404", async () => {
+  it("unknown course slug, unknown lesson slug, an UNPUBLISHED course, and a quiz-less lesson all answer 404", async () => {
     await expect(
       getLessonQuizPage(MEMBER, "kursus-tak-ada", "apapun"),
     ).rejects.toThrow(NotFoundError);
@@ -603,9 +604,15 @@ describe("getLessonQuizPage — kembali + 404s", () => {
       getLessonQuizPage(MEMBER, made.slug, "materi-tak-ada"),
     ).rejects.toThrow(NotFoundError);
 
-    const lone = await quizCourse("qp10");
+    // Card S3-02 decision 5: an unpublished course STAYS a 404 — the slug
+    // lookup runs before the not-enrolled catch, so it can never redirect.
+    const draft = await quizCourse("qp10");
+    await db
+      .update(courses)
+      .set({ status: "DRAFT" })
+      .where(eq(courses.id, draft.course.id));
     await expect(
-      getLessonQuizPage(MEMBER_B, lone.slug, lone.lessons[0]!.slug),
+      getLessonQuizPage(MEMBER, draft.slug, draft.lessons[0]!.slug),
     ).rejects.toThrow(NotFoundError);
 
     const bare = await quizCourse("qp11");
@@ -616,6 +623,21 @@ describe("getLessonQuizPage — kembali + 404s", () => {
     await expect(
       getLessonQuizPage(MEMBER, bare.slug, bare.lessons[0]!.slug),
     ).rejects.toThrow(NotFoundError);
+  });
+
+  it("not enrolled → kembali to the lesson page, NOT a 404 (card S3-02 §6)", async () => {
+    // The lesson slug resolves and the course is PUBLISHED — only the
+    // enrollment is missing, and the LESSON page owns that state.
+    const lone = await quizCourse("qp12");
+    const dto = await getLessonQuizPage(
+      MEMBER_B,
+      lone.slug,
+      lone.lessons[0]!.slug,
+    );
+    expect(dto).toEqual({
+      state: "kembali",
+      href: lessonHref(lone.slug, lone.lessons[0]!.slug),
+    });
   });
 });
 
@@ -1447,6 +1469,7 @@ describe("getFinalQuizPage", () => {
     const page = await getFinalQuizPage(MEMBER, made.slug);
     expect(page.state).toBe("berjalan");
     if (page.state !== "berjalan") return;
+    expect(page.heading).toBe(`Final Quiz · ${made.course.title}`);
     expect(page.attemptId).toBe(attemptId);
     expect(page.questions).toHaveLength(5);
     const keys = new Set<string>();
@@ -1806,6 +1829,8 @@ describe("submitQuizAttempt — FINAL branch (Nilai Akhir)", () => {
     expect(hasil.state).toBe("hasil");
     if (hasil.state !== "hasil") return;
     expect(hasil.finalQuizHref).toBe(`/belajar/${made.slug}/final-quiz`);
+    // The Final is NOT worked yet (enrollment still IN_PROGRESS).
+    expect(hasil.finalQuizDone).toBe(false);
   });
 
   it("the lesson-quiz result screen keeps finalQuizHref NULL until every lesson is COMPLETED (S5-02 mutation 9)", async () => {
@@ -1832,5 +1857,144 @@ describe("submitQuizAttempt — FINAL branch (Nilai Akhir)", () => {
     expect(hasil.state).toBe("hasil");
     if (hasil.state !== "hasil") return;
     expect(hasil.finalQuizHref).toBeNull();
+  });
+});
+
+// --------------------------------------------------------------------------
+// finalQuizDone (card S3-02 §5). The stored enrollments.status is the
+// source of truth (the "nilai tersimpan" lesson, 19 Nov no. 2) — never a
+// recompute from attempts, so the gladi-reset SQL pattern keeps working.
+// --------------------------------------------------------------------------
+
+/** Option rows of the final quiz (the FINAL-branch describe's helper,
+ *  duplicated here for scope). */
+async function finalOptionRows(made: {
+  finalQuizId: string;
+  correctOptionIds: string[];
+}) {
+  return db
+    .select({
+      questionId: questionOptions.questionId,
+      id: questionOptions.id,
+      isCorrect: questionOptions.isCorrect,
+    })
+    .from(questionOptions)
+    .innerJoin(questions, eq(questionOptions.questionId, questions.id))
+    .where(eq(questions.quizId, made.finalQuizId));
+}
+
+/** The finalQuizDone fixture: the FINAL gate open (both lessons COMPLETED
+ *  with scores) AND a real submitted lesson quiz on lesson 1 — both
+ *  screens that carry finalQuizDone render for it. */
+async function completedLessonQuizCourse(prefix: string) {
+  const made = await finalCourse(prefix);
+  const attached = await attachQuiz(made.lessons[0]!.id, {
+    questions: [GRADED_QUESTIONS[0]!],
+  });
+  const { attemptId } = await startLessonQuiz(MEMBER, {
+    lessonId: made.lessons[0]!.id,
+  });
+  await saveQuizAnswer(MEMBER, {
+    attemptId,
+    questionId: attached.questionIds[0]!,
+    optionId: attached.optionIds[0]![0]!,
+  });
+  await submitQuizAttempt(MEMBER, { attemptId });
+  return made;
+}
+
+async function setEnrollmentStatus(
+  courseId: string,
+  status: "IN_PROGRESS" | "COMPLETED" | "PASSED",
+) {
+  await db
+    .update(enrollments)
+    .set({ status })
+    .where(
+      sql`${enrollments.userId} = ${MEMBER.id} and ${enrollments.courseId} = ${courseId}`,
+    );
+}
+
+describe("finalQuizDone (card S3-02 §5)", () => {
+  it("false before the Final is submitted, true after — on the result DTO AND the open lesson page", async () => {
+    const made = await completedLessonQuizCourse("fd1");
+    const before = await getLessonQuizPage(
+      MEMBER,
+      made.slug,
+      made.lessons[0]!.slug,
+    );
+    if (before.state !== "hasil") throw new Error("expected hasil");
+    expect(before.finalQuizHref).not.toBeNull();
+    expect(before.finalQuizDone).toBe(false); // enrollment still IN_PROGRESS
+
+    // 3 of 5 correct = 60 % < 70 → courseStatus COMPLETED, not PASSED: a
+    // FAILED Final was still WORKED — done must flip either way.
+    const { attemptId } = await startFinalQuiz(MEMBER, {
+      courseId: made.course.id,
+    });
+    await answerFinalAttempt(
+      attemptId,
+      made.correctOptionIds,
+      await finalOptionRows(made),
+      3,
+      1,
+    );
+    await submitQuizAttempt(MEMBER, { attemptId });
+    expect((await enrollmentRow(MEMBER.id, made.course.id))!.status).toBe(
+      "COMPLETED",
+    );
+
+    const after = await getLessonQuizPage(
+      MEMBER,
+      made.slug,
+      made.lessons[0]!.slug,
+    );
+    if (after.state !== "hasil") throw new Error("expected hasil");
+    expect(after.finalQuizDone).toBe(true);
+
+    const open = await getLessonPage(MEMBER, made.slug, made.lessons[0]!.slug);
+    if (open.state !== "open") throw new Error("expected open");
+    expect(open.finalQuizHref).not.toBeNull();
+    expect(open.finalQuizDone).toBe(true);
+  });
+
+  it("status set to COMPLETED directly in the DB, WITHOUT a Final attempt → true (the STORED value wins)", async () => {
+    const made = await completedLessonQuizCourse("fd2");
+    await setEnrollmentStatus(made.course.id, "COMPLETED");
+    const hasil = await getLessonQuizPage(
+      MEMBER,
+      made.slug,
+      made.lessons[0]!.slug,
+    );
+    if (hasil.state !== "hasil") throw new Error("expected hasil");
+    expect(hasil.finalQuizDone).toBe(true);
+  });
+
+  it("Final submitted, then status reset to IN_PROGRESS (the gladi-reset SQL pattern) → false", async () => {
+    const made = await completedLessonQuizCourse("fd3");
+    const { attemptId } = await startFinalQuiz(MEMBER, {
+      courseId: made.course.id,
+    });
+    await answerFinalAttempt(
+      attemptId,
+      made.correctOptionIds,
+      await finalOptionRows(made),
+      4,
+      1,
+    );
+    await submitQuizAttempt(MEMBER, { attemptId }); // PASSED — attempt FINALIZED
+    // The gladi reset flips the STORED status back so the Final re-opens;
+    // a recompute from the (still-finalized) attempt would fight it.
+    await setEnrollmentStatus(made.course.id, "IN_PROGRESS");
+    const hasil = await getLessonQuizPage(
+      MEMBER,
+      made.slug,
+      made.lessons[0]!.slug,
+    );
+    if (hasil.state !== "hasil") throw new Error("expected hasil");
+    expect(hasil.finalQuizDone).toBe(false);
+    const open = await getLessonPage(MEMBER, made.slug, made.lessons[0]!.slug);
+    if (open.state !== "open") throw new Error("expected open");
+    expect(open.finalQuizDone).toBe(false);
   });
 });

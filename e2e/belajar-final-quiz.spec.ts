@@ -281,15 +281,38 @@ test("1. alur utuh: hasil materi 2 → Final terbuka → aturan 60/40 → 80 →
   const attemptId = await attemptIdFromDb(made.member.email, made.finalQuizId);
   await answerViaApi(page, attemptId, made.finalQuizId, 8, 0);
 
-  // Reload mid-attempt (QZ-08): the runner continues, collect through the UI.
+  // Reload mid-attempt (QZ-08): the runner re-enters at the FIRST
+  // UNANSWERED question of THIS attempt's display order (S3-02 §1).
+  // Compute the exact expected position from the database instead of
+  // matching /Soal \d+/: question_order gives the display order, the
+  // saved answers give the answered set (answerViaApi answered the
+  // first 8 questions in DB order, which the shuffle scatters).
+  const answeredIds = new Set(
+    (
+      await withE2eDb(
+        (sql) => sql`
+            select question_id from quiz_answers where attempt_id = ${attemptId}
+          `,
+      )
+    ).map((row) => row.question_id as string),
+  );
+  const orderRows = await withE2eDb(
+    (sql) => sql`
+        select question_order as ids from quiz_attempts where id = ${attemptId}
+      `,
+  );
+  const displayOrder = orderRows[0]!.ids as string[];
+  const firstUnanswered = displayOrder.findIndex((id) => !answeredIds.has(id));
+  expect(firstUnanswered, "dua soal masih belum dijawab").toBeGreaterThanOrEqual(0);
   await page.reload();
   await expect(
-    page.getByText("Soal 1 dari 10 · Satu kesempatan"),
+    page.getByText(
+      `Soal ${firstUnanswered + 1} dari 10 · Satu kesempatan`,
+    ),
   ).toBeVisible();
-  // The API answered the first 8 questions in DB order, but the runner
-  // shuffles the display order per attempt — the two unanswered chips land
-  // on different numbers every run. Assert the COUNT, then jump via the
-  // desktop aside's navigator (the mobile copy is lg:hidden at 1280).
+  // The two unanswered chips land on different numbers every run. Assert
+  // the COUNT, then jump via the desktop aside's navigator (the mobile
+  // copy is lg:hidden at 1280).
   const aside = page.locator("aside");
   await expect(
     aside.getByRole("button", { name: /belum dijawab/ }),

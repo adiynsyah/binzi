@@ -85,6 +85,7 @@ function openDto(
     quiz?: OpenDTO["quiz"];
     lessonId?: string;
     finalQuizHref?: string | null;
+    finalQuizDone?: boolean;
   } = {},
 ): OpenDTO {
   return {
@@ -100,6 +101,7 @@ function openDto(
     progress: overrides.progress ?? null,
     quiz: overrides.quiz ?? null,
     finalQuizHref: overrides.finalQuizHref ?? null,
+    finalQuizDone: overrides.finalQuizDone ?? false,
     outline: overrides.outline ?? [
       outlineItem(1, "selesai"),
       outlineItem(2, "kini"),
@@ -349,11 +351,32 @@ describe("LessonPage — open state", () => {
     );
   });
 
+  it("bottom bar: quiz selesai + finalQuizDone → the link reads 'Hasil Final Quiz'", () => {
+    render(
+      <LessonPage
+        data={openDto({
+          quiz: quizCard({ state: "selesai" }),
+          finalQuizHref: "/belajar/gizi-seimbang/final-quiz",
+          finalQuizDone: true,
+        })}
+      />,
+    );
+    const result = screen.getByRole("link", { name: "Hasil Final Quiz" });
+    expect(result.getAttribute("href")).toBe(
+      "/belajar/gizi-seimbang/final-quiz",
+    );
+    // ByRole name matching is full-string, so the plain "Final Quiz"
+    // label cannot match here while "Hasil Final Quiz" is shown.
+    expect(screen.queryByRole("link", { name: "Final Quiz" })).toBeNull();
+  });
+
   it("bottom bar: quiz selesai without finalQuizHref → no Final link", () => {
     render(
       <LessonPage data={openDto({ quiz: quizCard({ state: "selesai" }) })} />,
     );
-    expect(screen.queryByRole("link", { name: "Final Quiz" })).toBeNull();
+    // Regex, not exact: a wrongly-shown "Hasil Final Quiz" must be
+    // caught by this guard too (card S3-02 §5).
+    expect(screen.queryByRole("link", { name: /Final Quiz/ })).toBeNull();
   });
 
   it("bottom bar: last lesson → neither next link nor note", () => {

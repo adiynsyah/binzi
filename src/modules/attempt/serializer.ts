@@ -160,6 +160,11 @@ export type QuizRulesDTO = {
 
 export type QuizRunningDTO = {
   state: "berjalan";
+  /** Card S3-02 §1e: the eyebrow-styled h1 above the runner card —
+   *  "Quiz Materi {posisi} · {judul materi}" (lesson) or "Final Quiz ·
+   *  {judul kursus}" (Final). Built by the service from its context; it
+   *  carries no grading data, so it joins the recursive key-scan safely. */
+  heading: string;
   attemptId: string;
   expiresAt: string;
   serverNow: string;
@@ -183,6 +188,7 @@ export type QuizResultItemDTO = {
 
 export type QuizResultDTO = {
   state: "hasil";
+  reviewAccess: QuizReviewAccess;
   status: AttemptStatus;
   scorePercent: number;
   isPassed: boolean;
@@ -198,6 +204,12 @@ export type QuizResultDTO = {
    *  "Lanjut ke Final Quiz". REQUIRED on the input too, so a caller that
    *  forgets it is a typecheck error, not a silent missing link. */
   finalQuizHref: string | null;
+  /** Card S3-02 §5: the Final Quiz was already worked — finalQuizHref's
+   *  gate plus the STORED enrollment status having left IN_PROGRESS (the
+   *  "nilai tersimpan" lesson, 19 Nov no. 2: status is the source of
+   *  truth, never a recompute from attempts). REQUIRED on the input too,
+   *  same stance as finalQuizHref. */
+  finalQuizDone: boolean;
 };
 
 /**
@@ -318,6 +330,7 @@ export function toQuizRulesDTO(input: {
  * isCorrect at the source; the whole DTO is key-scanned by the test.
  */
 export function toQuizRunningDTO(input: {
+  heading: string;
   attemptId: string;
   questionOrder: readonly string[];
   expiresAt: Date;
@@ -351,6 +364,7 @@ export function toQuizRunningDTO(input: {
   }
   return {
     state: "berjalan",
+    heading: input.heading,
     attemptId: input.attemptId,
     expiresAt: input.expiresAt.toISOString(),
     serverNow: input.serverNow.toISOString(),
@@ -366,7 +380,21 @@ export function toQuizRunningDTO(input: {
  * together, hidden policy answers null for BOTH, so "Kunci:" can never
  * outlive the explanation.
  */
+/**
+ * Card S3-02 §3: which of the four review states the screen renders.
+ * ALWAYS/PASSED → the full review (key + explanation); HIDDEN_NEVER/
+ * HIDDEN_NOT_PASSED → the participant's own answers only, each hidden
+ * state carrying its own intro sentence. "PASSED" is ON_PASS_ONLY for a
+ * passing attempt — shown BECAUSE it passed, never "apa pun nilainya".
+ */
+export type QuizReviewAccess =
+  | "ALWAYS"
+  | "PASSED"
+  | "HIDDEN_NEVER"
+  | "HIDDEN_NOT_PASSED";
+
 export type QuizReviewDTO = {
+  reviewAccess: QuizReviewAccess;
   status: AttemptStatus;
   scorePercent: number;
   isPassed: boolean;
@@ -398,10 +426,17 @@ export function toQuizReviewDTO(input: {
   // The key and the explanation live behind ONE policy gate (PRD §6.3):
   // ON_PASS_ONLY reveals both only for a passing attempt, NEVER hides
   // neither — so "Kunci:" can never outlive the explanation it belongs to.
-  const revealsKey =
-    input.settings.explanationPolicy === "ALWAYS" ||
-    (input.settings.explanationPolicy === "ON_PASS_ONLY" &&
-      attempt.isPassed === true);
+  // reviewAccess (card S3-02 §3) names the state so BOTH result screens
+  // pick their copy from one value instead of re-deriving the policy.
+  const reviewAccess: QuizReviewAccess =
+    input.settings.explanationPolicy === "ALWAYS"
+      ? "ALWAYS"
+      : input.settings.explanationPolicy === "NEVER"
+        ? "HIDDEN_NEVER"
+        : attempt.isPassed === true
+          ? "PASSED"
+          : "HIDDEN_NOT_PASSED";
+  const revealsKey = reviewAccess === "ALWAYS" || reviewAccess === "PASSED";
 
   let correct = 0;
   let wrong = 0;
@@ -459,8 +494,11 @@ export function toQuizReviewDTO(input: {
   );
 
   return {
+    reviewAccess,
     status: attempt.status,
-    scorePercent: Math.round(Number(attempt.scorePercent ?? 0)),
+    // Floor, never round up (card S3-02 §3): a 69.95 % attempt must not
+    // read as 70 next to a "lulus di ≥ 70" verdict.
+    scorePercent: Math.floor(Number(attempt.scorePercent ?? 0)),
     isPassed: attempt.isPassed === true,
     correct,
     wrong,
@@ -486,6 +524,7 @@ export function toQuizResultDTO(input: {
   lesson: { position: number; title: string; href: string };
   next: { position: number; href: string } | null;
   finalQuizHref: string | null;
+  finalQuizDone: boolean;
 }): QuizResultDTO {
   const review = toQuizReviewDTO(input);
   return {
@@ -494,6 +533,7 @@ export function toQuizResultDTO(input: {
     lesson: input.lesson,
     next: input.next,
     finalQuizHref: input.finalQuizHref,
+    finalQuizDone: input.finalQuizDone,
   };
 }
 
