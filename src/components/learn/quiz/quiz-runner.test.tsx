@@ -43,6 +43,7 @@ const EXPIRES_AT = SERVER_NOW + 5 * 60_000;
 function runningDto(overrides: Partial<QuizRunningDTO> = {}): QuizRunningDTO {
   return {
     state: "berjalan",
+    heading: "Quiz Materi 2 · Asam Folat & Zat Besi",
     attemptId: ATTEMPT_ID,
     expiresAt: new Date(EXPIRES_AT).toISOString(),
     serverNow: new Date(SERVER_NOW).toISOString(),

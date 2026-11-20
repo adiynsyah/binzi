@@ -29,6 +29,7 @@ function item(overrides: Partial<QuizResultItemDTO> = {}): QuizResultItemDTO {
 function resultDto(overrides: Partial<QuizResultDTO> = {}): QuizResultDTO {
   return {
     state: "hasil",
+    reviewAccess: "ALWAYS",
     status: "SUBMITTED",
     scorePercent: 80,
     isPassed: true,
@@ -40,6 +41,7 @@ function resultDto(overrides: Partial<QuizResultDTO> = {}): QuizResultDTO {
     lesson: { position: 2, title: "Asam Folat & Zat Besi", href: LESSON_HREF },
     next: { position: 3, href: "/belajar/gizi-ibu-hamil/materi-ketiga" },
     finalQuizHref: null,
+    finalQuizDone: false,
     ...overrides,
   };
 }

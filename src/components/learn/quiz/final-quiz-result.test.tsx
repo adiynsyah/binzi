@@ -35,6 +35,7 @@ function finalDto(
 ): FinalQuizResultDTO {
   return {
     state: "hasil-final",
+    reviewAccess: "ALWAYS",
     status: "SUBMITTED",
     scorePercent: 80,
     isPassed: true,

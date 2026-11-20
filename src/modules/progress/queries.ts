@@ -288,9 +288,20 @@ export async function selectEnrollmentForCourse(
   executor: DbOrTx,
   actorId: string,
   courseId: string,
-): Promise<{ id: string; lastLessonId: string | null } | undefined> {
+): Promise<{
+  id: string;
+  lastLessonId: string | null;
+  /** Card S3-02 §5: the STORED course result — drives finalQuizDone (the
+   *  "nilai tersimpan" lesson, 19 Nov no. 2: read the stored status, never
+   *  recompute it from attempts). */
+  status: (typeof enrollmentStatusEnum.enumValues)[number];
+} | undefined> {
   const rows = await executor
-    .select({ id: enrollments.id, lastLessonId: enrollments.lastLessonId })
+    .select({
+      id: enrollments.id,
+      lastLessonId: enrollments.lastLessonId,
+      status: enrollments.status,
+    })
     .from(enrollments)
     .where(
       and(
