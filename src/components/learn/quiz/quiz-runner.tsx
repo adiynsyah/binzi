@@ -1,11 +1,11 @@
 "use client";
 
-// QuizRunner (card S3-01 §4.B; screens 7g / 7u / 7n, 28c) — the "berjalan"
-// state. Pure presentation + the three client-side concerns the card names:
-// the server-clock timer (offset-corrected, ONE 2-minute announcement,
-// zero → flush ≤ 5 s → collect → refresh), the answer save queue (see
-// answer-save-queue.ts), and the ragu-ragu flag (client-only state by
-// design — it disappears on reload; noted in the PR).
+// QuizRunner (card S3-01 §4.B; screens 7g / 7u / 7n, 28c; perapian S3-02
+// §1) — the "berjalan" state. Pure presentation + the three client-side
+// concerns the card names: the server-clock timer (offset-corrected, ONE
+// 2-minute announcement, zero → flush ≤ 5 s → collect → refresh), the
+// answer save queue (see answer-save-queue.ts), and the ragu-ragu flag
+// (client-only state by design — it disappears on reload; noted in the PR).
 import {
   useCallback,
   useEffect,
@@ -88,22 +88,19 @@ function QuestionChipGrid({
             }${flagged ? ", ditandai ragu" : ""}`}
             className={cn(
               "grid size-11 place-items-center rounded-control border font-mono text-sm font-medium transition-colors",
-              // 28c contrast (owner review of PR 138): an unsaved pick is
-              // a dashed DANGER outline (border-dashed read 1.51:1); an
-              // answered chip goes dark like 7u's dots (bg-fill was
-              // 1.15:1 against white) — bg-text text-surface border-text.
+              // 28c contrast (owner review of PR 138, S3-02 §1): an unsaved
+              // pick keeps the LIGHT bg and turns both the dashed outline
+              // and the NUMBER danger — unsaved is the most severe state,
+              // so it wins over the ragu tint (which only applies once the
+              // pick is safe on the server). A saved answer goes dark like
+              // 7u's dots (bg-fill was 1.15:1 against white).
               unsaved
-                ? "border-dashed border-danger"
+                ? "border-2 border-dashed border-danger bg-surface text-danger"
                 : flagged
-                  ? "border-warning"
+                  ? "border-warning bg-warning-tint text-warning-tint-text"
                   : answered
-                    ? "border-text"
-                    : "border-border-strong",
-              flagged
-                ? "bg-warning-tint text-warning-tint-text"
-                : answered
-                  ? "bg-text text-surface"
-                  : "bg-surface text-text-muted",
+                    ? "border-text bg-text text-surface"
+                    : "border-border-strong bg-surface text-text-muted",
               current &&
                 "ring-2 ring-primary ring-offset-2 ring-offset-surface",
             )}
@@ -121,7 +118,18 @@ export function QuizRunner({ data }: { data: QuizRunningDTO }) {
   const { refresh } = router;
 
   const [phase, setPhase] = useState<"soal" | "ringkasan">("soal");
-  const [index, setIndex] = useState(0);
+  // Re-entry lands on the FIRST unanswered question (same predicate as
+  // the chip's "sudah dijawab"), or the last question when every one is
+  // answered. Derived once from DTO data, so server and client render
+  // the same first frame (card S3-02 §1).
+  const [index, setIndex] = useState(() => {
+    const firstUnanswered = data.questions.find(
+      (item) => data.answers[item.id] === undefined,
+    );
+    return firstUnanswered
+      ? firstUnanswered.number - 1
+      : data.questions.length - 1;
+  });
   const [answers, setAnswers] = useState<Record<string, string>>({
     ...data.answers,
   });
@@ -130,6 +138,9 @@ export function QuizRunner({ data }: { data: QuizRunningDTO }) {
   const [expired, setExpired] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitFailed, setSubmitFailed] = useState(false);
+  // Bumps on every collect failure — keys the inline banner's remount
+  // (a fresh role="alert" announcement + focus move per failure).
+  const [submitFailCount, setSubmitFailCount] = useState(0);
 
   // The timer starts from the DTO's server/client pair so server and
   // client render the SAME first frame; the offset correction follows.
@@ -137,9 +148,11 @@ export function QuizRunner({ data }: { data: QuizRunningDTO }) {
   const [remainingMs, setRemainingMs] = useState(
     () => expiresAtMs - Date.parse(data.serverNow),
   );
-  // Wall clock mirror of the tick above (0 until the first tick, which
-  // keeps the first server/client frame identical).
-  const [nowMs, setNowMs] = useState(0);
+  // Device wall clock mirror of the tick below (0 until the first tick,
+  // which keeps the first server/client frame identical). The timer rides
+  // the SERVER clock; the 28c failingSince stamp is device-side, so the
+  // > 10 s stage-2 check must compare device-with-device (card S3-02 §1).
+  const [deviceNowMs, setDeviceNowMs] = useState(0);
 
   const submitUrl = `/api/quiz/attempts/${data.attemptId}/submit`;
 
@@ -152,11 +165,13 @@ export function QuizRunner({ data }: { data: QuizRunningDTO }) {
         // 409 = already final elsewhere — the refresh below still lands on
         // the result state; anything else keeps the runner retryable.
         setSubmitFailed(true);
+        setSubmitFailCount((count) => count + 1);
         setSubmitting(false);
         return;
       }
     } catch {
       setSubmitFailed(true);
+      setSubmitFailCount((count) => count + 1);
       setSubmitting(false);
       return;
     }
@@ -207,10 +222,12 @@ export function QuizRunner({ data }: { data: QuizRunningDTO }) {
   useEffect(() => {
     offsetRef.current = Date.parse(data.serverNow) - Date.now();
     const id = setInterval(() => {
-      // One tick drives both displays: the clock and the 28c stage-2
-      // check (render stays pure — no Date.now() during render).
-      const now = Date.now() + offsetRef.current;
-      setNowMs(now);
+      // One tick drives both clock domains: the server-offset timer
+      // display and the device-domain 28c stage-2 check (render stays
+      // pure — no Date.now() during render).
+      const device = Date.now();
+      const now = device + offsetRef.current;
+      setDeviceNowMs(device);
       setRemainingMs(Math.max(0, expiresAtMs - now));
     }, 1000);
     return () => clearInterval(id);
@@ -264,6 +281,17 @@ export function QuizRunner({ data }: { data: QuizRunningDTO }) {
     headingRef.current?.focus();
   }, [index, phase]);
 
+  // A failed collect moves focus INTO the inline banner (keyboard users
+  // must learn the submit did not land). preventScroll + a manual
+  // center scroll keeps the jump deterministic — the learn area's fixed
+  // bottom nav (< 768) can cover a browser-default "nearest" scroll.
+  const collectFailRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (submitFailCount === 0) return;
+    collectFailRef.current?.focus({ preventScroll: true });
+    collectFailRef.current?.scrollIntoView({ block: "center" });
+  }, [submitFailCount]);
+
   function selectOption(questionId: string, optionId: string) {
     if (expired) return;
     if (answers[questionId] === optionId) return;
@@ -301,10 +329,13 @@ export function QuizRunner({ data }: { data: QuizRunningDTO }) {
   const recoveredNumbers = (queueState.recovered ?? [])
     .map((id) => numberById.get(id) ?? 0)
     .sort((a, b) => a - b);
+  // Stage 2 compares DEVICE-with-device (failingSince is stamped by the
+  // save queue's Date.now()); riding the server clock here would trip
+  // the banner early/late whenever the two clocks drift (card S3-02 §1).
   const showOfflineBanner =
     queueState.failingSince !== null &&
     queueState.pending.length > 0 &&
-    nowMs - queueState.failingSince > 10_000;
+    deviceNowMs - queueState.failingSince > 10_000;
 
   const indicator =
     Object.keys(answers).length === 0
@@ -325,17 +356,25 @@ export function QuizRunner({ data }: { data: QuizRunningDTO }) {
 
   return (
     <div className="mx-auto max-w-3xl">
-      {/* 28c stage 3 — recovery (self-dismissing success banner). */}
+      {/* Page heading from the DTO (card S3-02 §1) — quiz Materi N · judul
+          for lesson quizzes, Final Quiz · nama kursus for the Final. */}
+      <h1 className="mb-3 font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-primary-deep">
+        {data.heading}
+      </h1>
+      {/* 28c stage 3 — recovery (self-dismissing success banner), sticky
+          below the header so it stays visible while scrolling the quiz. */}
       {queueState.recovered !== null ? (
         <Banner
           key={queueState.recovered.join(",")}
           tone="success"
           title={`Tersambung. Jawaban soal ${formatNumberList(recoveredNumbers)} sudah tersimpan.`}
           onDismissed={() => queue.clearRecovered()}
-          className="mb-4"
+          className="sticky top-[69px] z-20 mb-4 sm:top-[81px]"
         />
       ) : null}
-      {/* 28c stage 2 — offline for more than 10 seconds. */}
+      {/* 28c stage 2 — offline for more than 10 seconds, same sticky slot.
+          top-[69px] sm:top-[81px] sinkron dengan HEADER_HEIGHT_CLASS
+          (h-[68px] sm:h-[80px]) + border-b di header belajar. */}
       {showOfflineBanner ? (
         <Banner
           tone="error"
@@ -349,20 +388,15 @@ export function QuizRunner({ data }: { data: QuizRunningDTO }) {
               Coba kirim sekarang
             </Button>
           }
-          className="mb-4"
-        />
-      ) : null}
-      {submitFailed ? (
-        <Banner
-          tone="error"
-          title={COLLECT_FAILED_MESSAGE}
-          className="mb-4"
+          className="sticky top-[69px] z-20 mb-4 sm:top-[81px]"
         />
       ) : null}
 
       <div className="rounded-card border border-border bg-surface p-4 sm:p-6">
-        {/* Kepala: eyebrow + server timer + save indicator (7g). */}
-        <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
+        {/* Kepala: eyebrow + server timer + save indicator (7g). One row
+            at every width (7u/S3-02 §1): the eyebrow box may wrap its own
+            text (min-w-0), the timer never shrinks. */}
+        <div className="flex items-start justify-between gap-x-6">
           <div className="min-w-0">
             <p className="font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-primary-deep">
               {phase === "soal"
@@ -373,7 +407,7 @@ export function QuizRunner({ data }: { data: QuizRunningDTO }) {
               {announcement}
             </p>
           </div>
-          <div className="text-right">
+          <div className="shrink-0 text-right">
             <p
               role="timer"
               aria-label="Sisa waktu"
@@ -409,32 +443,63 @@ export function QuizRunner({ data }: { data: QuizRunningDTO }) {
         </div>
 
         {/* Navigator: chip row above the question (<1024, 7u tablet rule),
-            side card at ≥1024 (7g desktop). */}
-        <div className="mt-5 lg:hidden">
-          <QuestionChipGrid
-            questions={questions}
-            answers={answers}
-            flags={flags}
-            unsavedIds={unsavedIds}
-            currentNumber={phase === "soal" ? question.number : null}
-            onSelect={goToQuestion}
-          />
-        </div>
+            side card at ≥1024 (7g desktop). Soal phase only — the ringkasan
+            already carries its own navigator (7u: exactly one). */}
+        {phase === "soal" ? (
+          <div className="mt-5 lg:hidden">
+            <QuestionChipGrid
+              questions={questions}
+              answers={answers}
+              flags={flags}
+              unsavedIds={unsavedIds}
+              currentNumber={question.number}
+              onSelect={goToQuestion}
+            />
+          </div>
+        ) : null}
 
         {/* The aside column is a FIXED 288px, not `auto`: an auto track
             sizes to the chip row UNWRAPPED (~546px for 10 chips), which
             starves the question column to ~140px and puts the nav buttons
             under the aside (found by the S3-01 e2e). At 288px the chips
-            wrap 5+5 like 7g. */}
-        <div className="mt-6 grid gap-8 lg:grid-cols-[minmax(0,1fr)_288px]">
+            wrap 5+5 like 7g. Two columns in the SOAL phase only (S3-02
+            §1) — the ringkasan spans the full card width. */}
+        <div
+          className={cn(
+            "mt-6",
+            phase === "soal" && "grid gap-8 lg:grid-cols-[minmax(0,1fr)_288px]",
+          )}
+        >
           <div className="min-w-0">
             {expired ? (
-              <p
-                role="status"
-                className="py-10 text-center font-mono text-sm font-medium text-text-muted"
-              >
-                {EXPIRED_STATUS}
-              </p>
+              <>
+                <p
+                  role="status"
+                  className="py-10 text-center font-mono text-sm font-medium text-text-muted"
+                >
+                  {EXPIRED_STATUS}
+                </p>
+                {/* Collect failed at timer-zero: inline retry, not the
+                    old top banner (S3-02 §1). The flush already ran, so
+                    the retry goes straight to collectAndRefresh. */}
+                {submitFailed ? (
+                  <div ref={collectFailRef} tabIndex={-1}>
+                    <Banner
+                      key={submitFailCount}
+                      tone="error"
+                      title={COLLECT_FAILED_MESSAGE}
+                      action={
+                        <Button
+                          variant="secondary"
+                          onClick={() => void collectAndRefresh()}
+                        >
+                          Coba kumpulkan lagi
+                        </Button>
+                      }
+                    />
+                  </div>
+                ) : null}
+              </>
             ) : phase === "ringkasan" ? (
               <>
                 <h2
@@ -477,6 +542,7 @@ export function QuizRunner({ data }: { data: QuizRunningDTO }) {
                       loading={submitting}
                       loadingLabel="Mengumpulkan…"
                       softDisabled={queueState.pending.length > 0}
+                      className="w-full sm:w-auto"
                     >
                       Kumpulkan sekarang
                     </Button>
@@ -487,6 +553,27 @@ export function QuizRunner({ data }: { data: QuizRunningDTO }) {
                     ) : null}
                   </div>
                 </div>
+                {/* Collect failure: its OWN full-width row below the button
+                    row (S3-02 §1) — never squeezed into the right-aligned
+                    button column. Focus lands here via the effect above;
+                    `key` remounts per failure for a fresh alert + focus. */}
+                {submitFailed ? (
+                  <div ref={collectFailRef} tabIndex={-1} className="mt-4">
+                    <Banner
+                      key={submitFailCount}
+                      tone="error"
+                      title={COLLECT_FAILED_MESSAGE}
+                      action={
+                        <Button
+                          variant="secondary"
+                          onClick={() => void handleCollect()}
+                        >
+                          Coba kumpulkan lagi
+                        </Button>
+                      }
+                    />
+                  </div>
+                ) : null}
               </>
             ) : (
               <>
@@ -568,26 +655,40 @@ export function QuizRunner({ data }: { data: QuizRunningDTO }) {
                       disabled={index === 0}
                       className="w-full sm:w-auto"
                     >
-                      <ArrowLeft className="size-4" aria-hidden="true" />
+                      <ArrowLeft
+                        className="size-4 shrink-0"
+                        aria-hidden="true"
+                      />
                       Sebelumnya
                     </Button>
+                    {/* Forward action is the visual primary of the pair
+                        (7u) — dark at the md band so it matches
+                        "Sebelumnya"'s 48px, not the 52px lg band. */}
                     {isLast ? (
                       <Button
-                        variant="secondary"
+                        variant="dark"
+                        size="md"
                         onClick={() => setPhase("ringkasan")}
                         className="w-full sm:w-auto"
                       >
                         Lihat ringkasan
-                        <ArrowRight className="size-4" aria-hidden="true" />
+                        <ArrowRight
+                          className="size-4 shrink-0"
+                          aria-hidden="true"
+                        />
                       </Button>
                     ) : (
                       <Button
-                        variant="secondary"
+                        variant="dark"
+                        size="md"
                         onClick={() => setIndex((value) => value + 1)}
                         className="w-full sm:w-auto"
                       >
                         Berikutnya
-                        <ArrowRight className="size-4" aria-hidden="true" />
+                        <ArrowRight
+                          className="size-4 shrink-0"
+                          aria-hidden="true"
+                        />
                       </Button>
                     )}
                   </div>
@@ -596,21 +697,23 @@ export function QuizRunner({ data }: { data: QuizRunningDTO }) {
             )}
           </div>
 
-          <aside className="hidden lg:block">
-            <div className="rounded-card border border-border bg-surface-2 p-4">
-              <h3 className="font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-text-meta">
-                Navigator soal
-              </h3>
-              <QuestionChipGrid
-                questions={questions}
-                answers={answers}
-                flags={flags}
-                unsavedIds={unsavedIds}
-                currentNumber={phase === "soal" ? question.number : null}
-                onSelect={goToQuestion}
-              />
-            </div>
-          </aside>
+          {phase === "soal" ? (
+            <aside className="hidden lg:block">
+              <div className="rounded-card border border-border bg-surface-2 p-4">
+                <h3 className="font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-text-meta">
+                  Navigator soal
+                </h3>
+                <QuestionChipGrid
+                  questions={questions}
+                  answers={answers}
+                  flags={flags}
+                  unsavedIds={unsavedIds}
+                  currentNumber={question.number}
+                  onSelect={goToQuestion}
+                />
+              </div>
+            </aside>
+          ) : null}
         </div>
       </div>
     </div>
