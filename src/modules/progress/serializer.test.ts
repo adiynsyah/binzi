@@ -1311,8 +1311,34 @@ describe("toCourseProgressPageDTO — ringkasan", () => {
     expect(dto.hasFailedLesson).toBe(true);
   });
 
-  it("null average + zero graded before any score; hasFailedLesson false without a failed row", () => {
+  it("isPassed is the STORED verdict, never recomputed from the score (custom passing scores)", () => {
+    // 75 with a STORED false (a quiz whose passing score sits above 70) and
+    // 60 with a STORED true — both diverge from the ">= 70" shortcut.
     const dto = toCourseProgressPageDTO(
+      progressInput({
+        outline: [
+          lessonRow(1, {
+            status: "COMPLETED",
+            quizAttempted: true,
+            quizScorePercent: "75.00",
+            quizIsPassed: false,
+          }),
+          lessonRow(2, {
+            status: "COMPLETED",
+            quizAttempted: true,
+            quizScorePercent: "60.00",
+            quizIsPassed: true,
+          }),
+        ],
+      }),
+    );
+    if (dto.state !== "progres") throw new Error("expected progres");
+    expect(dto.lessons[0]!.isPassed).toBe(false);
+    expect(dto.lessons[1]!.isPassed).toBe(true);
+    expect(dto.hasFailedLesson).toBe(true);
+  });
+
+  it("null average + zero graded before any score; hasFailedLesson false without a failed row", () => {    const dto = toCourseProgressPageDTO(
       progressInput({
         outline: [
           lessonRow(1, { status: "IN_PROGRESS" }),
