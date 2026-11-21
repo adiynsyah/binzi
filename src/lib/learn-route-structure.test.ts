@@ -139,3 +139,22 @@ describe("final quiz route structure (card S5-02 §6)", () => {
     ).toBe(false);
   });
 });
+
+describe("nilai route structure (card S5-03 §3)", () => {
+  it("has the Nilai Saya page at belajar/nilai/page.tsx", () => {
+    // The static segment `nilai` wins over [slug]; a course slug "nilai"
+    // is rejected in course/schema.ts (checked since S1-01).
+    expect(
+      existsSync(join(APP_DIR, "(learn)", "belajar", "nilai", "page.tsx")),
+    ).toBe(true);
+  });
+
+  it("has no loading.tsx in belajar/nilai/ — outside (dashboard), nothing to fall back to", () => {
+    // Card §3: the dashboard skeleton is not this page's shape, and one
+    // pure GET needs no fallback. Guarded so a later addition has to
+    // revisit the decision.
+    expect(
+      existsSync(join(APP_DIR, "(learn)", "belajar", "nilai", "loading.tsx")),
+    ).toBe(false);
+  });
+});
