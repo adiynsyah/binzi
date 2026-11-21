@@ -202,14 +202,21 @@ function EmptyCourses({ available }: { available: LearnerCourseDTO[] }) {
                       : ` · ${course.estimatedMinutes} menit`}
                   </p>
                 </div>
-                <StartCourseButton
-                  courseId={course.id}
-                  variant="secondary"
-                  className="w-full sm:w-auto"
-                  aria-describedby={titleId}
-                >
-                  Mulai materi 1
-                </StartCourseButton>
+                {/* Round 2 item 2: StartCourseButton renders Button + an
+                    ALWAYS-MOUNTED <p role="alert"> as siblings — wrapped so
+                    the alert is not a separate flex item of the <li> (a stray
+                    gap right of the button; the error would land BESIDE it).
+                    Inside the wrapper the alert stacks BELOW the button. */}
+                <div className="w-full sm:w-auto">
+                  <StartCourseButton
+                    courseId={course.id}
+                    variant="secondary"
+                    className="w-full sm:w-auto"
+                    aria-describedby={titleId}
+                  >
+                    Mulai materi 1
+                  </StartCourseButton>
+                </div>
               </li>
             );
           })}

@@ -274,22 +274,31 @@ function FinalRow({
               : "Sudah dikerjakan"}
         </p>
       </div>
-      {final.status === "terbuka" ? (
-        <Link
-          href={final.href}
-          className={cn(buttonVariants({ variant: "dark" }), "text-sm")}
-        >
-          Kerjakan Final Quiz
-        </Link>
-      ) : null}
-      {final.status === "selesai" ? (
-        <Link
-          href={final.href}
-          className="inline-flex min-h-11 items-center text-sm font-bold text-primary-deep underline-offset-4 hover:underline"
-        >
-          Lihat hasil
-        </Link>
-      ) : null}
+      {/* Round 2 item 1: the Final row gets the SAME lesson-row treatment —
+          the actions drop UNDER the text below 640 (basis-full) instead of
+          squeezing the title/status column to ±41 px; the CTA goes w-full
+          there (sm:w-auto). */}
+      <div className="flex basis-full flex-wrap items-center gap-3 sm:basis-auto">
+        {final.status === "terbuka" ? (
+          <Link
+            href={final.href}
+            className={cn(
+              buttonVariants({ variant: "dark" }),
+              "w-full text-sm sm:w-auto",
+            )}
+          >
+            Kerjakan Final Quiz
+          </Link>
+        ) : null}
+        {final.status === "selesai" ? (
+          <Link
+            href={final.href}
+            className="inline-flex min-h-11 items-center text-sm font-bold text-primary-deep underline-offset-4 hover:underline"
+          >
+            Lihat hasil
+          </Link>
+        ) : null}
+      </div>
     </div>
   );
 }
