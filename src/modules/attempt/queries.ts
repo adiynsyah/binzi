@@ -10,7 +10,7 @@
 // attempt lookup — anti-IDOR in two layers, PRD §12.6 V-05).
 import "server-only";
 
-import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 
 import type { Db } from "@/db/client";
 import { db } from "@/db";
@@ -22,6 +22,7 @@ import type {
   AttemptQuestionRow,
   AttemptRow,
   AttemptStatus,
+  ExplanationPolicy,
   QuizSettingsRow,
   QuizType,
 } from "./serializer";
@@ -457,4 +458,79 @@ export async function selectSubmitPreread(
     )
     .limit(1);
   return rows[0];
+}
+
+// ------------------------------------------------------ S5-03 Nilai Saya
+
+/** One quizzes row as the grades page reads it (card S5-03 §2). */
+export type QuizGradeSettingsRow = {
+  quizId: string;
+  explanationPolicy: ExplanationPolicy;
+  questionCount: number;
+};
+
+/**
+ * The grades page's quiz settings in ONE query (card S5-03 §2): the id, the
+ * explanation policy (drives the review link's accessible name), and the
+ * question count the Final row shows. The count is the SAME hand-written
+ * correlated subquery as selectOpenLessonQuiz — table interpolated, alias
+ * `q` + outer `quizzes.id` written out, so the column can never misbind.
+ */
+export async function selectQuizGradeSettings(
+  quizIds: string[],
+): Promise<QuizGradeSettingsRow[]> {
+  return db
+    .select({
+      quizId: quizzes.id,
+      explanationPolicy: quizzes.explanationPolicy,
+      questionCount: sql<number>`(
+        select count(*) from ${questions} as q where q.quiz_id = quizzes.id
+      )`.mapWith(Number),
+    })
+    .from(quizzes)
+    .where(inArray(quizzes.id, quizIds));
+}
+
+/** One finished live Final attempt as the grades page reads it
+ *  (card S5-03 §2) — same source as the Final result screen. */
+export type FinalAttemptResultRow = {
+  quizId: string;
+  /** NUMERIC as it leaves the driver — floored by the DTO. */
+  scorePercent: string | null;
+  isPassed: boolean | null;
+  submittedAt: Date | null;
+  attemptNumber: number;
+};
+
+/**
+ * The actor's finished LIVE Final attempts for the given quizzes in ONE
+ * query (card S5-03 §2): `user_id = actor` and `reset_at IS NULL` in the
+ * WHERE (anti-IDOR + QZ-19, same clauses as selectAttemptByQuizAndUser),
+ * status SUBMITTED/EXPIRED — an IN_PROGRESS attempt is not a grade yet.
+ * Rows come back `quiz_id asc, attempt_number desc`; with valid data each
+ * quiz answers at most one row, and the caller keeps the FIRST row per
+ * quiz if a reset ever left two behind.
+ */
+export async function selectFinalAttemptResults(
+  actorId: string,
+  quizIds: string[],
+): Promise<FinalAttemptResultRow[]> {
+  return db
+    .select({
+      quizId: quizAttempts.quizId,
+      scorePercent: quizAttempts.scorePercent,
+      isPassed: quizAttempts.isPassed,
+      submittedAt: quizAttempts.submittedAt,
+      attemptNumber: quizAttempts.attemptNumber,
+    })
+    .from(quizAttempts)
+    .where(
+      and(
+        eq(quizAttempts.userId, actorId),
+        inArray(quizAttempts.quizId, quizIds),
+        sql`${quizAttempts.resetAt} is null`,
+        inArray(quizAttempts.status, ["SUBMITTED", "EXPIRED"]),
+      ),
+    )
+    .orderBy(asc(quizAttempts.quizId), desc(quizAttempts.attemptNumber));
 }
