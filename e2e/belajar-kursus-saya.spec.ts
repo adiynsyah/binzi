@@ -381,6 +381,23 @@ test("1. terisi: urutan updated_at, badge/aksi/meta, progres Y/X/Z, lebar 360–
         `progres-berjalan-${width} baris ${index + 1}`,
       );
     }
+    if (width === 360) {
+      // PR 150 review item 6: the TEXT links also carry a ≥ 44 px band.
+      await expectTouchTarget(
+        page
+          .getByRole("listitem")
+          .nth(0)
+          .getByRole("link", { name: "Buka materi", exact: true }),
+        "progres Y baris 1 Buka materi",
+      );
+      await expectTouchTarget(
+        page
+          .getByRole("listitem")
+          .nth(2)
+          .getByRole("link", { name: "Kerjakan quiz", exact: true }),
+        "progres Y baris 3 Kerjakan quiz",
+      );
+    }
     await maybeScreenshot(
       page,
       `progres-berjalan-${width}`,

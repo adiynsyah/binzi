@@ -33,6 +33,11 @@ export type MyCoursesProps = {
   data: MyCoursesPageDTO;
 };
 
+/** The mono eyebrow — the SAME class Nilai Saya uses (PR 150 review item 8),
+ *  kept local so my-grades.tsx stays untouched. */
+const EYEBROW_CLASS =
+  "font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-text-subtle";
+
 /** The meta mono line under the badge — DOM text lowercase, uppercased by
  *  CSS like every mono meta in the learn area (13b: "4/8 MATERI ·
  *  TERAKHIR DIBUKA …"). */
@@ -76,26 +81,25 @@ function CourseCard({ course }: { course: MyCourseDTO }) {
       className="rounded-card border border-border bg-surface p-4 sm:grid sm:grid-cols-[96px_minmax(0,1fr)] sm:items-center sm:gap-4 lg:grid-cols-[96px_minmax(0,1fr)_210px]"
     >
       <CoverBlock className="h-[110px] w-full rounded-control sm:row-start-1 sm:h-24 sm:w-24" />
-      <div className="mt-3 grid min-w-0 gap-2 sm:mt-0 sm:row-start-1 sm:grid-cols-[auto_minmax(0,1fr)] sm:gap-x-3">
-        <BadgeStatus
-          status={course.badge}
-          className="justify-self-start sm:col-start-1 sm:row-start-1"
-        />
-        <p className="font-mono text-xs font-medium uppercase tracking-wide text-text-muted sm:col-start-2 sm:row-start-1 sm:self-center sm:justify-self-end sm:text-right">
-          {metaLine(course)}
-        </p>
+      <div className="mt-3 min-w-0 sm:row-start-1 sm:mt-0">
+        {/* 13b: badge first, meta mono RIGHT AFTER it — left-aligned, never
+            pushed to the right edge (review item 9). */}
+        <div className="flex flex-wrap items-center gap-[9px]">
+          <BadgeStatus status={course.badge} />
+          <p className="font-mono text-xs font-medium uppercase tracking-wide text-text-meta">
+            {metaLine(course)}
+          </p>
+        </div>
         <h2
           id={titleId}
-          className="wrap-anywhere text-base font-bold text-text sm:col-span-2 sm:row-start-2"
+          className="mt-[9px] wrap-anywhere text-[18px] font-black leading-[1.3] tracking-[-0.012em] text-text"
         >
           {course.title}
         </h2>
         {sub !== null ? (
-          <p className="text-[13.5px] text-text-muted sm:col-span-2 sm:row-start-3">
-            {sub}
-          </p>
+          <p className="mt-2 text-[13.5px] text-text-muted">{sub}</p>
         ) : null}
-        <div className="mt-1 sm:col-span-2 sm:row-start-4 sm:mt-0">
+        <div className="mt-[11px]">
           <ProgressBar
             value={course.completedLessonCount}
             max={course.lessonCount}
@@ -156,17 +160,17 @@ function CourseCard({ course }: { course: MyCourseDTO }) {
   );
 }
 
-/** 13c — the empty state with the available list. The intro sentence and
- *  the row shape are the card's (decision 10: rows carry a real
+/** 13c — the empty state with the available list (review item 10): the box
+ *  and the list keep the design's max widths, and every available course is
+ *  ONE white bordered row with the button at the right from 640 up (below
+ *  that it wraps under the text, w-full). Rows carry a real
  *  StartCourseButton, not the design's "Lihat →" — nothing is enrolled
- *  yet, so starting is exactly what the moment asks for). */
+ *  yet, so starting is exactly what the moment asks for (decision 10). */
 function EmptyCourses({ available }: { available: LearnerCourseDTO[] }) {
   return (
-    <div className="rounded-card border border-dashed border-border-dashed bg-surface-2 p-5 sm:p-6">
-      <p className="font-mono text-xs font-bold uppercase tracking-wide text-primary-deep">
-        Belum ada kursus
-      </p>
-      <h2 className="mt-2 text-xl font-black tracking-tight text-text">
+    <div className="max-w-[820px] rounded-card border border-dashed border-border-dashed bg-surface-2 p-5 sm:p-8">
+      <p className={EYEBROW_CLASS}>Belum ada kursus</p>
+      <h2 className="mt-2 text-[28px] font-black leading-[1.2] tracking-[-0.022em] text-text">
         Anda belum mengikuti kursus apa pun
       </h2>
       <p className="mt-2 max-w-(--width-measure) text-sm text-text-muted">
@@ -175,19 +179,19 @@ function EmptyCourses({ available }: { available: LearnerCourseDTO[] }) {
           : "Belum ada kursus yang bisa diikuti saat ini."}
       </p>
       {available.length > 0 ? (
-        <ul className="mt-6 flex flex-col gap-5">
+        <ul className="mt-6 flex max-w-[560px] flex-col gap-2.5">
           {available.map((course) => {
             const titleId = `kursus-tersedia-${course.id}`;
             return (
               <li
                 key={course.id}
-                className="grid grid-cols-[56px_minmax(0,1fr)] gap-3"
+                className="flex flex-wrap items-center gap-3.5 rounded-card border border-border bg-surface px-4 py-3.5"
               >
-                <CoverBlock className="h-[42px] w-14 shrink-0 rounded-sm" />
-                <div className="min-w-0">
+                <CoverBlock className="h-10 w-[52px] shrink-0 rounded-control" />
+                <div className="min-w-0 flex-1">
                   <h3
                     id={titleId}
-                    className="wrap-anywhere text-[14.5px] font-bold text-text"
+                    className="wrap-anywhere text-[15.5px] font-bold text-text"
                   >
                     {course.title}
                   </h3>
@@ -197,15 +201,15 @@ function EmptyCourses({ available }: { available: LearnerCourseDTO[] }) {
                       ? ""
                       : ` · ${course.estimatedMinutes} menit`}
                   </p>
-                  <StartCourseButton
-                    courseId={course.id}
-                    variant="secondary"
-                    className="mt-3 w-full"
-                    aria-describedby={titleId}
-                  >
-                    Mulai materi 1
-                  </StartCourseButton>
                 </div>
+                <StartCourseButton
+                  courseId={course.id}
+                  variant="secondary"
+                  className="w-full sm:w-auto"
+                  aria-describedby={titleId}
+                >
+                  Mulai materi 1
+                </StartCourseButton>
               </li>
             );
           })}
@@ -229,9 +233,7 @@ export function MyCourses({ data }: MyCoursesProps) {
     <>
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="font-mono text-xs font-bold uppercase tracking-wide text-primary-deep">
-            Belajar / Kursus Saya
-          </p>
+          <p className={EYEBROW_CLASS}>Belajar / Kursus Saya</p>
           <h1 className="mt-2 text-[25px] font-black leading-[1.14] tracking-[-0.022em] text-text sm:text-[32px] sm:leading-[1.16] sm:tracking-[-0.024em]">
             Kursus Saya
           </h1>

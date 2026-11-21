@@ -11,13 +11,7 @@
 // backgrounds (the contrast table in the card's Catatan tinjauan).
 
 import Link from "next/link";
-import {
-  Circle,
-  CircleAlert,
-  CircleCheck,
-  CircleDashed,
-  Lock,
-} from "lucide-react";
+import { Check, Lock } from "lucide-react";
 
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { buttonVariants } from "@/components/ui/button-variants";
@@ -35,6 +29,11 @@ export type CourseProgressProps = {
   progres: Extract<CourseProgressPageDTO, { state: "progres" }>;
   weights: ScoreWeights;
 };
+
+/** The mono eyebrow — the SAME class Nilai Saya uses (PR 150 review item 8),
+ *  kept local so my-grades.tsx stays untouched. */
+const EYEBROW_CLASS =
+  "font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-text-subtle";
 
 /** The 8c status cell: icon (decorative) + the status line as real text. */
 function LessonStatus({
@@ -83,26 +82,50 @@ function LessonStatus({
   return null;
 }
 
-/** The 8c leading icon per status — decorative, aria-hidden. */
-function LessonIcon({
-  lesson,
-}: {
-  lesson: CourseProgressLessonDTO;
-}) {
+/** The 8c leading icon per status — a 28px FILLED shape (review item 7),
+ *  decorative, aria-hidden. `primary` on the ring and `success`/`warning`
+ *  fills are non-text elements — exactly what those tokens are for. */
+function LessonIcon({ lesson }: { lesson: CourseProgressLessonDTO }) {
   if (lesson.status === "selesai") {
-    return <CircleCheck className="size-5 shrink-0 text-success" />;
+    return (
+      <span className="grid size-7 shrink-0 place-items-center rounded-full bg-success">
+        <Check aria-hidden="true" className="size-3.5 text-surface" />
+      </span>
+    );
   }
   if (lesson.status === "quiz-belum") {
-    return <CircleAlert className="size-5 shrink-0 text-warning-tint-text" />;
+    return (
+      <span
+        aria-hidden="true"
+        className="grid size-7 shrink-0 place-items-center rounded-full bg-warning text-[14px] font-bold leading-none text-text"
+      >
+        !
+      </span>
+    );
   }
   if (lesson.status === "sedang-dipelajari") {
-    // The ring is a non-text element — `primary` is exactly for these.
-    return <CircleDashed className="size-5 shrink-0 text-primary" />;
+    return (
+      <span
+        aria-hidden="true"
+        className="size-7 shrink-0 rounded-full border-[2.5px] border-primary"
+      />
+    );
   }
   if (lesson.status === "terkunci") {
-    return <Lock className="size-5 shrink-0 text-text-subtle" />;
+    return <LockedCircle />;
   }
-  return <Circle className="size-5 shrink-0 text-fill" />;
+  return (
+    <span aria-hidden="true" className="size-7 shrink-0 rounded-full bg-fill" />
+  );
+}
+
+/** Terkunci (lesson AND Final): a small lock in a fill-soft circle. */
+function LockedCircle() {
+  return (
+    <span className="grid size-7 shrink-0 place-items-center rounded-full bg-fill-soft">
+      <Lock aria-hidden="true" className="size-3.5 text-text-subtle" />
+    </span>
+  );
 }
 
 const rowTone = (lesson: CourseProgressLessonDTO) =>
@@ -154,7 +177,11 @@ function LessonRow({
         )}
         <LessonStatus lesson={lesson} />
       </div>
-      <div className="flex items-center gap-3">
+      {/* Actions: basis-full below 640 so they drop UNDER the text (review
+          item 5) instead of squeezing the title into ±130 px; the CTA
+          buttons go w-full there (sm:w-auto). Text links get a ≥ 44 px
+          inline-flex band (item 6) without changing how they look. */}
+      <div className="flex basis-full flex-wrap items-center gap-3 sm:basis-auto">
         {lesson.status === "belum-mulai" ? (
           <span className="font-mono text-xs font-medium uppercase tracking-wide text-text-meta">
             Belum mulai
@@ -164,7 +191,7 @@ function LessonRow({
           <Link
             href={lesson.href!}
             aria-describedby={titleId}
-            className="text-sm font-bold text-primary-deep underline-offset-4 hover:underline"
+            className="inline-flex min-h-11 items-center text-sm font-bold text-primary-deep underline-offset-4 hover:underline"
           >
             {lesson.hasVideo ? "Tonton ulang" : "Buka materi"}
           </Link>
@@ -175,7 +202,10 @@ function LessonRow({
           <Link
             href={lesson.href!}
             aria-describedby={titleId}
-            className={cn(buttonVariants({ variant: "dark" }), "text-sm")}
+            className={cn(
+              buttonVariants({ variant: "dark" }),
+              "w-full text-sm sm:w-auto",
+            )}
           >
             Kerjakan quiz
           </Link>
@@ -184,7 +214,10 @@ function LessonRow({
           <Link
             href={lesson.href!}
             aria-describedby={titleId}
-            className={cn(buttonVariants({ variant: "primary" }), "text-sm")}
+            className={cn(
+              buttonVariants({ variant: "primary" }),
+              "w-full text-sm sm:w-auto",
+            )}
           >
             Lanjutkan
           </Link>
@@ -215,14 +248,18 @@ function FinalRow({
           : "border-border bg-surface-2",
       )}
     >
+      {/* Item 7: the check is DONE-only — terbuka gets the neutral fill
+          circle, never a check. */}
       {final.status === "terkunci" ? (
-        <Lock className="size-5 shrink-0 text-text-subtle" />
+        <LockedCircle />
+      ) : final.status === "selesai" ? (
+        <span className="grid size-7 shrink-0 place-items-center rounded-full bg-success">
+          <Check aria-hidden="true" className="size-3.5 text-surface" />
+        </span>
       ) : (
-        <CircleCheck
-          className={cn(
-            "size-5 shrink-0",
-            final.status === "selesai" ? "text-success" : "text-primary",
-          )}
+        <span
+          aria-hidden="true"
+          className="size-7 shrink-0 rounded-full bg-fill"
         />
       )}
       <div className="min-w-0 flex-1">
@@ -248,7 +285,7 @@ function FinalRow({
       {final.status === "selesai" ? (
         <Link
           href={final.href}
-          className="text-sm font-bold text-primary-deep underline-offset-4 hover:underline"
+          className="inline-flex min-h-11 items-center text-sm font-bold text-primary-deep underline-offset-4 hover:underline"
         >
           Lihat hasil
         </Link>
@@ -276,7 +313,7 @@ function Ringkasan({
     <div className="flex flex-col gap-4">
       <div className="rounded-card border border-border bg-surface-2 p-5">
         <h2 className="text-sm font-bold text-text">Ringkasan nilai</h2>
-        <p className="mt-3 font-mono text-4xl font-bold text-text">
+        <p className="mt-3 font-mono text-[38px] font-medium leading-none text-text">
           {average}
         </p>
         <p className="mt-1 font-mono text-xs font-medium uppercase tracking-wide text-text-muted">
@@ -295,7 +332,7 @@ function Ringkasan({
         )}
         <Link
           href="/belajar/nilai"
-          className="mt-2 inline-flex text-sm font-bold text-primary-deep underline-offset-4 hover:underline"
+          className="mt-2 inline-flex min-h-11 items-center text-sm font-bold text-primary-deep underline-offset-4 hover:underline"
         >
           Lihat di Nilai Saya
         </Link>
@@ -327,9 +364,7 @@ export function CourseProgress({ progres, weights }: CourseProgressProps) {
   return (
     <>
       <header>
-        <p className="font-mono text-xs font-bold uppercase tracking-wide text-primary-deep">
-          Belajar / Kursus Saya
-        </p>
+        <p className={EYEBROW_CLASS}>Belajar / Kursus Saya</p>
         <h1 className="mt-2 wrap-anywhere text-[25px] font-black leading-[1.14] tracking-[-0.022em] text-text sm:text-[32px] sm:leading-[1.16] sm:tracking-[-0.024em]">
           {progres.course.title}
         </h1>
