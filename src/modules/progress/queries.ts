@@ -18,7 +18,7 @@
 // the outer name by hand, in BOTH dashboard SELECTs (join today or not).
 import "server-only";
 
-import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 
 import type { Db } from "@/db/client";
 import { db } from "@/db";
@@ -28,6 +28,7 @@ import {
   enrollmentStatusEnum,
   lessonProgress,
   lessons,
+  progressStatusEnum,
   questions,
   quizAttempts,
   quizzes,
@@ -813,4 +814,111 @@ export async function selectEnrollmentFinalResult(
     )
     .limit(1);
   return rows[0];
+}
+
+// --------------------------------------------------------------------------
+// Nilai Saya (card S5-03 §1). Pure reads — the grades page never writes.
+// The row shapes live HERE (not in serializer.ts) because the attempt
+// module consumes them only through loadGradeCourses in service.ts.
+// --------------------------------------------------------------------------
+
+/** The grades enrollment SELECT's row shape (card S5-03 §1). */
+export type GradeEnrollmentRow = {
+  courseId: string;
+  courseSlug: string;
+  courseTitle: string;
+  isSequential: boolean;
+  finalQuizId: string | null;
+  enrollmentStatus: (typeof enrollmentStatusEnum.enumValues)[number];
+  /** NUMERIC leaves the driver as a string — rounded by the attempt DTO. */
+  finalScorePercent: string | null;
+  completedAt: Date | null;
+  updatedAt: Date;
+};
+
+/**
+ * The actor's PUBLISHED, lesson-bearing enrollments for the grades page
+ * (card S5-03 §1): `enrolled_at asc, courses.id asc` — the TRANSCRIPT order,
+ * stable unlike the dashboard's activity order. hasLessonsSql keeps the
+ * same "no lessons" shape out as both dashboard lists.
+ */
+export async function selectGradeEnrollments(
+  executor: DbOrTx,
+  actorId: string,
+): Promise<GradeEnrollmentRow[]> {
+  return executor
+    .select({
+      courseId: courses.id,
+      courseSlug: courses.slug,
+      courseTitle: courses.title,
+      isSequential: courses.isSequential,
+      finalQuizId: courses.finalQuizId,
+      enrollmentStatus: enrollments.status,
+      finalScorePercent: enrollments.finalScorePercent,
+      completedAt: enrollments.completedAt,
+      updatedAt: enrollments.updatedAt,
+    })
+    .from(enrollments)
+    .innerJoin(courses, eq(enrollments.courseId, courses.id))
+    .where(
+      and(
+        eq(enrollments.userId, actorId),
+        eq(courses.status, "PUBLISHED"),
+        hasLessonsSql,
+      ),
+    )
+    .orderBy(asc(enrollments.enrolledAt), asc(courses.id));
+}
+
+/** One lessons+progress row of the grades SELECT (card S5-03 §1). NULLable
+ *  progress columns mean "no lesson_progress row for THIS participant". */
+export type GradeLessonRow = {
+  lessonId: string;
+  courseId: string;
+  lessonSlug: string;
+  lessonTitle: string;
+  quizId: string | null;
+  status: (typeof progressStatusEnum.enumValues)[number] | null;
+  quizAttempted: boolean | null;
+  /** NUMERIC as it leaves the driver — floored by the attempt DTO. */
+  quizScorePercent: string | null;
+  quizIsPassed: boolean | null;
+  quizSubmittedAt: Date | null;
+};
+
+/**
+ * EVERY course's lesson rows of the grades page in ONE query (card S5-03
+ * §1): the `user_id = actor` inside the LEFT JOIN's ON clause is what keeps
+ * other participants' progress out (the selectOutlineRows rule); the
+ * `course_id, order_index asc, id asc` order is the outline's, so
+ * "Quiz Materi {n}" here names the same lesson as the lesson page.
+ */
+export async function selectGradeLessonRows(
+  executor: DbOrTx,
+  actorId: string,
+  courseIds: string[],
+): Promise<GradeLessonRow[]> {
+  return executor
+    .select({
+      lessonId: lessons.id,
+      courseId: lessons.courseId,
+      lessonSlug: lessons.slug,
+      lessonTitle: lessons.title,
+      quizId: lessons.quizId,
+      status: lessonProgress.status,
+      quizAttempted: lessonProgress.quizAttempted,
+      quizScorePercent: lessonProgress.quizScorePercent,
+      quizIsPassed: lessonProgress.quizIsPassed,
+      quizSubmittedAt: lessonProgress.quizSubmittedAt,
+    })
+    .from(lessons)
+    .leftJoin(
+      lessonProgress,
+      and(
+        eq(lessonProgress.lessonId, lessons.id),
+        eq(lessonProgress.userId, actorId),
+      ),
+    )
+    .where(inArray(lessons.courseId, courseIds))
+    .orderBy(asc(lessons.courseId), asc(lessons.orderIndex), asc(lessons.id));
 }
