@@ -303,13 +303,12 @@ test("1. alur utuh: hasil materi 2 → Final terbuka → aturan 60/40 → 80 →
   );
   const displayOrder = orderRows[0]!.ids as string[];
   const firstUnanswered = displayOrder.findIndex((id) => !answeredIds.has(id));
-  expect(
-    firstUnanswered,
-    "dua soal masih belum dijawab",
-  ).toBeGreaterThanOrEqual(0);
+  expect(firstUnanswered, "dua soal masih belum dijawab").toBeGreaterThanOrEqual(0);
   await page.reload();
   await expect(
-    page.getByText(`Soal ${firstUnanswered + 1} dari 10 · Satu kesempatan`),
+    page.getByText(
+      `Soal ${firstUnanswered + 1} dari 10 · Satu kesempatan`,
+    ),
   ).toBeVisible();
   // The two unanswered chips land on different numbers every run. Assert
   // the COUNT, then jump via the desktop aside's navigator (the mobile

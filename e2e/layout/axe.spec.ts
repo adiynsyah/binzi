@@ -55,7 +55,9 @@ const KNOWN_CONTRAST_FINDINGS: Readonly<
 > = {};
 
 /** Violation digest for logs/attachments (id, impact, targets count). */
-function digest(violations: Awaited<ReturnType<typeof runAxe>>): string {
+function digest(
+  violations: Awaited<ReturnType<typeof runAxe>>,
+): string {
   return violations
     .map((v) => `${v.impact} ${v.id} (${v.nodes.length} node)`)
     .join(", ");
@@ -133,8 +135,7 @@ test.describe("axe WCAG 2.1 A/AA", () => {
   let adminContext: BrowserContext;
 
   test.beforeAll(async ({ browser }) => {
-    ({ editorContext, adminContext } =
-      await createEditorAdminContexts(browser));
+    ({ editorContext, adminContext } = await createEditorAdminContexts(browser));
   });
 
   // Course ids the S2-02 video scan created — deleted again in afterAll.
@@ -161,10 +162,10 @@ test.describe("axe WCAG 2.1 A/AA", () => {
     }
   });
 
-  test("MEMBER: /belajar keadaan A lalu B, 403, dan (w360) drawer akun terbuka", async ({
-    page,
-    request,
-  }, testInfo) => {
+  test("MEMBER: /belajar keadaan A lalu B, 403, dan (w360) drawer akun terbuka", async (
+    { page, request },
+    testInfo,
+  ) => {
     const spec = widthSpecOf(testInfo.project.name);
     const account = await createRoleAccount(request, "MEMBER");
     await signInViaApi(page.context(), account);
@@ -200,9 +201,9 @@ test.describe("axe WCAG 2.1 A/AA", () => {
     });
 
     await test.step("/belajar keadaan B (setelah mendaftar via API)", async () => {
-      const enroll = await page
-        .context()
-        .request.post(`/api/progress/courses/${made.courseId}/enroll`);
+      const enroll = await page.context().request.post(
+        `/api/progress/courses/${made.courseId}/enroll`,
+      );
       expect(enroll.status(), await enroll.text()).toBe(201);
       await page.goto("/belajar");
       await expect(
@@ -233,10 +234,10 @@ test.describe("axe WCAG 2.1 A/AA", () => {
   // active (served from the real URLs, so the CSP still applies) and the
   // stub embed document itself carries lang + title precisely so axe does
   // not flag it. Below 1024 the <details> outline opens before the scan.
-  test("MEMBER: materi open dengan video (S2-02, stub YouTube aktif)", async ({
-    page,
-    request,
-  }, testInfo) => {
+  test("MEMBER: materi open dengan video (S2-02, stub YouTube aktif)", async (
+    { page, request },
+    testInfo,
+  ) => {
     const spec = widthSpecOf(testInfo.project.name);
     await stubYouTube(page);
     const account = await createRoleAccount(request, "MEMBER");
@@ -250,13 +251,15 @@ test.describe("axe WCAG 2.1 A/AA", () => {
     );
     videoCourseIds.push(made.courseId);
     await attachVideoInE2eDb(made.lessons[0]!.id, "e2eVideo001", 100);
-    const enroll = await page
-      .context()
-      .request.post(`/api/progress/courses/${made.courseId}/enroll`);
+    const enroll = await page.context().request.post(
+      `/api/progress/courses/${made.courseId}/enroll`,
+    );
     expect(enroll.status(), await enroll.text()).toBe(201);
 
     await page.goto(`/belajar/${made.courseSlug}/${made.lessons[0]!.slug}`);
-    await expect(page.locator('iframe[title^="Video: "]')).toBeVisible();
+    await expect(
+      page.locator('iframe[title^="Video: "]'),
+    ).toBeVisible();
     if (spec.viewport.width < 1024) {
       const details = page.locator("details");
       await details.locator("summary").click();
@@ -265,10 +268,10 @@ test.describe("axe WCAG 2.1 A/AA", () => {
     await expectAxeClean(page, "MEMBER materi open video", testInfo);
   });
 
-  test("EDITOR: /cms dan (w360) drawer CMS terbuka", async ({
-    page,
-    request,
-  }, testInfo) => {
+  test("EDITOR: /cms dan (w360) drawer CMS terbuka", async (
+    { page, request },
+    testInfo,
+  ) => {
     const spec = widthSpecOf(testInfo.project.name);
     const account = await createRoleAccount(request, "EDITOR");
     await signInViaApi(page.context(), account);
@@ -294,41 +297,38 @@ test.describe("axe WCAG 2.1 A/AA", () => {
       },
     });
     expect(response.status(), await response.text()).toBe(201);
-    const courseId = ((await response.json()) as { data: { id: string } }).data
-      .id;
+    const courseId = ((await response.json()) as { data: { id: string } }).data.id;
 
     await page.goto("/cms/kursus");
     // Scope to the title cell paragraph: the course title now also sits in
     // an sr-only span inside the row's "Buka" link (unique accessible
     // names), which a bare getByText would match twice.
     await expect(
-      page
-        .getByRole("paragraph")
-        .filter({ hasText: `${token} kursus uji axe` }),
+      page.getByRole("paragraph").filter({ hasText: `${token} kursus uji axe` }),
     ).toBeVisible();
     await expectAxeClean(page, "EDITOR /cms/kursus berisi", testInfo);
 
     await page.goto(`/cms/kursus/${courseId}`);
     await expect(
-      page
-        .locator('section[aria-labelledby="builder-materi-heading"]')
-        .getByText("Belum ada materi"),
+      page.locator('section[aria-labelledby="builder-materi-heading"]')
+        .getByText("Belum ada materi")
     ).toBeVisible();
     await expectAxeClean(page, "EDITOR /cms/kursus/{id} builder", testInfo);
 
     // Card S1-02: the builder with two lessons — one 80-char no-space
     // title — plus the open 21h dialog (A-19b additions).
     const filledToken = `a${Date.now().toString(36)}${testInfo.project.name}b`;
-    const filledResponse = await page
-      .context()
-      .request.post("/api/cms/courses", {
+    const filledResponse = await page.context().request.post(
+      "/api/cms/courses",
+      {
         data: {
           title: `${filledToken} kursus uji axe berisi`,
           slug: `${filledToken}-kursus-uji-axe-berisi`,
           level: "BEGINNER",
           summary: "Ringkasan netral untuk tes e2e.",
         },
-      });
+      },
+    );
     expect(filledResponse.status(), await filledResponse.text()).toBe(201);
     const filledId = ((await filledResponse.json()) as { data: { id: string } })
       .data.id;
@@ -337,11 +337,10 @@ test.describe("axe WCAG 2.1 A/AA", () => {
       `${filledToken}${"x".padEnd(80, "x")}`.slice(0, 80),
       `${filledToken} protein`,
     ]) {
-      const lessonResponse = await page
-        .context()
-        .request.post(`/api/cms/courses/${filledId}/lessons`, {
-          data: { title },
-        });
+      const lessonResponse = await page.context().request.post(
+        `/api/cms/courses/${filledId}/lessons`,
+        { data: { title } },
+      );
       expect(lessonResponse.status(), await lessonResponse.text()).toBe(201);
       const lessonId = (
         (await lessonResponse.json()) as { data: { id: string } }
@@ -368,16 +367,14 @@ test.describe("axe WCAG 2.1 A/AA", () => {
     await expectAxeClean(page, "EDITOR editor materi", testInfo);
 
     await page.goto(`/cms/kursus/${filledId}/deskripsi`);
-    await expect(
-      page.getByRole("textbox", { name: "Deskripsi" }),
-    ).toBeVisible();
+    await expect(page.getByRole("textbox", { name: "Deskripsi" })).toBeVisible();
     await expectAxeClean(page, "EDITOR deskripsi kursus", testInfo);
   });
 
-  test("EDITOR: editor quiz + dialog sunting soal (S1-09)", async ({
-    page,
-    request,
-  }, testInfo) => {
+  test("EDITOR: editor quiz + dialog sunting soal (S1-09)", async (
+    { page, request },
+    testInfo,
+  ) => {
     // Card S1-09 §6: the quiz editor page (FINAL quiz with two questions,
     // so both marker shapes render) and the EDIT dialog of soal 1 — it has
     // a key, so the "Kunci" row rides along (a brand-new dialog has no key
@@ -399,8 +396,7 @@ test.describe("axe WCAG 2.1 A/AA", () => {
 
     // The FINAL quiz id is not part of the course answer — E2E database.
     const rows = await withE2eDb(
-      (sql) =>
-        sql`select final_quiz_id as id from courses where id = ${courseId}`,
+      (sql) => sql`select final_quiz_id as id from courses where id = ${courseId}`,
     );
     const quizId = rows[0]?.id as string;
     expect(quizId, "kursus punya quiz FINAL").toBeTruthy();
@@ -418,16 +414,17 @@ test.describe("axe WCAG 2.1 A/AA", () => {
               { text: "Benar", isCorrect: true },
               { text: "Salah", isCorrect: false },
             ];
-      const question = await page
-        .context()
-        .request.post(`/api/cms/quizzes/${quizId}/questions`, {
+      const question = await page.context().request.post(
+        `/api/cms/quizzes/${quizId}/questions`,
+        {
           data: {
             type,
             text: `Pertanyaan axe ke ${index + 1} untuk tes e2e.`,
             explanation: "Pembahasan axe untuk tes e2e.",
             options,
           },
-        });
+        },
+      );
       expect(question.status(), await question.text()).toBe(201);
     }
 
@@ -456,10 +453,10 @@ test.describe("axe WCAG 2.1 A/AA", () => {
   // heading skip lands as a KNOWN moderate (same deviation family as
   // S5-01 state C; approved with the S2-01 plan review, 14 Nov —
   // empty-state.tsx stays as is).
-  test("MEMBER: halaman materi open/locked/not-enrolled (S2-01)", async ({
-    page,
-    request,
-  }, testInfo) => {
+  test("MEMBER: halaman materi open/locked/not-enrolled (S2-01)", async (
+    { page, request },
+    testInfo,
+  ) => {
     const spec = widthSpecOf(testInfo.project.name);
     const account = await createRoleAccount(request, "MEMBER");
     await signInViaApi(page.context(), account);
@@ -487,9 +484,9 @@ test.describe("axe WCAG 2.1 A/AA", () => {
     ).toBeVisible();
     await expectAxeClean(page, "materi not-enrolled", testInfo);
 
-    const enroll = await page
-      .context()
-      .request.post(`/api/progress/courses/${made.courseId}/enroll`);
+    const enroll = await page.context().request.post(
+      `/api/progress/courses/${made.courseId}/enroll`,
+    );
     expect(enroll.status(), await enroll.text()).toBe(201);
 
     // open (materi 1) — on the phone layout the outline <details> opens
@@ -519,10 +516,10 @@ test.describe("axe WCAG 2.1 A/AA", () => {
   // through all of them (nothing answered, so the result stays "Belum
   // lulus"). The lesson-page dialog scan follows the S2-01 pattern: below
   // 1024 the outline <details> opens first so the nav rows ride along.
-  test("MEMBER: quiz aturan/soal/ringkasan/hasil + materi dialog (S3-01)", async ({
-    page,
-    request,
-  }, testInfo) => {
+  test("MEMBER: quiz aturan/soal/ringkasan/hasil + materi dialog (S3-01)", async (
+    { page, request },
+    testInfo,
+  ) => {
     const spec = widthSpecOf(testInfo.project.name);
     const account = await createRoleAccount(request, "MEMBER");
     await signInViaApi(page.context(), account);
@@ -535,9 +532,9 @@ test.describe("axe WCAG 2.1 A/AA", () => {
       { lessons: 2 },
     );
     quizCourseIds.push(made.courseId);
-    const enroll = await page
-      .context()
-      .request.post(`/api/progress/courses/${made.courseId}/enroll`);
+    const enroll = await page.context().request.post(
+      `/api/progress/courses/${made.courseId}/enroll`,
+    );
     expect(enroll.status(), await enroll.text()).toBe(201);
 
     await page.goto(`/belajar/${made.courseSlug}/${made.lessons[0]!.slug}`);
@@ -548,9 +545,7 @@ test.describe("axe WCAG 2.1 A/AA", () => {
       await details.locator("summary").click();
       await expect(details).toHaveAttribute("open");
     }
-    await page
-      .getByRole("button", { name: "Tandai selesai & mulai quiz" })
-      .click();
+    await page.getByRole("button", { name: "Tandai selesai & mulai quiz" }).click();
     await expect(page.getByRole("dialog")).toBeVisible();
     await test.step("materi dengan dialog terbuka", async () => {
       await expectAxeClean(page, "materi dialog quiz", testInfo);
@@ -583,9 +578,7 @@ test.describe("axe WCAG 2.1 A/AA", () => {
     await test.step("ringkasan", async () => {
       // Exactly one chip grid is visible per width (mobile row <1024, side
       // card ≥1024) — the other copy is display:none and not matched.
-      await page
-        .getByRole("button", { name: "Soal 10, belum dijawab" })
-        .click();
+      await page.getByRole("button", { name: "Soal 10, belum dijawab" }).click();
       await page.getByRole("button", { name: "Lihat ringkasan" }).click();
       await expect(
         page.getByText("1 dijawab · 9 belum dijawab · 0 ragu-ragu"),
@@ -628,10 +621,10 @@ test.describe("axe WCAG 2.1 A/AA", () => {
   // lessons completed 70/50, the Final attempt answered 8/10 → 80 → Lulus
   // kursus, so the result scan sees the PASSED variant with the big score,
   // the formula and the review items.
-  test("MEMBER: Final Quiz aturan & hasil (S5-02)", async ({
-    page,
-    request,
-  }, testInfo) => {
+  test("MEMBER: Final Quiz aturan & hasil (S5-02)", async (
+    { page, request },
+    testInfo,
+  ) => {
     const account = await createRoleAccount(request, "MEMBER");
     await signInViaApi(page.context(), account);
 
@@ -643,9 +636,9 @@ test.describe("axe WCAG 2.1 A/AA", () => {
       { lessons: 2 },
     );
     finalCourseIds.push(made.courseId);
-    const enroll = await page
-      .context()
-      .request.post(`/api/progress/courses/${made.courseId}/enroll`);
+    const enroll = await page.context().request.post(
+      `/api/progress/courses/${made.courseId}/enroll`,
+    );
     expect(enroll.status(), await enroll.text()).toBe(201);
 
     const startAttempt = async (url: string) => {
@@ -654,20 +647,14 @@ test.describe("axe WCAG 2.1 A/AA", () => {
       return ((await response.json()) as { data: { attemptId: string } }).data
         .attemptId;
     };
-    const answerAllCorrect = async (
-      attemptId: string,
-      quizId: string,
-      correct: number,
-    ) => {
-      const rows = (await withE2eDb(
-        (sql) => sql`
+    const answerAllCorrect = async (attemptId: string, quizId: string, correct: number) => {
+      const rows = (await withE2eDb((sql) => sql`
           select q.id as question_id, qo.id as option_id, qo.is_correct as is_correct
           from questions q
           join question_options qo on qo.question_id = q.id
           where q.quiz_id = ${quizId}
           order by q.order_index asc, qo.order_index asc
-        `,
-      )) as {
+        `)) as {
         question_id: string;
         option_id: string;
         is_correct: boolean;
@@ -679,17 +666,13 @@ test.describe("axe WCAG 2.1 A/AA", () => {
           row,
         ]);
       }
-      for (const [index, [questionId, options]] of [
-        ...byQuestion.entries(),
-      ].entries()) {
+      for (const [index, [questionId, options]] of [...byQuestion.entries()].entries()) {
         if (index >= correct) continue;
         const option = options.find((row) => row.is_correct);
-        const response = await page
-          .context()
-          .request.put(
-            `/api/quiz/attempts/${attemptId}/answers/${questionId}`,
-            { data: { optionId: option!.option_id } },
-          );
+        const response = await page.context().request.put(
+          `/api/quiz/attempts/${attemptId}/answers/${questionId}`,
+          { data: { optionId: option!.option_id } },
+        );
         expect(response.status(), await response.text()).toBe(200);
       }
     };
@@ -706,11 +689,7 @@ test.describe("axe WCAG 2.1 A/AA", () => {
       [made.lessons[0]!, 7],
       [made.lessons[1]!, 5],
     ] as const) {
-      await finishQuiz(
-        `/api/quiz/lessons/${lesson.id}/attempt`,
-        lesson.quizId,
-        correct,
-      );
+      await finishQuiz(`/api/quiz/lessons/${lesson.id}/attempt`, lesson.quizId, correct);
     }
 
     await test.step("final aturan", async () => {
@@ -723,11 +702,7 @@ test.describe("axe WCAG 2.1 A/AA", () => {
       await expectAxeClean(page, "final aturan", testInfo);
     });
 
-    await finishQuiz(
-      `/api/quiz/courses/${made.courseId}/final-attempt`,
-      made.finalQuizId,
-      8,
-    );
+    await finishQuiz(`/api/quiz/courses/${made.courseId}/final-attempt`, made.finalQuizId, 8);
 
     await test.step("final hasil", async () => {
       await page.goto(`/belajar/${made.courseSlug}/final-quiz`);
@@ -756,10 +731,10 @@ test.describe("axe WCAG 2.1 A/AA", () => {
   // the publish dialog, the ADMIN queue (with a row — never count-
   // asserted, shared e2e database), and the fresh-EDITOR empty queue +
   // "Perlu revisi" variant.
-  test("kirim & terbitkan: dialog kirim/terbitkan + /cms/konten (S1-08)", async ({
-    page,
-    request,
-  }, testInfo) => {
+  test("kirim & terbitkan: dialog kirim/terbitkan + /cms/konten (S1-08)", async (
+    { page, request },
+    testInfo,
+  ) => {
     const editor = await createRoleAccount(request, "EDITOR");
     const freshEditor = await createRoleAccount(request, "EDITOR");
     const admin = await createRoleAccount(request, "ADMIN");
@@ -789,9 +764,9 @@ test.describe("axe WCAG 2.1 A/AA", () => {
 
     // The publish side needs an IN_REVIEW course: submit as the EDITOR,
     // then hand the same context to the ADMIN.
-    const submitted = await page
-      .context()
-      .request.post(`/api/cms/courses/${complete.courseId}/submit`);
+    const submitted = await page.context().request.post(
+      `/api/cms/courses/${complete.courseId}/submit`,
+    );
     expect(submitted.status(), await submitted.text()).toBe(200);
     await signInViaApi(page.context(), admin);
 

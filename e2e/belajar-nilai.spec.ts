@@ -2,14 +2,15 @@
 // (1) the filled transcript — course order by enrolled_at, the stored
 // numbers (68 / 70 / 50 / 80), another participant's data staying out,
 // the NEVER link's accessible name, the review links round trip, the
-// stored-value edits (91.40 → 91, 69.99 → 69), and the width sweep with
-// the 360 date-column + touch-target rules; (2) the 8f empty state plus
-// the signed-out redirect.
+// width sweep (360 date-column + touch-target rules — BEFORE the SQL
+// edits, so the screenshots show the values the arc produced), then the
+// stored-value edits (91.40 → 91, 69.99 → 69) last; (2) the 8f empty
+// state plus the signed-out redirect.
 //
 // Root spec → chromium project only. Shared-database rule: token-titled
 // courses only, cleaned up through deleteCoursesInE2eDb. The answer
 // helpers are local copies of the belajar-final-quiz.spec.ts pattern.
-import type { BrowserContext, Page } from "@playwright/test";
+import type { BrowserContext, Locator, Page } from "@playwright/test";
 import { expect } from "@playwright/test";
 
 import {
@@ -145,9 +146,28 @@ function courseSection(page: Page, title: string) {
   });
 }
 
+/** The course box fits: "kartu terluar" on THIS page is the course card
+ *  itself (the bordered section), never the PageContainer column — the
+ *  page is a stack of independent boxes (PR 148 review). */
+async function expectCourseBoxFits(
+  page: Page,
+  section: Locator,
+  label: string,
+): Promise<void> {
+  await waitStableForMeasure(page);
+  const metrics = await section.evaluate((el) => ({
+    scrollWidth: el.scrollWidth,
+    clientWidth: el.clientWidth,
+  }));
+  expect(
+    metrics.scrollWidth,
+    `${label}: kotak kursus scrollWidth <= clientWidth`,
+  ).toBeLessThanOrEqual(metrics.clientWidth);
+}
+
 // ------------------------------------------------------------------ tests
 
-test("1. terisi: urutan, angka tersimpan, peserta lain, tautan, 91.40/69.99, lebar 360–1280", async ({
+test("1. terisi: urutan, angka tersimpan, peserta lain, tautan, lebar 360–1280, 91.40/69.99", async ({
   page,
   browser,
 }) => {
@@ -275,10 +295,12 @@ test("1. terisi: urutan, angka tersimpan, peserta lain, tautan, 91.40/69.99, leb
   await expect(
     ySection.getByText("Sedang berjalan", { exact: true }),
   ).toBeVisible();
-  // "—" also fills the empty cells of the "belum" rows (aria-hidden), so the
-  // assertion targets the big Nilai Akhir number itself — one p.text-3xl per
-  // card, and toHaveText pins its exact content.
-  await expect(ySection.locator("p.text-3xl")).toHaveText("—");
+  // "—" also fills the empty cells of the "belum" rows (aria-hidden) — the
+  // paragraph ROLE plus exact text pins the big Nilai Akhir number itself,
+  // no styling class in the locator (PR 148 review).
+  await expect(
+    ySection.getByRole("paragraph").filter({ hasText: /^—$/ }),
+  ).toHaveText("—");
   await expect(ySection.getByText("90", { exact: true })).toBeVisible();
   // "belum" sits in BOTH the lesson-2 row and the Final row — scope this
   // one to the lesson row (the Final row has its own assertion below).
@@ -333,8 +355,43 @@ test("1. terisi: urutan, angka tersimpan, peserta lain, tautan, 91.40/69.99, leb
     page.getByRole("heading", { level: 1, name: "Nilai Saya" }),
   ).toBeVisible();
 
-  // Stored values edited DIRECTLY in the database: 91.40 rounds to 91 and
-  // 69.99 floors to 69 — the page never recomputes (decision 2).
+  // The width sweep (decision 5) runs BEFORE the SQL edits: the document
+  // AND each course box stay clean; at 360 the date column is visually
+  // hidden and the icon link is a ≥ 44 × 44 touch target; at 1280 "Lihat"
+  // is the visible content. The screenshots land here too — they show the
+  // values the arc produced, not the SQL-edited ones.
+  for (const width of [360, 700, 768, 1024, 1280] as const) {
+    await page.setViewportSize({ width, height: 800 });
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Nilai Saya" }),
+    ).toBeVisible();
+    await expectNoHorizontalScroll(page, `nilai-terisi-${width}`);
+    await expectCourseBoxFits(page, xSection, `nilai-terisi-${width} X`);
+    await expectCourseBoxFits(page, ySection, `nilai-terisi-${width} Y`);
+    if (width === 360) {
+      const firstRow = courseSection(page, titleX).locator("tbody tr").nth(0);
+      // Cells per row: [Nilai, Tanggal, Pembahasan] — the th (Materi) is not
+      // a td. The DATE column is the one hidden below 640.
+      await expect(firstRow.locator("td").nth(1)).toBeHidden();
+      await expectTouchTarget(
+        courseSection(page, titleX).locator("tbody a").first(),
+        "tautan pembahasan pertama",
+      );
+    }
+    if (width === 1280) {
+      await expect(
+        page.getByText("Lihat", { exact: true }).first(),
+      ).toBeVisible();
+    }
+    await maybeScreenshot(
+      page,
+      `nilai-terisi-${width}`,
+      test.info().project.name,
+    );
+  }
+
+  // Stored values edited DIRECTLY in the database, LAST: 91.40 rounds to
+  // 91 and 69.99 floors to 69 — the page never recomputes (decision 2).
   await withE2eDb(
     (sql) => sql`
       update enrollments set final_score_percent = 91.40
@@ -361,51 +418,6 @@ test("1. terisi: urutan, angka tersimpan, peserta lain, tautan, 91.40/69.99, leb
       .getByText("69", { exact: true }),
   ).toBeVisible();
   await expect(xSection.getByText("= 91", { exact: false })).toBeVisible();
-
-  // The width sweep (decision 5): the document AND the outermost box stay
-  // clean; at 360 the date column is visually hidden and the icon link is
-  // a ≥ 44 × 44 touch target; at 1280 "Lihat" is the visible content.
-  for (const width of [360, 700, 768, 1024, 1280] as const) {
-    await page.setViewportSize({ width, height: 800 });
-    await expect(
-      page.getByRole("heading", { level: 1, name: "Nilai Saya" }),
-    ).toBeVisible();
-    await expectNoHorizontalScroll(page, `nilai-terisi-${width}`);
-    await waitStableForMeasure(page);
-    const column = await page
-      .getByRole("heading", { level: 2, name: titleX, exact: true })
-      .evaluate((el) => {
-        let box = el as HTMLElement | null;
-        while (box && !box.className.includes("mx-auto")) {
-          box = box.parentElement;
-        }
-        return box
-          ? { scrollWidth: box.scrollWidth, clientWidth: box.clientWidth }
-          : null;
-      });
-    expect(column, `nilai-terisi-${width}: kolom konten terukur`).toBeTruthy();
-    expect(column!.scrollWidth).toBeLessThanOrEqual(column!.clientWidth);
-    if (width === 360) {
-      const firstRow = courseSection(page, titleX).locator("tbody tr").nth(0);
-      // Cells per row: [Nilai, Tanggal, Pembahasan] — the th (Materi) is not
-      // a td. The DATE column is the one hidden below 640.
-      await expect(firstRow.locator("td").nth(1)).toBeHidden();
-      await expectTouchTarget(
-        courseSection(page, titleX).locator("tbody a").first(),
-        "tautan pembahasan pertama",
-      );
-    }
-    if (width === 1280) {
-      await expect(
-        page.getByText("Lihat", { exact: true }).first(),
-      ).toBeVisible();
-    }
-    await maybeScreenshot(
-      page,
-      `nilai-terisi-${width}`,
-      test.info().project.name,
-    );
-  }
 });
 
 test("2. kosong 360/1280 + tamu dialihkan ke /masuk", async ({

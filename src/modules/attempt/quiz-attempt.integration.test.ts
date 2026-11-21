@@ -2238,6 +2238,10 @@ describe("getGradesPage", () => {
     expect(dto.nextStep).toBe("materi");
     expect(dto.meta.kind).toBe("terakhir-diakses");
     expect(dto.finalScorePercent).toBeNull();
+    // The average divides by the lessons WITH a score (70), never by all
+    // three materials (23) — pinned here so the mutant fails in-process,
+    // not only in the e2e (PR 148 review).
+    expect(dto.lessonAveragePercent).toBe(70);
   });
 
   it("varian tidak berurutan → semua baris tampil, lockedCount 0; semua COMPLETED tanpa Final dikerjakan → nextStep final", async () => {

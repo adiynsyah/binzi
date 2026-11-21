@@ -215,6 +215,27 @@ describe("MyGrades — terisi", () => {
     ).not.toContain("bg-fill-soft");
   });
 
+  it("filled intro AND card formula follow the props' weights (70/30)", () => {
+    render(
+      <MyGrades
+        data={gradesPage([courseDto("a")], {
+          lessonPercent: 70,
+          finalPercent: 30,
+        })}
+      />,
+    );
+    // The intro sentence (8b)…
+    expect(
+      screen.getByText("× 70% + Final Quiz × 30%", { exact: false }),
+    ).toBeDefined();
+    // …and the card's own formula row.
+    expect(
+      screen.getByText(
+        "Rata-rata quiz materi 60 × 70% + Final Quiz 80 × 30% = 68",
+      ),
+    ).toBeDefined();
+  });
+
   it("both formula variants + the Kerjakan Final Quiz link on nextStep final", () => {
     const { rerender } = render(
       <MyGrades data={gradesPage([courseDto("a")])} />,
