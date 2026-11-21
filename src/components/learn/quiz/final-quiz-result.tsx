@@ -9,6 +9,7 @@ import Link from "next/link";
 
 import { buttonVariants } from "@/components/ui/button-variants";
 import { ProgressBar } from "@/components/ui/progress-bar";
+import { MEMBER_HREFS } from "@/components/shared/nav-items";
 import { cn } from "@/lib/utils";
 import type { FinalQuizResultDTO } from "@/modules/attempt/service";
 
@@ -145,10 +146,10 @@ export function FinalQuizResult({ data }: { data: FinalQuizResultDTO }) {
           {reveals ? `Lihat pembahasan ${total} soal` : "Lihat jawaban Anda"}
         </Link>
         <Link
-          href="/belajar"
+          href={MEMBER_HREFS.nilai}
           className={cn(buttonVariants({ variant: "secondary" }), "sm:flex-1")}
         >
-          Ke Belajar
+          Ke Nilai Saya
         </Link>
       </div>
 
