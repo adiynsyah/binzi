@@ -18,3 +18,14 @@ export function formatWib(date: Date): string {
   }).format(date);
   return `${formatted.replace(/,\s*/, " ")} WIB`;
 }
+
+/** Formats a timestamp in WIB as "24 Agu 2026" (card S5-03 §6) — the
+ *  date-only sibling of formatWib for the grades table's Tanggal column. */
+export function formatWibDate(date: Date): string {
+  return new Intl.DateTimeFormat("id-ID", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "Asia/Jakarta",
+  }).format(date);
+}

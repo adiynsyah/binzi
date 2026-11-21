@@ -393,6 +393,22 @@ export type QuizReviewAccess =
   | "HIDDEN_NEVER"
   | "HIDDEN_NOT_PASSED";
 
+/**
+ * The ONE policy→state derivation (card S3-02 §3; card S5-03 §2 lifts it
+ * out of toQuizReviewDTO so the grades page can name the SAME review state
+ * without a second copy): ALWAYS reveals, NEVER hides, ON_PASS_ONLY
+ * reveals exactly for a passing attempt. `isPassed` is the STORED verdict
+ * (`attempt.isPassed === true`), never a recompute from the score.
+ */
+export function reviewAccessOf(
+  policy: ExplanationPolicy,
+  isPassed: boolean,
+): QuizReviewAccess {
+  if (policy === "ALWAYS") return "ALWAYS";
+  if (policy === "NEVER") return "HIDDEN_NEVER";
+  return isPassed ? "PASSED" : "HIDDEN_NOT_PASSED";
+}
+
 export type QuizReviewDTO = {
   reviewAccess: QuizReviewAccess;
   status: AttemptStatus;
@@ -428,14 +444,10 @@ export function toQuizReviewDTO(input: {
   // neither — so "Kunci:" can never outlive the explanation it belongs to.
   // reviewAccess (card S3-02 §3) names the state so BOTH result screens
   // pick their copy from one value instead of re-deriving the policy.
-  const reviewAccess: QuizReviewAccess =
-    input.settings.explanationPolicy === "ALWAYS"
-      ? "ALWAYS"
-      : input.settings.explanationPolicy === "NEVER"
-        ? "HIDDEN_NEVER"
-        : attempt.isPassed === true
-          ? "PASSED"
-          : "HIDDEN_NOT_PASSED";
+  const reviewAccess = reviewAccessOf(
+    input.settings.explanationPolicy,
+    attempt.isPassed === true,
+  );
   const revealsKey = reviewAccess === "ALWAYS" || reviewAccess === "PASSED";
 
   let correct = 0;
