@@ -34,8 +34,10 @@ export type LearnDashboardProps = {
 };
 
 /** The cover placeholder every course block shares until S1-07 art exists.
- *  aria-hidden as a whole — decorative gradient (children included). */
-function CoverBlock({
+ *  aria-hidden as a whole — decorative gradient (children included).
+ *  Exported for MyCourses (card S5-04 §3) — the one cover block, no
+ *  second copy. */
+export function CoverBlock({
   className,
   children,
   ...props

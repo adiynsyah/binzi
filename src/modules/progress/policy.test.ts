@@ -4,8 +4,10 @@ import { describe, expect, it } from "vitest";
 
 import {
   assertMemberRole,
+  courseLessonStatus,
   firstOpenUnattempted,
   isLessonUnlocked,
+  type CourseLessonStatusRow,
   type LessonGateRow,
 } from "./policy";
 import type { SessionUser, UserRole } from "@/lib/rbac";
@@ -89,5 +91,111 @@ describe("assertMemberRole", () => {
         role: "GHOST" as UserRole,
       }),
     ).toThrow(ForbiddenError);
+  });
+});
+
+// ------------------------------------------- S5-04 courseLessonStatus (truth table)
+
+/** A full CourseLessonStatusRow with every progress column overridable. */
+function statusRow(
+  overrides: Partial<CourseLessonStatusRow> = {},
+): CourseLessonStatusRow {
+  return {
+    status: null,
+    quizAttempted: null,
+    videoStatus: "NONE",
+    videoWatchedPercent: null,
+    ...overrides,
+  };
+}
+
+describe("courseLessonStatus", () => {
+  it("row 6: untouched lesson (no progress row / NOT_STARTED) → belum-mulai", () => {
+    expect(courseLessonStatus(1, statusRow(), [statusRow()], false)).toBe(
+      "belum-mulai",
+    );
+    expect(
+      courseLessonStatus(
+        1,
+        statusRow({ status: "NOT_STARTED" }),
+        [statusRow({ status: "NOT_STARTED" })],
+        false,
+      ),
+    ).toBe("belum-mulai");
+  });
+
+  it("row 5: opened but the READY video is under 90 % → sedang-dipelajari", () => {
+    expect(
+      courseLessonStatus(
+        1,
+        statusRow({ status: "IN_PROGRESS", videoStatus: "READY", videoWatchedPercent: "40.00" }),
+        [statusRow({ status: "IN_PROGRESS", videoStatus: "READY", videoWatchedPercent: "40.00" })],
+        false,
+      ),
+    ).toBe("sedang-dipelajari");
+  });
+
+  it("row 4: opened + eligible (≥ 90 %, or no READY video) → quiz-belum", () => {
+    expect(
+      courseLessonStatus(
+        1,
+        statusRow({ status: "IN_PROGRESS", videoStatus: "READY", videoWatchedPercent: "90.00" }),
+        [statusRow({ status: "IN_PROGRESS", videoStatus: "READY", videoWatchedPercent: "90.00" })],
+        false,
+      ),
+    ).toBe("quiz-belum");
+    expect(
+      courseLessonStatus(
+        1,
+        statusRow({ status: "IN_PROGRESS" }),
+        [statusRow({ status: "IN_PROGRESS" })],
+        false,
+      ),
+    ).toBe("quiz-belum");
+  });
+
+  it("row 3: quiz attempted without COMPLETED → sedang-dipelajari EVEN when quiz-eligible (the row-4 question is never reached)", () => {
+    expect(
+      courseLessonStatus(
+        1,
+        statusRow({
+          status: "IN_PROGRESS",
+          quizAttempted: true,
+          videoStatus: "READY",
+          videoWatchedPercent: "90.00",
+        }),
+        [
+          statusRow({
+            status: "IN_PROGRESS",
+            quizAttempted: true,
+            videoStatus: "READY",
+            videoWatchedPercent: "90.00",
+          }),
+        ],
+        false,
+      ),
+    ).toBe("sedang-dipelajari");
+  });
+
+  it("row 2: sequential gate → terkunci (even for an opened, eligible successor)", () => {
+    expect(
+      courseLessonStatus(
+        2,
+        statusRow({ status: "IN_PROGRESS", videoStatus: "READY", videoWatchedPercent: "90.00" }),
+        [statusRow(), statusRow({ status: "IN_PROGRESS" })],
+        true,
+      ),
+    ).toBe("terkunci");
+  });
+
+  it("row 1: COMPLETED beats the re-locked gate and beats everything else", () => {
+    expect(
+      courseLessonStatus(
+        2,
+        statusRow({ status: "COMPLETED", quizAttempted: true }),
+        [statusRow(), statusRow({ status: "COMPLETED", quizAttempted: true })],
+        true,
+      ),
+    ).toBe("selesai");
   });
 });
