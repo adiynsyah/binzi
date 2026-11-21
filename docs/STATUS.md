@@ -1,9 +1,103 @@
 # Status Proyek BINZI — catatan untuk melanjutkan di chat baru
 
-> Terakhir diperbarui: 20 Nov 2026. File ini dikelola manual (bukan oleh agent) dan hanya untuk melanjutkan percakapan dengan Claude.
+> Terakhir diperbarui: 21 Nov 2026. File ini dikelola manual (bukan oleh agent) dan hanya untuk melanjutkan percakapan dengan Claude.
 > Untuk melanjutkan: buka chat baru, unggah file ini + `docs/tasks/URUTAN-KERJA.md`, lalu pakai prompt di bagian paling bawah.
 
-## Pembaruan 20 Nov 2026 — A2 S3-02 perapian quiz di-merge (baca ini dulu, lalu 19 Nov, 16 Nov, 14 Nov, 11 Nov, 10 Nov, 9 Nov, 8 Nov, 7 Nov, 6 Nov, 4 Nov malam, 4 Nov, dan 3 Nov)
+## Pembaruan 21 Nov 2026 — A3 S5-03 Nilai Saya di-merge, kartu A4 S5-04 siap (baca ini dulu, lalu 20 Nov, 19 Nov, 16 Nov, 14 Nov, 11 Nov, 10 Nov, 9 Nov, 8 Nov, 7 Nov, 6 Nov, 4 Nov malam, 4 Nov, dan 3 Nov)
+
+Bagian-bagian di bawahnya tetap berlaku. Bagian ini mengubah atau menambahnya. Jadwal yang berlaku tetap "Rencana UAT internal 11 Des" di Pembaruan 19 Nov.
+
+### Posisi
+- `main` = `1acd84d` (#148). **A1, A2, dan A3 (S5-03, #148) selesai.** Berikutnya A4 S5-04 progres kursus + Kursus Saya (kartu masuk lewat PR docs ini).
+- A3 diperkirakan ±2 hari; kartu ditulis dan di-merge Sab 21 (sesi + dua putaran tinjauan PR). Bersama A2, jadwal maju ±2 hari dari tabel 19 Nov.
+- Baseline Vitest **130 berkas / 1567 tes** (diukur di sandbox Claude chat pada `2c38f87`, pohonnya identik dengan `1acd84d`). E2E penuh lokal agent: 231 lolos / 14 dilewati / 1 gagal flaky (lihat "Tes flaky siteverify"). CI `ci` 3m23s, `e2e` 11m5s. Gate audit 0 excused / 0 blocking / OK (21 info/low/moderate). Tanpa migrasi, tanpa dependensi baru.
+
+### Yang di-merge 21 Nov
+
+| PR | Isi |
+|---|---|
+| #147 | Docs: kartu S5-03 Nilai Saya, tautan di URUTAN-KERJA |
+| #148 | S5-03 Nilai Saya `/belajar/nilai` (squash dari 8 commit, head `2c38f87`) |
+
+### S5-03 di-merge (#148)
+Isi PR:
+- **`progress`:** `selectGradeEnrollments` + `selectGradeLessonRows` (satu kueri untuk semua kursus, `user_id` di ON) → `loadGradeCourses` (gerbang `isLessonUnlocked` per kursus).
+- **`attempt`:** `reviewAccessOf` dikeluarkan dari `toQuizReviewDTO` (tes lama tidak berubah); `selectQuizGradeSettings` (jumlah soal, subquery ber-alias) + `selectFinalAttemptResults` (`reset_at IS NULL`, `SUBMITTED`/`EXPIRED`) → `getGradesPage` + `toGradesPageDTO`.
+  - Satu angka, satu sumber: nilai materi dari `lesson_progress`, nilai Final dari attempt hidup, Nilai Akhir + badge dari `enrollments`.
+  - `GradeCourseDTO.final.reviewHref` ditambahkan agent untuk tautan "Kerjakan Final Quiz" (deviasi yang dilaporkan, diterima).
+- **Halaman** `/belajar/nilai` + `MyGrades`: kartu per kursus (kepala `surface-2`, tabel, rumus di dasar kotak), kolom per lebar (Lihat / ↗ / tanpa tanggal < 640), keadaan kosong 8f, nama tautan mengikuti `reviewAccess`.
+- **Hasil Final:** "Ke Belajar" → "Ke Nilai Saya" (copy 7h).
+- **`formatWibDate`** ("24 Agu 2026") di `src/lib/datetime.ts`.
+- **Tes:** 11 tes integrasi dengan aktor baru per tes, e2e `belajar-nilai.spec.ts` (2 tes), dua langkah axe di tes yang sudah ada, akhir tes 1 `belajar-final-quiz.spec.ts`.
+
+**Tinjauan rencana** (chat 21 Nov pagi) menambah 10 butir. Yang terpenting:
+- tes integrasi tidak boleh memakai `MEMBER`/`MEMBER_B` (user tetap yang dipakai 81 pemanggilan di berkas yang sama; keadaan kosong dan urutan mustahil diuji) — aktor baru per tes, `finalCourse`/`answerFinalAttempt` mendapat parameter `actor` opsional;
+- bobot dikembalikan di `finally` (`finalCourse` selalu mengisi 60/40);
+- prediksi mutasi 4 keliru (lihat pelajaran no. 2) → kasus "reset tanpa attempt baru" dan "reset + IN_PROGRESS";
+- mutasi 3 dibuat deterministik (pelajaran no. 3); data peserta lain + snapshot DTO sebelum/sesudah.
+
+**Tinjauan PR putaran 1** (sandbox): `npm run check` 130/1566; 16 mutasi data diulang, semua merah. Temuan:
+- tanpa kotak per kursus (8b/8t/8e); baris ±69 px dengan "Lihat"/↗ ±11 px lebih rendah (`align-top` + tautan 44 px);
+- bobot di keadaan terisi tidak dites: mutan "60/40 tetap" hijau;
+- jarak pengantar → kursus ±10 px; badge bertumpuk di ≥ 640; `font-bold` di Plex Mono (hanya 400/500 dimuat);
+- reformat Prettier di `axe.spec.ts` (+143/−89) dan `belajar-final-quiz.spec.ts` (hanya format, dicek setara token);
+- screenshot diambil setelah ubahan SQL (rumus "= 91");
+- rata-rata sementara hanya dijaga e2e;
+- mutasi 19 yang dilaporkan bukan mutasi kartu (pelajaran no. 6). Di sandbox, axe-core menandai `success` di `fill` 4,32 sebagai serious.
+
+**Putaran 2** (`2c38f87`): semua butir diterapkan. Mutan yang tadinya hijau kini merah (bobot terisi, rata-rata sementara, `bg-fill`). Check 130/1567. 12 screenshot ditinjau terhadap 8b/8t/8e/8f — tidak ada yang memblokir; sisa kosmetik di "Perapian putaran 2 (dari S5-03)".
+
+**Verifikasi manual pemilik S5-03:** ✓ 21 Nov.
+
+### Keputusan pemilik 21 Nov
+1. **Kartu S5-03** dengan 13 keputusan teknisnya disetujui; rencana agent disetujui dengan 10 tambahan tinjauan.
+2. **#148 di-merge** setelah putaran 2 dan verifikasi manual.
+3. **Kartu A4 S5-04** ([kartu](tasks/sprint-5/S5-04-progres-kursus-dan-kursus-saya.md)) masuk lewat PR docs ini. 13 keputusan teknisnya usulan Claude chat; me-merge PR docs = menyetujuinya. Yang terpenting:
+   - semua data dari modul `progress`; bobot dirangkai di halaman (`getScoreWeights`), modul `attempt` tidak disentuh;
+   - lima status materi (empat PRG-10 + "Belum mulai" 8c) dari satu fungsi murni;
+   - Final di halaman progres dari `enrollments.status` + `allLessonsCompleted`, tanpa membaca attempt;
+   - "Kerjakan quiz" menuju halaman materi (dialog konfirmasi S3-01 tetap dilalui);
+   - tidak dibangun: chip filter 13b, "Ulangi kursus", "Waktu belajar" (`total_seconds_spent` tidak pernah ditulis), kalimat proyeksi 8c;
+   - keadaan kosong 13c memakai "Mulai materi 1" sampai detail kursus A5 ada.
+
+### Perapian putaran 2 (dari S5-03)
+- Pita `fill-soft` baris Final dan garis antarbaris berhenti 22 px dari tepi kotak (padding ada di pembungkus tabel, bukan di sel); di 8b selebar kotak.
+- `th scope="row"` tanpa `wrap-anywhere`: judul materi panjang tanpa spasi meluap di dalam pembungkus `overflow-x-auto`, dan tes "tanpa gulir samping" (dokumen maupun kotak) tidak menangkapnya (pelajaran no. 8).
+- Lebar kolom berbeda antarkartu (setiap tabel menghitung sendiri); 8b memakai kolom tetap.
+- Tes "bobot tidak sah → melempar" hanya `rejects.toBeInstanceOf(Error)`.
+- Judul kursus di Nilai Saya sebagai tautan ke `/belajar/{kursus}` (setelah A4).
+
+### Tes flaky siteverify — kejadian kedua
+`e2e/layout/axe.spec.ts` "EDITOR: /cms dan (w…) drawer CMS terbuka" gagal di **w1280** pada run lokal agent 21 Nov dengan `UNKNOWN_ERROR` saat siteverify Turnstile — tanda tangan yang sama dengan kejadian pertama 26 Okt (w360, butir "Kandidat tes flaky — siteverify Turnstile" di "Pekerjaan kecil"). Hijau saat diulang, dan CI hijau. Bila mulai muncul di CI, pertimbangkan stub siteverify di harness (konsekuensinya siteverify tidak lagi diuji sungguhan).
+
+### Tugas pemilik (bukan kode)
+Tetap dari 20 Nov:
+1. **`AGENTS.md`** tidak terlacak — jangan di-commit; putuskan di C-09.
+2. **H-04 R2** (bucket + token) — membuka jalan tarik maju video R2.
+3. **Akun UAT per peran** di Production, sebelum A9.
+4. **Ketik kursus "[DEMO]"** lewat CMS + video *unlisted*, sebelum A9. Final Quiz: 20 menit, batas lulus 70.
+5. **Tentukan penguji dan jam UAT** 11 Des.
+6. **Nomor WhatsApp asli** lewat SQL editor binzi-dev, bila halaman konsultasi ikut diuji.
+7. **Verifikasi manual S5-01** masih terbuka.
+8. Opsional: **redirect URI Google di Production**.
+
+### Pelajaran 21 Nov
+1. **Tes integrasi di berkas bersama memakai aktor baru per tes.** Satu PGlite melayani seluruh berkas, jadi user tetap (`MEMBER`) membawa data puluhan tes lain; keadaan "kosong" dan urutan tidak bisa diuji dengannya.
+2. **Urutan bisa menutupi mutasi filter.** Tanpa `reset_at IS NULL`, `attempt_number desc` tetap memilih attempt hidup (nomor 2), jadi data "reset + hidup" tetap hijau. Yang menangkap adalah keadaan tepat setelah reset, sebelum ada attempt baru (lanjutan 16 Nov no. 1).
+3. **Seri pada pemecah urutan membuat mutasi lolos secara acak.** Attempt aktor dan peserta lain sama-sama bernomor 1. Data yang deterministik: peserta lain punya baris di tempat aktor tidak punya.
+4. **Kartu UI menyebut wadah visualnya**, bukan hanya struktur semantik. "Satu `<section>` per kursus" dibangun tanpa bingkai, padahal ketiga desain menggambar kotak. Kartu S5-04 menulis `rounded-card border` eksplisit.
+5. **Target sentuh 44 px di sel tabel:** sel `align-middle` dan sel tautan tanpa padding vertikal. `align-top` + tautan 44 px menggeser "Lihat" ±11 px dan membuat baris ±69 px.
+6. **Mutasi yang dijalankan harus persis mutasi kartu.** Agent menghapus latar baris Final alih-alih menggantinya ke `bg-fill`, lalu menyimpulkan axe tidak menangkap. Mutasi kartu ternyata merah di axe (4,32).
+7. **Nilai dari props dites dengan nilai bukan-bawaan di setiap keadaan.** Bobot 70/30 hanya dites di keadaan kosong, sehingga keadaan terisi bisa memakai 60/40 tetap tanpa merah.
+8. **Wadah `overflow-x-auto` membutakan tes "tanpa gulir samping".** Luapan di dalamnya tidak menambah `scrollWidth` dokumen maupun kotak luar. Ukur wadah gulirnya sendiri, atau pakai data yang memicu luapan (judul tanpa spasi).
+9. **Screenshot untuk tinjauan diambil sebelum ubahan SQL** yang mengubah angka.
+
+### Catatan untuk kartu berikutnya
+- **A4 S5-04** masuk lewat PR docs ini, ditulis terhadap `1acd84d`. Baseline 130 / 1567. Rencana agent ditinjau di chat.
+- **A5 S6-02 katalog + detail** ditulis Claude chat selagi A4 berjalan. Catatan di akhir kartu S5-04: daftar 13c beralih ke `/kursus/{slug}`, dan peserta belum terdaftar di `/belajar/{kursus}` boleh dialihkan ke detail kursus.
+- Bawa pelajaran 21 Nov no. 4–9 ke kartu UI berikutnya.
+
+## Pembaruan 20 Nov 2026 — A2 S3-02 perapian quiz di-merge (baca setelah 21 Nov, lalu 19 Nov, 16 Nov, 14 Nov, 11 Nov, 10 Nov, 9 Nov, 8 Nov, 7 Nov, 6 Nov, 4 Nov malam, 4 Nov, dan 3 Nov)
 
 Bagian-bagian di bawahnya tetap berlaku. Bagian ini mengubah atau menambahnya. Jadwal yang berlaku tetap "Rencana UAT internal 11 Des" di Pembaruan 19 Nov.
 
@@ -1426,7 +1520,7 @@ Rencana disetujui, dengan lima tambahan berikut (hasil tinjauan C-02/C-03, belum
 - [ ] Saat S5/S6: perketat tes skip link — redaksi ketat ("elemen pertama di dalam `#konten-utama`") menunggu konten nyata.
 - [ ] **H-11 berjalan** (mulai 24 Okt). ✅ Langkah 1 bagian Production (login di iPhone → `/belajar`). ✅ Langkah 2 di **iPhone 13 Safari** — tanpa scroll horizontal; ✕ menu `/masuk`/`/daftar` menutup; halaman terkunci di belakang menu tamu; form tetap terlihat saat keyboard muncul; tombol 👁 berfungsi; bottom nav `/belajar` aman dari garis home; isi drawer akun bisa digulir dengan ✕ tetap di atas; target sentuh nyaman; gerakan kembali wajar; Turnstile kunci asli selesai. Bagian DevTools 360/768/1280 dicakup screenshot A-19b (kode sama — sejak PR #69 hanya docs yang masuk). ✅ Langkah 5: layar auth vs checklist 17d — default, hover, focus terlihat, form kosong/terisi, error server, terkirim, teks dasar 16 px (input 16 px juga mencegah zoom iOS), alur keyboard lolos; celah → C-07 (kontras) dan C-08 (disabled tanpa fokus, loading Google, fokus ke error, chip hanya warna). ✅ V-09: 90 commit `main` + 75 ref PR (termasuk branch yang sudah dihapus) dipindai dengan pola secret spesifik (Resend, `GOCSPX-`, API key Google, secret Turnstile asli, JWT Supabase, token Sentry/GitHub, kunci privat, hex 64, URL Postgres bersandi) — nihil; satu-satunya `.env*` yang pernah di-commit `.env.example`; `.env`, `.env.local`, `.env.binzi-dev` ter-ignore. Perintah grep di kartu H-11 menghasilkan ribuan baris (kata "password" di kode auth), jadi dipakai pola spesifik. ✅ V-04 di Production (24 Okt, akun MEMBER): `/cms` → halaman "Akses ditolak", `/api/cms/ping` → JSON 403 `{"error":{"code":"FORBIDDEN"}}` (kode `FORBIDDEN` hanya dibuat `ForbiddenError` berstatus 403, `src/lib/errors.ts:61`). Sisa: langkah 1 bagian localhost, langkah 3 (login Google tertaut di localhost), dan V-10 (lokal, kunci uji Turnstile) — **bisa dikerjakan** sejak C-05 (28 Okt), di DB lokal; V-07 setelah A-17.
 - [ ] **Kandidat tes flaky:** [w360] `e2e/layout/menus-drawers.spec.ts:120` "MEMBER: bentuk & perilaku menu akun" gagal 1× dalam run penuh lokal 24 Okt (CI belum pernah). Pesan errornya hilang: run berikutnya menimpa `test-results/` dan laporan HTML. Tidak bisa direproduksi (5/5 terisolasi, 80/80 urutan berkas). Bila gagal lagi — lokal atau CI — salin blok `Error:` + Expected/Received **sebelum** menjalankan ulang, lalu bawa ke Claude chat. CI `retries: 0`, jadi tes flaky bisa memerahkan PR mana pun.
-- [ ] **Kandidat tes flaky — siteverify Turnstile** (C-01, 26 Okt): run penuh lokal pertama gagal 1× di [w360] `e2e/layout/axe.spec.ts:229` "EDITOR: /cms dan (w360) drawer CMS terbuka" — `signInViaApi` (`e2e/fixtures.ts:161`) menerima 500 `{"message":"Something went wrong","code":"UNKNOWN_ERROR"}`; terisolasi lolos, run penuh kedua dan CI hijau. Penyebab (ditelusuri di Claude chat): pesan itu bukan dari kode BINZI, melainkan `catch` plugin captcha Better Auth (`plugins/captcha/index.mjs`) yang mengubah pengecualian apa pun menjadi 500; satu-satunya pemicu yang masuk akal adalah panggilan `siteverify` Cloudflare (batas 10 detik; respons kosong/error → "CAPTCHA service unavailable"). Harness e2e sengaja menjalankan siteverify sungguhan (`e2e/env.ts:58`), jadi setiap tes yang login atau daftar lewat API bergantung jaringan ke Cloudflare. Bila terulang: salin blok error, cari baris `[WebServer]` berisi "CAPTCHA service unavailable" di output run itu (konfirmasi penyebab), lalu re-run. Akibatnya job `e2e` (`retries: 0`) bisa memerahkan PR mana pun saat Cloudflare tersendat; bila sering, opsinya stub siteverify lokal lewat `siteVerifyURLOverride` di harness — konsekuensinya siteverify tidak lagi diuji sungguhan. Di Production jalur yang sama memberi pengguna 500 `UNKNOWN_ERROR`: cek tampilan form untuk kode ini saat kartu UI auth berikutnya ditulis (tidak mendesak).
+- [ ] **Kandidat tes flaky — siteverify Turnstile** (C-01, 26 Okt; **terulang 21 Nov** di [w1280] tes yang sama pada run lokal S5-03, CI hijau — Pembaruan 21 Nov): run penuh lokal pertama gagal 1× di [w360] `e2e/layout/axe.spec.ts:229` "EDITOR: /cms dan (w360) drawer CMS terbuka" — `signInViaApi` (`e2e/fixtures.ts:161`) menerima 500 `{"message":"Something went wrong","code":"UNKNOWN_ERROR"}`; terisolasi lolos, run penuh kedua dan CI hijau. Penyebab (ditelusuri di Claude chat): pesan itu bukan dari kode BINZI, melainkan `catch` plugin captcha Better Auth (`plugins/captcha/index.mjs`) yang mengubah pengecualian apa pun menjadi 500; satu-satunya pemicu yang masuk akal adalah panggilan `siteverify` Cloudflare (batas 10 detik; respons kosong/error → "CAPTCHA service unavailable"). Harness e2e sengaja menjalankan siteverify sungguhan (`e2e/env.ts:58`), jadi setiap tes yang login atau daftar lewat API bergantung jaringan ke Cloudflare. Bila terulang: salin blok error, cari baris `[WebServer]` berisi "CAPTCHA service unavailable" di output run itu (konfirmasi penyebab), lalu re-run. Akibatnya job `e2e` (`retries: 0`) bisa memerahkan PR mana pun saat Cloudflare tersendat; bila sering, opsinya stub siteverify lokal lewat `siteVerifyURLOverride` di harness — konsekuensinya siteverify tidak lagi diuji sungguhan. Di Production jalur yang sama memberi pengguna 500 `UNKNOWN_ERROR`: cek tampilan form untuk kode ini saat kartu UI auth berikutnya ditulis (tidak mendesak).
 - [ ] Cek pasca C-01 (bila belum dilakukan di Preview PR #77): `/daftar` dengan email tak valid dan sandi pendek → pesan validasi tampil (validasi klien memakai zod 4.6.6).
 - [x] Scrim menu ponsel tamu — dicek di iPhone 13 Safari (24 Okt): saat menu terbuka halaman di belakangnya terkunci (tidak tergulir), jadi yang terlihat selalu tertutup scrim. Potongan di screenshot full-page `tamu-menu-terbuka-w360` adalah artefak tangkapan (halaman direkam lebih panjang dari viewport).
 - [x] **Cek run terjadwal pertama workflow Cron** — selesai 20 Okt: Cron #2 (pemicu `schedule`) dibuat 22.53 UTC 19 Okt, ±3,5 jam setelah jadwal 19.17 UTC (insiden GitHub Actions 19 Okt sejak 15.49 UTC), hijau (workflow hanya hijau bila status persis 200). Run terjadwal berikutnya 22 Okt 19.17 UTC (23 Okt 02.17 WIB). Bila run hilang atau telat, cek riwayat insiden GitHub dulu sebelum menyimpulkan workflow bermasalah; run merah → tabel kegagalan di catatan "Cron & health". **Cron #3** (terjadwal 22 Okt 19.17 UTC): dibuat 22.17 UTC — telat 3 jam tanpa insiden — hijau. GitHub tidak menjamin waktu run terjadwal; keep-alive tetap aman selama run tidak hilang. `*/3` berlaku pada tanggal: run berikutnya 25, 28, 31 Okt lalu 1 Nov (31 dan 1 berurutan).
@@ -1510,7 +1604,7 @@ Rencana disetujui, dengan lima tambahan berikut (hasil tinjauan C-02/C-03, belum
 - [ ] Chore: varian gelap di komponen Avatar (`src/components/ui/avatar.tsx`) — **jatuh tempo** (A-15 selesai). Gaya `bg-text text-surface` diberi lewat `className` di 4 tempat A-14b (header member, menu akun) dan 4 tempat A-15 (blok user sidebar, avatar rel, avatar bar ponsel, kartu user drawer). Sekalian luruskan komentar di `src/components/cms/cms-mobile-bar.tsx` yang menyebut scrim tetap bisa dijangkau — panel setinggi layar menutupinya bila isi lebih tinggi dari layar (sama seperti drawer akun A-14b); agent membaca komentar sebagai kebenaran.
 - [ ] Cek jumlah PR terbuka: per 8 Okt ada 6 PR terbuka; per 9 Okt (sebelum merge #40) 5; per 12 Okt 6 (termasuk #53). Bila 5 di antaranya Dependabot, batas version update penuh (lihat catatan "Batas 5 PR Dependabot"; PR keamanan tidak tertahan — koreksi 9 Nov). Per 9 Nov: 4 PR Dependabot terbuka (#121, #122, #123, #125).
 - [ ] Koreksi kartu A-14b (commit docs kecil, tidak mendesak): "teks lebih tebal" untuk item aktif keliru (Lato tanpa 600 → diam & aktif sama-sama 700), dan "nama, email, dan inisial" menjadi "nama dan email" (prop `initial` sengaja tidak dibuat). Keduanya sudah tercatat di PR #53.
-- [ ] → **S1-01** (kursus) & **S1-02** (materi). Saat kartu CMS kursus (S1): validasi slug menolak kata yang bentrok dengan rute statis — slug kursus `kursus-saya` dan `nilai` (bentrok dengan `/belajar/kursus-saya`, `/belajar/nilai`), slug materi `final-quiz` (bentrok dengan `/belajar/{slug}/final-quiz`). Segmen statis selalu menang, jadi kursus/materi dengan slug itu tidak akan pernah bisa dibuka.
+- [x] *(Dicek 21 Nov: sudah ada sejak S1-01 — `course/schema.ts:56–57` menolak `kursus-saya` dan `nilai`, `lesson/queries.ts:183` mencadangkan `final-quiz`.)* → **S1-01** (kursus) & **S1-02** (materi). Saat kartu CMS kursus (S1): validasi slug menolak kata yang bentrok dengan rute statis — slug kursus `kursus-saya` dan `nilai` (bentrok dengan `/belajar/kursus-saya`, `/belajar/nilai`), slug materi `final-quiz` (bentrok dengan `/belajar/{slug}/final-quiz`). Segmen statis selalu menang, jadi kursus/materi dengan slug itu tidak akan pernah bisa dibuka.
 - [ ] Saat S2/S5: tinjau `getActiveAccountItem` (`src/components/shared/nav-items.ts`) — Dashboard menyala untuk `/belajar` dan semua `/belajar/**` selain Kursus Saya & Nilai Saya, termasuk ringkasan kursus `/belajar/{slug}`. Keputusan implisit agent, tidak tercatat di "Keputusan & asumsi" PR #53.
 - [ ] Dokumen masih menyebut ClickUp sebagai pelacak (`docs/tasks/README.md` "Status dilacak di ClickUp", baris "Tag/Judul ClickUp" di setiap kartu, `clickup-import-fase-0.csv`, `URUTAN-KERJA.md`). Rapikan saat revisi dokumen berikutnya — tidak mendesak.
 - [ ] Repo GitHub `adiynsyah/binzi` berstatus **publik** (terlihat 12 Okt) — PRD, desain, `CLAUDE.md`, dan isi PR terbaca siapa pun. Pastikan memang disengaja.
@@ -1648,28 +1742,31 @@ Rencana disetujui, dengan lima tambahan berikut (hasil tinjauan C-02/C-03, belum
 Saya sedang membangun BINZI (platform belajar gizi) dengan Next.js 16 +
 AI coding agent (Claude Code). Terlampir docs/STATUS.md dan
 docs/tasks/URUTAN-KERJA.md dari repo saya — baca keduanya sebagai konteks.
-Baca bagian "Pembaruan 20 Nov" di STATUS.md lebih dulu, lalu
-"Pembaruan 19 Nov", "Pembaruan 16 Nov", "Pembaruan 14 Nov", "Pembaruan 11 Nov", "Pembaruan 10 Nov", "Pembaruan 9 Nov",
+Baca bagian "Pembaruan 21 Nov" di STATUS.md lebih dulu, lalu
+"Pembaruan 20 Nov", "Pembaruan 19 Nov", "Pembaruan 16 Nov", "Pembaruan 14 Nov",
+"Pembaruan 11 Nov", "Pembaruan 10 Nov", "Pembaruan 9 Nov",
 "Pembaruan 8 Nov", "Pembaruan 7 Nov", "Pembaruan 6 Nov", "Pembaruan 4 Nov
 malam", "Pembaruan 4 Nov", dan "Pembaruan 3 Nov 2026 — target demo 20 Nov".
 Demo 20 Nov batal; jadwal yang berlaku adalah "Rencana UAT internal 11 Des"
 di Pembaruan 19 Nov, dan itu mengalahkan rencana sprint lama.
 Spesifikasi lengkap ada di docs/prd/ dan aturan agent di CLAUDE.md;
 repo publik di github.com/adiynsyah/binzi — clone untuk membaca kode,
-kartu, desain, dan meninjau PR (API GitHub sering kena rate limit;
-git fetch pull/N/head tetap jalan). Repo di mesin saya ada di
+kartu, desain, dan meninjau PR (API GitHub sering tidak tersedia dari
+sandbox; git fetch pull/N/head tetap jalan). Repo di mesin saya ada di
 ~/Project/React/binzi-new.
-Posisi terakhir (20 Nov): A1 C-11 (#142) dan A2 S3-02 perapian quiz
-(#145) di-merge; main = cd82860; baseline Vitest 129 / 1532. Target UAT
-internal Jum 11 Des (rencana A/B/C dan urutan tarik maju di Pembaruan
-19 Nov); jadwal maju ±1 hari.
+Posisi terakhir (21 Nov): A1 C-11 (#142), A2 S3-02 (#145), dan A3 S5-03
+Nilai Saya (#148) di-merge; main = 1acd84d; baseline Vitest 130 / 1567.
+Kartu A4 S5-04 (progres kursus + Kursus Saya) masuk lewat PR docs 21 Nov.
+Target UAT internal Jum 11 Des (rencana A/B/C dan urutan tarik maju di
+Pembaruan 19 Nov); jadwal maju ±2 hari.
 Berikutnya:
-- Tulis kartu A3 S5-03 Nilai Saya terhadap main terbaru (catatan di
-  "Catatan untuk kartu berikutnya", 20 Nov), lalu kartu A4 selagi agent
-  mengerjakan A3. Rencana agent ditinjau di chat.
-- Tugas pemilik: lihat "Tugas pemilik (bukan kode)" di 20 Nov.
+- Sesi agent A4 S5-04; rencana agent ditinjau di chat.
+- Tulis kartu A5 S6-02 katalog + detail selagi agent mengerjakan A4
+  (catatan di akhir kartu S5-04).
+- Tugas pemilik: lihat "Tugas pemilik (bukan kode)" di 21 Nov.
 - Untuk tinjauan tampilan, Claude bisa menjalankan Chromium headless di
-  sandbox (@sparticuz/chromium + playwright-core dari registry npm).
+  sandbox (@sparticuz/chromium + playwright-core dari registry npm), dan
+  axe-core dari node_modules repo.
 Gate audit main: 0 excused / 0 blocking / 21 info-low-moderate. Uji
 lokal selalu dengan npm run dev:db. Branch main diproteksi (wajib PR,
 check ci + e2e) — docs juga lewat PR. Setiap kartu ditinjau terhadap
