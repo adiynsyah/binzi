@@ -158,3 +158,31 @@ describe("nilai route structure (card S5-03 §3)", () => {
     ).toBe(false);
   });
 });
+
+describe("kursus-saya + progres route structure (card S5-04 §2)", () => {
+  it("has Kursus Saya at belajar/kursus-saya/page.tsx and the progress page at belajar/[slug]/page.tsx", () => {
+    // The static segment `kursus-saya` wins over [slug]; that course slug
+    // is rejected by the CMS schema like "nilai".
+    expect(
+      existsSync(
+        join(APP_DIR, "(learn)", "belajar", "kursus-saya", "page.tsx"),
+      ),
+    ).toBe(true);
+    expect(
+      existsSync(join(APP_DIR, "(learn)", "belajar", "[slug]", "page.tsx")),
+    ).toBe(true);
+  });
+
+  it("has no loading.tsx in belajar/kursus-saya/ or [slug]/ — 404/307 must stay 404/307", () => {
+    // Same rule as [materi]/ and final-quiz/: the progress page answers
+    // notFound()/redirect(), and a fallback would wrap both into 200s.
+    expect(
+      existsSync(
+        join(APP_DIR, "(learn)", "belajar", "kursus-saya", "loading.tsx"),
+      ),
+    ).toBe(false);
+    expect(
+      existsSync(join(APP_DIR, "(learn)", "belajar", "[slug]", "loading.tsx")),
+    ).toBe(false);
+  });
+});
