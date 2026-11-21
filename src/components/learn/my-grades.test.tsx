@@ -205,6 +205,14 @@ describe("MyGrades — terisi", () => {
     expect(screen.getByText("Final Quiz · 10 soal")).toBeDefined();
     expect(screen.getByText("1 · Materi satu")).toBeDefined();
     expect(screen.getByText("2 · Materi dua")).toBeDefined();
+    // The Final row alone carries the fill — the visual distinction axe
+    // cannot guard (contrast only IMPROVES without it), so it is pinned
+    // here (mutation 19).
+    const finalRow = screen.getByRole("row", { name: /Final Quiz · 10 soal/ });
+    expect(finalRow.className).toContain("bg-fill-soft");
+    expect(
+      screen.getByRole("row", { name: /1 · Materi satu/ }).className,
+    ).not.toContain("bg-fill-soft");
   });
 
   it("both formula variants + the Kerjakan Final Quiz link on nextStep final", () => {
