@@ -288,7 +288,7 @@ describe("getMyCoursesPage", () => {
     expect(dto.progressHref).toBe(`/belajar/${made.slug}`);
   });
 
-  it("ordered by enrollments.updated_at desc — explicit stamps as the LAST write; id asc never rescues the order", async () => {
+  it("ordered by enrollments.updated_at desc — explicit stamps as the LAST write; id asc never rescues the order; three badges; another participant's enrollments never leak", async () => {
     const member = await newMember("urut");
     // Explicit ids: id-asc order (A, B, C) differs from the expected
     // updated_at-desc order (C, A, B), and the enrollment INSERT order is a
@@ -313,6 +313,7 @@ describe("getMyCoursesPage", () => {
         daysAgo: 1,
       },
     ];
+    const lessonIds = new Map<string, string>();
     for (const spec of specs) {
       await db.insert(courses).values({
         id: spec.id,
@@ -324,13 +325,17 @@ describe("getMyCoursesPage", () => {
         createdBy: EDITOR.id,
         updatedBy: EDITOR.id,
       });
-      await db.insert(lessons).values({
-        courseId: spec.id,
-        title: "Materi satu",
-        slug: "materi-1",
-        orderIndex: 1,
-        content: { type: "doc", content: [] },
-      });
+      const [lesson] = await db
+        .insert(lessons)
+        .values({
+          courseId: spec.id,
+          title: "Materi satu",
+          slug: "materi-1",
+          orderIndex: 1,
+          content: { type: "doc", content: [] },
+        })
+        .returning({ id: lessons.id });
+      lessonIds.set(spec.slug, lesson!.id);
     }
     // Insert order B, C, A — deliberately NOT the expected order.
     for (const slug of ["urut-kursu-b", "urut-kursu-c", "urut-kursu-a"]) {
@@ -340,7 +345,37 @@ describe("getMyCoursesPage", () => {
         courseId: spec.id,
       });
     }
-    // The stamps are the LAST write before the read.
+    // The three badges (card §3): C stored PASSED → lulus, A one COMPLETED
+    // lesson → sedang-berjalan, B untouched → belum-dimulai.
+    await db
+      .update(enrollments)
+      .set({ status: "PASSED", finalScorePercent: "90.00" })
+      .where(
+        sql`${enrollments.userId} = ${member.id} and ${enrollments.courseId} = ${specs[2]!.id}`,
+      );
+    await setLessonProgress(member.id, lessonIds.get("urut-kursu-a")!, (
+      await enrollmentOf(member.id, specs[0]!.id)
+    )!.id, {
+      status: "COMPLETED",
+      completedAt: new Date(),
+    });
+    // Participant B: a FOURTH PUBLISHED course with lessons of their own,
+    // plus a second enrollment in the actor's course A — both stamped NEWER
+    // than everything the actor ever did. Without enrollments.user_id in the
+    // query this test fails ALONE (B's rows would flood the actor's list).
+    const other = await newMember("urut-lain");
+    const otherCourse = await makeCourse("urut-lain", { lessonTitles: ["Materi satu"] });
+    await db.insert(enrollments).values({
+      userId: other.id,
+      courseId: otherCourse.course.id,
+    });
+    await db.insert(enrollments).values({
+      userId: other.id,
+      courseId: specs[0]!.id,
+    });
+    await stampEnrollmentUpdatedAt(other.id, otherCourse.course.id, daysAgoIso(0));
+    await stampEnrollmentUpdatedAt(other.id, specs[0]!.id, daysAgoIso(0));
+    // The actor's stamps are the LAST write about the ACTOR before the read.
     for (const spec of specs) {
       await stampEnrollmentUpdatedAt(
         member.id,
@@ -354,6 +389,11 @@ describe("getMyCoursesPage", () => {
       "urut-kursu-c",
       "urut-kursu-a",
       "urut-kursu-b",
+    ]);
+    expect(page.courses.map((course) => course.badge)).toEqual([
+      "lulus",
+      "sedang-berjalan",
+      "belum-dimulai",
     ]);
   });
 
@@ -607,5 +647,81 @@ describe("getCourseProgressPage — statuses, video, ringkasan, final", () => {
     expect(done.final!.status).toBe("selesai");
     expect(done.finalScorePercent).toBe(68);
     expect(done.badge).toBe("lulus");
+  });
+
+  it("another participant's progress never leaks into the actor's DTO (mutation 1: user_id in the outline JOIN)", async () => {
+    const member = await newMember("isolat");
+    const other = await newMember("isolat-b");
+    const made = await makeCourse("isolat-kursu", {
+      lessonTitles: ["Materi satu", "Materi dua", "Materi tiga"],
+    });
+    await enrollInCourse(member, made.course.id);
+    await enrollInCourse(other, made.course.id);
+    // The actor opens ONLY lesson 1.
+    const memberEnrollment = (await enrollmentOf(member.id, made.course.id))!;
+    await setLessonProgress(
+      member.id,
+      made.lessons[0]!.id,
+      memberEnrollment.id,
+      { status: "IN_PROGRESS" },
+    );
+    const before = await getCourseProgressPage(member, made.slug);
+
+    // B completes lesson 2 — a lesson the actor never opened — with a quiz
+    // score. Every column B writes must stay invisible in the actor's DTO.
+    const otherEnrollment = (await enrollmentOf(other.id, made.course.id))!;
+    await setLessonProgress(
+      other.id,
+      made.lessons[1]!.id,
+      otherEnrollment.id,
+      {
+        status: "COMPLETED",
+        quizAttempted: true,
+        quizScorePercent: "95.00",
+        quizIsPassed: true,
+        quizSubmittedAt: new Date(),
+        completedAt: new Date(),
+      },
+    );
+    const after = await getCourseProgressPage(member, made.slug);
+    expect(after).toEqual(before);
+  });
+
+  it("final questionCount is PER QUIZ: two courses, two Finals, 2 and 3 questions (mutations 13 & 21)", async () => {
+    const member = await newMember("hitung");
+    const two = await makeCourse("hitung-dua", {
+      lessonTitles: ["Materi satu"],
+    });
+    const three = await makeCourse("hitung-tiga", {
+      lessonTitles: ["Materi satu"],
+    });
+    await enrollInCourse(member, two.course.id);
+    await enrollInCourse(member, three.course.id);
+    // With BOTH Finals populated, a count subquery that loses its
+    // quiz_id binding reads the whole questions table (5 everywhere) and a
+    // bare-name binding reads 0 everywhere — only the real scoping gives
+    // 2 and 3.
+    await db.insert(schema.questions).values(
+      [1, 2].map((order) => ({
+        quizId: two.course.finalQuiz!.id,
+        orderIndex: order,
+        text: sql`'{"type":"doc"}'::jsonb`,
+      })),
+    );
+    await db.insert(schema.questions).values(
+      [1, 2, 3].map((order) => ({
+        quizId: three.course.finalQuiz!.id,
+        orderIndex: order,
+        text: sql`'{"type":"doc"}'::jsonb`,
+      })),
+    );
+
+    const pageTwo = await getCourseProgressPage(member, two.slug);
+    const pageThree = await getCourseProgressPage(member, three.slug);
+    if (pageTwo.state !== "progres" || pageThree.state !== "progres") {
+      throw new Error("expected progres");
+    }
+    expect(pageTwo.final!.questionCount).toBe(2);
+    expect(pageThree.final!.questionCount).toBe(3);
   });
 });
