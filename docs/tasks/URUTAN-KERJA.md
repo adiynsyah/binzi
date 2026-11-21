@@ -168,7 +168,7 @@ Rencana lengkap, asumsi, dan aturannya ada di `STATUS.md` ("Pembaruan 19 Nov", b
 
 - [x] 👤 **A1** · C-11 — hapus pengecualian audit (patch, lihat "Chore terjadwal") · *✅ PR #142 (19 Nov)*
 - [x] 🤖 **A2** · [S3-02](sprint-3/S3-02-perapian-quiz.md) — perapian quiz materi + Final Quiz · *✅ PR #145 (20 Nov, satu sesi); perapian putaran 2 di STATUS 20 Nov*
-- [ ] 🤖 **A3** · S5-03 — Nilai Saya `/belajar/nilai` (8b, 8f) · *±2 hari*
+- [ ] 🤖 **A3** · [S5-03](sprint-5/S5-03-nilai-saya.md) — Nilai Saya `/belajar/nilai` (8b, 8f): tabel per kursus, Nilai Akhir tersimpan, tautan pembahasan, keadaan kosong, "Ke Nilai Saya" di hasil Final · *±2 hari*
 - [ ] 🤖 **A4** · S5-04 — progres kursus `/belajar/{kursus}` (8c) + Kursus Saya `/belajar/kursus-saya` (13b, 13c) · *±2 hari*
 - [ ] 🤖 **A5** · S6-02 — katalog `/kursus` + detail `/kursus/{slug}` (7a, 7b, 7m), sampul placeholder · *±2½ hari*
 - [ ] 🤖 **A6** · S5-05 — profil dasar `/profil` (9c): ubah nama, ubah password, logout semua perangkat · *±2 hari*
