@@ -439,7 +439,7 @@ test("2. kosong 360/1280 + tamu dialihkan ke /masuk", async ({
       }),
     ).toBeVisible();
     const link = page.getByRole("link", { name: "Lanjutkan kursus saya" });
-    await expect(link).toHaveAttribute("href", "/belajar");
+    await expect(link).toHaveAttribute("href", "/belajar/kursus-saya");
     await maybeScreenshot(
       page,
       `nilai-kosong-${width}`,

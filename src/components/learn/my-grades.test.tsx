@@ -117,10 +117,10 @@ describe("MyGrades — kosong (8f)", () => {
     ).toBeDefined();
   });
 
-  it("links Lanjutkan kursus saya to /belajar as a full-width-below-640 button", () => {
+  it("links Lanjutkan kursus saya to Kursus Saya as a full-width-below-640 button", () => {
     render(<MyGrades data={gradesPage([])} />);
     const link = screen.getByRole("link", { name: "Lanjutkan kursus saya" });
-    expect(link.getAttribute("href")).toBe("/belajar");
+    expect(link.getAttribute("href")).toBe("/belajar/kursus-saya");
     expect(link.className).toContain("w-full");
     expect(link.className).toContain("sm:w-auto");
   });

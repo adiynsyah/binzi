@@ -19,6 +19,7 @@ import { ArrowUpRight } from "lucide-react";
 
 import { BadgeStatus } from "@/components/ui/badge-status";
 import { buttonVariants } from "@/components/ui/button-variants";
+import { MEMBER_HREFS } from "@/components/shared/nav-items";
 import { formatWibDate } from "@/lib/datetime";
 import { cn } from "@/lib/utils";
 import { reviewReveals } from "@/components/learn/quiz/quiz-result";
@@ -367,7 +368,7 @@ export function MyGrades({ data }: MyGradesProps) {
             .
           </p>
           <Link
-            href="/belajar"
+            href={MEMBER_HREFS.kursusSaya}
             className={cn(
               buttonVariants({ variant: "dark", size: "lg" }),
               "mt-6 w-full sm:w-auto",
