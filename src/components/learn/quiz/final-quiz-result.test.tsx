@@ -170,14 +170,14 @@ describe("FinalQuizResult", () => {
     ).toBeTruthy();
   });
 
-  it("links to #pembahasan and /belajar", () => {
+  it("links to #pembahasan and /belajar/nilai (Ke Nilai Saya, card S5-03 §5)", () => {
     render(<FinalQuizResult data={finalDto()} />);
     const review = screen.getByRole("link", {
       name: "Lihat pembahasan 1 soal",
     });
     expect(review.getAttribute("href")).toBe("#pembahasan");
-    const home = screen.getByRole("link", { name: "Ke Belajar" });
-    expect(home.getAttribute("href")).toBe("/belajar");
+    const grades = screen.getByRole("link", { name: "Ke Nilai Saya" });
+    expect(grades.getAttribute("href")).toBe("/belajar/nilai");
   });
 
   it("renders the focusable review heading and the S3-01 items", () => {

@@ -9,7 +9,9 @@ import { describe, expect, it } from "vitest";
 import {
   orderOptions,
   questionsInAttemptOrder,
+  reviewAccessOf,
   toFinalQuizResultDTO,
+  toGradesPageDTO,
   toQuizResultDTO,
   toQuizRunningDTO,
   toQuizRulesDTO,
@@ -17,6 +19,9 @@ import {
   type AttemptOptionRow,
   type AttemptQuestionRow,
   type AttemptRow,
+  type GradeCourseRow,
+  type GradeFinalAttemptInput,
+  type GradeQuizSettingsInput,
   type QuizSettingsRow,
 } from "./serializer";
 
@@ -731,5 +736,322 @@ describe("toFinalQuizResultDTO", () => {
         "courseStatus",
       ].sort(),
     );
+  });
+});
+
+// ------------------------------------------------------------- S5-03 grades
+
+describe("reviewAccessOf", () => {
+  it("maps the four policy branches (card S3-02 §3, lifted for S5-03 §2)", () => {
+    expect(reviewAccessOf("ALWAYS", false)).toBe("ALWAYS");
+    expect(reviewAccessOf("NEVER", true)).toBe("HIDDEN_NEVER");
+    expect(reviewAccessOf("ON_PASS_ONLY", true)).toBe("PASSED");
+    expect(reviewAccessOf("ON_PASS_ONLY", false)).toBe("HIDDEN_NOT_PASSED");
+  });
+});
+
+describe("toGradesPageDTO", () => {
+  function gradeCourseRow(
+    overrides: Partial<GradeCourseRow> = {},
+  ): GradeCourseRow {
+    return {
+      courseId: "c-1",
+      courseTitle: "Gizi Seimbang",
+      lessonCount: 2,
+      enrollmentStatus: "PASSED",
+      finalScorePercent: "68.00",
+      completedAt: new Date("2026-11-18T09:00:00Z"),
+      lastActivityAt: new Date("2026-11-18T09:00:00Z"),
+      finalQuizId: "quiz-final",
+      finalQuizHref: "/belajar/gizi-seimbang/final-quiz",
+      allLessonsCompleted: true,
+      lessons: [
+        {
+          position: 1,
+          title: "Materi 1",
+          quizId: "quiz-1",
+          quizHref: "/belajar/gizi-seimbang/materi-1/quiz",
+          unlocked: true,
+          result: {
+            scorePercent: "70.00",
+            isPassed: true,
+            submittedAt: new Date("2026-11-18T08:07:30Z"),
+          },
+        },
+        {
+          position: 2,
+          title: "Materi 2",
+          quizId: "quiz-2",
+          quizHref: "/belajar/gizi-seimbang/materi-2/quiz",
+          unlocked: true,
+          result: {
+            scorePercent: "50.00",
+            isPassed: false,
+            submittedAt: new Date("2026-11-18T08:20:00Z"),
+          },
+        },
+      ],
+      ...overrides,
+    };
+  }
+
+  function defaultSettings(): Map<string, GradeQuizSettingsInput> {
+    return new Map([
+      ["quiz-1", { explanationPolicy: "ALWAYS", questionCount: 10 }],
+      ["quiz-2", { explanationPolicy: "ON_PASS_ONLY", questionCount: 10 }],
+      ["quiz-final", { explanationPolicy: "ALWAYS", questionCount: 5 }],
+    ]);
+  }
+
+  function defaultFinalAttempts(): Map<string, GradeFinalAttemptInput> {
+    return new Map([
+      [
+        "quiz-final",
+        {
+          scorePercent: "80.00",
+          isPassed: true,
+          submittedAt: new Date("2026-11-18T09:00:00Z"),
+        },
+      ],
+    ]);
+  }
+
+  function gradesPage(
+    courses: GradeCourseRow[],
+    overrides: {
+      settings?: Map<string, GradeQuizSettingsInput>;
+      finalAttempts?: Map<string, GradeFinalAttemptInput>;
+    } = {},
+  ) {
+    return toGradesPageDTO({
+      courses,
+      settings: overrides.settings ?? defaultSettings(),
+      finalAttempts: overrides.finalAttempts ?? defaultFinalAttempts(),
+      weights: { lessonPercent: 60, finalPercent: 40 },
+    });
+  }
+
+  it("the four allowlists are exact — no quiz/lesson/attempt ids, no answers, no key", () => {
+    const page = gradesPage([gradeCourseRow()]);
+    expect(Object.keys(page).sort()).toEqual(["courses", "weights"].sort());
+    const course = page.courses[0]!;
+    expect(Object.keys(course).sort()).toEqual(
+      [
+        "id",
+        "title",
+        "lessonCount",
+        "badge",
+        "meta",
+        "finalScorePercent",
+        "lessonAveragePercent",
+        "lessons",
+        "lockedCount",
+        "final",
+        "nextStep",
+      ].sort(),
+    );
+    expect(Object.keys(course.lessons[0]!).sort()).toEqual(
+      ["position", "title", "result"].sort(),
+    );
+    const keys = deepKeys(course.lessons[0]!.result);
+    expect([...keys].sort()).toEqual(
+      [
+        "scorePercent",
+        "isPassed",
+        "submittedAt",
+        "reviewHref",
+        "reviewAccess",
+      ].sort(),
+    );
+    // The whole page carries no id-ish or grading key beyond course id.
+    const pageKeys = deepKeys(page);
+    for (const forbidden of [
+      "quizId",
+      "lessonId",
+      "attemptId",
+      "enrollmentId",
+      "userId",
+      "answers",
+      "options",
+      "explanation",
+      "correct",
+      "isCorrect",
+      "points",
+      "questionOrder",
+    ]) {
+      expect(pageKeys.has(forbidden), forbidden).toBe(false);
+    }
+  });
+
+  it("rounds each number by ITS rule: lessons + Final floor, Nilai Akhir + average round", () => {
+    const page = gradesPage([
+      gradeCourseRow({
+        finalScorePercent: "91.40",
+        lessons: gradeCourseRow().lessons.map((lesson, index) =>
+          index === 0
+            ? { ...lesson, result: { ...lesson.result!, scorePercent: "69.99" } }
+            : lesson,
+        ),
+      }),
+    ]);
+    const course = page.courses[0]!;
+    expect(course.lessons[0]!.result!.scorePercent).toBe(69);
+    expect(course.finalScorePercent).toBe(91);
+    expect(course.lessonAveragePercent).toBe(60); // (69.99 + 50) / 2 = 59.995 → round
+    expect(course.final!.result!.scorePercent).toBe(80);
+
+    const rounded = gradesPage([
+      gradeCourseRow({ finalScorePercent: "67.50" }),
+    ]);
+    expect(rounded.courses[0]!.finalScorePercent).toBe(68);
+  });
+
+  it("meta + finalScorePercent + nextStep follow the enrollment status", () => {
+    const running = gradesPage([
+      gradeCourseRow({
+        enrollmentStatus: "IN_PROGRESS",
+        finalScorePercent: "68.00",
+        allLessonsCompleted: false,
+        completedAt: null,
+        lastActivityAt: new Date("2026-11-20T02:30:00Z"),
+        finalQuizId: null,
+        finalQuizHref: null,
+        lessons: [gradeCourseRow().lessons[0]!],
+      }),
+    ]).courses[0]!;
+    expect(running.badge).toBe("sedang-berjalan");
+    expect(running.meta).toEqual({
+      kind: "terakhir-diakses",
+      at: "2026-11-20T02:30:00.000Z",
+    });
+    expect(running.finalScorePercent).toBeNull();
+    expect(running.nextStep).toBe("materi");
+    expect(running.final).toBeNull();
+
+    const readyForFinal = gradesPage([
+      gradeCourseRow({
+        enrollmentStatus: "IN_PROGRESS",
+        finalScorePercent: null,
+        allLessonsCompleted: true,
+        completedAt: null,
+      }),
+    ]).courses[0]!;
+    expect(readyForFinal.nextStep).toBe("final");
+    expect(readyForFinal.finalScorePercent).toBeNull();
+
+    const done = gradesPage([gradeCourseRow()]).courses[0]!;
+    expect(done.badge).toBe("lulus");
+    expect(done.meta).toEqual({
+      kind: "selesai",
+      at: "2026-11-18T09:00:00.000Z",
+    });
+    expect(done.nextStep).toBeNull();
+
+    const completedNoDate = gradesPage([
+      gradeCourseRow({
+        enrollmentStatus: "COMPLETED",
+        completedAt: null,
+        lastActivityAt: new Date("2026-11-19T10:00:00Z"),
+      }),
+    ]).courses[0]!;
+    expect(completedNoDate.badge).toBe("selesai");
+    expect(completedNoDate.meta).toEqual({
+      kind: "selesai",
+      at: "2026-11-19T10:00:00.000Z",
+    });
+  });
+
+  it("drops a course without a single result and counts locked rows apart", () => {
+    const noGrades = gradeCourseRow({
+      enrollmentStatus: "IN_PROGRESS",
+      finalQuizId: null,
+      finalQuizHref: null,
+      lessons: [
+        {
+          position: 1,
+          title: "Materi 1",
+          quizId: "quiz-1",
+          quizHref: "/belajar/gizi-seimbang/materi-1/quiz",
+          unlocked: true,
+          result: null,
+        },
+      ],
+    });
+    const page = gradesPage([noGrades, gradeCourseRow()]);
+    expect(page.courses).toHaveLength(1);
+    expect(page.courses[0]!.title).toBe("Gizi Seimbang");
+
+    const mixed = gradesPage([
+      gradeCourseRow({
+        enrollmentStatus: "IN_PROGRESS",
+        finalQuizId: null,
+        finalQuizHref: null,
+        lessons: [
+          gradeCourseRow().lessons[0]!,
+          {
+            position: 2,
+            title: "Materi 2",
+            quizId: "quiz-2",
+            quizHref: "/belajar/gizi-seimbang/materi-2/quiz",
+            unlocked: true,
+            result: null,
+          },
+          {
+            position: 3,
+            title: "Materi 3",
+            quizId: null,
+            quizHref: null,
+            unlocked: false,
+            result: null,
+          },
+        ],
+      }),
+    ]).courses[0]!;
+    expect(mixed.lessons.map((row) => row.position)).toEqual([1, 2]);
+    expect(mixed.lessons[1]!.result).toBeNull();
+    expect(mixed.lockedCount).toBe(1);
+  });
+
+  it("reviewAccess follows the ONE derivation; null isPassed reads false", () => {
+    const course = gradesPage([gradeCourseRow()]).courses[0]!;
+    expect(course.lessons[0]!.result!.reviewAccess).toBe("ALWAYS");
+    expect(course.lessons[1]!.result!.reviewAccess).toBe(
+      "HIDDEN_NOT_PASSED",
+    );
+    expect(course.final!.result!.reviewAccess).toBe("ALWAYS");
+
+    const nullVerdict = gradesPage([
+      gradeCourseRow({
+        lessons: gradeCourseRow().lessons.map((lesson) =>
+          lesson.result !== null
+            ? { ...lesson, result: { ...lesson.result, isPassed: null } }
+            : lesson,
+        ),
+      }),
+    ]).courses[0]!;
+    expect(nullVerdict.lessons[0]!.result!.isPassed).toBe(false);
+    expect(nullVerdict.lessons[0]!.result!.reviewAccess).toBe("ALWAYS");
+    expect(nullVerdict.lessons[1]!.result!.reviewAccess).toBe(
+      "HIDDEN_NOT_PASSED",
+    );
+  });
+
+  it("final: questionCount from settings, reviewHref always present, result null before a submit", () => {
+    const course = gradesPage(
+      [gradeCourseRow()],
+      { finalAttempts: new Map() },
+    ).courses[0]!;
+    expect(course.final).toEqual({
+      questionCount: 5,
+      reviewHref: "/belajar/gizi-seimbang/final-quiz",
+      result: null,
+    });
+    expect(course.finalScorePercent).toBe(68);
+  });
+
+  it("passes the weights through untouched", () => {
+    const page = gradesPage([]);
+    expect(page.weights).toEqual({ lessonPercent: 60, finalPercent: 40 });
+    expect(page.courses).toEqual([]);
   });
 });

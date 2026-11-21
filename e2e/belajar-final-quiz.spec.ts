@@ -346,8 +346,16 @@ test("1. alur utuh: hasil materi 2 → Final terbuka → aturan 60/40 → 80 →
   await expect(page.getByText("Terkunci permanen")).toBeVisible();
   await maybeScreenshot(page, "final-hasil-360", test.info().project.name);
 
-  // "Ke Belajar" → the dashboard badge flipped by the submit (S5-01).
-  await page.getByRole("link", { name: "Ke Belajar" }).click();
+  // "Ke Nilai Saya" (S5-03 §5) → the transcript card for this course with
+  // its stored verdict and Nilai Akhir; the dashboard badge flipped by the
+  // submit (S5-01) still gets its own check afterwards.
+  await page.getByRole("link", { name: "Ke Nilai Saya" }).click();
+  const gradesSection = page.locator("section", {
+    has: page.getByRole("heading", { level: 2, name: made.title, exact: true }),
+  });
+  await expect(gradesSection.getByText("Lulus", { exact: true })).toBeVisible();
+  await expect(gradesSection.getByText("68", { exact: true })).toBeVisible();
+  await page.goto("/belajar");
   const article = page.getByRole("article", { name: made.title });
   await expect(article.getByText("Lulus", { exact: true })).toBeVisible();
 });

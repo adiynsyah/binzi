@@ -81,6 +81,7 @@ vi.mock("@/db", () => ({
 
 import {
   getFinalQuizPage,
+  getGradesPage,
   getLessonQuizPage,
   saveQuizAnswer,
   startFinalQuiz,
@@ -1228,12 +1229,15 @@ async function fillFinalQuiz(
 }
 
 /** Complete ONE lesson with a quiz score (direct lesson_progress write —
- *  the lesson-quiz path itself is covered by the S3-01 tests above). */
+ *  the lesson-quiz path itself is covered by the S3-01 tests above).
+ *  Card S5-03 §"Berkas": optional stored verdict/timestamp without
+ *  changing any old caller. */
 async function completeLessonWithScore(
   userId: string,
   courseId: string,
   lessonId: string,
   scorePercent: string,
+  options: { quizIsPassed?: boolean | null; quizSubmittedAt?: Date | null } = {},
 ) {
   const [enrollment] = await db
     .select()
@@ -1250,6 +1254,8 @@ async function completeLessonWithScore(
       status: "COMPLETED",
       quizAttempted: true,
       quizScorePercent: scorePercent,
+      quizIsPassed: options.quizIsPassed ?? null,
+      quizSubmittedAt: options.quizSubmittedAt ?? null,
     })
     .onConflictDoUpdate({
       target: [lessonProgress.userId, lessonProgress.lessonId],
@@ -1257,6 +1263,8 @@ async function completeLessonWithScore(
         status: "COMPLETED",
         quizAttempted: true,
         quizScorePercent: scorePercent,
+        quizIsPassed: options.quizIsPassed ?? null,
+        quizSubmittedAt: options.quizSubmittedAt ?? null,
       },
     });
 }
@@ -1333,13 +1341,16 @@ async function finalCourse(
 }
 
 /** Save `correctCount` correct answers then `wrongCount` wrong ones on the
- *  following questions (the rest stay unanswered). */
+ *  following questions (the rest stay unanswered). Card S5-03: optional
+ *  trailing actor (defaults to MEMBER) so grades tests never touch the
+ *  shared fixtures' attempts. */
 async function answerFinalAttempt(
   attemptId: string,
   correctOptionIds: string[],
   optionRowsAll: { questionId: string; id: string; isCorrect: boolean }[],
   correctCount: number,
   wrongCount: number,
+  actor: typeof MEMBER = MEMBER,
 ) {
   const questionOf = (optionId: string) =>
     optionRowsAll.find((row) => row.id === optionId)!.questionId;
@@ -1348,7 +1359,7 @@ async function answerFinalAttempt(
       (row) => row.questionId === questionId && !row.isCorrect,
     )!.id;
   for (let index = 0; index < correctCount; index += 1) {
-    await saveQuizAnswer(MEMBER, {
+    await saveQuizAnswer(actor, {
       attemptId,
       questionId: questionOf(correctOptionIds[index]!),
       optionId: correctOptionIds[index]!,
@@ -1356,7 +1367,7 @@ async function answerFinalAttempt(
   }
   for (let index = 0; index < wrongCount; index += 1) {
     const questionId = questionOf(correctOptionIds[correctCount + index]!);
-    await saveQuizAnswer(MEMBER, {
+    await saveQuizAnswer(actor, {
       attemptId,
       questionId,
       optionId: wrongOptionOf(questionId),
@@ -1996,5 +2007,555 @@ describe("finalQuizDone (card S3-02 §5)", () => {
     const open = await getLessonPage(MEMBER, made.slug, made.lessons[0]!.slug);
     if (open.state !== "open") throw new Error("expected open");
     expect(open.finalQuizDone).toBe(false);
+  });
+});
+
+// --------------------------------------------------------------------------
+// Nilai Saya (card S5-03). Every test inserts its OWN fresh member
+// (u-grades-N, owner review addition) — MEMBER/MEMBER_B carry data from
+// the 80+ tests above, and the empty/running cases only mean anything for
+// a participant with no history.
+// --------------------------------------------------------------------------
+
+/** A fresh MEMBER row (owner review addition: never the shared fixtures). */
+async function gradesMember(id: string, name: string) {
+  await db.insert(users).values({
+    id,
+    name,
+    email: `${id}@example.com`,
+    emailVerified: true,
+    role: "MEMBER",
+  });
+  return { id, role: "MEMBER" as const, status: "ACTIVE" as const };
+}
+
+/**
+ * The grades fixture: PUBLISHED course whose EVERY lesson carries a quiz
+ * (attachQuiz — grades rows need lessons.quiz_id for their review hrefs),
+ * plus the FINAL quiz with `finalQuestionCount` questions, actor enrolled.
+ */
+async function gradesCourse(
+  actor: { id: string; role: "MEMBER"; status: "ACTIVE" },
+  prefix: string,
+  options: {
+    lessonTitles?: string[];
+    isSequential?: boolean;
+    finalQuestionCount?: number;
+    explanationPolicies?: ("ALWAYS" | "ON_PASS_ONLY" | "NEVER")[];
+    enroll?: boolean;
+  } = {},
+) {
+  await seedScoreWeights(60, 40);
+  const { title, slug } = nextPair(prefix);
+  const course = await createCourse(EDITOR, {
+    title,
+    slug,
+    level: "BEGINNER",
+    summary: "Ringkasan netral untuk tes.",
+  });
+  const lessonRows = [];
+  for (const lessonTitle of options.lessonTitles ?? [
+    "Materi alpha",
+    "Materi beta",
+  ]) {
+    lessonRows.push(
+      await createLesson(EDITOR, course.id, { title: lessonTitle }),
+    );
+  }
+  for (const [index, lesson] of lessonRows.entries()) {
+    await attachQuiz(lesson.id, {
+      explanationPolicy: options.explanationPolicies?.[index] ?? "ALWAYS",
+    });
+  }
+  const [courseRow] = await db
+    .select({ finalQuizId: courses.finalQuizId })
+    .from(courses)
+    .where(eq(courses.id, course.id));
+  if (!courseRow?.finalQuizId) throw new Error("course without FINAL quiz");
+  await db
+    .update(quizzes)
+    .set({
+      title: `Final Quiz ${title}`,
+      durationMinutes: 20,
+      passingScorePercent: 70,
+      shuffleQuestions: false,
+      shuffleOptions: false,
+      explanationPolicy: "ALWAYS",
+    })
+    .where(eq(quizzes.id, courseRow.finalQuizId));
+  const filled = await fillFinalQuiz(
+    courseRow.finalQuizId,
+    finalQuestions(options.finalQuestionCount ?? 5),
+  );
+  if (options.isSequential === true) {
+    await db
+      .update(courses)
+      .set({ isSequential: true })
+      .where(eq(courses.id, course.id));
+  } else {
+    // The column defaults to TRUE — opt out explicitly so the non-sequential
+    // variants really are non-sequential.
+    await db
+      .update(courses)
+      .set({ isSequential: false })
+      .where(eq(courses.id, course.id));
+  }
+  await db
+    .update(courses)
+    .set({ status: "PUBLISHED" })
+    .where(eq(courses.id, course.id));
+  if (options.enroll ?? true) {
+    await enrollInCourse(actor, course.id);
+  }
+  return {
+    course,
+    title,
+    slug,
+    lessons: lessonRows,
+    finalQuizId: courseRow.finalQuizId,
+    ...filled,
+  };
+}
+
+/** Work the Final as `actor`: start, answer, submit → the attemptId. */
+async function workFinalAs(
+  actor: { id: string; role: "MEMBER"; status: "ACTIVE" },
+  made: { course: { id: string }; finalQuizId: string; correctOptionIds: string[] },
+  correctCount: number,
+  wrongCount: number,
+) {
+  const { attemptId } = await startFinalQuiz(actor, {
+    courseId: made.course.id,
+  });
+  const optionRows = await db
+    .select({
+      questionId: questionOptions.questionId,
+      id: questionOptions.id,
+      isCorrect: questionOptions.isCorrect,
+    })
+    .from(questionOptions)
+    .innerJoin(questions, eq(questionOptions.questionId, questions.id))
+    .where(eq(questions.quizId, made.finalQuizId));
+  await answerFinalAttempt(
+    attemptId,
+    made.correctOptionIds,
+    optionRows,
+    correctCount,
+    wrongCount,
+    actor,
+  );
+  await submitQuizAttempt(actor, { attemptId });
+  return attemptId;
+}
+
+describe("getGradesPage", () => {
+  it("kosong: not enrolled → courses [] and enrolled-without-grades → []; weights follow system_settings (70/30)", async () => {
+    const actor = await gradesMember("u-grades-1", "Grades Satu");
+    const made = await gradesCourse(actor, "gka", { enroll: false });
+    await seedScoreWeights(70, 30);
+    try {
+      let page = await getGradesPage(actor);
+      expect(page.courses).toEqual([]);
+      expect(page.weights).toEqual({ lessonPercent: 70, finalPercent: 30 });
+      await enrollInCourse(actor, made.course.id);
+      page = await getGradesPage(actor);
+      expect(page.courses).toEqual([]);
+    } finally {
+      await seedScoreWeights(60, 40); // restore for the tests after this one
+    }
+  });
+
+  it("kursus Lulus: stored numbers, hrefs, meta selesai, nextStep null — SAME numbers as getFinalQuizPage hasil-final", async () => {
+    const actor = await gradesMember("u-grades-2", "Grades Dua");
+    const made = await gradesCourse(actor, "gkb");
+    await completeLessonWithScore(
+      actor.id,
+      made.course.id,
+      made.lessons[0]!.id,
+      "70.00",
+    );
+    await completeLessonWithScore(
+      actor.id,
+      made.course.id,
+      made.lessons[1]!.id,
+      "50.00",
+    );
+    await workFinalAs(actor, made, 4, 1); // 80.00 ≥ 70 → PASSED, stored 68.00
+
+    const page = await getGradesPage(actor);
+    expect(page.courses).toHaveLength(1);
+    const dto = page.courses[0]!;
+    expect(dto.title).toBe(made.title);
+    expect(dto.lessonCount).toBe(2);
+    expect(dto.badge).toBe("lulus");
+    expect(dto.finalScorePercent).toBe(68);
+    expect(dto.lessonAveragePercent).toBe(60);
+    expect(dto.lessons.map((row) => row.result!.scorePercent)).toEqual([70, 50]);
+    expect(dto.final!.result!.scorePercent).toBe(80);
+    expect(dto.final!.result!.isPassed).toBe(true);
+    expect(dto.final!.questionCount).toBe(5);
+    expect(dto.meta.kind).toBe("selesai");
+    expect(dto.nextStep).toBeNull();
+    expect(dto.lockedCount).toBe(0);
+    expect(dto.lessons[0]!.result!.reviewHref).toBe(
+      `/belajar/${made.slug}/${made.lessons[0]!.slug}/quiz`,
+    );
+    expect(dto.final!.reviewHref).toBe(`/belajar/${made.slug}/final-quiz`);
+    const enrollment = (await enrollmentRow(actor.id, made.course.id))!;
+    expect(dto.meta.at).toBe(enrollment.completedAt!.toISOString());
+
+    // One data set, two screens, one set of numbers (card "Selesai jika").
+    const finalPage = await getFinalQuizPage(actor, made.slug);
+    if (finalPage.state !== "hasil-final") {
+      throw new Error("expected hasil-final");
+    }
+    expect(finalPage.final.lessonAveragePercent).toBe(
+      dto.lessonAveragePercent,
+    );
+    expect(finalPage.scorePercent).toBe(dto.final!.result!.scorePercent);
+    expect(finalPage.final.finalScorePercent).toBe(dto.finalScorePercent);
+  });
+
+  it("kursus berjalan sekuensial 3 materi: [1 ber-result, 2 belum], lockedCount 1, final.result null, nextStep materi", async () => {
+    const actor = await gradesMember("u-grades-3", "Grades Tiga");
+    const made = await gradesCourse(actor, "gkc", {
+      lessonTitles: ["Materi satu", "Materi dua", "Materi tiga"],
+      isSequential: true,
+    });
+    await completeLessonWithScore(
+      actor.id,
+      made.course.id,
+      made.lessons[0]!.id,
+      "70.00",
+    );
+    const dto = (await getGradesPage(actor)).courses[0]!;
+    expect(dto.badge).toBe("sedang-berjalan");
+    expect(dto.lessons).toHaveLength(2);
+    expect(dto.lessons[0]!.result!.scorePercent).toBe(70);
+    expect(dto.lessons[1]!.result).toBeNull();
+    expect(dto.lockedCount).toBe(1);
+    expect(dto.final!.result).toBeNull();
+    expect(dto.nextStep).toBe("materi");
+    expect(dto.meta.kind).toBe("terakhir-diakses");
+    expect(dto.finalScorePercent).toBeNull();
+    // The average divides by the lessons WITH a score (70), never by all
+    // three materials (23) — pinned here so the mutant fails in-process,
+    // not only in the e2e (PR 148 review).
+    expect(dto.lessonAveragePercent).toBe(70);
+  });
+
+  it("varian tidak berurutan → semua baris tampil, lockedCount 0; semua COMPLETED tanpa Final dikerjakan → nextStep final", async () => {
+    const actor = await gradesMember("u-grades-4", "Grades Empat");
+    const made = await gradesCourse(actor, "gkd", {
+      lessonTitles: ["Materi satu", "Materi dua", "Materi tiga"],
+    });
+    await completeLessonWithScore(
+      actor.id,
+      made.course.id,
+      made.lessons[0]!.id,
+      "70.00",
+    );
+    let dto = (await getGradesPage(actor)).courses[0]!;
+    expect(dto.lessons).toHaveLength(3);
+    expect(dto.lockedCount).toBe(0);
+
+    await completeLessonWithScore(
+      actor.id,
+      made.course.id,
+      made.lessons[1]!.id,
+      "50.00",
+    );
+    await completeLessonWithScore(
+      actor.id,
+      made.course.id,
+      made.lessons[2]!.id,
+      "60.00",
+    );
+    dto = (await getGradesPage(actor)).courses[0]!;
+    expect(dto.nextStep).toBe("final");
+    expect(dto.final!.result).toBeNull();
+    expect(dto.lessonAveragePercent).toBe(60);
+  });
+
+  it("peserta lain: progres + Final di kursus yang sama dan pendaftaran di kursus lain → DTO aktor TIDAK berubah", async () => {
+    const actor = await gradesMember("u-grades-5", "Grades Lima");
+    const other = await gradesMember("u-grades-6", "Grades Enam");
+    const made = await gradesCourse(actor, "gke");
+    await completeLessonWithScore(
+      actor.id,
+      made.course.id,
+      made.lessons[0]!.id,
+      "70.00",
+    );
+    // Snapshot BEFORE any of the other participant's data exists.
+    const before = await getGradesPage(actor);
+
+    // (a) Same course: the other participant works the lesson the actor has
+    // NOT worked, then the Final (deterministic: a SUBMITTED Final attempt
+    // by someone else must not leak into the actor's final.result).
+    await enrollInCourse(other, made.course.id);
+    await completeLessonWithScore(
+      other.id,
+      made.course.id,
+      made.lessons[0]!.id,
+      "100.00",
+      { quizIsPassed: true },
+    );
+    await completeLessonWithScore(
+      other.id,
+      made.course.id,
+      made.lessons[1]!.id,
+      "100.00",
+      { quizIsPassed: true },
+    );
+    await workFinalAs(other, made, 1, 4); // 20.00
+    // (b) A course the actor does not follow at all.
+    const otherCourse = await gradesCourse(other, "gkf");
+    for (const lesson of otherCourse.lessons) {
+      await completeLessonWithScore(
+        other.id,
+        otherCourse.course.id,
+        lesson.id,
+        "100.00",
+        { quizIsPassed: true },
+      );
+    }
+    await workFinalAs(other, otherCourse, 5, 0); // 100.00
+
+    const after = await getGradesPage(actor);
+    expect(after).toEqual(before);
+  });
+
+  it("dua kursus dengan Final berbeda jumlah soal → questionCount masing-masing benar", async () => {
+    const actor = await gradesMember("u-grades-7", "Grades Tujuh");
+    const five = await gradesCourse(actor, "gkg", { finalQuestionCount: 5 });
+    const ten = await gradesCourse(actor, "gkh", { finalQuestionCount: 10 });
+    await completeLessonWithScore(
+      actor.id,
+      five.course.id,
+      five.lessons[0]!.id,
+      "70.00",
+    );
+    await completeLessonWithScore(
+      actor.id,
+      ten.course.id,
+      ten.lessons[0]!.id,
+      "80.00",
+    );
+    const page = await getGradesPage(actor);
+    const byTitle = new Map(page.courses.map((row) => [row.title, row]));
+    expect(byTitle.get(five.title)!.final!.questionCount).toBe(5);
+    expect(byTitle.get(ten.title)!.final!.questionCount).toBe(10);
+  });
+
+  it("nilai tersimpan: 91.40 → 91, 67.50 → 68, 69.99 → 69, isPassed dari kolom, badge dari enrollments.status", async () => {
+    const actor = await gradesMember("u-grades-8", "Grades Delapan");
+    const made = await gradesCourse(actor, "gki");
+    await completeLessonWithScore(
+      actor.id,
+      made.course.id,
+      made.lessons[0]!.id,
+      "69.99",
+      { quizIsPassed: true },
+    );
+    await completeLessonWithScore(
+      actor.id,
+      made.course.id,
+      made.lessons[1]!.id,
+      "80.00",
+      { quizIsPassed: false },
+    );
+    await workFinalAs(actor, made, 4, 1); // attempt is_passed = true
+    const enrollmentId = (await enrollmentRow(actor.id, made.course.id))!.id;
+
+    let dto = (await getGradesPage(actor)).courses[0]!;
+    expect(dto.lessons[0]!.result!.scorePercent).toBe(69);
+    expect(dto.lessons[1]!.result!.scorePercent).toBe(80);
+    expect(dto.lessons[1]!.result!.isPassed).toBe(false); // stored column wins
+    expect(dto.finalScorePercent).toBe(77); // round(0.6 × 74.995 + 0.4 × 80)
+
+    await db
+      .update(enrollments)
+      .set({ finalScorePercent: "91.40" })
+      .where(eq(enrollments.id, enrollmentId));
+    dto = (await getGradesPage(actor)).courses[0]!;
+    expect(dto.finalScorePercent).toBe(91);
+
+    await db
+      .update(enrollments)
+      .set({ finalScorePercent: "67.50" })
+      .where(eq(enrollments.id, enrollmentId));
+    dto = (await getGradesPage(actor)).courses[0]!;
+    expect(dto.finalScorePercent).toBe(68);
+
+    // The attempt passed, but the STORED status is the badge's source.
+    await db
+      .update(enrollments)
+      .set({ status: "COMPLETED" })
+      .where(eq(enrollments.id, enrollmentId));
+    dto = (await getGradesPage(actor)).courses[0]!;
+    expect(dto.badge).toBe("selesai");
+    expect(dto.final!.result!.isPassed).toBe(true);
+  });
+
+  it("attempt Final: reset tanpa attempt baru → null; reset + IN_PROGRESS → null; reset(10) + hidup(80) → 80", async () => {
+    const actor = await gradesMember("u-grades-9", "Grades Sembilan");
+    const made = await gradesCourse(actor, "gkj");
+    for (const lesson of made.lessons) {
+      await completeLessonWithScore(
+        actor.id,
+        made.course.id,
+        lesson.id,
+        "70.00",
+      );
+    }
+    const first = await workFinalAs(actor, made, 4, 1); // 80.00
+
+    // Reset with no new attempt: no live finished attempt → null.
+    await db
+      .update(quizAttempts)
+      .set({ resetAt: new Date() })
+      .where(eq(quizAttempts.id, first));
+    let dto = (await getGradesPage(actor)).courses[0]!;
+    expect(dto.final!.result).toBeNull();
+
+    // A new IN_PROGRESS attempt is not a grade either.
+    const firstRow = (await attemptRow(first))!;
+    await db.insert(quizAttempts).values({
+      quizId: firstRow.quizId,
+      userId: actor.id,
+      enrollmentId: firstRow.enrollmentId,
+      attemptNumber: firstRow.attemptNumber + 1,
+      status: "IN_PROGRESS",
+      questionOrder: firstRow.questionOrder,
+      startedAt: new Date(),
+      expiresAt: new Date(Date.now() + 20 * 60_000),
+    });
+    dto = (await getGradesPage(actor)).courses[0]!;
+    expect(dto.final!.result).toBeNull();
+
+    // Finish the live attempt (80) while the reset one reads 10: the LIVE
+    // one wins — higher attempt_number among reset_at IS NULL rows.
+    const [live] = await db
+      .select({ id: quizAttempts.id })
+      .from(quizAttempts)
+      .where(
+        sql`${quizAttempts.quizId} = ${firstRow.quizId} and ${quizAttempts.userId} = ${actor.id} and ${quizAttempts.resetAt} is null`,
+      );
+    const optionRows = await db
+      .select({
+        questionId: questionOptions.questionId,
+        id: questionOptions.id,
+        isCorrect: questionOptions.isCorrect,
+      })
+      .from(questionOptions)
+      .innerJoin(questions, eq(questionOptions.questionId, questions.id))
+      .where(eq(questions.quizId, made.finalQuizId));
+    await answerFinalAttempt(
+      live!.id,
+      made.correctOptionIds,
+      optionRows,
+      4,
+      1,
+      actor,
+    );
+    await submitQuizAttempt(actor, { attemptId: live!.id });
+    await db
+      .update(quizAttempts)
+      .set({ scorePercent: "10.00" })
+      .where(eq(quizAttempts.id, first));
+    dto = (await getGradesPage(actor)).courses[0]!;
+    expect(dto.final!.result!.scorePercent).toBe(80);
+  });
+
+  it("visibilitas + urutan: DRAFT/ARCHIVED tidak muncul; urutan mengikuti enrolled_at, bukan urutan pembuatan", async () => {
+    const actor = await gradesMember("u-grades-10", "Grades Sepuluh");
+    const first = await gradesCourse(actor, "gkk");
+    const second = await gradesCourse(actor, "gkl");
+    const draft = await gradesCourse(actor, "gkm");
+    const archived = await gradesCourse(actor, "gkn");
+    for (const made of [first, second, draft, archived]) {
+      await completeLessonWithScore(
+        actor.id,
+        made.course.id,
+        made.lessons[0]!.id,
+        "70.00",
+      );
+    }
+    // enrolled_at EXPLICITLY reversed from the creation order.
+    await db
+      .update(enrollments)
+      .set({ enrolledAt: new Date("2026-11-02T00:00:00Z") })
+      .where(
+        sql`${enrollments.userId} = ${actor.id} and ${enrollments.courseId} = ${first.course.id}`,
+      );
+    await db
+      .update(enrollments)
+      .set({ enrolledAt: new Date("2026-11-01T00:00:00Z") })
+      .where(
+        sql`${enrollments.userId} = ${actor.id} and ${enrollments.courseId} = ${second.course.id}`,
+      );
+    await db
+      .update(courses)
+      .set({ status: "DRAFT" })
+      .where(eq(courses.id, draft.course.id));
+    await db
+      .update(courses)
+      .set({ status: "ARCHIVED" })
+      .where(eq(courses.id, archived.course.id));
+
+    const page = await getGradesPage(actor);
+    expect(page.courses.map((row) => row.title)).toEqual([
+      second.title,
+      first.title,
+    ]);
+  });
+
+  it("reviewAccess: NEVER → HIDDEN_NEVER; ON_PASS_ONLY gagal → HIDDEN_NOT_PASSED; lulus → PASSED; Final ALWAYS → ALWAYS", async () => {
+    const actor = await gradesMember("u-grades-11", "Grades Sebelas");
+    const made = await gradesCourse(actor, "gko", {
+      explanationPolicies: ["NEVER", "ON_PASS_ONLY"],
+    });
+    await completeLessonWithScore(
+      actor.id,
+      made.course.id,
+      made.lessons[0]!.id,
+      "80.00",
+      { quizIsPassed: true },
+    );
+    await completeLessonWithScore(
+      actor.id,
+      made.course.id,
+      made.lessons[1]!.id,
+      "40.00",
+      { quizIsPassed: false },
+    );
+    let dto = (await getGradesPage(actor)).courses[0]!;
+    expect(dto.lessons[0]!.result!.reviewAccess).toBe("HIDDEN_NEVER");
+    expect(dto.lessons[1]!.result!.reviewAccess).toBe("HIDDEN_NOT_PASSED");
+
+    await db
+      .update(lessonProgress)
+      .set({ quizIsPassed: true })
+      .where(
+        sql`${lessonProgress.userId} = ${actor.id} and ${lessonProgress.lessonId} = ${made.lessons[1]!.id}`,
+      );
+    dto = (await getGradesPage(actor)).courses[0]!;
+    expect(dto.lessons[1]!.result!.reviewAccess).toBe("PASSED");
+
+    await workFinalAs(actor, made, 4, 1);
+    dto = (await getGradesPage(actor)).courses[0]!;
+    expect(dto.final!.result!.reviewAccess).toBe("ALWAYS");
+  });
+
+  it("bobot tidak sah → getGradesPage melempar (gagal tertutup)", async () => {
+    const actor = await gradesMember("u-grades-12", "Grades Dua Belas");
+    await gradesCourse(actor, "gkp");
+    await seedScoreWeights(50, 40); // sum 90 ≠ 100 → getScoreWeights throws
+    try {
+      await expect(getGradesPage(actor)).rejects.toBeInstanceOf(Error);
+    } finally {
+      await seedScoreWeights(60, 40); // restore for the tests after this one
+    }
   });
 });

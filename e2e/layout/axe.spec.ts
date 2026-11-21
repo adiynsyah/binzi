@@ -187,6 +187,19 @@ test.describe("axe WCAG 2.1 A/AA", () => {
       await expectAxeClean(page, "MEMBER /belajar A", testInfo);
     });
 
+    // Card S5-03: the 8f empty state — enrolled-or-not, a member with no
+    // grades scans the empty page, not a half-built card.
+    await test.step("/belajar/nilai kosong (S5-03)", async () => {
+      await page.goto("/belajar/nilai");
+      await expect(
+        page.getByRole("heading", {
+          level: 2,
+          name: "Belum ada quiz yang dikerjakan",
+        }),
+      ).toBeVisible();
+      await expectAxeClean(page, "MEMBER /belajar/nilai kosong", testInfo);
+    });
+
     await test.step("/belajar keadaan B (setelah mendaftar via API)", async () => {
       const enroll = await page.context().request.post(
         `/api/progress/courses/${made.courseId}/enroll`,
@@ -695,6 +708,22 @@ test.describe("axe WCAG 2.1 A/AA", () => {
       await page.goto(`/belajar/${made.courseSlug}/final-quiz`);
       await expect(page.getByText("Lulus kursus")).toBeVisible();
       await expectAxeClean(page, "final hasil", testInfo);
+    });
+
+    // Card S5-03: the FILLED transcript — the same 70/50 + Final 80 data,
+    // so the scan covers the table, the Final row, and the formula box.
+    await test.step("/belajar/nilai terisi (S5-03)", async () => {
+      await page.goto("/belajar/nilai");
+      const section = page.locator("section", {
+        has: page.getByRole("heading", {
+          level: 2,
+          name: `${token} kursus final axe`,
+          exact: true,
+        }),
+      });
+      await expect(section.getByText("Lulus", { exact: true })).toBeVisible();
+      await expect(section.getByText("68", { exact: true })).toBeVisible();
+      await expectAxeClean(page, "MEMBER /belajar/nilai terisi", testInfo);
     });
   });
 

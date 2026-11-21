@@ -23,6 +23,8 @@ import {
   selectEnrolledCourses,
   selectEnrollmentForCourse,
   selectEnrollmentFinalResult,
+  selectGradeEnrollments,
+  selectGradeLessonRows,
   selectLessonVideoGate,
   selectOpenLesson,
   selectOpenLessonQuiz,
@@ -35,6 +37,8 @@ import {
   upsertLessonVideoProgress,
   type DbOrTx,
   type DbTx,
+  type GradeEnrollmentRow,
+  type GradeLessonRow,
   type LessonGateLookup,
 } from "./queries";
 import {
@@ -582,4 +586,112 @@ export async function getEnrollmentFinalResult(
         : Math.round(Number(row.finalScorePercent)),
     status: row.status,
   };
+}
+
+// ------------------------------------------------- S5-03 Nilai Saya context
+
+/** One lesson of the grades context: its place in the outline, its quiz
+ *  pointer, the gate verdict, and the STORED quiz result if any. */
+export type GradeLessonContext = {
+  position: number;
+  title: string;
+  quizId: string | null;
+  /** quizHref() precomputed — the attempt module never sees course slugs. */
+  quizHref: string | null;
+  unlocked: boolean;
+  /** null = quiz not attempted yet (or no quiz at all). */
+  result: {
+    /** NUMERIC string — the attempt DTO floors it for display. */
+    scorePercent: string;
+    isPassed: boolean | null;
+    submittedAt: Date | null;
+  } | null;
+};
+
+/** One course of the grades context (card S5-03 §1): what the attempt
+ *  module needs to build the page DTO — everything else on the page (badge,
+ *  meta, formula) derives from these fields plus the Final results. */
+export type GradeCourseContext = {
+  courseId: string;
+  courseTitle: string;
+  lessonCount: number;
+  enrollmentStatus: GradeEnrollmentRow["enrollmentStatus"];
+  /** NUMERIC string as stored — rounded by the attempt DTO, never here. */
+  finalScorePercent: string | null;
+  completedAt: Date | null;
+  /** enrollments.updated_at — the IN_PROGRESS meta's "terakhir diakses". */
+  lastActivityAt: Date;
+  finalQuizId: string | null;
+  /** finalQuizHref() precomputed; null exactly when finalQuizId is. */
+  finalQuizHref: string | null;
+  allLessonsCompleted: boolean;
+  lessons: GradeLessonContext[];
+};
+
+/**
+ * The grades page's course context in TWO queries (card S5-03 §1): the
+ * actor's PUBLISHED enrollments in transcript order, then EVERY course's
+ * lesson rows at once — no per-course loop. Gates reuse the SAME policy
+ * functions as the lesson page (isLessonUnlocked over each course's own
+ * outline, allLessonsCompleted), so "materi terkunci" here means exactly
+ * what the outline means. NUMERIC stays a string; rounding belongs to the
+ * display DTO.
+ */
+export async function loadGradeCourses(
+  executor: DbOrTx,
+  actorId: string,
+): Promise<GradeCourseContext[]> {
+  const enrollmentRows = await selectGradeEnrollments(executor, actorId);
+  if (enrollmentRows.length === 0) return [];
+  const lessonRows = await selectGradeLessonRows(
+    executor,
+    actorId,
+    enrollmentRows.map((row) => row.courseId),
+  );
+  const lessonsByCourse = new Map<string, GradeLessonRow[]>();
+  for (const row of lessonRows) {
+    const bucket = lessonsByCourse.get(row.courseId);
+    if (bucket === undefined) {
+      lessonsByCourse.set(row.courseId, [row]);
+    } else {
+      bucket.push(row);
+    }
+  }
+  return enrollmentRows.map((course) => {
+    const rows = lessonsByCourse.get(course.courseId) ?? [];
+    const gates = rows.map((row) => ({ quizAttempted: row.quizAttempted }));
+    return {
+      courseId: course.courseId,
+      courseTitle: course.courseTitle,
+      lessonCount: rows.length,
+      enrollmentStatus: course.enrollmentStatus,
+      finalScorePercent: course.finalScorePercent,
+      completedAt: course.completedAt,
+      lastActivityAt: course.updatedAt,
+      finalQuizId: course.finalQuizId,
+      finalQuizHref:
+        course.finalQuizId !== null
+          ? finalQuizHref(course.courseSlug)
+          : null,
+      allLessonsCompleted: allLessonsCompleted(rows),
+      lessons: rows.map((row, index) => ({
+        position: index + 1,
+        title: row.lessonTitle,
+        quizId: row.quizId,
+        quizHref:
+          row.quizId !== null
+            ? quizHref(course.courseSlug, row.lessonSlug)
+            : null,
+        unlocked: isLessonUnlocked(index + 1, gates, course.isSequential),
+        result:
+          row.quizAttempted === true && row.quizScorePercent !== null
+            ? {
+                scorePercent: row.quizScorePercent,
+                isPassed: row.quizIsPassed,
+                submittedAt: row.quizSubmittedAt,
+              }
+            : null,
+      })),
+    } satisfies GradeCourseContext;
+  });
 }

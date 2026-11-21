@@ -12,6 +12,7 @@ import {
   getEnrollmentFinalResult,
   lessonHref,
   loadFinalQuizContext,
+  loadGradeCourses,
   loadLessonQuizContext,
   recordFinalQuizResult,
   recordLessonQuizResult,
@@ -32,9 +33,11 @@ import {
   selectAttemptAnswers,
   selectAttemptByQuizAndUser,
   selectCourseIdByFinalQuizId,
+  selectFinalAttemptResults,
   selectLessonIdByQuizId,
   selectNextAttemptNumber,
   selectOptionBelongsToQuestion,
+  selectQuizGradeSettings,
   selectQuizLessonBySlugs,
   selectQuizOptions,
   selectQuizQuestions,
@@ -46,12 +49,17 @@ import {
 } from "./queries";
 import {
   toFinalQuizResultDTO,
+  toGradesPageDTO,
   toQuizResultDTO,
   toQuizRunningDTO,
   toQuizRulesDTO,
   type FinalQuizPageDTO,
   type FinalQuizResultDTO,
   type FinalQuizRulesDTO,
+  type GradeCourseDTO,
+  type GradeLessonRowDTO,
+  type GradeResultDTO,
+  type GradesPageDTO,
   type LessonQuizPageDTO,
   type QuizResultDTO,
   type QuizResultItemDTO,
@@ -64,6 +72,10 @@ export type {
   FinalQuizPageDTO,
   FinalQuizResultDTO,
   FinalQuizRulesDTO,
+  GradeCourseDTO,
+  GradeLessonRowDTO,
+  GradeResultDTO,
+  GradesPageDTO,
   LessonQuizPageDTO,
   QuizResultDTO,
   QuizResultItemDTO,
@@ -682,5 +694,55 @@ export async function submitQuizAttempt(
       submittedAt: now,
     });
     return { status };
+  });
+}
+
+// -------------------------------------------------- S5-03 Nilai Saya page
+
+/**
+ * The Nilai Saya page's data (card S5-03 §2) — a pure GET, no transaction,
+ * no write. Course context comes from the progress module (loadGradeCourses,
+ * the loadFinalQuizContext pattern); the three follow-up reads run in
+ * parallel: quiz settings for every quiz a row can link to (FK-guaranteed —
+ * the serializer fails loud on a miss), the actor's finished LIVE Final
+ * attempts, and the score weights (getScoreWeights reads via `db`, OUTSIDE
+ * any transaction and fail-closed — 19 Nov no. 4).
+ */
+export async function getGradesPage(actor: SessionUser): Promise<GradesPageDTO> {
+  assertMemberRole(actor);
+  const courses = await loadGradeCourses(db, actor.id);
+  const lessonQuizIds = new Set<string>();
+  const finalQuizIds = new Set<string>();
+  for (const course of courses) {
+    for (const lesson of course.lessons) {
+      if (lesson.result !== null && lesson.quizId !== null) {
+        lessonQuizIds.add(lesson.quizId);
+      }
+    }
+    if (course.finalQuizId !== null) finalQuizIds.add(course.finalQuizId);
+  }
+  const settingsQuizIds = [...lessonQuizIds, ...finalQuizIds];
+  const [settingsRows, finalAttemptRows, weights] = await Promise.all([
+    settingsQuizIds.length > 0
+      ? selectQuizGradeSettings(settingsQuizIds)
+      : Promise.resolve([]),
+    finalQuizIds.size > 0
+      ? selectFinalAttemptResults(actor.id, [...finalQuizIds])
+      : Promise.resolve([]),
+    getScoreWeights(),
+  ]);
+  const settings = new Map(settingsRows.map((row) => [row.quizId, row]));
+  // Rows arrive `quiz_id asc, attempt_number desc` — the FIRST row per
+  // quiz is the highest attempt number, so a reset left behind can never
+  // shadow the live attempt's grade.
+  const finalAttempts = new Map<string, (typeof finalAttemptRows)[number]>();
+  for (const row of finalAttemptRows) {
+    if (!finalAttempts.has(row.quizId)) finalAttempts.set(row.quizId, row);
+  }
+  return toGradesPageDTO({
+    courses,
+    settings,
+    finalAttempts,
+    weights,
   });
 }
