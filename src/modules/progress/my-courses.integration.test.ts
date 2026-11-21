@@ -578,12 +578,22 @@ describe("getCourseProgressPage — statuses, video, ringkasan, final", () => {
         completedAt: new Date(),
       });
     }
+    // Two real questions in the FINAL quiz — the count subquery's outer
+    // reference is the drizzle bare-name pitfall's exact spot (mutation 13).
+    await db.insert(schema.questions).values(
+      [1, 2].map((order) => ({
+        quizId: made.course.finalQuiz!.id,
+        orderIndex: order,
+        text: sql`'{"type":"doc"}'::jsonb`,
+      })),
+    );
 
     const open = await getCourseProgressPage(member, made.slug);
     expect(open.state).toBe("progres");
     if (open.state !== "progres") return;
     expect(open.final!.status).toBe("terbuka");
     expect(open.final!.href).toBe(`/belajar/${made.slug}/final-quiz`);
+    expect(open.final!.questionCount).toBe(2);
     expect(open.badge).toBe("sedang-berjalan");
 
     // The stored verdict (never recomputed): PASSED + 67.50.
