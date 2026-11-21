@@ -200,6 +200,25 @@ test.describe("axe WCAG 2.1 A/AA", () => {
       await expectAxeClean(page, "MEMBER /belajar/nilai kosong", testInfo);
     });
 
+    // Card S5-04: the 13c empty state — still un-enrolled, so the available
+    // list carries THIS test's own course (the shared DB decides nothing).
+    await test.step("/belajar/kursus-saya kosong (S5-04)", async () => {
+      await page.goto("/belajar/kursus-saya");
+      await expect(
+        page.getByRole("heading", {
+          level: 2,
+          name: "Anda belum mengikuti kursus apa pun",
+        }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole("heading", {
+          level: 3,
+          name: `${token} kursus belajar axe`,
+        }),
+      ).toBeVisible();
+      await expectAxeClean(page, "MEMBER /belajar/kursus-saya kosong", testInfo);
+    });
+
     await test.step("/belajar keadaan B (setelah mendaftar via API)", async () => {
       const enroll = await page.context().request.post(
         `/api/progress/courses/${made.courseId}/enroll`,
@@ -212,6 +231,33 @@ test.describe("axe WCAG 2.1 A/AA", () => {
           .getByRole("article", { name: `${token} kursus belajar axe` }),
       ).toBeVisible();
       await expectAxeClean(page, "MEMBER /belajar B", testInfo);
+    });
+
+    // Card S5-04: the filled list (a belum-dimulai card) and the course
+    // progress page in its untouched state — rows belum-mulai, Final
+    // locked, the ringkasan's empty average.
+    await test.step("/belajar/kursus-saya terisi + progres (S5-04)", async () => {
+      await page.goto("/belajar/kursus-saya");
+      await expect(
+        page.getByRole("heading", {
+          level: 2,
+          name: `${token} kursus belajar axe`,
+        }),
+      ).toBeVisible();
+      await expectAxeClean(page, "MEMBER /belajar/kursus-saya terisi", testInfo);
+
+      await page.goto(`/belajar/${made.courseSlug}`);
+      await expect(
+        page.getByRole("heading", {
+          level: 1,
+          name: `${token} kursus belajar axe`,
+          exact: true,
+        }),
+      ).toBeVisible();
+      await expect(
+        page.getByText(/Terbuka setelah 1 materi selesai/),
+      ).toBeVisible();
+      await expectAxeClean(page, "MEMBER /belajar progres kursus", testInfo);
     });
 
     if (spec.account === "drawer") {
@@ -708,6 +754,21 @@ test.describe("axe WCAG 2.1 A/AA", () => {
       await page.goto(`/belajar/${made.courseSlug}/final-quiz`);
       await expect(page.getByText("Lulus kursus")).toBeVisible();
       await expectAxeClean(page, "final hasil", testInfo);
+    });
+
+    // Card S5-04: the FINISHED progress page — the Selesai rows (one Belum
+    // lulus), the Final row's Sudah dikerjakan, the stored verdict.
+    await test.step("/belajar/{kursus} progres selesai (S5-04)", async () => {
+      await page.goto(`/belajar/${made.courseSlug}`);
+      await expect(
+        page.getByRole("heading", {
+          level: 1,
+          name: `${token} kursus final axe`,
+          exact: true,
+        }),
+      ).toBeVisible();
+      await expect(page.getByText("Sudah dikerjakan")).toBeVisible();
+      await expectAxeClean(page, "MEMBER /belajar progres selesai", testInfo);
     });
 
     // Card S5-03: the FILLED transcript — the same 70/50 + Final 80 data,
