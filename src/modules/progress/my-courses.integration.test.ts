@@ -242,12 +242,28 @@ describe("getMyCoursesPage", () => {
     const made = await makeCourse("tersedia", {
       lessonTitles: ["Materi satu"],
     });
+    // Mutation 3's data: DRAFT/ARCHIVED courses WITH lessons — only the
+    // status filter keeps them out of the catalog list.
+    const draft = await makeCourse("draf", {
+      lessonTitles: ["Materi satu"],
+      status: "DRAFT",
+    });
+    const archived = await makeCourse("arsip", {
+      lessonTitles: ["Materi satu"],
+      status: "ARCHIVED",
+    });
 
     const page = await getMyCoursesPage(member);
     expect(page.courses).toEqual([]);
     expect(
       page.available.some((course) => course.slug === made.slug),
     ).toBe(true);
+    expect(
+      page.available.some((course) => course.slug === draft.slug),
+    ).toBe(false);
+    expect(
+      page.available.some((course) => course.slug === archived.slug),
+    ).toBe(false);
   });
 
   it("enrolled: available is exactly [] and the course renders the belum-dimulai shape", async () => {
