@@ -23,9 +23,11 @@ import {
   selectEnrolledCourses,
   selectEnrollmentForCourse,
   selectEnrollmentFinalResult,
+  selectFinalQuizSummary,
   selectGradeEnrollments,
   selectGradeLessonRows,
   selectLessonVideoGate,
+  selectMyCourses,
   selectOpenLesson,
   selectOpenLessonQuiz,
   selectOutlineRows,
@@ -46,9 +48,13 @@ import {
   lessonHref,
   quizHref,
   resolvePlayback,
+  toCourseProgressPageDTO,
   toEnrolledCourseDTO,
   toLearnerCourseDTO,
   toLessonPageDTO,
+  toMyCourseDTO,
+  type CourseProgressLessonDTO,
+  type CourseProgressPageDTO,
   type EnrollResultDTO,
   type LearnerCourseDTO,
   type EnrolledCourseDTO,
@@ -57,6 +63,8 @@ import {
   type LessonOutlineItemDTO,
   type LessonOutlineRow,
   type LessonPageDTO,
+  type MyCourseDTO,
+  type MyCoursesPageDTO,
   type OpenQuizDTO,
   type OpenQuizRow,
   type PlaybackDTO,
@@ -65,6 +73,8 @@ import {
 
 export { finalQuizHref, lessonHref, quizHref };
 export type {
+  CourseProgressLessonDTO,
+  CourseProgressPageDTO,
   EnrollResultDTO,
   LearnerCourseDTO,
   EnrolledCourseDTO,
@@ -72,6 +82,8 @@ export type {
   LessonPageDTO,
   LessonOutlineItemDTO,
   LessonCourseDTO,
+  MyCourseDTO,
+  MyCoursesPageDTO,
   OpenQuizDTO,
   OpenQuizRow,
   PlaybackDTO,
@@ -694,4 +706,61 @@ export async function loadGradeCourses(
       })),
     } satisfies GradeCourseContext;
   });
+}
+
+// ------------------------------------------------- S5-04 Kursus Saya + progres
+
+/**
+ * The Kursus Saya page (card S5-04 §1 service A): the actor's PUBLISHED,
+ * lesson-bearing enrollments in activity order. `available` is read ONLY
+ * for an empty `courses` (the 13c empty state) — a page with cards never
+ * pays for the catalog list.
+ */
+export async function getMyCoursesPage(
+  actor: SessionUser,
+): Promise<MyCoursesPageDTO> {
+  assertMemberRole(actor);
+  const rows = await selectMyCourses(actor.id);
+  if (rows.length === 0) {
+    const availableRows = await selectAvailableCourses(actor.id);
+    return { courses: [], available: availableRows.map(toLearnerCourseDTO) };
+  }
+  return { courses: rows.map(toMyCourseDTO), available: [] };
+}
+
+/**
+ * The course progress page (card S5-04 §1 service B, owner review 21 Nov
+ * no. 5 read order): role → PUBLISHED course by slug (miss → the uniform
+ * 404) → the shared outline rows (EMPTY → the same 404, enrolled or not)
+ * → the actor's enrollment (absent → `kembali` at lesson 1, the Final
+ * Quiz page's redirect pattern) → the Final Quiz summary LAST (only once
+ * a page will actually render). Pure GET — no transaction, no write.
+ */
+export async function getCourseProgressPage(
+  actor: SessionUser,
+  courseSlug: string,
+): Promise<CourseProgressPageDTO> {
+  assertMemberRole(actor);
+  const course = await selectPublishedCourseBySlug(courseSlug);
+  if (!course) {
+    throw new NotFoundError("Kursus tidak ditemukan.");
+  }
+  const outline = await selectOutlineRows(db, actor.id, course.id);
+  if (outline.length === 0) {
+    // A PUBLISHED course without lessons (only reachable by hand-edited
+    // data — publishing demands one) answers the SAME 404, enrolled or not.
+    throw new NotFoundError("Kursus tidak ditemukan.");
+  }
+  const enrollment = await selectEnrollmentForCourse(db, actor.id, course.id);
+  if (!enrollment) {
+    return {
+      state: "kembali",
+      href: lessonHref(course.slug, outline[0]!.slug),
+    };
+  }
+  const finalQuiz =
+    course.finalQuizId !== null
+      ? ((await selectFinalQuizSummary(course.finalQuizId)) ?? null)
+      : null;
+  return toCourseProgressPageDTO({ course, enrollment, outline, finalQuiz });
 }

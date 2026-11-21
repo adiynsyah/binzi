@@ -40,6 +40,7 @@ import type {
   AvailableRow,
   EnrolledRow,
   LessonOutlineRow,
+  MyCourseRow,
   OpenQuizRow,
   PlaybackSourceRow,
 } from "./serializer";
@@ -123,6 +124,61 @@ export async function selectEnrolledCourses(
             and lst.course_id = courses.id
         )
       `,
+    })
+    .from(enrollments)
+    .innerJoin(courses, eq(enrollments.courseId, courses.id))
+    .where(
+      and(
+        eq(enrollments.userId, actorId),
+        eq(courses.status, "PUBLISHED"),
+        hasLessonsSql,
+      ),
+    )
+    .orderBy(desc(enrollments.updatedAt), asc(courses.id));
+}
+
+/**
+ * The Kursus Saya list (card S5-04 §1 query 1): the selectEnrolledCourses
+ * shape — slugs for continueHref's last ?? first rule — PLUS the columns
+ * the page's meta/sub-row/badge extras need: the last lesson's TITLE (the
+ * SAME course_id-bounded subquery as the slug, so a stale last_lesson_id
+ * answers null for both), the enrollment's stored result + dates, and the
+ * course's estimated duration. Same PUBLISHED + has-lessons + actor filter
+ * and the same activity order as the dashboard's "Kursus saya".
+ */
+export async function selectMyCourses(
+  actorId: string,
+): Promise<MyCourseRow[]> {
+  return db
+    .select({
+      id: courses.id,
+      slug: courses.slug,
+      title: courses.title,
+      level: courses.level,
+      enrollmentStatus: enrollments.status,
+      lastLessonId: enrollments.lastLessonId,
+      lastLessonSlug: sql<string | null>`
+        (
+          select lst.slug from ${lessons} as lst
+          where lst.id = enrollments.last_lesson_id
+            and lst.course_id = courses.id
+        )
+      `,
+      lastLessonTitle: sql<string | null>`
+        (
+          select lst.title from ${lessons} as lst
+          where lst.id = enrollments.last_lesson_id
+            and lst.course_id = courses.id
+        )
+      `,
+      firstLessonSlug: firstLessonSlugSql,
+      lessonCount: lessonCountSql,
+      completedLessonCount: completedLessonCountSql,
+      finalScorePercent: enrollments.finalScorePercent,
+      completedAt: enrollments.completedAt,
+      enrolledAt: enrollments.enrolledAt,
+      updatedAt: enrollments.updatedAt,
+      estimatedMinutes: courses.estimatedMinutes,
     })
     .from(enrollments)
     .innerJoin(courses, eq(enrollments.courseId, courses.id))
@@ -284,7 +340,12 @@ export async function selectPublishedCourseBySlug(
   return rows[0];
 }
 
-/** The actor's enrollment row for the course (card step 2). */
+/**
+ * The actor's enrollment row for the course (card step 2). Card S5-04 §1
+ * query 4 (perluasan): `finalScorePercent` + `updatedAt` ride along for
+ * the course progress page's ringkasan — every existing caller reads only
+ * the columns it names, so the extension changes no behavior.
+ */
 export async function selectEnrollmentForCourse(
   executor: DbOrTx,
   actorId: string,
@@ -296,12 +357,18 @@ export async function selectEnrollmentForCourse(
    *  "nilai tersimpan" lesson, 19 Nov no. 2: read the stored status, never
    *  recompute it from attempts). */
   status: (typeof enrollmentStatusEnum.enumValues)[number];
+  /** Card S5-04: the STORED Nilai Akhir (NUMERIC as it leaves the driver)
+   *  + the activity stamp — ringkasan fields, rounded by the serializer. */
+  finalScorePercent: string | null;
+  updatedAt: Date;
 } | undefined> {
   const rows = await executor
     .select({
       id: enrollments.id,
       lastLessonId: enrollments.lastLessonId,
       status: enrollments.status,
+      finalScorePercent: enrollments.finalScorePercent,
+      updatedAt: enrollments.updatedAt,
     })
     .from(enrollments)
     .where(
@@ -321,6 +388,12 @@ export async function selectEnrollmentForCourse(
  * lesson. The `user_id` inside the ON clause is what keeps other
  * participants' rows out (without it every lesson with progress
  * duplicates).
+ *
+ * Card S5-04 §1 query 2 (perluasan): `quiz_is_passed` (the STORED verdict,
+ * never recomputed from the score) and `lessons.video_duration_seconds`
+ * (the sedang-dipelajari clock's denominator) join the SELECT — one
+ * outline read stays the single source the lesson page, the writes, and
+ * now the progress page all agree on.
  */
 export async function selectOutlineRows(
   executor: DbOrTx,
@@ -333,9 +406,11 @@ export async function selectOutlineRows(
       slug: lessons.slug,
       title: lessons.title,
       videoStatus: lessons.videoStatus,
+      videoDurationSeconds: lessons.videoDurationSeconds,
       status: lessonProgress.status,
       quizAttempted: lessonProgress.quizAttempted,
       quizScorePercent: lessonProgress.quizScorePercent,
+      quizIsPassed: lessonProgress.quizIsPassed,
       videoLastPositionSeconds: lessonProgress.videoLastPositionSeconds,
       videoWatchedPercent: lessonProgress.videoWatchedPercent,
     })
@@ -349,6 +424,31 @@ export async function selectOutlineRows(
     )
     .where(eq(lessons.courseId, courseId))
     .orderBy(asc(lessons.orderIndex), asc(lessons.id));
+}
+
+/**
+ * The Final Quiz summary of one course's `final_quiz_id` (card S5-04 §1
+ * query 3): duration + question count, SINGLE TABLE on purpose — with a
+ * join to courses the drizzle 0.45.3 bare-name pitfall would render the
+ * count's outer reference correctly and hide the alias lesson. The count
+ * subquery aliases `questions` and qualifies `quizzes.id` BY HAND (the
+ * selectOpenLessonQuiz pattern).
+ */
+export async function selectFinalQuizSummary(
+  finalQuizId: string,
+): Promise<{ durationMinutes: number; questionCount: number } | undefined> {
+  const rows = await db
+    .select({
+      durationMinutes: quizzes.durationMinutes,
+      questionCount:
+        sql<number>`(
+          select count(*) from ${questions} as q where q.quiz_id = quizzes.id
+        )`.mapWith(Number),
+    })
+    .from(quizzes)
+    .where(eq(quizzes.id, finalQuizId))
+    .limit(1);
+  return rows[0];
 }
 
 /**
