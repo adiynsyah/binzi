@@ -51,6 +51,8 @@ import type {
   CourseDescriptionEditorDTO,
   CourseReviewDTO,
   CourseStatusCounts,
+  PublicCourseCardDTO,
+  PublicCourseDetailDTO,
   UpdatedCourseDescriptionDTO,
 } from "./serializer";
 import {
@@ -58,6 +60,8 @@ import {
   toCmsCourseDetailDTO,
   toCmsCourseListItemDTO,
   toCourseReviewDTO,
+  toPublicCourseCardDTO,
+  toPublicCourseDetailDTO,
 } from "./serializer";
 
 // DTO types for consumers: import these from service, not from serializer.
@@ -72,6 +76,8 @@ export type {
   CourseActions,
   PublishChecklist,
   UpdatedCourseDescriptionDTO,
+  PublicCourseCardDTO,
+  PublicCourseDetailDTO,
 };
 
 /** Everything the builder page needs, from ONE call (card S1-02 §5). */
@@ -324,4 +330,41 @@ export async function getCourseDescriptionEditor(
   const row = await courseQueries.findCourseDescriptionEditorById(courseId);
   if (!row) throw new NotFoundError("Kursus tidak ditemukan");
   return row;
+}
+
+// ------------------------------------------------ public reads (card S6-02)
+
+/*
+ * The (public) catalog and course pages' reads. Actor-free on purpose —
+ * no role, no ownership — because the pages render WITHOUT a session on
+ * the server (decision 3): switching to ISR later (PRD §10.4) changes how
+ * data is fetched, never who it is for. The queries' WHERE clauses are
+ * the whole policy: PUBLISHED + at least one lesson.
+ */
+
+/** The /kursus catalog (7a/7f/7t). */
+export async function getPublicCatalog(): Promise<PublicCourseCardDTO[]> {
+  const rows = await courseQueries.selectPublicCatalog();
+  return rows.map(toPublicCourseCardDTO);
+}
+
+/**
+ * The /kursus/{slug} page (7b/7m/7t). An unknown slug, a course that is
+ * not PUBLISHED, and a course without lessons all answer the SAME
+ * NotFoundError — a draft's existence never leaks.
+ */
+export async function getPublicCourse(
+  slug: string,
+): Promise<PublicCourseDetailDTO> {
+  const course = await courseQueries.findPublicCourseBySlug(slug);
+  if (!course) {
+    throw new NotFoundError("Kursus tidak ditemukan");
+  }
+  const outline = await courseQueries.selectPublicLessonOutline(course.id);
+  if (outline.length === 0) {
+    // Only reachable if the course lost its lessons between the two reads;
+    // kept so the page can never render an empty outline.
+    throw new NotFoundError("Kursus tidak ditemukan");
+  }
+  return toPublicCourseDetailDTO(course, outline);
 }

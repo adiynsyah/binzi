@@ -9,9 +9,11 @@
 //   even if a future query starts selecting it.
 //
 // Type-only db imports: serializer tests run without DATABASE_URL.
-import type { courses } from "@/db/schema";
+import type { courses, lessons } from "@/db/schema";
 import { EMPTY_DOC, isDocEmpty, type ContentDoc } from "@/lib/content-doc";
 import { validateContentDoc } from "@/lib/content-doc-validator";
+
+import { COURSE_LEVEL_LABELS } from "./schema";
 
 /** Owner display name: users.name trimmed, falling back to the email. */
 function ownerDisplayName(name: string, email: string): string {
@@ -360,5 +362,125 @@ export function toCourseDescriptionEditorDTO(
     title: row.title,
     status: row.status,
     description: result.doc,
+  };
+}
+
+// ---------------------------------------------------- public reads (card S6-02)
+
+export type PublicCatalogRow = Pick<
+  typeof courses.$inferSelect,
+  "slug" | "title" | "level" | "summary" | "estimatedMinutes"
+> & {
+  lessonCount: number;
+};
+
+/**
+ * One catalog card for the PUBLIC audience (7a/7f/7t): no id, no status,
+ * no enrollment count, no owner/reviewer/seo columns — the detail page is
+ * addressed by slug, and nothing here is editable.
+ */
+export type PublicCourseCardDTO = {
+  slug: string;
+  title: string;
+  /** COURSE_LEVEL_LABELS lookup ("Pemula", …) — UI-ready. */
+  levelLabel: string;
+  summary: string | null;
+  lessonCount: number;
+  estimatedMinutes: number | null;
+  href: string;
+};
+
+export function toPublicCourseCardDTO(
+  row: PublicCatalogRow,
+): PublicCourseCardDTO {
+  return {
+    slug: row.slug,
+    title: row.title,
+    levelLabel: COURSE_LEVEL_LABELS[row.level],
+    summary: row.summary,
+    lessonCount: row.lessonCount,
+    estimatedMinutes: row.estimatedMinutes,
+    href: `/kursus/${row.slug}`,
+  };
+}
+
+export type PublicCourseRow = Pick<
+  typeof courses.$inferSelect,
+  | "id"
+  | "slug"
+  | "title"
+  | "summary"
+  | "description"
+  | "level"
+  | "estimatedMinutes"
+  | "seoTitle"
+  | "seoDescription"
+  | "finalQuizId"
+>;
+
+/**
+ * What the public outline query reads (card S6-02 §1 query 3): titles and
+ * video duration ONLY — no content, no slug, no video ids, no quiz id.
+ */
+export type PublicLessonOutlineRow = Pick<
+  typeof lessons.$inferSelect,
+  "title" | "videoStatus" | "videoDurationSeconds"
+>;
+
+/**
+ * The public course page's DTO (7b/7m/7t). `id` crosses because
+ * StartCourseButton addresses the idempotent enroll endpoint by course id;
+ * everything participant-private (progress, enrollment) stays out — the
+ * page never reads a session on the server (decision 3/4).
+ */
+export type PublicCourseDetailDTO = {
+  id: string;
+  slug: string;
+  title: string;
+  summary: string | null;
+  levelLabel: string;
+  lessonCount: number;
+  estimatedMinutes: number | null;
+  hasFinalQuiz: boolean;
+  /** Stored TipTap document; RichContent re-validates at render (§12.3). */
+  description: unknown;
+  lessons: {
+    /** 1-based, follows the outline's order_index asc, id asc order. */
+    position: number;
+    title: string;
+    /** Only video_status READY with a duration > 0; null otherwise. */
+    durationSeconds: number | null;
+  }[];
+  meta: { title: string; description: string | null };
+};
+
+export function toPublicCourseDetailDTO(
+  course: PublicCourseRow,
+  outline: PublicLessonOutlineRow[],
+): PublicCourseDetailDTO {
+  return {
+    id: course.id,
+    slug: course.slug,
+    title: course.title,
+    summary: course.summary,
+    levelLabel: COURSE_LEVEL_LABELS[course.level],
+    lessonCount: outline.length,
+    estimatedMinutes: course.estimatedMinutes,
+    hasFinalQuiz: course.finalQuizId !== null,
+    description: course.description,
+    lessons: outline.map((lesson, index) => ({
+      position: index + 1,
+      title: lesson.title,
+      durationSeconds:
+        lesson.videoStatus === "READY" &&
+        lesson.videoDurationSeconds !== null &&
+        lesson.videoDurationSeconds > 0
+          ? lesson.videoDurationSeconds
+          : null,
+    })),
+    meta: {
+      title: course.seoTitle ?? course.title,
+      description: course.seoDescription ?? course.summary,
+    },
   };
 }

@@ -1,7 +1,7 @@
 // MyCourses (card S5-04 §3) — the /belajar/kursus-saya page body: 13b/13t/13d
 // filled, 13c empty. Pure render over the MyCoursesPageDTO (server
-// component, no "use client") — the only client piece is StartCourseButton
-// in the empty state's available list.
+// component, no "use client", no client pieces left since card S6-02
+// keputusan 11 turned the 13c action into a plain link).
 //
 // Structure rules follow the dashboard (learn-dashboard.tsx): every course
 // card is an <article aria-labelledby> with a DETERMINISTIC id built from
@@ -27,7 +27,6 @@ import type {
 } from "@/modules/progress/service";
 
 import { CoverBlock } from "./learn-dashboard";
-import { StartCourseButton } from "./start-course-button";
 
 export type MyCoursesProps = {
   data: MyCoursesPageDTO;
@@ -162,10 +161,10 @@ function CourseCard({ course }: { course: MyCourseDTO }) {
 
 /** 13c — the empty state with the available list (review item 10): the box
  *  and the list keep the design's max widths, and every available course is
- *  ONE white bordered row with the button at the right from 640 up (below
- *  that it wraps under the text, w-full). Rows carry a real
- *  StartCourseButton, not the design's "Lihat →" — nothing is enrolled
- *  yet, so starting is exactly what the moment asks for (decision 10). */
+ *  ONE white bordered row with the "Lihat →" link at the right from 640 up
+ *  (below that it wraps under the text, w-full). The link goes to the
+ *  public course detail — the page that sells and enrolls (card S6-02
+ *  keputusan 11). */
 function EmptyCourses({ available }: { available: LearnerCourseDTO[] }) {
   return (
     <div className="max-w-[820px] rounded-card border border-dashed border-border-dashed bg-surface-2 p-5 sm:p-8">
@@ -202,21 +201,16 @@ function EmptyCourses({ available }: { available: LearnerCourseDTO[] }) {
                       : ` · ${course.estimatedMinutes} menit`}
                   </p>
                 </div>
-                {/* Round 2 item 2: StartCourseButton renders Button + an
-                    ALWAYS-MOUNTED <p role="alert"> as siblings — wrapped so
-                    the alert is not a separate flex item of the <li> (a stray
-                    gap right of the button; the error would land BESIDE it).
-                    Inside the wrapper the alert stacks BELOW the button. */}
-                <div className="w-full sm:w-auto">
-                  <StartCourseButton
-                    courseId={course.id}
-                    variant="secondary"
-                    className="w-full sm:w-auto"
-                    aria-describedby={titleId}
-                  >
-                    Mulai materi 1
-                  </StartCourseButton>
-                </div>
+                {/* Card S6-02 keputusan 11: the design's "Lihat →" — now
+                    that /kursus/{slug} exists, the detail page sells the
+                    course and enrolls; this row only navigates. */}
+                <Link
+                  href={`/kursus/${course.slug}`}
+                  aria-describedby={titleId}
+                  className="inline-flex min-h-11 w-full items-center text-[13.5px] font-bold text-primary-deep sm:w-auto"
+                >
+                  Lihat →
+                </Link>
               </li>
             );
           })}

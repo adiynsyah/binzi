@@ -478,10 +478,12 @@ test.describe("target sentuh >= 44px @w360", () => {
       "Chat Ahli Gizi di WhatsApp",
     );
 
-    await page.goto("/kursus");
+    // /artikel since S6-02: /kursus is a real catalog whose empty state
+    // differs — the "Segera hadir" Kembali ke Beranda lives on the stubs.
+    await page.goto("/artikel");
     await expectTouchTarget(
       page.getByRole("link", { name: "Kembali ke Beranda" }),
-      "Kembali ke Beranda (/kursus)",
+      "Kembali ke Beranda (/artikel)",
     );
   });
 

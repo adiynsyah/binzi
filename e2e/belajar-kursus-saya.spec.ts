@@ -5,8 +5,9 @@
 // clock, quiz-belum, locked Final), X (the finished arc: Belum lulus,
 // Sudah dikerjakan, ringkasan 68), and Z (the untouched arc: open first
 // lesson, locked second) — then the width sweep 360–1280 for the list and
-// Y's progress; (2) the 13c empty state, the not-enrolled redirect to
-// materi 1, the signed-out redirect, and the 404.
+// Y's progress; (2) the 13c empty state, the not-enrolled redirect to the
+// PUBLIC course detail (card S6-02 keputusan 11), the signed-out redirect,
+// and the 404.
 //
 // Root spec → chromium project only. Shared-database rule: token-titled
 // courses only, cleaned up through deleteCoursesInE2eDb. The quiz/video
@@ -406,7 +407,7 @@ test("1. terisi: urutan updated_at, badge/aksi/meta, progres Y/X/Z, lebar 360–
   }
 });
 
-test("2. kosong 360/1280, kembali ke materi 1, tamu, 404", async ({
+test("2. kosong 360/1280, kembali ke detail kursus, tamu, 404", async ({
   page,
   browser,
 }) => {
@@ -425,10 +426,11 @@ test("2. kosong 360/1280, kembali ke materi 1, tamu, 404", async ({
         name: "Anda belum mengikuti kursus apa pun",
       }),
     ).toBeVisible();
-    // At least one start button WHEN the shared DB has published courses —
-    // never an exact count (lesson 9 Nov no. 9).
-    const starts = page.getByRole("button", { name: "Mulai materi 1" });
-    expect(await starts.count()).toBeGreaterThan(0);
+    // At least one "Lihat →" link WHEN the shared DB has published courses
+    // — never an exact count (lesson 9 Nov no. 9). Card S6-02 keputusan 11:
+    // the rows link to the public detail, no start buttons here anymore.
+    const lihat = page.getByRole("link", { name: "Lihat →" });
+    expect(await lihat.count()).toBeGreaterThan(0);
     await maybeScreenshot(
       page,
       `kursus-saya-kosong-${width}`,
@@ -436,7 +438,8 @@ test("2. kosong 360/1280, kembali ke materi 1, tamu, 404", async ({
     );
   }
 
-  // Not enrolled → /belajar/{slug} lands on the lesson 1 page.
+  // Not enrolled → /belajar/{slug} bounces to the PUBLIC course detail
+  // (card S6-02 keputusan 11): URL /kursus/{slug}, h1 = the course title.
   const titleSmall = `${randomToken("kss")} Kursus Kecil`;
   const small = await createPublishedCourseViaApi(
     editorContext,
@@ -446,14 +449,9 @@ test("2. kosong 360/1280, kembali ke materi 1, tamu, 404", async ({
   );
   courseIds.push(small.courseId);
   await page.goto(`/belajar/${small.courseSlug}`);
-  await expect(page).toHaveURL(
-    `/belajar/${small.courseSlug}/${small.firstLessonSlug}`,
-  );
+  await expect(page).toHaveURL(`/kursus/${small.courseSlug}`);
   await expect(
-    page.getByRole("heading", {
-      level: 1,
-      name: `Materi 1 · ${titleSmall} materi 1`,
-    }),
+    page.getByRole("heading", { level: 1, name: titleSmall }),
   ).toBeVisible();
 
   // No session → the (learn) guard bounces to /masuk with the next param.
