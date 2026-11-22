@@ -171,7 +171,7 @@ Rencana lengkap, asumsi, dan aturannya ada di `STATUS.md` ("Pembaruan 19 Nov", b
 - [x] 🤖 **A3** · [S5-03](sprint-5/S5-03-nilai-saya.md) — Nilai Saya `/belajar/nilai` (8b, 8f): tabel per kursus, Nilai Akhir tersimpan, tautan pembahasan, keadaan kosong, "Ke Nilai Saya" di hasil Final · *✅ PR #148 (21 Nov); perapian putaran 2 di STATUS 21 Nov*
 - [x] 🤖 **A4** · [S5-04](sprint-5/S5-04-progres-kursus-dan-kursus-saya.md) — progres kursus `/belajar/{kursus}` (8c) + Kursus Saya `/belajar/kursus-saya` (13b, 13c): lima status materi, Final Quiz, ringkasan nilai, aksi per badge, keadaan kosong · *✅ PR #150 (22 Nov, tiga putaran tinjauan); perapian putaran 2 di STATUS 22 Nov*
 - [ ] 🤖 **A5** · [S6-02](sprint-6/S6-02-katalog-dan-detail-kursus.md) — katalog `/kursus` + detail `/kursus/{slug}` (7a, 7b, 7m): outline, deskripsi, CTA tamu/member, sampul placeholder; `kembali` S5-04 dan "Lihat →" 13c ke detail · *±2½ hari*
-- [ ] 🤖 **A6** · S5-05 — profil dasar `/profil` (9c): ubah nama, ubah password, logout semua perangkat · *±2 hari*
+- [ ] 🤖 **A6** · [S5-05](sprint-5/S5-05-profil-dasar.md) — profil dasar `/profil` (9c): ubah nama, ubah password, logout semua perangkat · *±2 hari*
 - [ ] 🤖 **A7** · S3-03 — lapor gangguan quiz (7i, 7l) + `/cms/reset-attempt` (26a–26c) · *±3 hari*
 - [ ] 🤖 **A8** · S5-06 — pengguna CMS `/cms/pengguna` (25a–25d) · *±2 hari*
 - [ ] 🤖👤 **A9** — stabilisasi + gladi UAT: cek 360/768/1280, checklist §12.6, skenario UAT dijalankan sekali penuh · *±2½ hari*
