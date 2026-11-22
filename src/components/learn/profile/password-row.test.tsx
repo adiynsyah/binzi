@@ -51,6 +51,15 @@ function fill(
   });
 }
 
+/** Current values of the three password inputs — re-queried on each call so
+ *  callers always read the REMOUNTED nodes after a close/reopen cycle (a
+ *  saved element reference would stay detached from the document). */
+function fieldValues(): string[] {
+  return (
+    ["Password saat ini", "Password baru", "Ulangi password baru"] as const
+  ).map((label) => (screen.getByLabelText(label) as HTMLInputElement).value);
+}
+
 describe("PasswordRow", () => {
   it("discloses the form via aria-expanded/aria-controls", () => {
     render(<PasswordRow hasPassword />);
@@ -143,16 +152,39 @@ describe("PasswordRow", () => {
 
     fireEvent.click(toggle); // reopen the collapsed form
     expect(toggle.getAttribute("aria-expanded")).toBe("true");
-    const current = screen.getByLabelText(
-      "Password saat ini",
-    ) as HTMLInputElement;
-    const next = screen.getByLabelText("Password baru") as HTMLInputElement;
-    const confirm = screen.getByLabelText(
-      "Ulangi password baru",
-    ) as HTMLInputElement;
-    expect(current.value).toBe("");
-    expect(next.value).toBe("");
-    expect(confirm.value).toBe("");
+    expect(fieldValues()).toEqual(["", "", ""]);
+
+    // The manual-close half: typed values (no submit) must vanish through
+    // the toggle's `if (open)` reset() too — removing that reset() kept
+    // this suite green before (sandbox finding, PR review).
+    fill("Simpanan1", "Ganti2Baru");
+    fireEvent.click(toggle); // close mid-edit
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(toggle); // reopen — remounted inputs, re-queried
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+    expect(fieldValues()).toEqual(["", "", ""]);
+  });
+
+  it("a manual close after INVALID_PASSWORD drops the field error on reopen", async () => {
+    // The same close branch clears serverCurrentError — without
+    // setServerCurrentError(null) the stale field error would survive the
+    // close/reopen cycle (PR review).
+    changePassword.mockResolvedValue({
+      data: null,
+      error: { status: 400, code: "INVALID_PASSWORD" },
+    } as never);
+    render(<PasswordRow hasPassword />);
+    const toggle = openForm();
+    fill("Salah1234", "Baru67890");
+    fireEvent.click(screen.getByRole("button", { name: "Simpan password" }));
+    expect(await screen.findByText("Password saat ini salah.")).toBeTruthy();
+
+    fireEvent.click(toggle); // close with the error showing
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(toggle); // reopen
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+    expect(screen.queryByText("Password saat ini salah.")).toBeNull();
+    expect(fieldValues()).toEqual(["", "", ""]);
   });
 
   it("INVALID_PASSWORD becomes a field error on Password saat ini (+focus), no banner", async () => {
