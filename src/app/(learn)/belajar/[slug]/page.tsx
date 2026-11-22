@@ -6,7 +6,8 @@
 // A NotFoundError becomes notFound() (the anti-IDOR 404: unknown slug,
 // unpublished course, course without lessons — enrolled or not); anything
 // else bubbles up. The `kembali` state (not enrolled) redirects to the
-// first lesson, which enrolls on open. NO loading.tsx in [slug]/ (card
+// PUBLIC course detail /kursus/{slug} (card S6-02 keputusan 11), whose
+// "Mulai belajar" enrolls. NO loading.tsx in [slug]/ (card
 // §2): a fallback would convert notFound()/redirect() answers into 200s —
 // src/lib/learn-route-structure.test.ts guards it. The static segments
 // `nilai`, `kursus-saya`, and `final-quiz` (a folder) win over [slug];

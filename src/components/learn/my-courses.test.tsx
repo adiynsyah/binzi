@@ -193,7 +193,7 @@ describe("MyCourses — terisi (13b)", () => {
 });
 
 describe("MyCourses — kosong (13c)", () => {
-  it("with available courses: the count sentence, the rows, and their start buttons", () => {
+  it("with available courses: the count sentence, the rows, and their Lihat → links to the detail", () => {
     const data: MyCoursesPageDTO = {
       courses: [],
       available: [availableCourse("b1"), availableCourse("b2")],
@@ -211,11 +211,17 @@ describe("MyCourses — kosong (13c)", () => {
     ).toBeTruthy();
     expect(screen.getAllByText("8 materi · 42 menit")).toHaveLength(2);
 
-    const starts = screen.getAllByRole("button", { name: "Mulai materi 1" });
-    expect(starts).toHaveLength(2);
-    expect(starts[0]!.getAttribute("aria-describedby")).toBe(
+    // Card S6-02 keputusan 11: plain links to the public course detail —
+    // no more start buttons here.
+    const lihat = screen.getAllByRole("link", { name: "Lihat →" });
+    expect(lihat).toHaveLength(2);
+    expect(lihat[0]!.getAttribute("href")).toBe("/kursus/kursus-b1");
+    expect(lihat[0]!.getAttribute("aria-describedby")).toBe(
       "kursus-tersedia-b1",
     );
+    expect(
+      screen.queryByRole("button", { name: "Mulai materi 1" }),
+    ).toBeNull();
     expect(
       screen.getByRole("link", { name: "Jelajahi semua kursus" }).getAttribute(
         "href",
@@ -226,15 +232,13 @@ describe("MyCourses — kosong (13c)", () => {
     ).toBeNull();
   });
 
-  it("nothing available either: the other sentence, no start buttons", () => {
+  it("nothing available either: the other sentence, no Lihat → links", () => {
     render(<MyCourses data={{ courses: [], available: [] }} />);
 
     expect(
       screen.getByText("Belum ada kursus yang bisa diikuti saat ini."),
     ).toBeTruthy();
-    expect(
-      screen.queryByRole("button", { name: "Mulai materi 1" }),
-    ).toBeNull();
+    expect(screen.queryByRole("link", { name: "Lihat →" })).toBeNull();
     expect(
       screen.getByRole("link", { name: "Jelajahi semua kursus" }).getAttribute(
         "href",

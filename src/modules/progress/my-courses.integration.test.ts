@@ -16,7 +16,8 @@
 //   lastLessonTitle null AND falls back to Materi 1 for continueHref.
 // - getCourseProgressPage read order: unknown slug → 404; DRAFT → 404;
 //   PUBLISHED without lessons → 404 (enrolled AND not enrolled); not
-//   enrolled → kembali to the first lesson by outline order.
+//   enrolled → kembali to the public course detail (card S6-02 keputusan
+//   11).
 // - The five lesson statuses in one read (non-sequential + sequential
 //   course), the row-3 sedang-dipelajari video DTO, and the ringkasan
 //   numbers (raw-score average 85 over 2 graded of 4 — mutation 20).
@@ -504,7 +505,7 @@ describe("getCourseProgressPage — 404s and kembali", () => {
     ).rejects.toThrow(NotFoundError);
   });
 
-  it("not enrolled → kembali to the FIRST lesson by outline order", async () => {
+  it("not enrolled → kembali to the public course detail (card S6-02 keputusan 11)", async () => {
     const member = await newMember("kembali");
     const made = await makeCourse("belum-ikut", {
       lessonTitles: ["Materi satu", "Materi dua"],
@@ -513,7 +514,7 @@ describe("getCourseProgressPage — 404s and kembali", () => {
     const page = await getCourseProgressPage(member, made.slug);
     expect(page).toEqual({
       state: "kembali",
-      href: lessonHref(made.slug, made.lessons[0]!.slug),
+      href: `/kursus/${made.slug}`,
     });
   });
 });

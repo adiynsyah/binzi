@@ -732,9 +732,9 @@ export async function getMyCoursesPage(
  * The course progress page (card S5-04 §1 service B, owner review 21 Nov
  * no. 5 read order): role → PUBLISHED course by slug (miss → the uniform
  * 404) → the shared outline rows (EMPTY → the same 404, enrolled or not)
- * → the actor's enrollment (absent → `kembali` at lesson 1, the Final
- * Quiz page's redirect pattern) → the Final Quiz summary LAST (only once
- * a page will actually render). Pure GET — no transaction, no write.
+ * → the actor's enrollment (absent → `kembali` to the public course
+ * detail, card S6-02 keputusan 11) → the Final Quiz summary LAST (only
+ * once a page will actually render). Pure GET — no transaction, no write.
  */
 export async function getCourseProgressPage(
   actor: SessionUser,
@@ -753,9 +753,12 @@ export async function getCourseProgressPage(
   }
   const enrollment = await selectEnrollmentForCourse(db, actor.id, course.id);
   if (!enrollment) {
+    // Card S6-02 keputusan 11: not-enrolled members land on the PUBLIC
+    // course detail — the outline above sells the course, "Mulai belajar"
+    // enrolls — instead of silently opening lesson 1.
     return {
       state: "kembali",
-      href: lessonHref(course.slug, outline[0]!.slug),
+      href: `/kursus/${course.slug}`,
     };
   }
   const finalQuiz =
