@@ -1,9 +1,110 @@
 # Status Proyek BINZI — catatan untuk melanjutkan di chat baru
 
-> Terakhir diperbarui: 21 Nov 2026. File ini dikelola manual (bukan oleh agent) dan hanya untuk melanjutkan percakapan dengan Claude.
+> Terakhir diperbarui: 22 Nov 2026. File ini dikelola manual (bukan oleh agent) dan hanya untuk melanjutkan percakapan dengan Claude.
 > Untuk melanjutkan: buka chat baru, unggah file ini + `docs/tasks/URUTAN-KERJA.md`, lalu pakai prompt di bagian paling bawah.
 
-## Pembaruan 21 Nov 2026 — A3 S5-03 Nilai Saya di-merge, kartu A4 S5-04 siap (baca ini dulu, lalu 20 Nov, 19 Nov, 16 Nov, 14 Nov, 11 Nov, 10 Nov, 9 Nov, 8 Nov, 7 Nov, 6 Nov, 4 Nov malam, 4 Nov, dan 3 Nov)
+## Pembaruan 22 Nov 2026 — A4 S5-04 progres kursus + Kursus Saya di-merge, kartu A5 S6-02 siap (baca ini dulu, lalu 21 Nov, 20 Nov, 19 Nov, 16 Nov, 14 Nov, 11 Nov, 10 Nov, 9 Nov, 8 Nov, 7 Nov, 6 Nov, 4 Nov malam, 4 Nov, dan 3 Nov)
+
+Bagian-bagian di bawahnya tetap berlaku. Bagian ini mengubah atau menambahnya. Jadwal yang berlaku tetap "Rencana UAT internal 11 Des" di Pembaruan 19 Nov.
+
+### Posisi
+- `main` = `6188302` (#150). **A1–A4 selesai.** Berikutnya A5 S6-02 katalog + detail kursus (kartu masuk lewat PR docs ini).
+- A4 diperkirakan ±2 hari. Kartu ditulis Sab 21, sesi dimulai Sab 21 sore, tiga putaran tinjauan PR, merge Min 22 pagi. Titik cek tabel 19 Nov (A1–A4 paling lambat Kam 26) terlampaui ±4 hari lebih cepat.
+- Baseline Vitest **133 berkas / 1624 tes** (diukur di sandbox Claude chat pada `6188302`). E2E penuh lokal agent 234 lolos / 14 dilewati / 7,8 mnt. CI `ci` 3m41s, `e2e` 8m40s. Gate audit 0 excused / 0 blocking / OK (21 info/low/moderate). Tanpa migrasi, tanpa dependensi baru.
+- Pengingat upgrade Next 16.4.1 (`SecurityFatalError` di percobaan e2e pertama agent) terulang 22 Nov — perilaku pelajaran 19 Nov no. 6, bukan tes flaky.
+
+### Yang di-merge 21–22 Nov
+
+| PR | Isi |
+|---|---|
+| #149 | Docs: STATUS 21 Nov, kartu S5-04 progres kursus + Kursus Saya |
+| #150 | S5-04 progres kursus + Kursus Saya (squash dari 12 commit — 9 kartu + 3 perbaikan tinjauan — head `a4e903c`) |
+
+### S5-04 di-merge (#150)
+Isi PR:
+- **`progress`:**
+  - `courseLessonStatus` di `policy.ts`: lima status per materi dengan prioritas keputusan 3;
+  - `selectMyCourses` (slug **dan** judul materi terakhir, keduanya dibatasi `course_id`), `selectFinalQuizSummary` (SELECT satu tabel), perluasan `selectOutlineRows` (`quiz_is_passed`, `video_duration_seconds`) dan `selectEnrollmentForCourse` (`final_score_percent`, `updated_at`);
+  - `toMyCourseDTO` + `toCourseProgressPageDTO`: rata-rata ringkasan dari skor **mentah** (sama dengan Nilai Saya), `video` DTO di kedua cabang sedang-dipelajari, posisi video dibatasi durasi;
+  - urutan baca service: kursus → materi → enrollment → Final, jadi `kembali` tidak pernah membawa href rusak.
+- **Halaman:**
+  - `/belajar/kursus-saya` + `MyCourses` (13b/13t/13d, kosong 13c);
+  - `/belajar/[slug]` + `CourseProgress` (8c: ikon 28 px terisi, aksi di bawah teks < 640, baris Final, ringkasan dengan bobot dari props).
+- **Nilai Saya:** tombol keadaan kosong → Kursus Saya.
+- **Tes:** +3 berkas / +57 tes. Integrasi baru `my-courses.integration.test.ts` (13 tes), e2e `belajar-kursus-saya.spec.ts` (2 tes), dua langkah axe di tes yang sudah ada.
+
+**Tinjauan rencana** (chat 21 Nov) menambah 11 butir, lalu 3 di putaran kedua. Yang terpenting:
+- kueri Final satu tabel: dengan join, versi mutasi bare-name dirender **benar** (`"questions"."quiz_id" = "quizzes"."id"`, dibuktikan dengan `QueryBuilder` drizzle 0.45.3), jadi mutasinya tidak membuktikan apa pun;
+- rata-rata ringkasan dari NUMERIC mentah — sama dengan `attempt/serializer.ts` (Nilai Saya) dan `loadFinalQuizContext`;
+- stempel `updated_at` eksplisit sebagai tulisan terakhir (`$onUpdate` mencap ulang di buka materi, simpan video, kumpul Final);
+- bobot 70/30 di setiap keadaan yang merender bobot; mutasi baru 17–20 (rata-rata dari skor floor, bobot Final ditulis langsung, cabang baris 3, rata-rata atas semua materi).
+
+**Tinjauan PR putaran 1** (sandbox): check 130 → 133 berkas / 1622 tes. Tiga celah tes dibuktikan dengan mutasi yang lolos:
+- mutasi 1 (ON tanpa `user_id`) hanya memerahkan tes **lama** `lesson-page.integration.test.ts:442` — tes isolasi peserta lain untuk halaman progres tidak ada;
+- mutasi 2 (Kursus Saya tanpa `enrollments.user_id`) **hijau** di setiap tes Kursus Saya bila dijalankan sendirian (`-t`); merahnya di run penuh hanya dari pendaftaran tes lain;
+- jumlah soal Final tanpa filter `quiz_id` tetap 11/11 hijau: hanya satu Final berisi soal di database berkas itu.
+
+Enam temuan tampilan dari 10 screenshot terhadap 8c/13b/13t/13d/13c:
+- aksi baris progres sebaris dengan teks di 360 (kolom judul ±130 px);
+- tautan teks di bawah 44 px;
+- ikon garis 20 px (8c: lingkaran terisi 28 px);
+- eyebrow merah + `font-mono font-bold` (Plex Mono hanya dimuat 400/500);
+- meta 13b terdorong ke kanan, judul kartu 16 px;
+- keadaan kosong 13c dengan tombol ±1.080 px.
+
+**Putaran 2** (`84abca7`): semua diterapkan; mutasi 1, 2 (sendirian), 13, dan 21 merah di sandbox; check 133/1624. Dua temuan baru:
+- baris Final **terbuka** di 360 tidak ikut diubah (terlewat di tinjauan putaran 1) — markup-nya dirakit ulang dan diukur di Chrome sandbox: kolom teks **41 px**;
+- `StartCourseButton` merender dua elemen; di `<li>` flex keduanya menjadi item terpisah → celah ±30 px di kanan tombol dan pesan galat tampil di samping tombol.
+
+**Putaran 3** (`a4e903c`): keduanya diperbaiki, kolom teks Final diukur ulang **250 px**, 10 screenshot ditinjau ulang. Sisa kosmetik di "Perapian putaran 2 (dari S5-04)".
+
+**Verifikasi manual pemilik S5-04:** ✓ 22 Nov.
+
+### Keputusan pemilik 22 Nov
+1. **#150 di-merge** setelah tiga putaran tinjauan PR dan verifikasi manual.
+2. **Kartu A5 S6-02** ([kartu](tasks/sprint-6/S6-02-katalog-dan-detail-kursus.md)) masuk lewat PR docs ini. 13 keputusan teknisnya usulan Claude chat; me-merge PR docs = menyetujuinya. Yang terpenting:
+   - bacaan publik milik modul `course` dengan DTO audiens publik baru; `lessonCountSql` modul `course` tidak dipakai (bare-name, benar hanya dengan join);
+   - `/kursus` dan `/kursus/[slug]` dirender dinamis (ƒ), **menyimpang dari PRD §10.4** (ISR + revalidasi on-demand): job `ci` membangun dengan `DATABASE_URL` dummy, dan UAT butuh kursus yang baru terbit langsung tampil. ISR dikerjakan sebelum rilis publik;
+   - CTA tamu/member ditentukan di klien (`authClient.useSession`); member "Mulai belajar" lewat enroll idempoten (materi terakhir ?? materi 1), tanpa membaca enrollment di server;
+   - tidak dibangun: preview (B2), filter (B5), kotak peninjau 7b; deskripsi kaya tampil sebagai "Tentang kursus ini"; `noindex` sampai rilis;
+   - tindak lanjut S5-04: peserta belum terdaftar di `/belajar/{kursus}` → `/kursus/{slug}`; keadaan kosong 13c memakai "Lihat →".
+
+### Perapian putaran 2 (dari S5-04)
+- Tata letak 8c: ringkasan sejajar eyebrow di kolom kanan, label persen di kanan bilah.
+- Sampul 120 × 78 (13b) dan sampul full-bleed (13d); sekarang persegi 96 px dan berbingkai.
+- "Jelajahi kursus lain" melebar di 640–1023 (`sm:w-auto` kalah oleh `flex-col` induk); tombol tunggal "Mulai materi 1" setengah lebar di 640–1023.
+- Ringkasan 8c: label "rata-rata … quiz materi" Lato kalimat biasa + garis pemisah; rumus saat rata-rata "—"; "Lihat di Nilai Saya" sebelum ada nilai (Nilai Saya belum menampilkan kursus itu).
+- "Tonton ulang"/"Buka materi" berwarna `primary-deep` (8c: abu-abu `text-muted`).
+- Wadah aksi baris progres selalu dirender: di < 640 baris tanpa aksi (Final terkunci, materi terkunci) 8 px lebih tinggi karena `gap-y-2` (terukur 89 vs 81 px). Render wadahnya hanya bila ada aksi.
+- Judul kursus di Nilai Saya sebagai tautan ke `/belajar/{kursus}` (butir S5-03 — halaman progres kini ada).
+
+### Pelajaran 22 Nov
+1. **Mutasi yang merah di run penuh bisa jadi hanya tertangkap data tes lain.** Di PGlite bersama, pendaftaran dari tes yang berjalan lebih dulu ikut terbaca. Setiap mutasi kueri diulang dengan `-t` pada tes yang diprediksi merah saja; tes itu harus membuat data peserta lain sendiri.
+2. **Hitungan per induk butuh dua induk berisi data dalam satu tes** (pengulangan pelajaran 10 Nov no. 1). Kartu S5-04 sudah meminta "dua Final 5 dan 10 soal", tetapi implementasi memakai satu Final berisi soal dan satu kosong di tes berbeda — subquery tanpa filter tetap hijau.
+3. **Prediksi mutasi di badan PR dicocokkan dengan nama tes yang benar-benar merah.** Mutasi 1 diprediksi memerahkan tes integrasi baru, padahal tesnya belum ada; yang merah hanya tes lama.
+4. **Perbaikan tata letak diterapkan ke semua elemen berpola sama.** Tinjauan putaran 1 menyebut baris materi, tetapi baris Final punya masalah yang sama dan terlewat. Keadaan yang tidak ada di screenshot (Final terbuka) diukur dengan markup di Chrome sandbox.
+5. **Komponen yang merender lebih dari satu elemen** (`StartCourseButton`: tombol + `<p role="alert">` yang selalu terpasang) menjadi beberapa item bila diletakkan langsung di wadah flex. Bungkus dengan elemen blok.
+6. **Wadah `basis-full` yang selalu dirender menambah `row-gap` walau kosong.**
+7. **Chrome di sandbox** (`/usr/bin/google-chrome` di sandbox 22 Nov, atau `@sparticuz/chromium`, dengan `playwright-core` dari `node_modules` repo) bisa mengukur markup komponen yang dirakit ulang dengan CSS setara — cukup untuk lebar kolom dan pembungkusan baris, tidak untuk font Lato asli.
+8. **Agent gagal membaca PNG screenshot 360** (lanjutan pelajaran 11 Nov no. 8). Tinjauan gambar tetap di Claude chat.
+
+### Tugas pemilik (bukan kode)
+Tetap dari 21 Nov:
+1. **`AGENTS.md`** tidak terlacak — jangan di-commit; putuskan di C-09.
+2. **H-04 R2** (bucket + token) — membuka jalan tarik maju video R2.
+3. **Akun UAT per peran** di Production, sebelum A9.
+4. **Ketik kursus "[DEMO]"** lewat CMS + video *unlisted*, sebelum A9. Final Quiz: 20 menit, batas lulus 70.
+5. **Tentukan penguji dan jam UAT** 11 Des.
+6. **Nomor WhatsApp asli** lewat SQL editor binzi-dev, bila halaman konsultasi ikut diuji.
+7. **Verifikasi manual S5-01** masih terbuka.
+8. Opsional: **redirect URI Google di Production**.
+
+### Catatan untuk kartu berikutnya
+- **A5 S6-02** masuk lewat PR docs ini, ditulis terhadap `6188302`. Baseline 133 / 1624. Rencana agent ditinjau di chat.
+- **A6 S5-05 profil dasar `/profil`** (9c: ubah nama, ubah password, logout semua perangkat) ditulis Claude chat selagi A5 berjalan. Bahan yang sudah tercatat: perubahan yang menyangkut sesi wajib mencabut sesi (butir "Kartu manajemen user"); foto profil Google butuh domain di `img-src` CSP bila ditampilkan.
+- Bawa pelajaran 22 Nov no. 1–6 ke kartu berikutnya.
+
+## Pembaruan 21 Nov 2026 — A3 S5-03 Nilai Saya di-merge, kartu A4 S5-04 siap (baca setelah 22 Nov, lalu 20 Nov, 19 Nov, 16 Nov, 14 Nov, 11 Nov, 10 Nov, 9 Nov, 8 Nov, 7 Nov, 6 Nov, 4 Nov malam, 4 Nov, dan 3 Nov)
 
 Bagian-bagian di bawahnya tetap berlaku. Bagian ini mengubah atau menambahnya. Jadwal yang berlaku tetap "Rencana UAT internal 11 Des" di Pembaruan 19 Nov.
 
@@ -1742,7 +1843,7 @@ Rencana disetujui, dengan lima tambahan berikut (hasil tinjauan C-02/C-03, belum
 Saya sedang membangun BINZI (platform belajar gizi) dengan Next.js 16 +
 AI coding agent (Claude Code). Terlampir docs/STATUS.md dan
 docs/tasks/URUTAN-KERJA.md dari repo saya — baca keduanya sebagai konteks.
-Baca bagian "Pembaruan 21 Nov" di STATUS.md lebih dulu, lalu
+Baca bagian "Pembaruan 22 Nov" di STATUS.md lebih dulu, lalu "Pembaruan 21 Nov",
 "Pembaruan 20 Nov", "Pembaruan 19 Nov", "Pembaruan 16 Nov", "Pembaruan 14 Nov",
 "Pembaruan 11 Nov", "Pembaruan 10 Nov", "Pembaruan 9 Nov",
 "Pembaruan 8 Nov", "Pembaruan 7 Nov", "Pembaruan 6 Nov", "Pembaruan 4 Nov
@@ -1754,18 +1855,20 @@ repo publik di github.com/adiynsyah/binzi — clone untuk membaca kode,
 kartu, desain, dan meninjau PR (API GitHub sering tidak tersedia dari
 sandbox; git fetch pull/N/head tetap jalan). Repo di mesin saya ada di
 ~/Project/React/binzi-new.
-Posisi terakhir (21 Nov): A1 C-11 (#142), A2 S3-02 (#145), dan A3 S5-03
-Nilai Saya (#148) di-merge; main = 1acd84d; baseline Vitest 130 / 1567.
-Kartu A4 S5-04 (progres kursus + Kursus Saya) masuk lewat PR docs 21 Nov.
+Posisi terakhir (22 Nov): A1 C-11 (#142), A2 S3-02 (#145), A3 S5-03
+Nilai Saya (#148), dan A4 S5-04 progres kursus + Kursus Saya (#150)
+di-merge; main = 6188302; baseline Vitest 133 / 1624.
+Kartu A5 S6-02 (katalog + detail kursus) masuk lewat PR docs 22 Nov.
 Target UAT internal Jum 11 Des (rencana A/B/C dan urutan tarik maju di
-Pembaruan 19 Nov); jadwal maju ±2 hari.
+Pembaruan 19 Nov); A1–A4 selesai ±4 hari sebelum titik cek Kam 26.
 Berikutnya:
-- Sesi agent A4 S5-04; rencana agent ditinjau di chat.
-- Tulis kartu A5 S6-02 katalog + detail selagi agent mengerjakan A4
-  (catatan di akhir kartu S5-04).
-- Tugas pemilik: lihat "Tugas pemilik (bukan kode)" di 21 Nov.
-- Untuk tinjauan tampilan, Claude bisa menjalankan Chromium headless di
-  sandbox (@sparticuz/chromium + playwright-core dari registry npm), dan
+- Sesi agent A5 S6-02; rencana agent ditinjau di chat.
+- Tulis kartu A6 S5-05 profil dasar selagi agent mengerjakan A5
+  (catatan di akhir kartu S6-02).
+- Tugas pemilik: lihat "Tugas pemilik (bukan kode)" di 22 Nov.
+- Untuk tinjauan tampilan, Claude bisa menjalankan Chrome/Chromium di
+  sandbox (/usr/bin/google-chrome bila ada, atau @sparticuz/chromium) dengan
+  playwright-core dari node_modules repo untuk mengukur markup, dan
   axe-core dari node_modules repo.
 Gate audit main: 0 excused / 0 blocking / 21 info-low-moderate. Uji
 lokal selalu dengan npm run dev:db. Branch main diproteksi (wajib PR,
