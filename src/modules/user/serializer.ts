@@ -78,3 +78,35 @@ export function toUserPrivateDTO(row: UserRow): UserPrivateDTO {
     createdAt: row.createdAt.toISOString(),
   };
 }
+
+/** Row shape produced by findAccountSecurity (queries.ts, card S5-05):
+ *  per-provider presence + whether that provider row carries a password —
+ *  already a boolean computed in SQL, so the hash never leaves the db. */
+export type AccountSecurityRow = {
+  providers: { providerId: string; hasPassword: boolean }[];
+  activeSessionCount: number;
+};
+
+/** The /profil Keamanan summary (card S5-05 §4.3): hasPassword means a
+ *  credential row with a password actually SET (a null-password credential
+ *  row — a Google-only account that never created one — stays false);
+ *  activeSessionCount includes the device asking. */
+export type AccountSecurityDTO = {
+  hasPassword: boolean;
+  googleLinked: boolean;
+  activeSessionCount: number;
+};
+
+export function toAccountSecurityDTO(
+  row: AccountSecurityRow,
+): AccountSecurityDTO {
+  return {
+    hasPassword: row.providers.some(
+      (provider) => provider.providerId === "credential" && provider.hasPassword,
+    ),
+    googleLinked: row.providers.some(
+      (provider) => provider.providerId === "google",
+    ),
+    activeSessionCount: row.activeSessionCount,
+  };
+}

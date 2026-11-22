@@ -14,12 +14,25 @@ import { PAGE_SIZE } from "@/lib/pagination";
 import type { Actor } from "./policy";
 import { assertMinRole, assertSelf, assertSelfOrAdmin } from "./policy";
 import * as userQueries from "./queries";
-import { getUserInput, listUsersInput, updateProfileInput } from "./schema";
-import type { PublicUserDTO, UserPrivateDTO } from "./serializer";
-import { toPublicUserDTO, toUserPrivateDTO } from "./serializer";
+import {
+  getUserInput,
+  listUsersInput,
+  updateNameInput,
+  updateProfileInput,
+} from "./schema";
+import type {
+  AccountSecurityDTO,
+  PublicUserDTO,
+  UserPrivateDTO,
+} from "./serializer";
+import {
+  toAccountSecurityDTO,
+  toPublicUserDTO,
+  toUserPrivateDTO,
+} from "./serializer";
 
 // DTO types for consumers: import these from service, not from serializer.
-export type { PublicUserDTO, UserPrivateDTO };
+export type { AccountSecurityDTO, PublicUserDTO, UserPrivateDTO };
 
 /** Owner's own profile, or any profile for ADMIN+. Everyone else gets 404. */
 export async function getUserProfile(
@@ -49,6 +62,31 @@ export async function updateUserProfile(
   });
   if (!row) throw new NotFoundError("Pengguna tidak ditemukan");
   return toUserPrivateDTO(row);
+}
+
+/** The /profil name form (card S5-05): parses { name } ONLY — there is no
+ *  userId in the payload, the write always targets the session user — and
+ *  reuses the same notDeleted-guarded query as updateUserProfile, so an
+ *  omitted phone is left untouched. Missing/soft-deleted user → 404. */
+export async function updateMyName(
+  actor: Actor,
+  input: unknown,
+): Promise<UserPrivateDTO> {
+  const { name } = updateNameInput.parse(input);
+
+  const row = await userQueries.updateUserProfile(actor.id, { name });
+  if (!row) throw new NotFoundError("Pengguna tidak ditemukan");
+  return toUserPrivateDTO(row);
+}
+
+/** The /profil Keamanan summary (card S5-05): password set?, Google
+ *  linked?, how many sessions are alive right now (this device included).
+ *  Owner-only by construction — the actor IS the subject. */
+export async function getAccountSecurity(
+  actor: Actor,
+): Promise<AccountSecurityDTO> {
+  const row = await userQueries.findAccountSecurity(actor.id);
+  return toAccountSecurityDTO(row);
 }
 
 export type UserListDTO = {

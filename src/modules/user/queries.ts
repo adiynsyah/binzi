@@ -8,14 +8,18 @@
 // hides soft-deleted rows (deletedAt IS NULL — PRD §10.5 purge semantics).
 import "server-only";
 
-import { and, count, desc, eq, inArray, isNull } from "drizzle-orm";
+import { and, count, desc, eq, gt, inArray, isNull, sql } from "drizzle-orm";
 
 import { db } from "@/db";
-import { users } from "@/db/schema";
+import { accounts, sessions, users } from "@/db/schema";
 import { PAGE_SIZE, offsetForPage } from "@/lib/pagination";
 
 import { PUBLIC_PROFILE_ROLES } from "./policy";
-import type { PublicUserRow, UserRow } from "./serializer";
+import type {
+  AccountSecurityRow,
+  PublicUserRow,
+  UserRow,
+} from "./serializer";
 
 // The only columns this module ever reads. deletedAt/updatedAt are
 // intentionally absent — they never even reach the serializers.
@@ -98,4 +102,35 @@ export async function listUsers(
   ]);
 
   return { rows, total: totals[0]?.value ?? 0 };
+}
+
+/** Security summary for the /profil Keamanan section (card S5-05 §4.2).
+ *  The accounts query reads providerId + whether a password is set —
+ *  "password is not null" is computed in SQL, the hash itself is never
+ *  selected. The session count is rows whose expiresAt is still ahead of
+ *  the database clock (never a Date compared in JS — STATUS 19 Nov no. 3).
+ *  No token/ipAddress/userAgent/accessToken column is ever read. */
+export async function findAccountSecurity(
+  userId: string,
+): Promise<AccountSecurityRow> {
+  const [accountRows, sessionRows] = await Promise.all([
+    db
+      .select({
+        providerId: accounts.providerId,
+        hasPassword: sql<boolean>`(${accounts.password} is not null)`,
+      })
+      .from(accounts)
+      .where(eq(accounts.userId, userId)),
+    db
+      .select({ value: count() })
+      .from(sessions)
+      .where(
+        and(eq(sessions.userId, userId), gt(sessions.expiresAt, sql`now()`)),
+      ),
+  ]);
+
+  return {
+    providers: accountRows,
+    activeSessionCount: sessionRows[0]?.value ?? 0,
+  };
 }

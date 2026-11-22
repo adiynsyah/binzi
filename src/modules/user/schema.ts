@@ -12,22 +12,34 @@ export const getUserInput = z.strictObject({
   userId: z.string().min(1, "ID pengguna wajib diisi"),
 });
 
+// Name rules shared by every profile-name contract below (card S5-05 §4.1):
+// trim + required + 128 max, with the signup messages.
+const nameField = z
+  .string()
+  .trim()
+  .min(1, "Nama wajib diisi")
+  .max(128, "Nama maksimal 128 karakter");
+
 // Profile fields the owner may change. Deliberately WITHOUT image (avatar
 // goes through the media/R2 flow in a later sprint) and without any
 // privileged field (role/status/email are server-managed).
 export const updateProfileInput = z.strictObject({
   userId: z.string().min(1, "ID pengguna wajib diisi"),
-  name: z
-    .string()
-    .trim()
-    .min(1, "Nama wajib diisi")
-    .max(100, "Nama maksimal 100 karakter"),
+  name: nameField,
   // Optional: omit to keep the current value, null to clear it.
   phone: z
     .string()
     .trim()
     .regex(/^\+?[0-9]{8,15}$/, "Nomor telepon tidak valid")
     .nullish(),
+});
+
+// The /profil name form's contract (card S5-05): name ONLY. There is no
+// userId to choose — the route writes to the SESSION user's id — so any
+// other key (userId, phone, role, email, image) is rejected, never
+// silently stripped.
+export const updateNameInput = z.strictObject({
+  name: nameField,
 });
 
 // Page size is fixed by the server (src/lib/pagination.ts) — clients may
@@ -38,4 +50,5 @@ export const listUsersInput = z.strictObject({
 
 export type GetUserInput = z.infer<typeof getUserInput>;
 export type UpdateProfileInput = z.infer<typeof updateProfileInput>;
+export type UpdateNameInput = z.infer<typeof updateNameInput>;
 export type ListUsersInput = z.infer<typeof listUsersInput>;
