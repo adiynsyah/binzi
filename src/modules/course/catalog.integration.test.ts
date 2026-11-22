@@ -301,7 +301,7 @@ describe("getPublicCourse", () => {
     // order_index dominates: materi 3 has the LOWEST id but the highest
     // order_index; the shared order_index 1 pair is broken by id asc
     // (materi 2 was given the lower id but inserted LAST).
-    await insertLesson(course, 63, {
+    await insertLesson(course, 60, {
       title: "Materi 3",
       orderIndex: 2,
     });
