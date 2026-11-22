@@ -62,6 +62,13 @@ export function verificationEmailRateLimitKey(email: string): string {
   return `verify-email:${normalizeEmail(email)}`;
 }
 
+/** Card S5-05: change-password bucket, per USER (not per IP — the caller is
+ *  authenticated, so the user id is the stable identity, and two users
+ *  behind one NAT must not lock each other out). */
+export function passwordChangeRateLimitKey(userId: string): string {
+  return `pwchange:${userId}`;
+}
+
 export type AttemptReservation = {
   /** False when this attempt is past the limit and must be rejected (429). */
   allowed: boolean;

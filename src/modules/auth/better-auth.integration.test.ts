@@ -17,12 +17,18 @@
 // session — tests that sign in flip `emailVerified` straight in the DB via
 // `signUpVerified`, standing in for a completed verification link. The
 // verification/reset flows themselves live in email.integration.test.ts.
+//
+// Card S5-05 adds a describe for the /profil password guards: the AUTH-01
+// letter+digit policy on /change-password and /reset-password, the
+// per-user 5/15-min change-password bucket (session first — anonymous
+// callers create no row), revokeOtherSessions behavior, and /update-user
+// answering a plain 404.
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { fileURLToPath } from "node:url";
 
 import { PGlite } from "@electric-sql/pglite";
-import { eq } from "drizzle-orm";
+import { eq, like } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
@@ -32,6 +38,7 @@ import { rateLimits, sessions, users } from "@/db/schema";
 import type { Db } from "@/db/client";
 import {
   loginRateLimitKey,
+  passwordChangeRateLimitKey,
   passwordResetRateLimitKey,
   verificationEmailRateLimitKey,
 } from "@/lib/ratelimit";
@@ -679,5 +686,345 @@ describe("A-09 Better Auth core (PGlite)", () => {
     expect(httpCookie).toMatch(/HttpOnly/i);
     expect(httpCookie).toMatch(/SameSite=Lax/i);
     expect(httpCookie).not.toMatch(/Secure/);
+  });
+});
+
+describe("S5-05 change-password guards + /update-user disabled", () => {
+  /** Collects `name=value` pairs from a response's Set-Cookie headers. */
+  function cookieFrom(response: Response): string {
+    return response.headers
+      .getSetCookie()
+      .map((cookie) => cookie.split(";")[0])
+      .join("; ");
+  }
+
+  /** POST to the auth API with an optional session cookie. No captcha
+   *  header: neither /change-password nor /reset-password is
+   *  Turnstile-gated (TURNSTILE_PROTECTED_ENDPOINTS). */
+  function postWithCookie(
+    path: string,
+    body: Record<string, unknown>,
+    cookie?: string,
+  ): Promise<Response> {
+    return authHttps.handler(
+      new Request(`${BASE_HTTPS}/api/auth${path}`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          origin: BASE_HTTPS,
+          ...(cookie ? { cookie } : {}),
+        },
+        body: JSON.stringify(body),
+      }),
+    );
+  }
+
+  /** GET /get-session liveness probe: Better Auth answers 200 with body
+   *  `null` for a dead cookie (it does not 401 here), so liveness is read
+   *  from the JSON body. */
+  async function sessionAlive(cookie: string): Promise<boolean> {
+    const response = await authHttps.handler(
+      new Request(`${BASE_HTTPS}/api/auth/get-session`, {
+        method: "GET",
+        headers: { origin: BASE_HTTPS, cookie },
+      }),
+    );
+    expect(response.status).toBe(200);
+    const json = (await response.json()) as { session?: unknown } | null;
+    return json !== null && json.session != null;
+  }
+
+  async function signInCookie(
+    email: string,
+    password: string,
+    ip: string,
+  ): Promise<string> {
+    const response = await signIn(authHttps, email, password, ip);
+    expect(response.status).toBe(200);
+    const cookie = cookieFrom(response);
+    expect(cookie).toContain("session_token");
+    return cookie;
+  }
+
+  /** Reset token from the captured mail for THIS recipient (the shared
+   *  `sent` buffer accumulates across the whole file; the subject match is
+   *  a substring, like email.integration.test.ts's mailBySubject). */
+  function resetTokenFor(email: string): string {
+    const mail = [...sent]
+      .reverse()
+      .find(
+        (message) =>
+          message.subject.includes("Atur ulang password") &&
+          message.to === email,
+      );
+    expect(mail).toBeDefined();
+    const token = new URL(mail!.link ?? "").pathname.split("/").pop();
+    expect(token).toBeTruthy();
+    return token!;
+  }
+
+  /** The DB is shared with every other describe — count OUR rows, never
+   *  assert an empty table. */
+  async function pwchangeRowCount(): Promise<number> {
+    const rows = await db
+      .select({ key: rateLimits.key })
+      .from(rateLimits)
+      .where(like(rateLimits.key, "pwchange:%"));
+    return rows.length;
+  }
+
+  it("/change-password with a letter-only new password → 400 PASSWORD_POLICY; the old password still signs in", async () => {
+    const email = "s505-policy@example.com";
+    await signUpVerified(authHttps, email, TEST_PASSWORD, "203.0.113.120");
+    const cookie = await signInCookie(email, TEST_PASSWORD, "203.0.113.121");
+
+    // 13 letters, no digit: passes Better Auth's length check, fails only
+    // the AUTH-01 letter+digit rule the hook adds.
+    const response = await postWithCookie(
+      "/change-password",
+      {
+        currentPassword: TEST_PASSWORD,
+        newPassword: "hanyahurufaja",
+        revokeOtherSessions: true,
+      },
+      cookie,
+    );
+    expect(response.status).toBe(400);
+    expect((await errorBody(response)).code).toBe("PASSWORD_POLICY");
+
+    expect(
+      (await signIn(authHttps, email, TEST_PASSWORD, "203.0.113.122")).status,
+    ).toBe(200);
+  });
+
+  it("/reset-password with a digit-only new password → 400 PASSWORD_POLICY; the SAME token then succeeds", async () => {
+    const email = "s505-reset-policy@example.com";
+    await signUpVerified(authHttps, email, TEST_PASSWORD, "203.0.113.123");
+    expect(
+      (
+        await callAuth(authHttps, BASE_HTTPS, "/request-password-reset", {
+          body: { email },
+        })
+      ).status,
+    ).toBe(200);
+    const token = resetTokenFor(email);
+
+    const weak = await postWithCookie("/reset-password", {
+      token,
+      newPassword: "12345678",
+    });
+    expect(weak.status).toBe(400);
+    expect((await errorBody(weak)).code).toBe("PASSWORD_POLICY");
+
+    // The hook runs BEFORE the endpoint consumes the token, so the same
+    // token survives the rejected attempt (card decision 9).
+    const retried = await postWithCookie("/reset-password", {
+      token,
+      newPassword: "Baru67890",
+    });
+    expect(retried.status).toBe(200);
+    expect(
+      (await signIn(authHttps, email, "Baru67890", "203.0.113.124")).status,
+    ).toBe(200);
+  });
+
+  it("successful changePassword with revokeOtherSessions kills other devices and issues a live new cookie; old password 401 / new 200", async () => {
+    const email = "s505-revoke@example.com";
+    await signUpVerified(authHttps, email, TEST_PASSWORD, "203.0.113.125");
+    const cookieA = await signInCookie(email, TEST_PASSWORD, "203.0.113.126");
+    const cookieB = await signInCookie(email, TEST_PASSWORD, "203.0.113.127");
+
+    const response = await postWithCookie(
+      "/change-password",
+      {
+        currentPassword: TEST_PASSWORD,
+        newPassword: "Segar13579",
+        revokeOtherSessions: true,
+      },
+      cookieA,
+    );
+    expect(response.status).toBe(200);
+    const json = (await response.json()) as { token?: string | null };
+    expect(json.token).toBeTruthy();
+    const freshCookie = cookieFrom(response);
+    expect(freshCookie).toContain("session_token");
+
+    // B's session (and A's old one) were revoked…
+    expect(await sessionAlive(cookieB)).toBe(false);
+    expect(await sessionAlive(cookieA)).toBe(false);
+    // …the cookie set by the change response is the live one.
+    expect(await sessionAlive(freshCookie)).toBe(true);
+
+    expect(
+      (await signIn(authHttps, email, TEST_PASSWORD, "203.0.113.128")).status,
+    ).toBe(401);
+    expect(
+      (await signIn(authHttps, email, "Segar13579", "203.0.113.129")).status,
+    ).toBe(200);
+  });
+
+  it("EDITOR: the session issued by a password change lives 8 hours (the AUTH-07 hook covers it)", async () => {
+    const email = "s505-editor@example.com";
+    await signUpVerified(authHttps, email, TEST_PASSWORD, "203.0.113.130");
+    await db
+      .update(users)
+      .set({ role: "EDITOR" })
+      .where(eq(users.email, email));
+    const cookie = await signInCookie(email, TEST_PASSWORD, "203.0.113.131");
+
+    const response = await postWithCookie(
+      "/change-password",
+      {
+        currentPassword: TEST_PASSWORD,
+        newPassword: "Editor24680",
+        revokeOtherSessions: true,
+      },
+      cookie,
+    );
+    expect(response.status).toBe(200);
+    const { token } = (await response.json()) as { token?: string | null };
+
+    const session = await latestSessionByToken(token ?? "");
+    expect(session).toBeDefined();
+    const span = session!.expiresAt.getTime() - session!.createdAt.getTime();
+    expect(span).toBeGreaterThan(8 * HOUR_MS - 5 * 60 * 1000);
+    expect(span).toBeLessThanOrEqual(8 * HOUR_MS + 60_000);
+  });
+
+  it("five wrong current passwords → INVALID_PASSWORD; the 6th, even correct, → 429 RATE_LIMITED; after the window rewinds → success", async () => {
+    const email = "s505-ratelimit@example.com";
+    await signUpVerified(authHttps, email, TEST_PASSWORD, "203.0.113.132");
+    const cookie = await signInCookie(email, TEST_PASSWORD, "203.0.113.133");
+
+    for (let attempt = 1; attempt <= 5; attempt += 1) {
+      const wrong = await postWithCookie(
+        "/change-password",
+        {
+          currentPassword: WRONG_PASSWORD,
+          newPassword: "Ganti24680",
+          revokeOtherSessions: true,
+        },
+        cookie,
+      );
+      expect(wrong.status).toBe(400);
+      expect((await errorBody(wrong)).code).toBe("INVALID_PASSWORD");
+    }
+
+    // The 6th attempt is CORRECT — a full bucket stops it before credential
+    // verification, exactly like the login limiter.
+    const blocked = await postWithCookie(
+      "/change-password",
+      {
+        currentPassword: TEST_PASSWORD,
+        newPassword: "Ganti24680",
+        revokeOtherSessions: true,
+      },
+      cookie,
+    );
+    expect(blocked.status).toBe(429);
+    const blockedJson = await errorBody(blocked);
+    expect(blockedJson.code).toBe("RATE_LIMITED");
+    expect(blockedJson.message).toBe(LOGIN_BLOCKED_MESSAGE);
+
+    // Expire the bucket directly (the A-09 login-window pattern).
+    const rows = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.email, email))
+      .limit(1);
+    await db
+      .update(rateLimits)
+      .set({ expiresAt: new Date(Date.now() - 1000) })
+      .where(eq(rateLimits.key, passwordChangeRateLimitKey(rows[0]!.id)));
+
+    const after = await postWithCookie(
+      "/change-password",
+      {
+        currentPassword: TEST_PASSWORD,
+        newPassword: "Ganti24680",
+        revokeOtherSessions: true,
+      },
+      cookie,
+    );
+    expect(after.status).toBe(200);
+  });
+
+  it("buckets are per user: A blocked, B from the same IP still changes password", async () => {
+    const emailA = "s505-pair-a@example.com";
+    const emailB = "s505-pair-b@example.com";
+    await signUpVerified(authHttps, emailA, TEST_PASSWORD, "203.0.113.134");
+    await signUpVerified(authHttps, emailB, TEST_PASSWORD, "203.0.113.134");
+    const cookieA = await signInCookie(emailA, TEST_PASSWORD, "203.0.113.134");
+    const cookieB = await signInCookie(emailB, TEST_PASSWORD, "203.0.113.134");
+
+    for (let attempt = 1; attempt <= 5; attempt += 1) {
+      const wrong = await postWithCookie(
+        "/change-password",
+        {
+          currentPassword: WRONG_PASSWORD,
+          newPassword: "Pair13579",
+          revokeOtherSessions: true,
+        },
+        cookieA,
+      );
+      expect(wrong.status).toBe(400);
+    }
+    const blocked = await postWithCookie(
+      "/change-password",
+      {
+        currentPassword: TEST_PASSWORD,
+        newPassword: "Pair13579",
+        revokeOtherSessions: true,
+      },
+      cookieA,
+    );
+    expect(blocked.status).toBe(429);
+
+    // B's bucket is untouched — the shared IP is irrelevant (key = user id).
+    const bChanges = await postWithCookie(
+      "/change-password",
+      {
+        currentPassword: TEST_PASSWORD,
+        newPassword: "Pair24680",
+        revokeOtherSessions: true,
+      },
+      cookieB,
+    );
+    expect(bChanges.status).toBe(200);
+  });
+
+  it("without a session: 401 and no pwchange bucket row appears", async () => {
+    // Count before/after: the PGlite database is shared with every other
+    // describe in this file.
+    const before = await pwchangeRowCount();
+
+    const response = await postWithCookie("/change-password", {
+      currentPassword: TEST_PASSWORD,
+      newPassword: "Anonim13579",
+      revokeOtherSessions: true,
+    });
+    expect(response.status).toBe(401);
+
+    expect(await pwchangeRowCount()).toBe(before);
+  });
+
+  it("POST /update-user with a valid session → 404 and the DB name is unchanged", async () => {
+    const email = "s505-update-user@example.com";
+    await signUpVerified(authHttps, email, TEST_PASSWORD, "203.0.113.135");
+    const cookie = await signInCookie(email, TEST_PASSWORD, "203.0.113.136");
+
+    const response = await postWithCookie(
+      "/update-user",
+      { name: "Bukan Nama Daftar" },
+      cookie,
+    );
+    expect(response.status).toBe(404);
+
+    const rows = await db
+      .select({ name: users.name })
+      .from(users)
+      .where(eq(users.email, email))
+      .limit(1);
+    expect(rows[0]?.name).toBe("Rina Tester"); // signUp()'s fixed name
   });
 });
