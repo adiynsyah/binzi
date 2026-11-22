@@ -17,6 +17,8 @@ import type { TestInfo } from "@playwright/test";
 import {
   createRoleAccount,
   expect,
+  expectNoCspViolations,
+  newCollectedContext,
   signInViaApi,
   test,
   withE2eDb,
@@ -162,8 +164,8 @@ test.describe("axe WCAG 2.1 A/AA", () => {
     }
   });
 
-  test("MEMBER: /belajar keadaan A lalu B, 403, dan (w360) drawer akun terbuka", async (
-    { page, request },
+  test("MEMBER: /belajar keadaan A lalu B, /kursus/{slug}, 403, dan (w360) drawer akun terbuka", async (
+    { page, browser, request },
     testInfo,
   ) => {
     const spec = widthSpecOf(testInfo.project.name);
@@ -231,6 +233,37 @@ test.describe("axe WCAG 2.1 A/AA", () => {
           .getByRole("article", { name: `${token} kursus belajar axe` }),
       ).toBeVisible();
       await expectAxeClean(page, "MEMBER /belajar B", testInfo);
+    });
+
+    // Card S6-02: the public course detail — member CTA ("Mulai belajar",
+    // enrolled or not) scanned in THIS width, then the same page as a
+    // GUEST in a fresh collected context (CSP watcher covers it too).
+    await test.step("/kursus/{slug} detail member lalu tamu (S6-02)", async () => {
+      await page.goto(`/kursus/${made.courseSlug}`);
+      await expect(
+        page.getByRole("heading", {
+          level: 1,
+          name: `${token} kursus belajar axe`,
+          exact: true,
+        }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: "Mulai belajar" }),
+      ).toBeVisible();
+      await expectAxeClean(page, "MEMBER /kursus/{slug}", testInfo);
+
+      const guest = await newCollectedContext(browser);
+      try {
+        const guestPage = await guest.context.newPage();
+        await guestPage.goto(`/kursus/${made.courseSlug}`);
+        await expect(
+          guestPage.getByRole("link", { name: "Daftar & mulai belajar" }),
+        ).toBeVisible();
+        await expectAxeClean(guestPage, "TAMU /kursus/{slug}", testInfo);
+        expectNoCspViolations(guest.violations);
+      } finally {
+        await guest.context.close();
+      }
     });
 
     // Card S5-04: the filled list (a belum-dimulai card) and the course

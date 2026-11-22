@@ -314,12 +314,13 @@ test.describe("beranda", () => {
   }
 
   // §8 no. 7 + S5-01 §8 no. 8 (the three legal stubs join the list, and
-  // one of them provides the required 360 screenshot).
+  // one of them provides the required 360 screenshot). /kursus left the
+  // list in S6-02 (a real catalog now — its own spec covers it); the nav
+  // aria-current assertion below stays.
   test("halaman segera hadir: 200, h1, noindex, nav current di /kursus", async ({
     page,
   }, testInfo) => {
     const pages: readonly [string, string][] = [
-      ["/kursus", "Kursus"],
       ["/artikel", "Artikel"],
       ["/tentang", "Tentang Kami"],
       ["/cari", "Cari"],
