@@ -22,9 +22,11 @@ import { COURSE_LEVEL_LABELS, type CourseLevel } from "@/modules/course/schema";
 
 import {
   allLessonsCompleted,
+  courseLessonStatus,
   firstOpenUnattempted,
   isLessonUnlocked,
   isQuizEligible,
+  type CourseLessonStatus,
 } from "./policy";
 
 /** The enrolled SELECT's row shape (queries.ts). */
@@ -96,6 +98,118 @@ export type EnrollResultDTO = {
 export type VideoProgressResultDTO = {
   positionSeconds: number;
   watchedPercent: number;
+};
+
+// ------------------------------------------------- S5-04 Kursus Saya (13b)
+
+/** selectMyCourses' row shape (queries.ts) — the dashboard's enrolled
+ *  SELECT plus the meta/sub-row/result columns the page adds. */
+export type MyCourseRow = {
+  id: string;
+  slug: string;
+  title: string;
+  level: CourseLevel;
+  enrollmentStatus: (typeof enrollmentStatusEnum.enumValues)[number];
+  lastLessonId: string | null;
+  /** Slug of the last-opened lesson, NULL when unset OR stale (the subquery
+   *  bounds lst.course_id = courses.id) — continueHref's first input. */
+  lastLessonSlug: string | null;
+  /** Same bound, the TITLE — the card's "Terakhir dibuka: {judul}" line. */
+  lastLessonTitle: string | null;
+  firstLessonSlug: string | null;
+  lessonCount: number;
+  completedLessonCount: number;
+  /** NUMERIC as it leaves the driver — rounded below, selesai/lulus only. */
+  finalScorePercent: string | null;
+  completedAt: Date | null;
+  enrolledAt: Date;
+  updatedAt: Date;
+  estimatedMinutes: number | null;
+};
+
+export type MyCourseDTO = {
+  id: string;
+  slug: string;
+  title: string;
+  /** PRG-06 via the SAME badgeOf as the dashboard (no second copy). */
+  badge: "belum-dimulai" | "sedang-berjalan" | "selesai" | "lulus";
+  lessonCount: number;
+  completedLessonCount: number;
+  meta: { kind: "terakhir-dibuka" | "selesai" | "diikuti"; at: string }; // ISO
+  finalScorePercent: number | null; // Math.round; only selesai/lulus
+  lastLessonTitle: string | null; // only sedang-berjalan
+  estimatedMinutes: number | null; // only belum-dimulai
+  continueHref: string; // lessonHref(last ?? first) — the dashboard action rule
+  progressHref: string; // /belajar/{slug}
+};
+
+export type MyCoursesPageDTO = {
+  courses: MyCourseDTO[];
+  /** Filled only when `courses` is empty (the 13c empty state's list). */
+  available: LearnerCourseDTO[];
+};
+
+// ------------------------------------------- S5-04 course progress (8c)
+
+export type CourseProgressLessonDTO = {
+  position: number;
+  title: string;
+  status: CourseLessonStatus; // decision 3 — courseLessonStatus in policy.ts
+  href: string | null; // null only for terkunci
+  hasVideo: boolean; // video_status READY
+  scorePercent: number | null; // Math.floor; only when the quiz was attempted
+  isPassed: boolean | null; // stored quiz_is_passed
+  /** Only sedang-dipelajari + READY + duration > 0 (both decision-3
+   *  branches); positionSeconds clamped to durationSeconds (the schema
+   *  allows +5 s of slack — never render "01:43 / 01:40"). */
+  video: { positionSeconds: number; durationSeconds: number } | null;
+};
+
+export type CourseProgressPageDTO =
+  | { state: "kembali"; href: string }
+  | {
+      state: "progres";
+      course: { id: string; title: string };
+      badge: "belum-dimulai" | "sedang-berjalan" | "selesai" | "lulus";
+      lessonCount: number;
+      completedLessonCount: number;
+      lastActivityAt: string; // enrollments.updated_at, ISO
+      lessons: CourseProgressLessonDTO[];
+      final: {
+        status: "terkunci" | "terbuka" | "selesai"; // decision 4
+        href: string; // finalQuizHref
+        questionCount: number;
+        durationMinutes: number;
+      } | null; // course without a Final Quiz (unreachable with valid data)
+      /** Math.round over the RAW NUMERIC scores of the graded rows — the
+       *  Nilai Saya / loadFinalQuizContext rule, never the floored display
+       *  values. Null before the first graded lesson. */
+      lessonAveragePercent: number | null;
+      gradedLessonCount: number;
+      hasFailedLesson: boolean; // a graded row with isPassed === false
+      finalScorePercent: number | null; // Math.round; only when status ≠ IN_PROGRESS
+    };
+
+/** What the service hands toCourseProgressPageDTO: the PUBLISHED course,
+ *  the actor's enrollment, the shared outline rows, and the Final Quiz
+ *  summary (null for a course without one — or a summary miss). */
+export type CourseProgressInput = {
+  course: {
+    id: string;
+    slug: string;
+    title: string;
+    isSequential: boolean;
+    finalQuizId: string | null;
+  };
+  enrollment: {
+    id: string;
+    lastLessonId: string | null;
+    status: (typeof enrollmentStatusEnum.enumValues)[number];
+    finalScorePercent: string | null;
+    updatedAt: Date;
+  };
+  outline: readonly LessonOutlineRow[];
+  finalQuiz: { durationMinutes: number; questionCount: number } | null;
 };
 
 // ---------------------------------------------------------- lesson page
@@ -223,11 +337,16 @@ export type LessonOutlineRow = {
   slug: string;
   title: string;
   videoStatus: (typeof videoStatusEnum.enumValues)[number];
+  /** Card S5-04: the READY video's stored duration — the sedang-dipelajari
+   *  clock's denominator. */
+  videoDurationSeconds: number | null;
   status: (typeof progressStatusEnum.enumValues)[number] | null;
   quizAttempted: boolean | null;
   /** NUMERIC as it leaves the driver — Number()'d below, shown when
    *  quizAttempted (card S3-01 §4.A outline score). */
   quizScorePercent: string | null;
+  /** Card S5-04: the STORED verdict, never recomputed from the score. */
+  quizIsPassed: boolean | null;
   videoLastPositionSeconds: number | null;
   /** NUMERIC leaves the driver as a string ('50.00') — Number()'d below. */
   videoWatchedPercent: string | null;
@@ -504,8 +623,16 @@ function firstLessonSlugOf(row: {
 
 /** PRG-06 badge: PASSED → lulus, COMPLETED → selesai; otherwise a course
  *  never opened (last_lesson_id NULL AND nothing completed) is
- *  belum-dimulai, the rest sedang-berjalan. */
-function badgeOf(row: EnrolledRow): EnrolledCourseDTO["badge"] {
+ *  belum-dimulai, the rest sedang-berjalan. Card S5-04: the param is the
+ *  THREE columns the rule reads, so the dashboard's EnrolledRow and the
+ *  progress page's enrollment+outline feed the SAME function — no second
+ *  copy of the rule. */
+function badgeOf(
+  row: Pick<
+    EnrolledRow,
+    "enrollmentStatus" | "lastLessonId" | "completedLessonCount"
+  >,
+): EnrolledCourseDTO["badge"] {
   if (row.enrollmentStatus === "PASSED") return "lulus";
   if (row.enrollmentStatus === "COMPLETED") return "selesai";
   if (row.lastLessonId === null && row.completedLessonCount === 0) {
@@ -544,5 +671,133 @@ export function toEnrolledCourseDTO(row: EnrolledRow): EnrolledCourseDTO {
       kind: lastSlug !== null ? "lanjutkan" : "mulai",
       href: lessonHref(row.slug, lastSlug ?? firstLessonSlugOf(row)),
     },
+  };
+}
+
+// ------------------------------------------------- S5-04 serializers
+
+/**
+ * One Kursus Saya card (card S5-04 §1 service A): badge via the SHARED
+ * badgeOf, then the per-badge fields — meta kind/date, the stored Nilai
+ * Akhir (selesai/lulus only), the last lesson's title (sedang-berjalan
+ * only), the estimated duration (belum-dimulai only) — every other
+ * combination null no matter what the columns hold.
+ */
+export function toMyCourseDTO(row: MyCourseRow): MyCourseDTO {
+  const badge = badgeOf(row);
+  const isDone = badge === "selesai" || badge === "lulus";
+  return {
+    id: row.id,
+    slug: row.slug,
+    title: row.title,
+    badge,
+    lessonCount: row.lessonCount,
+    completedLessonCount: row.completedLessonCount,
+    meta: isDone
+      ? { kind: "selesai", at: (row.completedAt ?? row.updatedAt).toISOString() }
+      : badge === "belum-dimulai"
+        ? { kind: "diikuti", at: row.enrolledAt.toISOString() }
+        : { kind: "terakhir-dibuka", at: row.updatedAt.toISOString() },
+    finalScorePercent:
+      isDone && row.finalScorePercent !== null
+        ? Math.round(Number(row.finalScorePercent))
+        : null,
+    lastLessonTitle: badge === "sedang-berjalan" ? row.lastLessonTitle : null,
+    estimatedMinutes: badge === "belum-dimulai" ? row.estimatedMinutes : null,
+    // The dashboard action rule: a stale last_lesson_id falls back to the
+    // first lesson (the title above may be null for the same reason).
+    continueHref: lessonHref(row.slug, row.lastLessonSlug ?? firstLessonSlugOf(row)),
+    progressHref: `/belajar/${row.slug}`,
+  };
+}
+
+/**
+ * The course progress page's DTO (card S5-04 §1 service B): per-lesson
+ * status through the ONE pure function (decision 3), the Final Quiz row
+ * from the STORED enrollment status first (decision 4 — the S3-02
+ * "nilai tersimpan" rule), and the ringkasan numbers from the RAW NUMERIC
+ * scores so they agree with Nilai Saya, never with the floored display.
+ */
+export function toCourseProgressPageDTO(
+  input: CourseProgressInput,
+): CourseProgressPageDTO {
+  const { course, enrollment, outline, finalQuiz } = input;
+  const completedLessonCount = outline.filter(
+    (row) => row.status === "COMPLETED",
+  ).length;
+  const graded = outline.filter(
+    (row) => row.quizAttempted === true && row.quizScorePercent !== null,
+  );
+  const lessons: CourseProgressLessonDTO[] = outline.map((row, index) => {
+    const position = index + 1;
+    const status = courseLessonStatus(position, row, outline, course.isSequential);
+    return {
+      position,
+      title: row.title,
+      status,
+      href: status === "terkunci" ? null : lessonHref(course.slug, row.slug),
+      hasVideo: row.videoStatus === "READY",
+      scorePercent:
+        row.quizAttempted === true
+          ? Math.floor(Number(row.quizScorePercent ?? 0))
+          : null,
+      isPassed: row.quizIsPassed,
+      video:
+        status === "sedang-dipelajari" &&
+        row.videoStatus === "READY" &&
+        row.videoDurationSeconds !== null &&
+        row.videoDurationSeconds > 0
+          ? {
+              positionSeconds: Math.min(
+                row.videoLastPositionSeconds ?? 0,
+                row.videoDurationSeconds,
+              ),
+              durationSeconds: row.videoDurationSeconds,
+            }
+          : null,
+    };
+  });
+  return {
+    state: "progres",
+    course: { id: course.id, title: course.title },
+    badge: badgeOf({
+      enrollmentStatus: enrollment.status,
+      lastLessonId: enrollment.lastLessonId,
+      completedLessonCount,
+    }),
+    lessonCount: outline.length,
+    completedLessonCount,
+    lastActivityAt: enrollment.updatedAt.toISOString(),
+    lessons,
+    final:
+      course.finalQuizId !== null && finalQuiz !== null
+        ? {
+            status:
+              enrollment.status !== "IN_PROGRESS"
+                ? "selesai"
+                : allLessonsCompleted(outline)
+                  ? "terbuka"
+                  : "terkunci",
+            href: finalQuizHref(course.slug),
+            questionCount: finalQuiz.questionCount,
+            durationMinutes: finalQuiz.durationMinutes,
+          }
+        : null,
+    lessonAveragePercent:
+      graded.length > 0
+        ? Math.round(
+            graded.reduce(
+              (total, row) => total + Number(row.quizScorePercent),
+              0,
+            ) / graded.length,
+          )
+        : null,
+    gradedLessonCount: graded.length,
+    hasFailedLesson: graded.some((row) => row.quizIsPassed === false),
+    finalScorePercent:
+      enrollment.status !== "IN_PROGRESS" &&
+      enrollment.finalScorePercent !== null
+        ? Math.round(Number(enrollment.finalScorePercent))
+        : null,
   };
 }

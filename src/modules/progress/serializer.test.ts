@@ -12,13 +12,17 @@ import {
   lessonHref,
   quizHref,
   resolvePlayback,
+  toCourseProgressPageDTO,
   toEnrolledCourseDTO,
   toLearnerCourseDTO,
   toLessonPageDTO,
+  toMyCourseDTO,
   toOpenQuizDTO,
   type AvailableRow,
+  type CourseProgressInput,
   type EnrolledRow,
   type LessonOutlineRow,
+  type MyCourseRow,
   type OpenQuizRow,
   type PlaybackSourceRow,
 } from "./serializer";
@@ -228,16 +232,21 @@ const LESSON_COURSE = {
   finalQuizId: null as string | null,
 };
 
-/** An outline row per position; `quizAttempted` drives the gate. */
+/** An outline row per position; `quizAttempted` drives the gate. Card
+ *  S5-04 added `quizIsPassed` + `videoDurationSeconds` to the row shape —
+ *  both default null here (the mechanical fixture update of the query-2
+ *  extension; no expectation below changes). */
 function lessonRow(position: number, overrides: Partial<LessonOutlineRow> = {}) {
   return {
     id: `lesson-${position}`,
     slug: `materi-${position}`,
     title: `Judul materi ${position}`,
     videoStatus: "NONE" as const,
+    videoDurationSeconds: null,
     status: null,
     quizAttempted: null,
     quizScorePercent: null,
+    quizIsPassed: null,
     videoLastPositionSeconds: null,
     videoWatchedPercent: null,
     ...overrides,
@@ -848,5 +857,545 @@ describe("resolvePlayback", () => {
       videoId: "",
       durationSeconds: 252,
     });
+  });
+});
+
+// ------------------------------------------------ S5-04 Kursus Saya + progres
+
+const MY_NOW = new Date("2026-11-18T08:00:00.000Z");
+const MY_ENROLLED = new Date("2026-09-12T03:00:00.000Z");
+const MY_COMPLETED = new Date("2026-11-01T05:00:00.000Z");
+
+function myCourseRow(overrides: Partial<MyCourseRow> = {}): MyCourseRow {
+  return {
+    id: "6f38a3b3-3333-4333-8333-333333333333",
+    slug: "gizi-seimbang",
+    title: "Gizi Seimbang",
+    level: "BEGINNER",
+    enrollmentStatus: "IN_PROGRESS",
+    lastLessonId: null,
+    lastLessonSlug: null,
+    lastLessonTitle: null,
+    firstLessonSlug: LESSON_A,
+    lessonCount: 6,
+    completedLessonCount: 0,
+    finalScorePercent: null,
+    completedAt: null,
+    enrolledAt: MY_ENROLLED,
+    updatedAt: MY_NOW,
+    estimatedMinutes: null,
+    ...overrides,
+  };
+}
+
+describe("toMyCourseDTO", () => {
+  it("returns exactly the allowlisted keys", () => {
+    const dto = toMyCourseDTO(myCourseRow());
+    expect(Object.keys(dto).sort()).toEqual(
+      [
+        "id",
+        "slug",
+        "title",
+        "badge",
+        "lessonCount",
+        "completedLessonCount",
+        "meta",
+        "finalScorePercent",
+        "lastLessonTitle",
+        "estimatedMinutes",
+        "continueHref",
+        "progressHref",
+      ].sort(),
+    );
+  });
+
+  it("meta per badge: terakhir-dibuka / selesai (completed_at, updated_at fallback) / diikuti", () => {
+    expect(
+      toMyCourseDTO(
+        myCourseRow({ lastLessonId: "l1", lastLessonSlug: LESSON_Z }),
+      ).meta,
+    ).toEqual({ kind: "terakhir-dibuka", at: MY_NOW.toISOString() });
+
+    expect(
+      toMyCourseDTO(
+        myCourseRow({
+          enrollmentStatus: "COMPLETED",
+          completedAt: MY_COMPLETED,
+        }),
+      ).meta,
+    ).toEqual({ kind: "selesai", at: MY_COMPLETED.toISOString() });
+
+    // PASSED with a NULL completed_at falls back to updated_at.
+    expect(
+      toMyCourseDTO(myCourseRow({ enrollmentStatus: "PASSED" })).meta,
+    ).toEqual({ kind: "selesai", at: MY_NOW.toISOString() });
+
+    expect(
+      toMyCourseDTO(myCourseRow({ enrollmentStatus: "IN_PROGRESS" })).meta,
+    ).toEqual({ kind: "diikuti", at: MY_ENROLLED.toISOString() });
+  });
+
+  it("finalScorePercent: Math.round, only selesai/lulus — null elsewhere even when stored", () => {
+    expect(
+      toMyCourseDTO(
+        myCourseRow({
+          enrollmentStatus: "PASSED",
+          finalScorePercent: "67.50",
+        }),
+      ).finalScorePercent,
+    ).toBe(68);
+    expect(
+      toMyCourseDTO(
+        myCourseRow({
+          enrollmentStatus: "COMPLETED",
+          finalScorePercent: "67.50",
+        }),
+      ).finalScorePercent,
+    ).toBe(68);
+    expect(
+      toMyCourseDTO(
+        myCourseRow({ finalScorePercent: "91.40" }),
+      ).finalScorePercent,
+    ).toBeNull();
+  });
+
+  it("lastLessonTitle only sedang-berjalan; estimatedMinutes only belum-dimulai", () => {
+    expect(
+      toMyCourseDTO(
+        myCourseRow({
+          lastLessonId: "l1",
+          lastLessonTitle: "Camilan aman",
+          estimatedMinutes: 38,
+        }),
+      ),
+    ).toMatchObject({ lastLessonTitle: "Camilan aman", estimatedMinutes: null });
+    expect(
+      toMyCourseDTO(
+        myCourseRow({
+          enrollmentStatus: "PASSED",
+          lastLessonTitle: "Camilan aman",
+          estimatedMinutes: 38,
+        }),
+      ),
+    ).toMatchObject({ lastLessonTitle: null, estimatedMinutes: null });
+  });
+
+  it("continueHref follows lastLessonSlug ?? first (the dashboard action rule)", () => {
+    expect(
+      toMyCourseDTO(
+        myCourseRow({ lastLessonId: "l1", lastLessonSlug: LESSON_Z }),
+      ).continueHref,
+    ).toBe(lessonHref("gizi-seimbang", LESSON_Z));
+    expect(toMyCourseDTO(myCourseRow()).continueHref).toBe(
+      lessonHref("gizi-seimbang", LESSON_A),
+    );
+    expect(toMyCourseDTO(myCourseRow()).progressHref).toBe(
+      "/belajar/gizi-seimbang",
+    );
+  });
+});
+
+const PROGRESS_COURSE = {
+  id: "course-uuid",
+  slug: "gizi-seimbang",
+  title: "Gizi Seimbang",
+  isSequential: false,
+  finalQuizId: "quiz-final-uuid" as string | null,
+};
+
+function progressEnrollment(
+  overrides: Partial<CourseProgressInput["enrollment"]> = {},
+): CourseProgressInput["enrollment"] {
+  return {
+    id: "enr-1",
+    lastLessonId: null,
+    status: "IN_PROGRESS",
+    finalScorePercent: null,
+    updatedAt: MY_NOW,
+    ...overrides,
+  };
+}
+
+function progressInput(
+  overrides: Partial<CourseProgressInput> = {},
+): CourseProgressInput {
+  return {
+    course: PROGRESS_COURSE,
+    enrollment: progressEnrollment(),
+    outline: [],
+    finalQuiz: { durationMinutes: 20, questionCount: 10 },
+    ...overrides,
+  };
+}
+
+describe("toCourseProgressPageDTO — lesson rows", () => {
+  it("returns exactly the allowlisted keys (page and lesson DTO)", () => {
+    const dto = toCourseProgressPageDTO(progressInput());
+    expect(dto.state).toBe("progres");
+    if (dto.state !== "progres") return;
+    expect(Object.keys(dto).sort()).toEqual(
+      [
+        "state",
+        "course",
+        "badge",
+        "lessonCount",
+        "completedLessonCount",
+        "lastActivityAt",
+        "lessons",
+        "final",
+        "lessonAveragePercent",
+        "gradedLessonCount",
+        "hasFailedLesson",
+        "finalScorePercent",
+      ].sort(),
+    );
+    const lesson = toCourseProgressPageDTO(
+      progressInput({ outline: [lessonRow(1)] }),
+    );
+    if (lesson.state !== "progres") return;
+    expect(Object.keys(lesson.lessons[0]!).sort()).toEqual(
+      [
+        "position",
+        "title",
+        "status",
+        "href",
+        "hasVideo",
+        "scorePercent",
+        "isPassed",
+        "video",
+      ].sort(),
+    );
+  });
+
+  it("non-sequential course: the five statuses in one outline", () => {
+    const dto = toCourseProgressPageDTO(
+      progressInput({
+        outline: [
+          lessonRow(1, {
+            status: "COMPLETED",
+            quizAttempted: true,
+            quizScorePercent: "90.00",
+            quizIsPassed: true,
+          }),
+          lessonRow(2, {
+            status: "COMPLETED",
+            quizAttempted: true,
+            quizScorePercent: "67.00",
+            quizIsPassed: false,
+          }),
+          lessonRow(3, { status: "IN_PROGRESS" }),
+          lessonRow(4, {
+            status: "IN_PROGRESS",
+            videoStatus: "READY",
+            videoDurationSeconds: 100,
+            videoLastPositionSeconds: 40,
+            videoWatchedPercent: "40.00",
+          }),
+          lessonRow(5),
+        ],
+      }),
+    );
+    if (dto.state !== "progres") throw new Error("expected progres");
+    expect(dto.lessons.map((lesson) => lesson.status)).toEqual([
+      "selesai",
+      "selesai",
+      "quiz-belum",
+      "sedang-dipelajari",
+      "belum-mulai",
+    ]);
+    expect(
+      dto.lessons.every((lesson) =>
+        lesson.href?.startsWith("/belajar/gizi-seimbang/"),
+      ),
+    ).toBe(true);
+    expect(dto.lessons[0]!).toMatchObject({
+      scorePercent: 90,
+      isPassed: true,
+      hasVideo: false,
+      video: null,
+    });
+    expect(dto.lessons[1]!).toMatchObject({
+      scorePercent: 67,
+      isPassed: false,
+    });
+    expect(dto.lessons[2]!).toMatchObject({ scorePercent: null, video: null });
+    expect(dto.lessons[3]!.video).toEqual({
+      positionSeconds: 40,
+      durationSeconds: 100,
+    });
+    expect(dto.lessons[4]!.video).toBeNull();
+  });
+
+  it("sequential: gate locks unattempted successors (href null); COMPLETED beats the re-locked gate", () => {
+    const dto = toCourseProgressPageDTO(
+      progressInput({
+        course: { ...PROGRESS_COURSE, isSequential: true },
+        outline: [
+          lessonRow(1, { quizAttempted: true, status: "COMPLETED" }),
+          lessonRow(2),
+          lessonRow(3, { status: "COMPLETED", quizAttempted: true }),
+        ],
+      }),
+    );
+    if (dto.state !== "progres") throw new Error("expected progres");
+    // Lesson 2's predecessor was attempted → open; lesson 3's (lesson 2)
+    // was NOT → the gate re-locks it, but COMPLETED outranks the gate.
+    expect(dto.lessons.map((lesson) => lesson.status)).toEqual([
+      "selesai",
+      "belum-mulai",
+      "selesai",
+    ]);
+    expect(dto.lessons[1]!.href).toBe(lessonHref("gizi-seimbang", "materi-2"));
+  });
+
+  it("quiz-belum requires eligibility: a READY video at 40 % reads sedang-dipelajari, ≥ 90 % reads quiz-belum", () => {
+    const dto = toCourseProgressPageDTO(
+      progressInput({
+        outline: [
+          lessonRow(1, {
+            status: "IN_PROGRESS",
+            videoStatus: "READY",
+            videoWatchedPercent: "40.00",
+            videoDurationSeconds: 100,
+            videoLastPositionSeconds: 40,
+          }),
+          lessonRow(2, {
+            status: "IN_PROGRESS",
+            videoStatus: "READY",
+            videoWatchedPercent: "90.00",
+          }),
+        ],
+      }),
+    );
+    if (dto.state !== "progres") throw new Error("expected progres");
+    expect(dto.lessons[0]!.status).toBe("sedang-dipelajari");
+    expect(dto.lessons[1]!.status).toBe("quiz-belum");
+  });
+
+  it("quiz attempted without COMPLETED stays sedang-dipelajari — with its video DTO on that branch", () => {
+    // Decision 3 row 3: the quiz is done, the video requirement is not.
+    // The video clock renders on THIS branch just like on row 5.
+    const dto = toCourseProgressPageDTO(
+      progressInput({
+        outline: [
+          lessonRow(1, {
+            status: "IN_PROGRESS",
+            quizAttempted: true,
+            quizScorePercent: "80.00",
+            quizIsPassed: true,
+            videoStatus: "READY",
+            videoWatchedPercent: "40.00",
+            videoDurationSeconds: 100,
+            videoLastPositionSeconds: 40,
+          }),
+        ],
+      }),
+    );
+    if (dto.state !== "progres") throw new Error("expected progres");
+    expect(dto.lessons[0]!.status).toBe("sedang-dipelajari");
+    expect(dto.lessons[0]!.video).toEqual({
+      positionSeconds: 40,
+      durationSeconds: 100,
+    });
+  });
+
+  it("video.positionSeconds is clamped to durationSeconds (schema allows +5 s)", () => {
+    const dto = toCourseProgressPageDTO(
+      progressInput({
+        outline: [
+          lessonRow(1, {
+            status: "IN_PROGRESS",
+            videoStatus: "READY",
+            videoDurationSeconds: 100,
+            videoLastPositionSeconds: 103,
+            videoWatchedPercent: "40.00",
+          }),
+        ],
+      }),
+    );
+    if (dto.state !== "progres") throw new Error("expected progres");
+    expect(dto.lessons[0]!.video).toEqual({
+      positionSeconds: 100,
+      durationSeconds: 100,
+    });
+  });
+
+  it("scorePercent FLOORS the stored NUMERIC (69.99 → 69)", () => {
+    const dto = toCourseProgressPageDTO(
+      progressInput({
+        outline: [
+          lessonRow(1, {
+            status: "COMPLETED",
+            quizAttempted: true,
+            quizScorePercent: "69.99",
+          }),
+        ],
+      }),
+    );
+    if (dto.state !== "progres") throw new Error("expected progres");
+    expect(dto.lessons[0]!.scorePercent).toBe(69);
+  });
+});
+
+describe("toCourseProgressPageDTO — final", () => {
+  const completedOutline = [
+    lessonRow(1, { status: "COMPLETED", quizAttempted: true, quizScorePercent: "80.00" }),
+    lessonRow(2, { status: "COMPLETED", quizAttempted: true, quizScorePercent: "80.00" }),
+  ];
+
+  it("locked while a lesson is unfinished; open when all COMPLETED + IN_PROGRESS; done when the status left IN_PROGRESS", () => {
+    const locked = toCourseProgressPageDTO(progressInput({ outline: completedOutline.map((row, i) => (i === 0 ? row : lessonRow(2))) }));
+    if (locked.state !== "progres") throw new Error("expected progres");
+    expect(locked.final).toMatchObject({ status: "terkunci" });
+    expect(locked.final!.href).toBe(finalQuizHref("gizi-seimbang"));
+    expect(locked.final!.questionCount).toBe(10);
+    expect(locked.final!.durationMinutes).toBe(20);
+
+    const open = toCourseProgressPageDTO(progressInput({ outline: completedOutline }));
+    if (open.state !== "progres") throw new Error("expected progres");
+    expect(open.final!.status).toBe("terbuka");
+
+    const done = toCourseProgressPageDTO(
+      progressInput({
+        outline: completedOutline,
+        enrollment: progressEnrollment({ status: "PASSED" }),
+      }),
+    );
+    if (done.state !== "progres") throw new Error("expected progres");
+    expect(done.final!.status).toBe("selesai");
+  });
+
+  it("null when the course has no Final Quiz or the summary missed", () => {
+    const noFinal = toCourseProgressPageDTO(
+      progressInput({
+        course: { ...PROGRESS_COURSE, finalQuizId: null },
+        outline: completedOutline,
+      }),
+    );
+    if (noFinal.state !== "progres") throw new Error("expected progres");
+    expect(noFinal.final).toBeNull();
+
+    const missed = toCourseProgressPageDTO(
+      progressInput({ outline: completedOutline, finalQuiz: null }),
+    );
+    if (missed.state !== "progres") throw new Error("expected progres");
+    expect(missed.final).toBeNull();
+  });
+});
+
+describe("toCourseProgressPageDTO — ringkasan", () => {
+  it("lessonAveragePercent rounds the RAW scores: two '66.67' → 67 (never the floored 66)", () => {
+    // The ungraded rows must stay OUT of the average and the count.
+    const dto = toCourseProgressPageDTO(
+      progressInput({
+        outline: [
+          lessonRow(1, {
+            status: "COMPLETED",
+            quizAttempted: true,
+            quizScorePercent: "66.67",
+            quizIsPassed: true,
+          }),
+          lessonRow(2, {
+            status: "COMPLETED",
+            quizAttempted: true,
+            quizScorePercent: "66.67",
+            quizIsPassed: false,
+          }),
+          lessonRow(3),
+        ],
+      }),
+    );
+    if (dto.state !== "progres") throw new Error("expected progres");
+    expect(dto.lessonAveragePercent).toBe(67);
+    expect(dto.gradedLessonCount).toBe(2);
+    expect(dto.hasFailedLesson).toBe(true);
+  });
+
+  it("isPassed is the STORED verdict, never recomputed from the score (custom passing scores)", () => {
+    // 75 with a STORED false (a quiz whose passing score sits above 70) and
+    // 60 with a STORED true — both diverge from the ">= 70" shortcut.
+    const dto = toCourseProgressPageDTO(
+      progressInput({
+        outline: [
+          lessonRow(1, {
+            status: "COMPLETED",
+            quizAttempted: true,
+            quizScorePercent: "75.00",
+            quizIsPassed: false,
+          }),
+          lessonRow(2, {
+            status: "COMPLETED",
+            quizAttempted: true,
+            quizScorePercent: "60.00",
+            quizIsPassed: true,
+          }),
+        ],
+      }),
+    );
+    if (dto.state !== "progres") throw new Error("expected progres");
+    expect(dto.lessons[0]!.isPassed).toBe(false);
+    expect(dto.lessons[1]!.isPassed).toBe(true);
+    expect(dto.hasFailedLesson).toBe(true);
+  });
+
+  it("null average + zero graded before any score; hasFailedLesson false without a failed row", () => {    const dto = toCourseProgressPageDTO(
+      progressInput({
+        outline: [
+          lessonRow(1, { status: "IN_PROGRESS" }),
+          lessonRow(2, { status: "COMPLETED", quizAttempted: true, quizScorePercent: "90.00", quizIsPassed: true }),
+        ],
+      }),
+    );
+    if (dto.state !== "progres") throw new Error("expected progres");
+    expect(dto.lessonAveragePercent).toBe(90);
+    expect(dto.hasFailedLesson).toBe(false);
+
+    const empty = toCourseProgressPageDTO(progressInput({ outline: [lessonRow(1)] }));
+    if (empty.state !== "progres") throw new Error("expected progres");
+    expect(empty.lessonAveragePercent).toBeNull();
+    expect(empty.gradedLessonCount).toBe(0);
+  });
+
+  it("finalScorePercent: Math.round, only when the stored status left IN_PROGRESS", () => {
+    const running = toCourseProgressPageDTO(
+      progressInput({
+        enrollment: progressEnrollment({ finalScorePercent: "68.00" }),
+      }),
+    );
+    if (running.state !== "progres") throw new Error("expected progres");
+    expect(running.finalScorePercent).toBeNull();
+
+    const done = toCourseProgressPageDTO(
+      progressInput({
+        enrollment: progressEnrollment({
+          status: "COMPLETED",
+          finalScorePercent: "67.50",
+        }),
+      }),
+    );
+    if (done.state !== "progres") throw new Error("expected progres");
+    expect(done.finalScorePercent).toBe(68);
+  });
+
+  it("badge + counts + lastActivityAt come from the enrollment and outline", () => {
+    const dto = toCourseProgressPageDTO(
+      progressInput({
+        outline: [
+          lessonRow(1, { status: "COMPLETED", quizAttempted: true }),
+          lessonRow(2),
+        ],
+        enrollment: progressEnrollment({
+          status: "PASSED",
+          lastLessonId: "lesson-2",
+          updatedAt: MY_NOW,
+        }),
+      }),
+    );
+    if (dto.state !== "progres") throw new Error("expected progres");
+    expect(dto.badge).toBe("lulus");
+    expect(dto.lessonCount).toBe(2);
+    expect(dto.completedLessonCount).toBe(1);
+    expect(dto.lastActivityAt).toBe(MY_NOW.toISOString());
+    expect(dto.course).toEqual({ id: "course-uuid", title: "Gizi Seimbang" });
   });
 });

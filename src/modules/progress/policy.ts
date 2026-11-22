@@ -104,3 +104,61 @@ export function allLessonsCompleted(
     outline.length > 0 && outline.every((row) => row.status === "COMPLETED")
   );
 }
+
+// ------------------------------------------- S5-04 course progress statuses
+
+/**
+ * The five per-lesson statuses of the course progress page (card S5-04
+ * decision 3): PRG-10's four (Terkunci / Sedang dipelajari / Quiz belum
+ * dikerjakan / Selesai) plus "belum mulai" for an open lesson that was
+ * never opened — without it a non-sequential course would mislabel.
+ */
+export type CourseLessonStatus =
+  | "selesai"
+  | "terkunci"
+  | "quiz-belum"
+  | "sedang-dipelajari"
+  | "belum-mulai";
+
+/** One outline row as the progress page sees it: the gate/eligibility
+ *  columns of LessonOutlineRow (the query's LEFT JOIN keeps every progress
+ *  column NULLable for "no lesson_progress row for THIS participant"). */
+export type CourseLessonStatusRow = {
+  status: (typeof progressStatusEnum.enumValues)[number] | null;
+  quizAttempted: boolean | null;
+  videoStatus: (typeof videoStatusEnum.enumValues)[number];
+  /** NUMERIC as it leaves the driver — isQuizEligible Number()s it. */
+  videoWatchedPercent: string | null;
+};
+
+/**
+ * The progress page's per-lesson status (card S5-04 decision 3), priority
+ * top to bottom — one pure function so the serializer never re-derives it:
+ *   1. COMPLETED → selesai (beats the gate, the S2-01 outline rule: a
+ *      completed lesson stays completed even if the gate re-locked it);
+ *   2. gate locked → terkunci;
+ *   3. quiz attempted but not COMPLETED (video requirement unmet) →
+ *      sedang-dipelajari;
+ *   4. opened (a status row exists and left NOT_STARTED) AND quiz
+ *      eligible (video ≥ 90 % or no READY video) → quiz-belum;
+ *   5. opened → sedang-dipelajari;
+ *   6. otherwise → belum-mulai.
+ * A live quiz attempt does NOT count as attempted (quiz_attempted is
+ * written at submit), so a running attempt still reads quiz-belum here
+ * while the lesson page's quiz card says "berjalan" — same data, different
+ * question (noted in the PR's Keputusan & asumsi).
+ */
+export function courseLessonStatus(
+  position: number,
+  row: CourseLessonStatusRow,
+  outline: readonly CourseLessonStatusRow[],
+  isSequential: boolean,
+): CourseLessonStatus {
+  if (row.status === "COMPLETED") return "selesai";
+  if (!isLessonUnlocked(position, outline, isSequential)) return "terkunci";
+  if (row.quizAttempted === true) return "sedang-dipelajari";
+  const opened = row.status !== null && row.status !== "NOT_STARTED";
+  if (opened && isQuizEligible(row)) return "quiz-belum";
+  if (opened) return "sedang-dipelajari";
+  return "belum-mulai";
+}
