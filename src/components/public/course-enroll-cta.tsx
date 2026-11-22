@@ -42,7 +42,9 @@ export function CourseEnrollCta({
   slug,
   titleId,
 }: CourseEnrollCtaProps) {
-  const { data, isPending } = authClient.useSession();
+  // No isPending branch needed: while the session loads, user is undefined
+  // and the guest pair below renders (the first paint is session-free).
+  const { data } = authClient.useSession();
   const user = data?.user;
 
   return (
@@ -55,7 +57,6 @@ export function CourseEnrollCta({
           Tanpa biaya, tanpa kartu kredit.
         </p>
 
-        {/* isPending renders the guest pair too — see the header note. */}
         {user ? (
           <div className="mt-4">
             <StartCourseButton
