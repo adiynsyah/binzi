@@ -31,6 +31,8 @@ export type AuthNoticeKind =
   | "email_send_rate_limited" // A-10: 429 on resend / forgot-password
   | "password_policy" // AUTH-01 server-side rejection
   | "google_failed" // OAuth flow aborted/failed — generic, no details
+  | "invalid_current_password" // S5-05: /profil change-password, wrong current
+  | "session_ended" // S5-05: 401 mid-visit — reload to sign in again
   | "unknown"; // network/5xx — generic
 
 export type AuthNotice = {
@@ -53,6 +55,8 @@ const COPY: Record<AuthNoticeKind, string> = {
   password_policy: "Minimal 8 karakter dan mengandung huruf serta angka.",
   google_failed:
     "Tidak bisa melanjutkan dengan Google. Coba lagi, atau lanjut dengan email.",
+  invalid_current_password: "Password saat ini salah.",
+  session_ended: "Sesi Anda berakhir. Muat ulang halaman untuk masuk lagi.",
   unknown: "Terjadi kesalahan. Coba lagi.",
 };
 
@@ -86,6 +90,26 @@ export function mapSignUpError(error: AuthErrorLike): AuthNotice {
  */
 export function mapEmailSendError(error: AuthErrorLike): AuthNotice {
   if (error.status === 429) return notice("email_send_rate_limited");
+  return notice("unknown");
+}
+
+/**
+ * authClient.changePassword failures (card S5-05, /profil). The caller
+ * turns `invalid_current_password` into an error on the "Password saat
+ * ini" FIELD (plus focus) — every other failure renders as the row's
+ * error banner. 429 reuses the login copy because the bucket IS the login
+ * limiter's shape (5 per 15 minutes, ratelimit.ts); 401 keeps the exact
+ * StartCourseButton session-ended copy.
+ */
+export function mapChangePasswordError(error: AuthErrorLike): AuthNotice {
+  if (error.status === 400 && error.code === "INVALID_PASSWORD") {
+    return notice("invalid_current_password");
+  }
+  if (error.status === 429) return notice("login_locked");
+  if (error.status === 400 && error.code === "PASSWORD_POLICY") {
+    return notice("password_policy");
+  }
+  if (error.status === 401) return notice("session_ended");
   return notice("unknown");
 }
 

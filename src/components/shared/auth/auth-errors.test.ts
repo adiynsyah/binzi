@@ -5,6 +5,7 @@ import {
   isResetLinkError,
   isVerificationLinkError,
   mapCallbackError,
+  mapChangePasswordError,
   mapEmailSendError,
   mapLoginError,
   mapSignUpError,
@@ -145,5 +146,58 @@ describe("link error detection", () => {
     expect(isInvalidTokenError({ status: 400, code: "WEAK_PASSWORD" })).toBe(
       false,
     );
+  });
+});
+
+describe("mapChangePasswordError (card S5-05)", () => {
+  it("maps a wrong current password to the field-error kind", () => {
+    const notice = mapChangePasswordError({
+      status: 400,
+      code: "INVALID_PASSWORD",
+    });
+    expect(notice.kind).toBe("invalid_current_password");
+    expect(notice.message).toBe("Password saat ini salah.");
+  });
+
+  it("reuses the login 15-minute copy for the 5/15-min bucket", () => {
+    const notice = mapChangePasswordError({
+      status: 429,
+      code: "RATE_LIMITED",
+    });
+    expect(notice.kind).toBe("login_locked");
+    expect(notice.message).toBe(
+      "Terlalu banyak percobaan. Coba lagi dalam 15 menit, atau reset password.",
+    );
+  });
+
+  it("maps the server-side letter+digit rejection", () => {
+    const notice = mapChangePasswordError({
+      status: 400,
+      code: "PASSWORD_POLICY",
+    });
+    expect(notice.kind).toBe("password_policy");
+    expect(notice.message).toBe(
+      "Minimal 8 karakter dan mengandung huruf serta angka.",
+    );
+  });
+
+  it("keeps the exact StartCourseButton copy for 401", () => {
+    const notice = mapChangePasswordError({ status: 401 });
+    expect(notice.kind).toBe("session_ended");
+    expect(notice.message).toBe(
+      "Sesi Anda berakhir. Muat ulang halaman untuk masuk lagi.",
+    );
+  });
+
+  it("collapses everything else into the generic notice", () => {
+    for (const error of [
+      { status: 500 },
+      { status: 400, code: "SOMETHING_ELSE" },
+      {},
+    ]) {
+      const notice = mapChangePasswordError(error);
+      expect(notice.kind).toBe("unknown");
+      expect(notice.message).toBe("Terjadi kesalahan. Coba lagi.");
+    }
   });
 });

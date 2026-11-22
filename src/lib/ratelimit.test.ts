@@ -7,6 +7,7 @@ import {
   extractClientIp,
   loginRateLimitKey,
   normalizeClientIp,
+  passwordChangeRateLimitKey,
   signUpRateLimitKey,
 } from "./ratelimit";
 
@@ -73,6 +74,13 @@ describe("bucket keys", () => {
   it("keeps login and signup buckets separate", () => {
     expect(loginRateLimitKey("203.0.113.7", "a@b.c")).not.toBe(
       signUpRateLimitKey("203.0.113.7", "a@b.c"),
+    );
+  });
+
+  it("keys the change-password bucket by user, apart from every email bucket (card S5-05)", () => {
+    expect(passwordChangeRateLimitKey("usr_123")).toBe("pwchange:usr_123");
+    expect(passwordChangeRateLimitKey("usr_123")).not.toBe(
+      passwordChangeRateLimitKey("usr_456"),
     );
   });
 });

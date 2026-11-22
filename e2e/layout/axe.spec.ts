@@ -890,4 +890,23 @@ test.describe("axe WCAG 2.1 A/AA", () => {
     ).toBeVisible();
     await expectAxeClean(page, "EDITOR perlu revisi", testInfo);
   });
+
+  // Card S5-05: the profile page — the closed state first, then the
+  // password form OPEN (labels, pills, and the autocomplete wiring ride
+  // the scanned tree; the account has a password, so the form is the
+  // hasPassword=true variant).
+  test("MEMBER: /profil (S5-05)", async ({ page, request }, testInfo) => {
+    const account = await createRoleAccount(request, "MEMBER");
+    await signInViaApi(page.context(), account);
+
+    await page.goto("/profil");
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Profil & pengaturan" }),
+    ).toBeVisible();
+    await expectAxeClean(page, "MEMBER /profil", testInfo);
+
+    await page.getByRole("button", { name: "Ubah password" }).click();
+    await expect(page.getByLabel("Password saat ini")).toBeVisible();
+    await expectAxeClean(page, "MEMBER /profil form password terbuka", testInfo);
+  });
 });

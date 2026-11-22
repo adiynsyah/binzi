@@ -56,8 +56,17 @@
 //   all slip past a separate check-then-count; a successful sign-in clears
 //   its bucket. Better Auth's built-in limiter is disabled — it keys by a
 //   single identifier, not IP+email.
+// - Card S5-05: /update-user is disabled outright (the profile is owned by
+//   PATCH /api/user/profile); /change-password and /reset-password enforce
+//   the AUTH-01 letter+digit policy on `newPassword` (Better Auth only
+//   length-checks there), and /change-password reserves a per-user
+//   5-per-15-min bucket AFTER the session is read — anonymous callers
+//   never create bucket rows.
 import { APIError, betterAuth } from "better-auth";
-import { createEmailVerificationToken } from "better-auth/api";
+import {
+  createEmailVerificationToken,
+  getSessionFromCtx,
+} from "better-auth/api";
 import type { BetterAuthPlugin } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { and, eq } from "drizzle-orm";
@@ -72,6 +81,7 @@ import {
   clearRateLimit,
   extractClientIp,
   loginRateLimitKey,
+  passwordChangeRateLimitKey,
   passwordResetRateLimitKey,
   reserveAttempt,
   signUpRateLimitKey,
@@ -122,6 +132,11 @@ const REQUEST_PASSWORD_RESET_PATH = "/request-password-reset";
 const SEND_VERIFICATION_EMAIL_PATH = "/send-verification-email";
 const SIGN_IN_SOCIAL_PATH = "/sign-in/social";
 const VERIFY_EMAIL_PATH = "/verify-email";
+const CHANGE_PASSWORD_PATH = "/change-password";
+// POST /reset-password consumes the token from the body; the GET variant
+// carries the token in the path (`/reset-password/<token>`) and never
+// equals this constant.
+const RESET_PASSWORD_PATH = "/reset-password";
 // `/reset-password/:token` arrives with the token in the path, so match by
 // prefix rather than the route pattern string.
 const RESET_PASSWORD_TOKEN_PATH_PREFIX = "/reset-password/";
@@ -267,6 +282,25 @@ function binziGuardPlugin(deps: { db: Db }): BetterAuthPlugin {
     return undefined;
   };
 
+  /** AUTH-01 letter+digit policy on the password-WRITING endpoints —
+   *  Better Auth itself only length-checks. Card S5-05 extends it from
+   *  sign-up (`password` field) to change-password and reset-password
+   *  (`newPassword` field). The endpoint's own length checks still run
+   *  afterwards. */
+  const enforcePasswordPolicy = async (ctx: unknown, field: string) => {
+    const hook = asHookContext(ctx);
+    const rawPassword = await readBodyField(hook, field);
+    const parsed = passwordSchema.safeParse(rawPassword);
+    if (!parsed.success) {
+      throw new APIError("BAD_REQUEST", {
+        code: "PASSWORD_POLICY",
+        message:
+          parsed.error.issues[0]?.message ??
+          "Kata sandi tidak memenuhi kebijakan",
+      });
+    }
+  };
+
   const beforeHandler = async (ctx: unknown, kind: "sign-in" | "sign-up") => {
     const hook = asHookContext(ctx);
     const ip = extractClientIp(hook.headers ?? hook.request?.headers);
@@ -297,20 +331,40 @@ function binziGuardPlugin(deps: { db: Db }): BetterAuthPlugin {
     }
 
     if (kind === "sign-up") {
-      // AUTH-01 letter+digit policy on top of Better Auth's length check.
-      const rawPassword = await readBodyField(hook, "password");
-      const parsed = passwordSchema.safeParse(rawPassword);
-      if (!parsed.success) {
-        throw new APIError("BAD_REQUEST", {
-          code: "PASSWORD_POLICY",
-          message:
-            parsed.error.issues[0]?.message ??
-            "Kata sandi tidak memenuhi kebijakan",
-        });
-      }
+      await enforcePasswordPolicy(ctx, "password");
     }
 
     return undefined; // proceed to the endpoint
+  };
+
+  /** Card S5-05 (decision 8) — the order is load-bearing: session FIRST (an
+   *  anonymous caller must not create a bucket row; the endpoint's own
+   *  sensitiveSessionMiddleware answers 401), then the password policy,
+   *  then the per-user reservation (5 per 15 min, the login window). A
+   *  blocked user gets the login-blocked copy; the bucket is NOT cleared
+   *  on success — five password changes in 15 minutes is not a legitimate
+   *  flow anyone needs to recover from mid-window. */
+  const changePasswordGuard = async (ctx: unknown) => {
+    const session = await getSessionFromCtx(
+      ctx as Parameters<typeof getSessionFromCtx>[0],
+    );
+    if (!session) return undefined;
+
+    await enforcePasswordPolicy(ctx, "newPassword");
+
+    const reservation = await reserveAttempt(
+      deps.db,
+      passwordChangeRateLimitKey(session.user.id),
+      LOGIN_RATE_LIMIT.max,
+      LOGIN_RATE_LIMIT.windowSeconds,
+    );
+    if (!reservation.allowed) {
+      throw new APIError("TOO_MANY_REQUESTS", {
+        code: "RATE_LIMITED",
+        message: LOGIN_BLOCKED_MESSAGE,
+      });
+    }
+    return undefined;
   };
 
   return {
@@ -332,6 +386,19 @@ function binziGuardPlugin(deps: { db: Db }): BetterAuthPlugin {
         {
           matcher: (ctx) => ctx.path === SEND_VERIFICATION_EMAIL_PATH,
           handler: (ctx) => emailSendGuard(ctx, "resend"),
+        },
+        {
+          matcher: (ctx) => ctx.path === CHANGE_PASSWORD_PATH,
+          handler: changePasswordGuard,
+        },
+        {
+          // POST /reset-password consumes the token inside the endpoint;
+          // the policy check runs BEFORE that, so a rejected attempt
+          // leaves the SAME token usable for a corrected retry (card
+          // decision 9). No session, no bucket here — the mail trigger is
+          // already limited per email by emailSendGuard.
+          matcher: (ctx) => ctx.path === RESET_PASSWORD_PATH,
+          handler: (ctx) => enforcePasswordPolicy(ctx, "newPassword"),
         },
       ],
       after: [
@@ -699,6 +766,12 @@ export function createAuthInstance(deps: AuthDeps) {
     },
     // AUTH-08 is enforced by binzi-guard against the `rate_limits` table.
     rateLimit: { enabled: false },
+    // Card S5-05 decision 3: /update-user is Better Auth's generic profile
+    // PATCH with an open contract. The profile is owned by PATCH
+    // /api/user/profile (Zod-strict, session-user-only), so the generic
+    // endpoint is turned off entirely — onRequest answers a plain 404
+    // before any middleware runs.
+    disabledPaths: ["/update-user"],
     advanced: {
       // Deterministic on baseURL (Vercel is always https): `Secure` outside
       // development, plain cookie on http://localhost.

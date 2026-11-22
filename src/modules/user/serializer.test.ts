@@ -3,10 +3,16 @@
 //   any unknown key are dropped even when present in the input row.
 // - toPublicUserDTO exposes only id/name/image — email, phone, role, status,
 //   lastLoginAt, emailVerified, deletedAt must never appear.
+// - toAccountSecurityDTO (card S5-05) exposes exactly its 3-field summary —
+//   provider rows go in, only the three booleans/count come out.
 import { describe, expect, it } from "vitest";
 
-import type { UserRow } from "./serializer";
-import { toPublicUserDTO, toUserPrivateDTO } from "./serializer";
+import type { AccountSecurityRow, UserRow } from "./serializer";
+import {
+  toAccountSecurityDTO,
+  toPublicUserDTO,
+  toUserPrivateDTO,
+} from "./serializer";
 
 const baseRow: UserRow = {
   id: "usr_123",
@@ -117,5 +123,51 @@ describe("toPublicUserDTO", () => {
     }
     expect(JSON.stringify(dto)).not.toContain("sinta@example.test");
     expect(JSON.stringify(dto)).not.toContain("+62812345678");
+  });
+});
+
+describe("toAccountSecurityDTO (card S5-05)", () => {
+  it("returns exactly hasPassword, googleLinked, activeSessionCount", () => {
+    const row: AccountSecurityRow = {
+      providers: [
+        { providerId: "credential", hasPassword: true },
+        { providerId: "google", hasPassword: false },
+      ],
+      activeSessionCount: 2,
+    };
+    const dto = toAccountSecurityDTO(row);
+    expect(Object.keys(dto).sort()).toEqual([
+      "activeSessionCount",
+      "googleLinked",
+      "hasPassword",
+    ]);
+    expect(dto).toEqual({
+      hasPassword: true,
+      googleLinked: true,
+      activeSessionCount: 2,
+    });
+  });
+
+  it("keeps hasPassword false for a null-password credential row", () => {
+    // A credential row whose password is null is NOT a set password
+    // (Google-only account that never created one): the SQL side computes
+    // "password is not null", the DTO side demands BOTH.
+    const dto = toAccountSecurityDTO({
+      providers: [{ providerId: "credential", hasPassword: false }],
+      activeSessionCount: 0,
+    });
+    expect(dto).toEqual({
+      hasPassword: false,
+      googleLinked: false,
+      activeSessionCount: 0,
+    });
+  });
+
+  it("reads googleLinked from the google provider only — credential alone stays false", () => {
+    const dto = toAccountSecurityDTO({
+      providers: [{ providerId: "credential", hasPassword: true }],
+      activeSessionCount: 1,
+    });
+    expect(dto.googleLinked).toBe(false);
   });
 });
