@@ -128,7 +128,7 @@ describe("ProfileNameForm", () => {
     submit();
     expect(
       await screen.findByText(
-        "Perubahan belum tersimpan. Periksa koneksi Anda lalu coba lagi.",
+        "Terjadi kesalahan. Coba lagi.",
       ),
     ).toBeTruthy();
   });
@@ -146,7 +146,7 @@ describe("ProfileNameForm", () => {
     submit();
     expect(
       await screen.findByText(
-        "Perubahan belum tersimpan. Periksa koneksi Anda lalu coba lagi.",
+        "Terjadi kesalahan. Coba lagi.",
       ),
     ).toBeTruthy();
   });

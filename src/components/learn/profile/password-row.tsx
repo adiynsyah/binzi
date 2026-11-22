@@ -72,6 +72,7 @@ export function PasswordRow({ hasPassword }: PasswordRowProps) {
     handleSubmit,
     control,
     setFocus,
+    reset,
     formState: { errors, isSubmitting },
   } = useForm<ChangePasswordValues>({
     resolver: standardSchemaResolver(formSchema),
@@ -109,6 +110,10 @@ export function PasswordRow({ hasPassword }: PasswordRowProps) {
     }
     setOpen(false);
     setSaved(true);
+    // shouldUnregister is false by default, so RHF KEEPS the submitted
+    // values after the form unmounts — a reopen would show the old (now
+    // dead) password. reset() on success AND on a manual close (PR review).
+    reset();
     router.refresh();
   });
 
@@ -142,9 +147,6 @@ export function PasswordRow({ hasPassword }: PasswordRowProps) {
           <h3 id={headingId} className="text-[15px] font-bold text-text">
             Password
           </h3>
-          <p className="mt-1 text-[13px] text-text-muted">
-            Password untuk masuk dengan email Anda.
-          </p>
         </div>
         <div className="w-full sm:w-auto">
           <Button
@@ -155,7 +157,13 @@ export function PasswordRow({ hasPassword }: PasswordRowProps) {
             onClick={() => {
               setSaved(false);
               setNotice(null);
-              setOpen((value) => !value);
+              if (open) {
+                // Closing mid-edit also drops the typed values (same
+                // shouldUnregister caveat as the success path above).
+                reset();
+                setServerCurrentError(null);
+              }
+              setOpen(!open);
             }}
           >
             Ubah password

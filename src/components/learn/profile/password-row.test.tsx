@@ -127,6 +127,34 @@ describe("PasswordRow", () => {
     });
   });
 
+  it("reopening after success (or a manual close) starts from empty fields", async () => {
+    // RHF keeps field values across unmount (shouldUnregister: false) —
+    // without reset() the reopen would show the old, now-dead password
+    // (PR review finding).
+    changePassword.mockResolvedValue({
+      data: { token: "tok_baru" },
+      error: null,
+    } as never);
+    render(<PasswordRow hasPassword />);
+    const toggle = openForm();
+    fill("Lama12345", "Baru67890");
+    fireEvent.click(screen.getByRole("button", { name: "Simpan password" }));
+    expect(await screen.findByText("Password baru disimpan.")).toBeTruthy();
+
+    fireEvent.click(toggle); // reopen the collapsed form
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+    const current = screen.getByLabelText(
+      "Password saat ini",
+    ) as HTMLInputElement;
+    const next = screen.getByLabelText("Password baru") as HTMLInputElement;
+    const confirm = screen.getByLabelText(
+      "Ulangi password baru",
+    ) as HTMLInputElement;
+    expect(current.value).toBe("");
+    expect(next.value).toBe("");
+    expect(confirm.value).toBe("");
+  });
+
   it("INVALID_PASSWORD becomes a field error on Password saat ini (+focus), no banner", async () => {
     changePassword.mockResolvedValue({
       data: null,

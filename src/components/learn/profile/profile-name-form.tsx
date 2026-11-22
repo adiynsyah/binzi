@@ -23,8 +23,7 @@ import { updateNameInput } from "@/modules/user/schema";
 
 const SESSION_ENDED_MESSAGE =
   "Sesi Anda berakhir. Muat ulang halaman untuk masuk lagi.";
-const GENERIC_MESSAGE =
-  "Perubahan belum tersimpan. Periksa koneksi Anda lalu coba lagi.";
+const GENERIC_MESSAGE = "Terjadi kesalahan. Coba lagi.";
 
 type NameValues = { name: string };
 

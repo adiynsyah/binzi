@@ -50,7 +50,11 @@ function SecurityRow({
         <h3 id={headingId} className="text-[15px] font-bold text-text">
           {title}
         </h3>
-        <p className="mt-1 text-[13px] text-text-muted">{caption}</p>
+        {/* wrap-anywhere: the Google caption carries the full email —
+            a long one has no other break point at 360 (card §5.4). */}
+        <p className="mt-1 text-[13px] text-text-muted wrap-anywhere">
+          {caption}
+        </p>
       </div>
       {action ? <div className="w-full sm:w-auto">{action}</div> : null}
     </div>
@@ -68,7 +72,7 @@ export function ProfileSettings({ profile, security }: ProfileSettingsProps) {
       <div className="mt-6 space-y-5">
         <section
           aria-labelledby={DATA_HEADING_ID}
-          className="rounded-card border border-border bg-surface p-6"
+          className="rounded-card border border-border bg-surface p-4 sm:p-6"
         >
           <h2
             id={DATA_HEADING_ID}
@@ -80,7 +84,12 @@ export function ProfileSettings({ profile, security }: ProfileSettingsProps) {
           {/* Identity row (9c): decorative avatar beside the name — the name
               text is the accessible label, so the avatar stays aria-hidden. */}
           <div className="mt-4 flex items-center gap-4">
-            <Avatar name={profile.name} size="lg" aria-hidden="true" />
+            <Avatar
+              name={profile.name}
+              size="lg"
+              aria-hidden="true"
+              className="shrink-0 bg-text text-surface"
+            />
             <div className="min-w-0">
               <p className="text-[21px] font-bold text-text wrap-anywhere">
                 {profile.name}
@@ -102,7 +111,7 @@ export function ProfileSettings({ profile, security }: ProfileSettingsProps) {
 
         <section
           aria-labelledby={KEAMANAN_HEADING_ID}
-          className="rounded-card border border-border bg-surface p-6"
+          className="rounded-card border border-border bg-surface p-4 sm:p-6"
         >
           <h2
             id={KEAMANAN_HEADING_ID}

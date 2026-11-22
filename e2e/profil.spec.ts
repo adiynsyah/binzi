@@ -1,12 +1,15 @@
 // The S5-05 profile page (card §"E2E", max 3 tests — the CI budget):
-// (1) MEMBER rename through the real PATCH + the static rows (verified
-//     email, no Google row, the session count), then the width sweep
-//     360–1280 with the screenshots and the three ≥ 44px targets at 360;
-// (2) the password change revokes every OTHER device — the second
-//     context's cookie dies on its next request, A reloads to exactly
-//     "1 perangkat" scoped to the Sesi aktif row (owner adjustment 2),
-//     and the NEW runtime-generated password signs the other device back
-//     in. The open-form screenshots (360/1280) ride along before submit;
+// (1) MEMBER enters through the account menu (A-14b), renames through the
+//     real PATCH, reloads to see the field carry the new name, checks the
+//     header pill at 1280, then the width sweep 360–1280 with the
+//     screenshots and the three ≥ 44px targets at 360;
+// (2) the password change revokes every OTHER device — a WRONG current
+//     password shows the field error first, then the real change kills
+//     the second context's cookie on its next request, A reloads to
+//     exactly "1 perangkat" scoped to the Sesi aktif row (owner
+//     adjustment 2), and sign-in proves the OLD password dead + the NEW
+//     runtime-generated one live. The open-form screenshots (360/1280)
+//     ride along before submit;
 // (3) "Keluar dari semua perangkat" ends BOTH sessions and lands A on
 //     /masuk.
 //
@@ -27,6 +30,7 @@ import {
   expectNoHorizontalScroll,
   expectTouchTarget,
   maybeScreenshot,
+  openAccountDropdown,
   randomToken,
 } from "./layout/helpers";
 
@@ -52,7 +56,11 @@ test("1. ubah nama + tata letak 360–1280", async ({ page }) => {
   const member = await createRoleAccount(page.context().request, "MEMBER");
   await signInViaApi(page.context(), member);
 
-  await page.goto("/profil");
+  // A-14b entry point: the account menu item, not a direct URL (PR review).
+  await page.goto("/belajar");
+  await openAccountDropdown(page);
+  await page.getByRole("menuitem", { name: "Profil & pengaturan" }).click();
+  await expect(page).toHaveURL(/\/profil$/);
   await expect(
     page.getByRole("heading", { level: 1, name: "Profil & pengaturan" }),
   ).toBeVisible();
@@ -82,6 +90,14 @@ test("1. ubah nama + tata letak 360–1280", async ({ page }) => {
     dataSection(page).getByText(newName, { exact: true }),
   ).toBeVisible();
 
+  // A reload proves the new name survived to the server: the FIELD now
+  // carries it, not just the banner-era identity row (PR review).
+  await page.reload();
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Profil & pengaturan" }),
+  ).toBeVisible();
+  await expect(page.getByLabel("Nama lengkap")).toHaveValue(newName);
+
   // Width sweep: the document stays clean; the screenshots show the
   // renamed identity row at every breakpoint.
   for (const width of [360, 768, 1024, 1280] as const) {
@@ -90,6 +106,14 @@ test("1. ubah nama + tata letak 360–1280", async ({ page }) => {
     await expect(
       page.getByRole("heading", { level: 1, name: "Profil & pengaturan" }),
     ).toBeVisible();
+    if (width === 1280) {
+      // >= 1024 the trigger is a pill carrying the display name
+      // (menus-drawers pattern).
+      const pillText = (
+        await page.getByRole("button", { name: "Menu akun" }).innerText()
+      ).trim();
+      expect(pillText, "pil nama header memuat nama baru").toContain(newName);
+    }
     await expectNoHorizontalScroll(page, `profil w${width}`);
     await maybeScreenshot(page, `profil-${width}`, test.info().project.name);
   }
@@ -140,6 +164,14 @@ test("2. ubah password mengeluarkan perangkat lain", async ({
     }
 
     const newPassword = randomPassword();
+    // Wrong current password FIRST: the real server answers 400
+    // INVALID_PASSWORD and the row shows the field error (PR review).
+    await page.getByLabel("Password saat ini").fill("SalahSekali1");
+    await page.getByLabel("Password baru", { exact: true }).fill(newPassword);
+    await page.getByLabel("Ulangi password baru").fill(newPassword);
+    await page.getByRole("button", { name: "Simpan password" }).click();
+    await expect(page.getByText("Password saat ini salah.")).toBeVisible();
+
     await page.getByLabel("Password saat ini").fill(member.password);
     // exact: "Password baru" is a substring of "Ulangi password baru".
     await page.getByLabel("Password baru", { exact: true }).fill(newPassword);
@@ -160,7 +192,13 @@ test("2. ubah password mengeluarkan perangkat lain", async ({
       sessionRow(page).getByText("1 perangkat", { exact: true }),
     ).toBeVisible();
 
-    // The stored password really changed: the NEW one signs B back in.
+    // The stored password really changed: the NEW one signs B back in,
+    // the OLD one is dead (PR review: both directions asserted).
+    const oldRejected = await contextB.request.post("/api/auth/sign-in/email", {
+      headers: authHeaders(),
+      data: { email: member.email, password: member.password },
+    });
+    expect(oldRejected.status(), await oldRejected.text()).toBe(401);
     const backIn = await contextB.request.post("/api/auth/sign-in/email", {
       headers: authHeaders(),
       data: { email: member.email, password: newPassword },
