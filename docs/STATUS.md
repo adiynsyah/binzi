@@ -3,7 +3,101 @@
 > Terakhir diperbarui: 22 Nov 2026. File ini dikelola manual (bukan oleh agent) dan hanya untuk melanjutkan percakapan dengan Claude.
 > Untuk melanjutkan: buka chat baru, unggah file ini + `docs/tasks/URUTAN-KERJA.md`, lalu pakai prompt di bagian paling bawah.
 
-## Pembaruan 22 Nov 2026 — A4 S5-04 progres kursus + Kursus Saya di-merge, kartu A5 S6-02 siap (baca ini dulu, lalu 21 Nov, 20 Nov, 19 Nov, 16 Nov, 14 Nov, 11 Nov, 10 Nov, 9 Nov, 8 Nov, 7 Nov, 6 Nov, 4 Nov malam, 4 Nov, dan 3 Nov)
+## Pembaruan 22 Nov 2026 (sore) — A5 S6-02 dan A6 S5-05 di-merge, kartu A7 S3-03 siap (baca ini dulu, lalu 22 Nov, 21 Nov, 20 Nov, 19 Nov, 16 Nov, 14 Nov, 11 Nov, 10 Nov, 9 Nov, 8 Nov, 7 Nov, 6 Nov, 4 Nov malam, 4 Nov, dan 3 Nov)
+
+Bagian-bagian di bawahnya tetap berlaku. Bagian ini mengubah atau menambahnya. Jadwal yang berlaku tetap "Rencana UAT internal 11 Des" di Pembaruan 19 Nov.
+
+### Posisi
+- `main` = `fd72bea` (#154). **A1–A6 selesai.** Berikutnya A7 S3-03 lapor gangguan + `/cms/reset-attempt` (kartu masuk lewat PR docs ini).
+- A5 dan A6 dijadwalkan Jum 27 Nov – Kam 3 Des; keduanya selesai Min 22 Nov (kartu, sesi agent, tinjauan rencana, dua–tiga putaran tinjauan PR, verifikasi manual). Jadwal maju ±5 hari dari tabel 19 Nov.
+- Baseline Vitest **143 berkas / 1713 tes** (diukur di sandbox Claude chat pada `fd72bea`). Gate audit 0 excused / 0 blocking / OK (21 info/low/moderate). Tanpa migrasi, tanpa dependensi baru sejak `0001`.
+- CI terakhir: PR 153 `aeba86f` — `ci` 3m5s, `e2e` 9m16s; PR 154 `1bc32d2` — `ci` 3m20s, `e2e` 11m17s. Rentang `e2e` 8m40s–11m23s sejak 21 Nov adalah variasi runner, bukan tren (PR 148 sudah 11m5s).
+
+### Yang di-merge 22 Nov
+
+| PR | Isi |
+|---|---|
+| #151 | Docs: STATUS 22 Nov, kartu S6-02 katalog + detail kursus |
+| #152 | Docs: kartu S5-05 profil dasar |
+| #153 | S6-02 katalog `/kursus` + detail `/kursus/{slug}` (8 commit, head `aeba86f`) |
+| #154 | S5-05 profil dasar `/profil` (6 commit, head `79d4717`) |
+
+### S6-02 di-merge (#153)
+- Bacaan publik modul `course` (`getPublicCatalog`, `getPublicCourse`) dengan subquery ber-alias yang ditulis tangan di kedua sisi; DTO publik dengan allowlist termasuk baris outline.
+- `/kursus` dan `/kursus/[slug]` ƒ (menyimpang dari PRD §10.4, keputusan 3 kartu); CTA tamu/member di klien; keadaan kosong katalog = copy keadaan C dasbor.
+- Tindak lanjut S5-04: `kembali` → `/kursus/{slug}`; 13c "Lihat →".
+- Tes: +5 berkas / +32 tes; e2e `kursus-katalog.spec.ts` (2 tes); langkah axe member + tamu.
+
+**Tinjauan rencana:** prediksi mutasi 4 agent ("`lessonCountSql` tetap hijau") salah — dirender ulang dengan `QueryBuilder` drizzle 0.45.3: di SELECT satu tabel subquery menjadi `where "course_id" = "id"`, dan `"id"` terbaca sebagai `lessons.id` → jumlah 0. Mutasi itu merah di PR.
+
+**Tinjauan PR putaran 1** (sandbox: 138 / 1656):
+- konten menempel ke footer di semua lebar — **kesalahan kartu**: `PageContainer className="pt-8"` adalah pola `(learn)` yang tanpa footer; halaman publik memakai `pb-16 sm:pb-20` (pola `ComingSoon`);
+- "12 menit" di sampul katalog tidak terbaca pembaca layar (`CoverBlock` `aria-hidden` termasuk anaknya) → `sr-only` di baris level;
+- tes urutan outline tidak mengunci pemecah seri `id asc` (urutan insert = urutan id; dibuktikan: tanpa `asc(id)` tetap hijau);
+- ≥ 1024 CTA turun ±250 px dari 7b (kepala selebar penuh) → kepala masuk kolom kiri lewat grid; sampul CTA disembunyikan < 1024 (bar 7t).
+
+**Putaran 2:** tes urutan masih lolos dengan `orderBy(id)` saja — "Materi 3" bertanda "id terkecil" di komentar tetapi memakai seed terbesar. **Putaran 3:** seed 63 → 60; kedua mutasi merah.
+
+**Verifikasi manual pemilik S6-02:** ✓ 22 Nov.
+
+### S5-05 di-merge (#154)
+- Modul `user`: `updateMyName` (`PATCH /api/user/profile`, body `{ name }` saja, id dari sesi, batas 128 seperti pendaftaran) dan `getAccountSecurity` (`hasPassword`, `googleLinked`, jumlah sesi hidup).
+- Auth: kebijakan huruf + angka kini ditegakkan server di `/change-password` **dan** `/reset-password` (sebelumnya hanya `/sign-up/email`); rate limit ubah password 5 / 15 menit / user; `/update-user` Better Auth dimatikan (`disabledPaths`).
+- `/profil`: satu halaman menggulir di semua lebar (menyimpang dari 9d/9e), ubah nama, ubah password (`revokeOtherSessions`), keluar dari semua perangkat.
+- Tes: +5 berkas / +57 tes; e2e `profil.spec.ts` (3 tes); tes axe `/profil`.
+
+**Celah yang ditutup** (ditemukan saat menulis kartu, dibuktikan di sandbox): tanpa `disabledPaths`, `POST /update-user` dengan sesi sah menjawab **200** dan mengganti nama (body `z.record(z.any())`, `image` bebas); tanpa hook, `/change-password` menerima password tanpa angka.
+
+**Tinjauan rencana:** dua kolom ≥ 640 (`sm:`), bukan "≥ 768" di kartu (melanggar aturan ambang CLAUDE.md); `router.refresh()` setelah ganti password supaya "{n} perangkat" ikut turun; hitung baris `pwchange:%` sebelum/sesudah, bukan tabel kosong; tes "password lemah ditolak" tidak membuktikan body terbaca — buktinya tes sukses.
+
+**Tinjauan PR putaran 1** (sandbox: 143 / 1711; mutasi 8 dan 13 diulang mandiri, merah):
+- form password menyimpan nilai lama saat dibuka lagi setelah sukses (react-hook-form `shouldUnregister: false`) → `reset()` saat sukses dan saat ditutup;
+- avatar tergencet lonjong di 360 bila nama turun dua baris → `shrink-0`;
+- keterangan email Google tanpa `wrap-anywhere`; dua copy di luar kartu; tiga langkah e2e kartu terlewat (password salah lewat server, password lama 401, masuk lewat menu akun + muat ulang).
+
+**Putaran 2:** jalur "tutup manual" tidak teruji (menghapus `reset()` di cabang itu tetap 9/9 hijau). **Putaran 3:** dua tes tambahan, mutasinya merah.
+
+**Verifikasi manual pemilik S5-05:** ✓ 22 Nov.
+
+### Keputusan pemilik 22 Nov (sore)
+1. **#153 dan #154 di-merge** setelah verifikasi manual.
+2. **Kartu A7 S3-03** ([kartu](tasks/sprint-3/S3-03-lapor-gangguan-dan-reset-attempt.md)) masuk lewat PR docs ini. 14 keputusan teknisnya usulan Claude chat; me-merge PR docs = menyetujuinya. Yang terpenting:
+   - **satu migrasi `0002`** (tabel `quiz_attempt_reports`); binzi-dev dimigrasi **sebelum** merge PR A7;
+   - reset = versi transaksional SQL gladi ("Reset attempt manual sebelum A7"): attempt tidak dihapus, `lesson_progress`/`enrollments` dibalik, materi sesudahnya terkunci lagi sampai quiz dikerjakan ulang;
+   - quiz materi tidak bisa direset bila Final kursus itu sudah dimulai (reset Final dulu) — menyimpang dari 26b "Nilai Akhir dihitung ulang";
+   - satu reset per quiz per peserta; satu laporan per attempt; tanpa email (H-07 belum), tanpa banding, tanpa angka di sidebar;
+   - reset tanpa laporan adalah halaman `/cms/reset-attempt/baru` dengan cari email persis, bukan dialog tiga langkah.
+3. **Tawaran agent menjalankan `next upgrade` ditolak lagi** di sesi kartu (keputusan 19 Nov tetap). Fakta untuk tugas pemilik no. 9: rilis keamanan Next.js 3 Nov 2026 menambal tujuh celah di **16.4.5**; repo masih 16.4.1.
+
+### Kandidat tes flaky (baru, belum dipastikan)
+- **axe "tamu: menu ponsel terbuka" (w360)** gagal sekali di CI PR 153 (`7050fce`, run `44986808308`) dengan `color-contrast` pada `.S4Dpca_milkLabel`. Itu **kelas CSS module milik repo**, bukan pihak ketiga: label "SUSU" kotak susu ilustrasi hero (`hero-illustration.module.css:417`, 9 px `#7a736c`) yang terus beranimasi (`ilBooks`), jadi latar di belakangnya berubah per frame. Agent salah menyebutnya "UI consent Google Fonts" (repo tidak memuat Google Fonts saat runtime). Usulan perbaikan, chore kecil: `.exclude("[data-hero-illustration]")` di `runAxe` — ilustrasi itu `aria-hidden` dan dekoratif (WCAG 1.4.3, pengecualian *incidental*). Jangan exclude berdasarkan hash kelas.
+- **`cms-kursus.spec.ts:155`** (dialog slug otomatis) gagal sekali di run yang sama, hijau saat diulang. Blok galatnya belum disalin — ambil dari log run `44986808308` di GitHub selagi masih ada.
+
+### Untuk A9 (stabilisasi)
+- Halaman `(learn)` di ≥ 768 tanpa padding bawah: kartu terakhir menempel ke tepi bawah halaman (`main` `md:pb-0`, halaman hanya `pt-8`). Berlaku untuk semua halaman `(learn)`, terlihat jelas di `/profil`.
+
+### Pelajaran 22 Nov (sore)
+1. **Kartu Claude chat menyalin pola dari area lain tanpa mengecek konteks tujuannya.** `pt-8` dari halaman `(learn)` diresepkan untuk halaman publik ber-footer; "dua kolom ≥ 768" melanggar ambang `sm:`/`lg:` CLAUDE.md. Saat menulis kartu, cek padding dan ambang terhadap layout tujuan dan CLAUDE.md.
+2. **Komentar tes bisa tidak sesuai datanya.** Dua kali di S6-02 komentar menyebut urutan insert / "id terkecil" yang tidak sesuai seed, sehingga pemecah seri dan dominasi `order_index` tidak teruji. Mutasi terhadap klaim di komentar (hapus `asc(id)`, urutkan dengan id saja) menangkapnya.
+3. **Kelas CSS module terhash adalah kelas repo sendiri** sampai terbukti sebaliknya — grep nama lokalnya (`milkLabel`) sebelum menyimpulkan "pihak ketiga".
+4. **react-hook-form mempertahankan nilai field saat form di-unmount** (`shouldUnregister: false` bawaan). Form sensitif (password) wajib `reset()` saat sukses dan saat ditutup; tes "buka lagi → kosong".
+5. **Elemen berukuran tetap di wadah flex butuh `shrink-0`** (Avatar tergencet lonjong); screenshot dengan nama panjang menangkapnya.
+6. **Nama tes yang menjanjikan dua jalur harus menguji keduanya** ("after success (or a manual close)" hanya menguji sukses).
+7. **Endpoint bawaan library yang tidak dipakai bisa menjadi celah.** `/update-user` Better Auth terbuka untuk setiap sesi; `disabledPaths` menutupnya. Kebijakan password ditegakkan di setiap pintu yang menulis password (`sign-up`, `change-password`, `reset-password`).
+8. **Router `better-call` mem-parse body untuk semua endpoint sebelum hook** (`router.mjs:67`), jadi `ctx.body` tersedia di before-hook Better Auth tanpa `cloneRequest`. Tes "nilai buruk ditolak" lolos walau body tak terbaca (`undefined` juga gagal kebijakan); bukti pembacaan body adalah tes sukses.
+
+### Tugas pemilik (bukan kode)
+Tetap dari 22 Nov no. 1–8, ditambah:
+
+9. **Putuskan bump Next 16.4.1 → 16.4.5 sebelum UAT** (PR chore terpisah: `next` + `eslint-config-next`, CI penuh; bukan lewat `next upgrade`), atau tetap di putaran 2.
+10. **Migrasi `0002` binzi-dev** saat PR A7 final, **sebelum** merge (langkah di kartu S3-03).
+
+### Catatan untuk kartu berikutnya
+- **A7 S3-03** masuk lewat PR docs ini, ditulis terhadap `fd72bea`. Baseline 143 / 1713. Rencana agent ditinjau di chat — termasuk SQL `0002` hasil generate.
+- **A8 S5-06 pengguna CMS** ditulis Claude chat selagi A7 berjalan: ubah role/status wajib mencabut semua sesi (butir "Kartu manajemen user"); tautan "Lihat profil" 26b menunjuk ke sini.
+- Bawa pelajaran 22 Nov no. 1–6 dan 22 Nov (sore) no. 1–8 ke kartu berikutnya.
+
+## Pembaruan 22 Nov 2026 — A4 S5-04 progres kursus + Kursus Saya di-merge, kartu A5 S6-02 siap (baca setelah 22 Nov sore, lalu 21 Nov, 20 Nov, 19 Nov, 16 Nov, 14 Nov, 11 Nov, 10 Nov, 9 Nov, 8 Nov, 7 Nov, 6 Nov, 4 Nov malam, 4 Nov, dan 3 Nov)
 
 Bagian-bagian di bawahnya tetap berlaku. Bagian ini mengubah atau menambahnya. Jadwal yang berlaku tetap "Rencana UAT internal 11 Des" di Pembaruan 19 Nov.
 
@@ -1843,7 +1937,8 @@ Rencana disetujui, dengan lima tambahan berikut (hasil tinjauan C-02/C-03, belum
 Saya sedang membangun BINZI (platform belajar gizi) dengan Next.js 16 +
 AI coding agent (Claude Code). Terlampir docs/STATUS.md dan
 docs/tasks/URUTAN-KERJA.md dari repo saya — baca keduanya sebagai konteks.
-Baca bagian "Pembaruan 22 Nov" di STATUS.md lebih dulu, lalu "Pembaruan 21 Nov",
+Baca bagian "Pembaruan 22 Nov (sore)" di STATUS.md lebih dulu, lalu
+"Pembaruan 22 Nov", "Pembaruan 21 Nov",
 "Pembaruan 20 Nov", "Pembaruan 19 Nov", "Pembaruan 16 Nov", "Pembaruan 14 Nov",
 "Pembaruan 11 Nov", "Pembaruan 10 Nov", "Pembaruan 9 Nov",
 "Pembaruan 8 Nov", "Pembaruan 7 Nov", "Pembaruan 6 Nov", "Pembaruan 4 Nov
@@ -1855,17 +1950,18 @@ repo publik di github.com/adiynsyah/binzi — clone untuk membaca kode,
 kartu, desain, dan meninjau PR (API GitHub sering tidak tersedia dari
 sandbox; git fetch pull/N/head tetap jalan). Repo di mesin saya ada di
 ~/Project/React/binzi-new.
-Posisi terakhir (22 Nov): A1 C-11 (#142), A2 S3-02 (#145), A3 S5-03
-Nilai Saya (#148), dan A4 S5-04 progres kursus + Kursus Saya (#150)
-di-merge; main = 6188302; baseline Vitest 133 / 1624.
-Kartu A5 S6-02 (katalog + detail kursus) masuk lewat PR docs 22 Nov.
+Posisi terakhir (22 Nov sore): A1–A4 (#142, #145, #148, #150), A5 S6-02
+katalog + detail kursus (#153), dan A6 S5-05 profil dasar (#154)
+di-merge; main = fd72bea; baseline Vitest 143 / 1713.
+Kartu A7 S3-03 (lapor gangguan + /cms/reset-attempt, dengan migrasi 0002)
+masuk lewat PR docs 22 Nov sore.
 Target UAT internal Jum 11 Des (rencana A/B/C dan urutan tarik maju di
-Pembaruan 19 Nov); A1–A4 selesai ±4 hari sebelum titik cek Kam 26.
+Pembaruan 19 Nov); jadwal maju ±5 hari dari tabel 19 Nov.
 Berikutnya:
-- Sesi agent A5 S6-02; rencana agent ditinjau di chat.
-- Tulis kartu A6 S5-05 profil dasar selagi agent mengerjakan A5
-  (catatan di akhir kartu S6-02).
-- Tugas pemilik: lihat "Tugas pemilik (bukan kode)" di 22 Nov.
+- Sesi agent A7 S3-03; rencana agent (termasuk SQL 0002) ditinjau di chat.
+- Tulis kartu A8 S5-06 pengguna CMS selagi agent mengerjakan A7.
+- Tugas pemilik: lihat "Tugas pemilik (bukan kode)" di 22 Nov dan
+  22 Nov (sore), termasuk keputusan bump Next 16.4.5.
 - Untuk tinjauan tampilan, Claude bisa menjalankan Chrome/Chromium di
   sandbox (/usr/bin/google-chrome bila ada, atau @sparticuz/chromium) dengan
   playwright-core dari node_modules repo untuk mengukur markup, dan
