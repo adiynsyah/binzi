@@ -159,6 +159,22 @@ describe("nilai route structure (card S5-03 §3)", () => {
   });
 });
 
+describe("profil route structure (card S5-05 §4)", () => {
+  it("has the profile page at (learn)/profil/page.tsx", () => {
+    expect(existsSync(join(APP_DIR, "(learn)", "profil", "page.tsx"))).toBe(
+      true,
+    );
+  });
+
+  it("has no loading.tsx in profil/ — requireRole must stay a 307", () => {
+    // Same rule as belajar/[slug]/: the page answers redirect() for guests,
+    // and a fallback would wrap the 307 into a 200.
+    expect(
+      existsSync(join(APP_DIR, "(learn)", "profil", "loading.tsx")),
+    ).toBe(false);
+  });
+});
+
 describe("kursus-saya + progres route structure (card S5-04 §2)", () => {
   it("has Kursus Saya at belajar/kursus-saya/page.tsx and the progress page at belajar/[slug]/page.tsx", () => {
     // The static segment `kursus-saya` wins over [slug]; that course slug
