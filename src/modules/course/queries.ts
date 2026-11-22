@@ -72,6 +72,9 @@ import type {
   CourseListItemRow,
   CourseDetailRow,
   CourseStatusCounts,
+  PublicCatalogRow,
+  PublicCourseRow,
+  PublicLessonOutlineRow,
 } from "./serializer";
 import type {
   ContentStatus,
@@ -959,4 +962,95 @@ export async function listApprovalQueue(filter: {
     )
     .orderBy(asc(courses.reviewedAt), asc(courses.id));
   return rows.map(toCourseApprovalQueueItemDTO);
+}
+
+// ------------------------------------------------- public reads (card S6-02)
+
+/*
+ * Both public reads are SINGLE-TABLE selects from courses, so the lesson
+ * subqueries hand-qualify BOTH sides (counted.course_id = courses.id) —
+ * the lessonCountSql fragment above interpolates ${lessons.courseId} =
+ * ${courses.id}, which renders bare column names in this shape and
+ * resolves BOTH against the subquery's lessons (STATUS 10 Nov lesson 1;
+ * same reason progress/queries.ts writes its fragments by hand).
+ */
+const publicLessonCountSql = sql<number>`(
+  select count(*) from ${lessons} as counted
+  where counted.course_id = courses.id
+)`.mapWith(Number);
+
+const publicHasLessonsSql = sql`exists (
+  select 1 from ${lessons} as counted where counted.course_id = courses.id
+)`;
+
+/**
+ * The public catalog (card S6-02 §1 query 1): PUBLISHED courses with at
+ * least one lesson, newest publication first (the dashboard "Kursus
+ * lainnya" order).
+ */
+export async function selectPublicCatalog(): Promise<PublicCatalogRow[]> {
+  return db
+    .select({
+      slug: courses.slug,
+      title: courses.title,
+      level: courses.level,
+      summary: courses.summary,
+      estimatedMinutes: courses.estimatedMinutes,
+      lessonCount: publicLessonCountSql,
+    })
+    .from(courses)
+    .where(and(eq(courses.status, "PUBLISHED"), publicHasLessonsSql))
+    .orderBy(desc(courses.publishedAt), asc(courses.id));
+}
+
+/**
+ * The public detail lookup (card §6-02 §1 query 2): the SAME corridor as
+ * the catalog — an unknown slug, a not-yet-published course, and a course
+ * without lessons are indistinguishable misses.
+ */
+export async function findPublicCourseBySlug(
+  slug: string,
+): Promise<PublicCourseRow | undefined> {
+  const rows = await db
+    .select({
+      id: courses.id,
+      slug: courses.slug,
+      title: courses.title,
+      summary: courses.summary,
+      description: courses.description,
+      level: courses.level,
+      estimatedMinutes: courses.estimatedMinutes,
+      seoTitle: courses.seoTitle,
+      seoDescription: courses.seoDescription,
+      finalQuizId: courses.finalQuizId,
+    })
+    .from(courses)
+    .where(
+      and(
+        eq(courses.slug, slug),
+        eq(courses.status, "PUBLISHED"),
+        publicHasLessonsSql,
+      ),
+    )
+    .limit(1);
+  return rows[0];
+}
+
+/**
+ * The public outline (card §6-02 §1 query 3): order_index asc, id asc —
+ * the firstLessonSlugSql order, so "1 · …" here and "Mulai materi 1"
+ * elsewhere point at the same lesson.
+ */
+export async function selectPublicLessonOutline(
+  courseId: string,
+): Promise<PublicLessonOutlineRow[]> {
+  return db
+    .select({
+      title: lessons.title,
+      videoStatus: lessons.videoStatus,
+      videoDurationSeconds: lessons.videoDurationSeconds,
+    })
+    .from(lessons)
+    .where(eq(lessons.courseId, courseId))
+    .orderBy(asc(lessons.orderIndex), asc(lessons.id));
 }
