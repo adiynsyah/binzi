@@ -12,10 +12,13 @@ const LIB_DIR = dirname(fileURLToPath(import.meta.url));
 const APP_DIR = join(LIB_DIR, "..", "app");
 
 describe("public kursus route structure (card S6-02)", () => {
-  it("has the catalog page at (public)/kursus/page.tsx", () => {
+  it("has the catalog page at (public)/kursus/page.tsx and the detail at (public)/kursus/[slug]/page.tsx", () => {
     expect(existsSync(join(APP_DIR, "(public)", "kursus", "page.tsx"))).toBe(
       true,
     );
+    expect(
+      existsSync(join(APP_DIR, "(public)", "kursus", "[slug]", "page.tsx")),
+    ).toBe(true);
   });
 
   it("has no loading.tsx in (public)/, kursus/, or kursus/[slug]/ — a 404 must stay 404", () => {
