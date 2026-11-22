@@ -20,7 +20,7 @@ export const metadata: Metadata = {
 export default async function KursusPage() {
   const courses = await getPublicCatalog();
   return (
-    <PageContainer className="pt-8">
+    <PageContainer className="pt-8 pb-16 sm:pb-20">
       <CourseCatalog courses={courses} />
     </PageContainer>
   );

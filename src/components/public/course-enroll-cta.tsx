@@ -49,8 +49,10 @@ export function CourseEnrollCta({
 
   return (
     <div className="overflow-hidden rounded-card border border-border bg-surface">
-      {/* Cover without a play button (keputusan 5): nothing plays here. */}
-      <CoverBlock className="min-h-[130px] lg:min-h-[170px]" />
+      {/* Cover without a play button (keputusan 5): nothing plays here.
+          Below 1024 the card is the 7t bar — no cover (PR 153 review
+          item 5). */}
+      <CoverBlock className="hidden min-h-[170px] lg:block" />
       <div className="p-5">
         <p className="text-[19px] font-black text-text">Gratis</p>
         <p className="mt-1 text-sm text-text-muted">

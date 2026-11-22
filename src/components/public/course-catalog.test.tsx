@@ -65,8 +65,20 @@ describe("CourseCatalog (card S6-02)", () => {
         ]}
       />,
     );
-    expect(screen.getByText("Pemula · 2 materi")).toBeTruthy();
-    expect(screen.getByText("Menengah · 3 materi")).toBeTruthy();
+    // The level line carries the minutes as sr-only text (PR 153 review
+    // item 2): the cover meta rides an aria-hidden CoverBlock, so screen
+    // readers would otherwise never hear "12 menit". getByText matches the
+    // paragraph's OWN text node; the sr-only span is a separate element.
+    const withMinutes = screen.getByText("Pemula · 2 materi");
+    expect(
+      withMinutes.textContent?.replace(/\s+/g, " ").trim(),
+    ).toBe("Pemula · 2 materi · 12 menit");
+    expect(withMinutes.querySelector(".sr-only")?.textContent?.trim()).toBe(
+      "· 12 menit",
+    );
+    // No sr-only minutes when estimatedMinutes is null (the "mpasi" card).
+    const withoutMinutes = screen.getByText("Menengah · 3 materi");
+    expect(withoutMinutes.querySelector(".sr-only")).toBeNull();
     // Cover meta: DOM text lowercase (CSS uppercases) — e2e asserts the
     // same string; " · m menit" only when estimatedMinutes is set.
     expect(screen.getByText("2 materi · 12 menit")).toBeTruthy();

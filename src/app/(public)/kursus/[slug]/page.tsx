@@ -54,7 +54,7 @@ export default async function CourseDetailRoutePage({
   const course = await loadCourse(slug);
   if (!course) notFound();
   return (
-    <PageContainer className="pt-8">
+    <PageContainer className="pt-8 pb-16 sm:pb-20">
       <CourseDetail course={course} />
     </PageContainer>
   );

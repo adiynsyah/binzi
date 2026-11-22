@@ -2,10 +2,11 @@
 // detail DTO: breadcrumb, header (7b/7m), the enroll CTA, the FULL lesson
 // outline, and the description. Server component, pure render.
 //
-// Layout (7b/7t/keputusan 9): ≥ 1024 two columns — content left, the CTA
-// card right (± 380 px, not sticky); below that one column with the CTA
-// DIRECTLY after the header. The CTA is therefore FIRST in the DOM and
-// grid-placed into the right column at lg — no node reordering needed.
+// Layout (7b/7t/keputusan 9): ≥ 1024 two columns — the header AND content
+// share the left column while the CTA card spans both rows on the right
+// (± 380 px, not sticky, top-aligned with the h1); below that one column
+// with the CTA DIRECTLY after the header. DOM order — header, CTA,
+// content — is the reading order at every width.
 //
 // The outline is deliberately NOT links and carries no "Preview"/"Terkunci"
 // labels (keputusan 5): every row is visible plain text, positions come
@@ -69,48 +70,54 @@ function LessonRow({
 
 export function CourseDetail({ course }: CourseDetailProps) {
   return (
-    <>
-      <nav aria-label="Breadcrumb">
-        <Link
-          href="/kursus"
-          className={cn(EYEBROW_CLASS, "inline-flex min-h-11 items-center")}
+    <div className="grid gap-7 lg:grid-cols-[minmax(0,1fr)_380px] lg:grid-rows-[auto_1fr]">
+      {/* The header is the grid's FIRST element: ≥ 1024 it fills the left
+          column so the CTA card aligns with the h1 (7b, PR 153 review
+          item 4); below that the plain stack keeps keputusan 9 — header,
+          then CTA, then content. */}
+      <header className="lg:col-start-1 lg:row-start-1">
+        <nav aria-label="Breadcrumb">
+          <Link
+            href="/kursus"
+            className={cn(EYEBROW_CLASS, "inline-flex min-h-11 min-w-11 items-center")}
+          >
+            Kursus
+          </Link>
+        </nav>
+
+        <h1
+          id={TITLE_ID}
+          className="mt-2 wrap-anywhere text-[25px] font-black leading-[1.14] tracking-[-0.022em] text-text sm:text-[32px] sm:leading-[1.16] sm:tracking-[-0.024em]"
         >
-          Kursus
-        </Link>
-      </nav>
-
-      <h1
-        id={TITLE_ID}
-        className="mt-2 wrap-anywhere text-[25px] font-black leading-[1.14] tracking-[-0.022em] text-text sm:text-[32px] sm:leading-[1.16] sm:tracking-[-0.024em]"
-      >
-        {course.title}
-      </h1>
-      <p className="mt-3 text-[13px] font-bold text-text-muted">
-        {metaLine(course)}
-      </p>
-      {course.summary !== null ? (
-        <p className="mt-3 max-w-(--width-measure) text-text-muted">
-          {course.summary}
+          {course.title}
+        </h1>
+        <p className="mt-3 text-[13px] font-bold text-text-muted">
+          {metaLine(course)}
         </p>
-      ) : null}
-      {/* 7t "DITINJAU AHLI GIZI" as a chip (keputusan 7): no reviewer box,
-          no name — the review is a fact about every published course. */}
-      <p className="mt-4 inline-flex rounded-full border border-border px-3 py-[5px] font-mono text-xs font-medium uppercase tracking-wide text-text-muted">
-        Ditinjau ahli gizi
-      </p>
+        {course.summary !== null ? (
+          <p className="mt-3 max-w-(--width-measure) text-text-muted">
+            {course.summary}
+          </p>
+        ) : null}
+        {/* 7t "DITINJAU AHLI GIZI" as a chip (keputusan 7): no reviewer box,
+            no name — the review is a fact about every published course. */}
+        <p className="mt-4 inline-flex rounded-full border border-border px-3 py-[5px] font-mono text-xs font-medium uppercase tracking-wide text-text-muted">
+          Ditinjau ahli gizi
+        </p>
+      </header>
 
-      <div className="mt-8 grid gap-7 lg:grid-cols-[minmax(0,1fr)_380px]">
-        {/* DOM-first so < 1024 keeps the CTA right after the header
-            (keputusan 9); the grid placement moves it right at lg. */}
-        <div className="lg:col-start-2 lg:row-start-1">
-          <CourseEnrollCta
-            courseId={course.id}
-            slug={course.slug}
-            titleId={TITLE_ID}
-          />
-        </div>
+      {/* Second in the DOM so < 1024 keeps the CTA right after the header
+          (keputusan 9); ≥ 1024 it spans both rows on the right, top-aligned
+          with the h1. */}
+      <div className="lg:col-start-2 lg:row-start-1 lg:row-span-2 lg:self-start">
+        <CourseEnrollCta
+          courseId={course.id}
+          slug={course.slug}
+          titleId={TITLE_ID}
+        />
+      </div>
 
-        <div className="lg:col-start-1 lg:row-start-1">
+      <div className="lg:col-start-1 lg:row-start-2">
           <section aria-labelledby="isi-kursus-heading">
             <h2
               id="isi-kursus-heading"
@@ -146,8 +153,7 @@ export function CourseDetail({ course }: CourseDetailProps) {
               <RichContent doc={course.description} />
             </div>
           </section>
-        </div>
       </div>
-    </>
+    </div>
   );
 }

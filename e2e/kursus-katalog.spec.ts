@@ -112,7 +112,11 @@ test("1. katalog + detail: tamu lalu member, lebar 360–1280", async ({
   await expect(catalogCard).toBeVisible();
   await expect(catalogCard.getByText("Pemula · 2 materi")).toBeVisible();
   // DOM text is lowercase; CSS uppercases (component test pins the rule).
-  await expect(catalogCard.getByText("2 materi · 12 menit")).toBeVisible();
+  // Exact: the level line also carries an sr-only " · 12 menit" (review
+  // item 2), so its full text contains this substring.
+  await expect(
+    catalogCard.getByText("2 materi · 12 menit", { exact: true }),
+  ).toBeVisible();
   await expect(
     catalogCard.getByRole("link", { name: "Lihat kursus" }),
   ).toHaveAttribute("href", detailUrl);

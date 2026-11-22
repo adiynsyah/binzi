@@ -305,12 +305,12 @@ describe("getPublicCourse", () => {
       title: "Materi 3",
       orderIndex: 2,
     });
-    await insertLesson(course, 61, {
-      title: "Materi 2",
-      orderIndex: 1,
-    });
     await insertLesson(course, 62, {
       title: "Materi 1",
+      orderIndex: 1,
+    });
+    await insertLesson(course, 61, {
+      title: "Materi 2",
       orderIndex: 1,
     });
 

@@ -64,6 +64,15 @@ function CatalogCard({
       <div className="flex flex-1 flex-col p-4">
         <p className="text-[13px] font-bold text-text-muted">
           {course.levelLabel} · {course.lessonCount} materi
+          {/* The cover meta rides an aria-hidden CoverBlock, so its
+              minutes are invisible to screen readers — the level line
+              carries an sr-only copy instead (PR 153 review item 2). */}
+          {course.estimatedMinutes === null ? null : (
+            <span className="sr-only">
+              {" · "}
+              {course.estimatedMinutes} menit
+            </span>
+          )}
         </p>
         <h2
           id={titleId}

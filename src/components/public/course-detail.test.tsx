@@ -125,11 +125,23 @@ describe("CourseDetail (card S6-02)", () => {
   });
 
   it("keeps the CTA right after the header in the DOM (keputusan 9)", () => {
-    render(<CourseDetail course={detail()} />);
+    const { container } = render(<CourseDetail course={detail()} />);
     const cta = screen.getByText("Gratis");
     const isi = screen.getByRole("heading", { name: "Isi kursus", level: 2 });
     // Node.DOCUMENT_POSITION_FOLLOWING: isi comes AFTER cta in document
     // order — below lg the CTA sits between the header and the outline.
     expect(cta.compareDocumentPosition(isi) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    // PR 153 review item 4: ≥ 1024 the header fills the left column and
+    // the CTA spans both rows on the right, top-aligned with the h1 (7b) —
+    // the grid children are exactly header, CTA, content, in DOM order.
+    const grid = container.firstElementChild;
+    expect(grid?.className).toContain("lg:grid-rows-[auto_1fr]");
+    const [header, ctaWrap, content] = Array.from(grid?.children ?? []);
+    expect(header?.tagName).toBe("HEADER");
+    expect(header?.className).toContain("lg:col-start-1");
+    expect(ctaWrap?.className).toContain("lg:row-span-2");
+    expect(ctaWrap?.className).toContain("lg:self-start");
+    expect(content?.className).toContain("lg:row-start-2");
   });
 });
