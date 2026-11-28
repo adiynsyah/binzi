@@ -57,6 +57,11 @@ const GUARDED: { path: string; min: UserRole }[] = [
   { path: "/cms/kategori", min: "ADMIN" },
   { path: "/cms/pengguna", min: "ADMIN" },
   { path: "/cms/reset-attempt", min: "ADMIN" },
+  // Card S3-03: the sub-pages are ADMIN+ too (prefix), not SUPER_ADMIN —
+  // and the prefix still needs the segment separator.
+  { path: "/cms/reset-attempt/baru", min: "ADMIN" },
+  { path: "/cms/reset-attempt/12", min: "ADMIN" },
+  { path: "/cms/reset-attempt-x", min: "SUPER_ADMIN" },
   { path: "/cms/pengaturan", min: "SUPER_ADMIN" },
   { path: "/cms/audit-log", min: "SUPER_ADMIN" },
   // Fail-closed (owner decision adjustment #2): unlisted /cms sub-paths do

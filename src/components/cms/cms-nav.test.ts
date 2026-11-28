@@ -111,6 +111,13 @@ describe("getActiveCmsItem", () => {
     expect(getActiveCmsItem("/cms/reset-attempt", null, "SUPER_ADMIN")?.id).toBe(
       "reset-attempt",
     );
+    // Card S3-03: the menu item stays active on its sub-pages.
+    expect(getActiveCmsItem("/cms/reset-attempt/baru", null, "ADMIN")?.id).toBe(
+      "reset-attempt",
+    );
+    expect(getActiveCmsItem("/cms/reset-attempt/12", null, "ADMIN")?.id).toBe(
+      "reset-attempt",
+    );
     expect(getActiveCmsItem("/cms/audit-log", null, "SUPER_ADMIN")?.id).toBe(
       "audit-log",
     );
