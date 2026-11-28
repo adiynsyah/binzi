@@ -57,6 +57,13 @@ const PAGE_EXPECTATIONS: readonly {
   { path: "/cms/kategori", member: 403, editor: 403, admin: 200, superAdmin: 200 },
   { path: "/cms/pengguna", member: 403, editor: 403, admin: 200, superAdmin: 200 },
   { path: "/cms/reset-attempt", member: 403, editor: 403, admin: 200, superAdmin: 200 },
+  // S3-03: reset without a report — same ADMIN+ matrix (prefix rule).
+  { path: "/cms/reset-attempt/baru", member: 403, editor: 403, admin: 200, superAdmin: 200 },
+  // S3-03: the report review. EDITOR+ request a report number that does
+  // not exist (substituted below): ADMIN+ pass the role gate and get the
+  // page's own 404 — the path IS requested; a 403 or a 200 would fail.
+  // MEMBER keeps the literal path (its 403 comes from the role gate).
+  { path: "/cms/reset-attempt/[nomor]", member: 403, editor: 403, admin: 404, superAdmin: 404 },
   // SUPER_ADMIN only
   { path: "/cms/pengaturan", member: 403, editor: 403, admin: 403, superAdmin: 200 },
   { path: "/cms/audit-log", member: 403, editor: 403, admin: 403, superAdmin: 200 },
@@ -169,6 +176,9 @@ test.describe("status per peran", () => {
       let realDescriptionPath: string | null = null;
       let realLessonPath: string | null = null;
       let realQuizPath: string | null = null;
+      // S3-03: a report number that cannot exist (max int4) for EDITOR+.
+      const missingReportPath =
+        role !== "MEMBER" ? "/cms/reset-attempt/2147483647" : null;
       if (role !== "MEMBER") {
         // Underscores are not slug-legal (SLUG_PATTERN) — SUPER_ADMIN
         // would otherwise 400 on its own setup row.
@@ -218,7 +228,9 @@ test.describe("status per peran", () => {
                   ? realLessonPath
                   : row.path === "/cms/quiz/[quizId]"
                     ? realQuizPath
-                    : null;
+                    : row.path === "/cms/reset-attempt/[nomor]"
+                      ? missingReportPath
+                      : null;
           const path = dynamicPath ?? row.path;
           const response = await context.request.get(path, {
             maxRedirects: 0,
