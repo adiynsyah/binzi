@@ -31,10 +31,11 @@ export function ResetAttemptQueue({
     <div>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <p className="font-mono text-xs uppercase tracking-[0.08em] text-text-meta">
+          {/* ≥ 640 the CMS topbar already shows this breadcrumb. */}
+          <p className="mb-3 font-mono text-xs uppercase tracking-[0.08em] text-text-meta sm:hidden">
             Pengaturan / Reset attempt
           </p>
-          <h1 className={`mt-3 ${CMS_HEADING_CLASS}`}>Reset attempt</h1>
+          <h1 className={CMS_HEADING_CLASS}>Reset attempt</h1>
           <p className="mt-2 max-w-[38rem] text-[15px] leading-relaxed text-text-muted">
             Quiz hanya satu kesempatan, jadi ini satu-satunya jalan pemulihan bila
             gangguan teknis merusak nilai seseorang. Janji ke user: diputuskan dalam
@@ -101,7 +102,12 @@ export function ResetAttemptQueue({
                       <div>
                         <DeadlineText
                           deadline={item.deadline}
-                          prefix={item.deadline ? "Tenggat " : undefined}
+                          prefix={
+                            item.deadline ? (
+                              // ≥ 1024 the column header says it.
+                              <span className="lg:sr-only">Tenggat </span>
+                            ) : undefined
+                          }
                         />
                       </div>
                     </div>

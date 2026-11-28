@@ -2,6 +2,8 @@
 // S3-03 §6, 26a/26b). Local on purpose: BadgeStatus has a fixed label set
 // without Menunggu/Disetujui/Ditolak, and src/components/ui is out of scope
 // for this card. Same one-pill shape, token pairs only.
+import type { ReactNode } from "react";
+
 import { cn } from "@/lib/utils";
 
 type ReportStatus = "PENDING" | "APPROVED" | "REJECTED";
@@ -32,7 +34,7 @@ export function DeadlineText({
   prefix,
 }: {
   deadline: { label: string; urgent: boolean } | null;
-  prefix?: string;
+  prefix?: ReactNode;
 }) {
   if (deadline === null) {
     return <span className="text-sm text-text-meta">—</span>;
