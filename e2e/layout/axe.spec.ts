@@ -909,4 +909,93 @@ test.describe("axe WCAG 2.1 A/AA", () => {
     await expect(page.getByLabel("Password saat ini")).toBeVisible();
     await expectAxeClean(page, "MEMBER /profil form password terbuka", testInfo);
   });
+
+  // Card S3-03: the participant report page (form, then menunggu) and the
+  // three reset-attempt CMS pages. The report is removed again in finally
+  // — it references the attempt, which the shared afterAll cleanup
+  // deletes with the course.
+  test("MEMBER + ADMIN: laporan gangguan + /cms/reset-attempt (S3-03)", async (
+    { page, request },
+    testInfo,
+  ) => {
+    const spec = widthSpecOf(testInfo.project.name);
+    const account = await createRoleAccount(request, "MEMBER");
+    await signInViaApi(page.context(), account);
+
+    const token = `ar${Date.now().toString(36)}${testInfo.project.name}`;
+    const made = await createPublishedCourseViaApi(
+      editorContext,
+      adminContext,
+      `${token} kursus laporan axe`,
+      { lessons: 1 },
+    );
+    quizCourseIds.push(made.courseId);
+    const enroll = await page.context().request.post(
+      `/api/progress/courses/${made.courseId}/enroll`,
+    );
+    expect(enroll.status(), await enroll.text()).toBe(201);
+    const started = await page.context().request.post(
+      `/api/quiz/lessons/${made.lessons[0]!.id}/attempt`,
+      { data: {} },
+    );
+    expect(started.status(), await started.text()).toBe(201);
+    const attemptId = ((await started.json()) as { data: { attemptId: string } })
+      .data.attemptId;
+    const submitted = await page
+      .context()
+      .request.post(`/api/quiz/attempts/${attemptId}/submit`, { data: {} });
+    expect(submitted.status(), await submitted.text()).toBe(200);
+
+    const admin = await adminContext.newPage();
+    await admin.setViewportSize(spec.viewport);
+    try {
+      const reportPath = `/belajar/${made.courseSlug}/${made.lessons[0]!.slug}/quiz/laporan`;
+      await page.goto(reportPath);
+      await expect(
+        page.getByRole("heading", { level: 1, name: "Quiz terputus di tengah jalan?" }),
+      ).toBeVisible();
+      await expectAxeClean(page, "MEMBER laporan form", testInfo);
+
+      const report = await page.context().request.post(
+        `/api/quiz/attempts/${attemptId}/report`,
+        {
+          data: {
+            category: "OTHER",
+            description: "Cerita netral untuk pemindaian aksesibilitas.",
+          },
+        },
+      );
+      expect(report.status(), await report.text()).toBe(201);
+      const reportNumber = ((await report.json()) as { data: { number: number } })
+        .data.number;
+      await page.goto(reportPath);
+      await expect(page.getByText("Menunggu ditinjau", { exact: true })).toBeVisible();
+      await expectAxeClean(page, "MEMBER laporan menunggu", testInfo);
+
+      await admin.goto("/cms/reset-attempt");
+      await expect(
+        admin.getByRole("link", { name: new RegExp(`R-${reportNumber} `) }),
+      ).toBeVisible();
+      await expectAxeClean(admin, "ADMIN /cms/reset-attempt", testInfo);
+
+      await admin.goto(`/cms/reset-attempt/${reportNumber}`);
+      await expect(
+        admin.getByRole("heading", { level: 1, name: `Laporan R-${reportNumber}` }),
+      ).toBeVisible();
+      await expectAxeClean(admin, "ADMIN tinjau laporan", testInfo);
+
+      await admin.goto(
+        `/cms/reset-attempt/baru?email=${encodeURIComponent(account.email)}`,
+      );
+      await expect(
+        admin.getByRole("group", { name: "Pilih attempt yang direset" }),
+      ).toBeVisible();
+      await expectAxeClean(admin, "ADMIN reset tanpa laporan", testInfo);
+    } finally {
+      await admin.close();
+      await withE2eDb(
+        (sql) => sql`delete from quiz_attempt_reports where attempt_id = ${attemptId}`,
+      );
+    }
+  });
 });

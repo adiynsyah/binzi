@@ -1,15 +1,35 @@
-// /cms/reset-attempt placeholder (card A-15 step 11): title = the active
-// menu item's label, body "Segera hadir." — the tool itself is S1 (26a).
-import { CmsPlaceholderPage } from "@/components/cms/cms-pages";
-import { getActiveCmsItem } from "@/components/cms/cms-nav";
+// /cms/reset-attempt (card S3-03 §6, screen 26a): the report queue.
+// `?status=` is the URL contract (menunggu | disetujui | ditolak | semua;
+// anything else → menunggu). Role is checked here AND inside the service
+// (ADMIN+, before the input is parsed).
+import { ResetAttemptQueue } from "@/components/cms/reset-attempt-queue";
+import type { QueueTab } from "@/components/cms/reset-attempt-tabs";
 import { requireRole } from "@/lib/rbac";
+import { listAttemptReports } from "@/modules/recovery/service";
 
-export default async function CmsResetAttemptPage() {
-  // Matrix: /cms/reset-attempt (exact) → ADMIN+ (src/lib/rbac.ts).
+const STATUS_BY_TAB: Record<QueueTab, "PENDING" | "APPROVED" | "REJECTED" | "ALL"> = {
+  menunggu: "PENDING",
+  disetujui: "APPROVED",
+  ditolak: "REJECTED",
+  semua: "ALL",
+};
+
+function tabOf(value: string | string[] | undefined): QueueTab {
+  return typeof value === "string" && Object.hasOwn(STATUS_BY_TAB, value)
+    ? (value as QueueTab)
+    : "menunggu";
+}
+
+export default async function CmsResetAttemptPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ status?: string | string[] }>;
+}) {
+  // Matrix: /cms/reset-attempt (prefix) → ADMIN+ (src/lib/rbac.ts).
   const sessionUser = await requireRole("ADMIN");
-  const title =
-    getActiveCmsItem("/cms/reset-attempt", null, sessionUser.role)?.label ??
-    "Reset attempt";
-
-  return <CmsPlaceholderPage title={title} />;
+  const active = tabOf((await searchParams).status);
+  const data = await listAttemptReports(sessionUser, {
+    status: STATUS_BY_TAB[active],
+  });
+  return <ResetAttemptQueue data={data} active={active} />;
 }

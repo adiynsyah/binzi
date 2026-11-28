@@ -142,6 +142,23 @@ export function ResultItem({
   );
 }
 
+/** "Ada kendala teknis? Laporkan gangguan" (card S3-03 §5; adaptation of
+ *  PRD §6.3.2 "Ada kendala teknis? Hubungi kami") — under the result
+ *  actions of BOTH result screens (SUBMITTED and EXPIRED alike). */
+export function ReportProblemLink({ href }: { href: string }) {
+  return (
+    <p className="mt-4 text-sm text-text-muted">
+      Ada kendala teknis?{" "}
+      <Link
+        href={href}
+        className="font-bold text-primary-deep underline-offset-2 hover:underline"
+      >
+        Laporkan gangguan
+      </Link>
+    </p>
+  );
+}
+
 export function QuizResult({ data }: { data: QuizResultDTO }) {
   const total = data.items.length;
   const reveals = reviewReveals(data.reviewAccess);
@@ -282,6 +299,7 @@ export function QuizResult({ data }: { data: QuizResultDTO }) {
             Kembali ke materi
           </Link>
         </div>
+        <ReportProblemLink href={`${data.lesson.href}/quiz/laporan`} />
       </section>
     </div>
   );

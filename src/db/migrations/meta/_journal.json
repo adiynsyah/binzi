@@ -15,6 +15,13 @@
       "when": 1794829717214,
       "tag": "0001_video_source",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1795854757321,
+      "tag": "0002_attempt_reports",
+      "breakpoints": true
     }
   ]
 }

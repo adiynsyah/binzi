@@ -38,5 +38,9 @@ export default async function FinalQuizRoutePage({
   }
 
   if (data.state === "kembali") redirect(data.href);
-  return <FinalQuizPage data={data} />;
+  // Card S3-03 §5: the report link needs the course slug, which the Final
+  // DTO does not carry.
+  return (
+    <FinalQuizPage data={data} reportHref={`/belajar/${slug}/final-quiz/laporan`} />
+  );
 }

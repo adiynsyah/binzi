@@ -184,6 +184,72 @@ export const quizAttempts = pgTable(
   ],
 );
 
+// Participant reports of a disrupted attempt (card S3-03, QZ-19 / CMS-10).
+export const attemptReportCategoryEnum = pgEnum("attempt_report_category", [
+  "SUBMIT_ERROR",
+  "TIMER_ENDED_EARLY",
+  "CONTENT_MISSING",
+  "OTHER",
+]);
+
+export const attemptReportStatusEnum = pgEnum("attempt_report_status", [
+  "PENDING",
+  "APPROVED",
+  "REJECTED",
+]);
+
+export const quizAttemptReports = pgTable(
+  "quiz_attempt_reports",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    // Display number ("R-{number}"); never reused, never typed by anyone.
+    number: integer("number").generatedAlwaysAsIdentity(),
+    // One report per attempt (7i: "Satu laporan per attempt").
+    attemptId: uuid("attempt_id")
+      .notNull()
+      .references(() => quizAttempts.id),
+    // The reporter is always the attempt's owner (copied from the attempt).
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id),
+    category: attemptReportCategoryEnum("category").notNull(),
+    description: text("description").notNull(),
+    status: attemptReportStatusEnum("status").default("PENDING").notNull(),
+    // Shown to the participant as-is.
+    decisionReason: text("decision_reason"),
+    // Staff only — never serialized to the participant.
+    internalNote: text("internal_note"),
+    decidedBy: text("decided_by").references(() => users.id),
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    unique("quiz_attempt_reports_number_unique").on(table.number),
+    unique("quiz_attempt_reports_attempt_unique").on(table.attemptId),
+    // A decision always has a timestamp, and only a decision has one.
+    check(
+      "quiz_attempt_reports_decided_at_check",
+      sql`(${table.status} = 'PENDING') = (${table.decidedAt} is null)`,
+    ),
+    // A decided report always carries the reason the participant reads.
+    check(
+      "quiz_attempt_reports_decision_reason_check",
+      sql`${table.status} = 'PENDING' or ${table.decisionReason} is not null`,
+    ),
+    // Queue: per-status tabs ordered by created_at.
+    index("quiz_attempt_reports_status_created_idx").on(
+      table.status,
+      table.createdAt,
+    ),
+  ],
+);
+
 export const quizAnswers = pgTable(
   "quiz_answers",
   {

@@ -80,7 +80,10 @@ export const ROUTE_RULES: readonly RouteRule[] = [
   // ADMIN+
   { path: "/cms/kategori", match: "exact", minRole: "ADMIN" },
   { path: "/cms/pengguna", match: "exact", minRole: "ADMIN" },
-  { path: "/cms/reset-attempt", match: "exact", minRole: "ADMIN" },
+  // prefix (card S3-03 decision 13): /cms/reset-attempt/baru and
+  // /cms/reset-attempt/{nomor} stay ADMIN+ instead of falling to the
+  // SUPER_ADMIN catch-all.
+  { path: "/cms/reset-attempt", match: "prefix", minRole: "ADMIN" },
   // SUPER_ADMIN only
   { path: "/cms/pengaturan", match: "exact", minRole: "SUPER_ADMIN" },
   { path: "/cms/audit-log", match: "exact", minRole: "SUPER_ADMIN" },
