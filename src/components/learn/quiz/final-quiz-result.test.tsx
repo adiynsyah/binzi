@@ -16,6 +16,9 @@ import type {
 // Akhir with its formula (success color only while Lulus), and the
 // S3-01 review items below the fold with the shared reviewAccess gating.
 
+// Card S3-03 §5: the route page passes the report href (required prop).
+const REPORT_HREF = "/belajar/kursus-gizi/final-quiz/laporan";
+
 function item(overrides: Partial<QuizResultItemDTO> = {}): QuizResultItemDTO {
   return {
     number: 1,
@@ -71,7 +74,7 @@ describe("formatFinalClock", () => {
 
 describe("FinalQuizResult", () => {
   it("renders exactly one h1 — the eyebrow itself", () => {
-    render(<FinalQuizResult data={finalDto()} />);
+    render(<FinalQuizResult reportHref={REPORT_HREF} data={finalDto()} />);
     const h1s = screen.getAllByRole("heading", { level: 1 });
     expect(h1s.length).toBe(1);
     expect(h1s[0]!.textContent).toBe("FINAL QUIZ · HASIL");
@@ -79,7 +82,7 @@ describe("FinalQuizResult", () => {
   });
 
   it("renders the score card: value, SOLID course verdict, stats line", () => {
-    render(<FinalQuizResult data={finalDto({ correct: 1 })} />);
+    render(<FinalQuizResult reportHref={REPORT_HREF} data={finalDto({ correct: 1 })} />);
     expect(screen.getByText("80")).toBeTruthy();
     // 7h (S3-02 §3): the passing pill is solid success, not the tint.
     const pill = screen.getByText("Lulus kursus");
@@ -98,6 +101,7 @@ describe("FinalQuizResult", () => {
   it("adds the EXPIRED line for a time-out attempt", () => {
     render(
       <FinalQuizResult
+        reportHref={REPORT_HREF}
         data={finalDto({
           status: "EXPIRED",
           isPassed: false,
@@ -114,7 +118,7 @@ describe("FinalQuizResult", () => {
   });
 
   it("renders the stored Nilai Akhir with its formula", () => {
-    render(<FinalQuizResult data={finalDto()} />);
+    render(<FinalQuizResult reportHref={REPORT_HREF} data={finalDto()} />);
     expect(
       screen.getByRole("heading", { name: "Nilai Akhir Kursus" }),
     ).toBeTruthy();
@@ -138,7 +142,7 @@ describe("FinalQuizResult", () => {
   }
 
   it("words the PASSED status line", () => {
-    render(<FinalQuizResult data={finalDto()} />);
+    render(<FinalQuizResult reportHref={REPORT_HREF} data={finalDto()} />);
     expect(
       screen.getByText(
         statusLine(
@@ -151,6 +155,7 @@ describe("FinalQuizResult", () => {
   it("words the COMPLETED status line and swaps the pill", () => {
     render(
       <FinalQuizResult
+        reportHref={REPORT_HREF}
         data={finalDto(
           { isPassed: false, scorePercent: 60 },
           { courseStatus: "COMPLETED", finalScorePercent: 69 },
@@ -171,7 +176,7 @@ describe("FinalQuizResult", () => {
   });
 
   it("links to #pembahasan and /belajar/nilai (Ke Nilai Saya, card S5-03 §5)", () => {
-    render(<FinalQuizResult data={finalDto()} />);
+    render(<FinalQuizResult reportHref={REPORT_HREF} data={finalDto()} />);
     const review = screen.getByRole("link", {
       name: "Lihat pembahasan 1 soal",
     });
@@ -181,7 +186,7 @@ describe("FinalQuizResult", () => {
   });
 
   it("renders the focusable review heading and the S3-01 items", () => {
-    render(<FinalQuizResult data={finalDto()} />);
+    render(<FinalQuizResult reportHref={REPORT_HREF} data={finalDto()} />);
     const heading = screen.getByRole("heading", {
       name: "Pembahasan lengkap",
     });
@@ -195,6 +200,7 @@ describe("FinalQuizResult", () => {
   it("hidden policy: “Lihat jawaban Anda”, neutral pills, the intro sentence", () => {
     render(
       <FinalQuizResult
+        reportHref={REPORT_HREF}
         data={finalDto({
           reviewAccess: "HIDDEN_NOT_PASSED",
           isPassed: false,
@@ -228,5 +234,24 @@ describe("FinalQuizResult", () => {
     expect(within(article).queryByText("Benar")).toBeNull();
     expect(within(article).queryByText("Salah")).toBeNull();
     expect(within(article).queryByText(/^Kunci:/)).toBeNull();
+  });
+
+  it("links “Laporkan gangguan” to the Final report page (card S3-03 §5)", () => {
+    render(<FinalQuizResult reportHref={REPORT_HREF} data={finalDto()} />);
+    expect(screen.getByText(/Ada kendala teknis\?/)).toBeTruthy();
+    const link = screen.getByRole("link", { name: "Laporkan gangguan" });
+    expect(link.getAttribute("href")).toBe(REPORT_HREF);
+  });
+
+  it("shows the report link for an EXPIRED attempt too", () => {
+    render(
+      <FinalQuizResult
+        reportHref={REPORT_HREF}
+        data={finalDto({ status: "EXPIRED", isPassed: false, scorePercent: 29 })}
+      />,
+    );
+    expect(
+      screen.getByRole("link", { name: "Laporkan gangguan" }).getAttribute("href"),
+    ).toBe(REPORT_HREF);
   });
 });

@@ -319,4 +319,17 @@ describe("QuizResult", () => {
     expect(screen.queryByText(/sekarang terbuka/)).toBeNull();
     expect(screen.getByRole("link", { name: "Kembali ke materi" })).toBeTruthy();
   });
+
+  it("links “Laporkan gangguan” to {lesson}/quiz/laporan for SUBMITTED and EXPIRED (card S3-03 §5)", () => {
+    const { unmount } = render(<QuizResult data={resultDto()} />);
+    expect(screen.getByText(/Ada kendala teknis\?/)).toBeTruthy();
+    expect(
+      screen.getByRole("link", { name: "Laporkan gangguan" }).getAttribute("href"),
+    ).toBe(`${LESSON_HREF}/quiz/laporan`);
+    unmount();
+    render(<QuizResult data={resultDto({ status: "EXPIRED" })} />);
+    expect(
+      screen.getByRole("link", { name: "Laporkan gangguan" }).getAttribute("href"),
+    ).toBe(`${LESSON_HREF}/quiz/laporan`);
+  });
 });

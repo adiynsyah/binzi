@@ -12,7 +12,14 @@ import { FinalQuizRules } from "./final-quiz-rules";
 import { QuizExpiredSubmit } from "./quiz-expired-submit";
 import { QuizRunner } from "./quiz-runner";
 
-export function FinalQuizPage({ data }: { data: FinalQuizPageDTO }) {
+export function FinalQuizPage({
+  data,
+  reportHref,
+}: {
+  data: FinalQuizPageDTO;
+  /** Card S3-03 §5: "Laporkan gangguan" on the result screen. */
+  reportHref: string;
+}) {
   return (
     <PageContainer className="pt-6 pb-12">
       {data.state === "aturan-final" ? (
@@ -22,7 +29,7 @@ export function FinalQuizPage({ data }: { data: FinalQuizPageDTO }) {
       ) : data.state === "kedaluwarsa" ? (
         <QuizExpiredSubmit attemptId={data.attemptId} />
       ) : data.state === "hasil-final" ? (
-        <FinalQuizResult data={data} />
+        <FinalQuizResult data={data} reportHref={reportHref} />
       ) : null}
     </PageContainer>
   );

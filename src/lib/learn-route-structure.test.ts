@@ -202,3 +202,36 @@ describe("kursus-saya + progres route structure (card S5-04 §2)", () => {
     ).toBe(false);
   });
 });
+
+describe("report route structure (card S3-03 §5)", () => {
+  it("has the report pages at [materi]/quiz/laporan/ and final-quiz/laporan/", () => {
+    expect(
+      existsSync(
+        join(APP_DIR, "(learn)", "belajar", "[slug]", "[materi]", "quiz", "laporan", "page.tsx"),
+      ),
+    ).toBe(true);
+    expect(
+      existsSync(
+        join(APP_DIR, "(learn)", "belajar", "[slug]", "final-quiz", "laporan", "page.tsx"),
+      ),
+    ).toBe(true);
+  });
+
+  it("has no loading.tsx in [materi]/quiz/laporan/", () => {
+    // Same S2-01 rule: the page answers notFound()/redirect(), and a
+    // fallback would wrap both into 200s.
+    expect(
+      existsSync(
+        join(APP_DIR, "(learn)", "belajar", "[slug]", "[materi]", "quiz", "laporan", "loading.tsx"),
+      ),
+    ).toBe(false);
+  });
+
+  it("has no loading.tsx in final-quiz/laporan/", () => {
+    expect(
+      existsSync(
+        join(APP_DIR, "(learn)", "belajar", "[slug]", "final-quiz", "laporan", "loading.tsx"),
+      ),
+    ).toBe(false);
+  });
+});

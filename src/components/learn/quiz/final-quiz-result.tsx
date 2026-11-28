@@ -13,7 +13,12 @@ import { MEMBER_HREFS } from "@/components/shared/nav-items";
 import { cn } from "@/lib/utils";
 import type { FinalQuizResultDTO } from "@/modules/attempt/service";
 
-import { ResultItem, reviewIntro, reviewReveals } from "./quiz-result";
+import {
+  ReportProblemLink,
+  ResultItem,
+  reviewIntro,
+  reviewReveals,
+} from "./quiz-result";
 
 /** "14:26" — the Final screens' mm:ss (a zero-padded clock, unlike the
  *  lesson result's "14m 26d"); the limit "20:00" is the same function. */
@@ -42,7 +47,15 @@ function FinalVerdictPill({ passed }: { passed: boolean }) {
   );
 }
 
-export function FinalQuizResult({ data }: { data: FinalQuizResultDTO }) {
+export function FinalQuizResult({
+  data,
+  reportHref,
+}: {
+  data: FinalQuizResultDTO;
+  /** Card S3-03 §5: the Final DTO carries no course slug, so the route
+   *  page builds this from its params and passes it down. */
+  reportHref: string;
+}) {
   const total = data.items.length;
   const { final } = data;
   const reveals = reviewReveals(data.reviewAccess);
@@ -152,6 +165,7 @@ export function FinalQuizResult({ data }: { data: FinalQuizResultDTO }) {
           Ke Nilai Saya
         </Link>
       </div>
+      <ReportProblemLink href={reportHref} />
 
       {/* tabIndex lets the link above land focus here. */}
       <h2
