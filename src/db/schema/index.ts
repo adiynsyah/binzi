@@ -10,6 +10,7 @@ import {
   questionOptions,
   questions,
   quizAnswers,
+  quizAttemptReports,
   quizAttempts,
   quizzes,
 } from "./quiz";
@@ -33,6 +34,10 @@ export const usersRelations = relations(users, ({ many }) => ({
   lessonProgress: many(lessonProgress),
   quizAttempts: many(quizAttempts, { relationName: "attempt_user" }),
   resetAttempts: many(quizAttempts, { relationName: "attempt_reset_by" }),
+  attemptReports: many(quizAttemptReports, { relationName: "report_user" }),
+  decidedAttemptReports: many(quizAttemptReports, {
+    relationName: "report_decided_by",
+  }),
   coursesCreated: many(courses, { relationName: "course_created_by" }),
   coursesUpdated: many(courses, { relationName: "course_updated_by" }),
   coursesReviewed: many(courses, { relationName: "course_reviewer" }),
@@ -152,6 +157,27 @@ export const quizAttemptsRelations = relations(
       relationName: "attempt_reset_by",
     }),
     answers: many(quizAnswers),
+    reports: many(quizAttemptReports),
+  }),
+);
+
+export const quizAttemptReportsRelations = relations(
+  quizAttemptReports,
+  ({ one }) => ({
+    attempt: one(quizAttempts, {
+      fields: [quizAttemptReports.attemptId],
+      references: [quizAttempts.id],
+    }),
+    user: one(users, {
+      fields: [quizAttemptReports.userId],
+      references: [users.id],
+      relationName: "report_user",
+    }),
+    decidedBy: one(users, {
+      fields: [quizAttemptReports.decidedBy],
+      references: [users.id],
+      relationName: "report_decided_by",
+    }),
   }),
 );
 
