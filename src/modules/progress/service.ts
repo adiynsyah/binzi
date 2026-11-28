@@ -32,6 +32,8 @@ import {
   selectOpenLessonQuiz,
   selectOutlineRows,
   selectPublishedCourseBySlug,
+  revertEnrollmentFinalRow,
+  revertLessonQuizRow,
   setEnrollmentLastLesson,
   updateEnrollmentFinalResult,
   upsertLessonOpen,
@@ -571,6 +573,33 @@ export async function recordFinalQuizResult(
     completedAt: input.submittedAt,
   });
   return { finalScorePercent: finalScorePercent, courseStatus };
+}
+
+// --------------------------------------------- S3-03 admin reset (QZ-19)
+
+/**
+ * Undo a lesson-quiz result INSIDE the caller's (reset) transaction (card
+ * S3-03 decision 2): quiz_attempted false, score/verdict/submit time and
+ * completed_at cleared, status IN_PROGRESS. The recovery module owns the
+ * attempt row; this module owns lesson_progress.
+ */
+export async function revertLessonQuizResult(
+  tx: DbTx,
+  input: { userId: string; lessonId: string },
+): Promise<void> {
+  await revertLessonQuizRow(tx, input);
+}
+
+/**
+ * Undo a Final Quiz result INSIDE the caller's (reset) transaction (card
+ * S3-03 decision 2): enrollment IN_PROGRESS, final_score_percent and
+ * completed_at cleared.
+ */
+export async function revertFinalQuizResult(
+  tx: DbTx,
+  input: { userId: string; courseId: string },
+): Promise<void> {
+  await revertEnrollmentFinalRow(tx, input);
 }
 
 /**

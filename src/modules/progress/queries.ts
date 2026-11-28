@@ -886,6 +886,61 @@ export async function updateEnrollmentFinalResult(
 }
 
 /**
+ * The lesson-quiz half of an admin reset (card S3-03 decision 2): the
+ * participant's lesson_progress row goes back to "quiz not attempted" —
+ * score/verdict/submit time cleared, status IN_PROGRESS, completed_at
+ * cleared — so the NEXT lesson locks again until the quiz is redone (the
+ * gate reads quiz_attempted, PRD §11.4 no. 7). Typed update, no Date in a
+ * `sql` fragment; a missing row (quiz-first visit, attempt still running)
+ * updates nothing.
+ */
+export async function revertLessonQuizRow(
+  tx: DbTx,
+  input: { userId: string; lessonId: string },
+): Promise<void> {
+  await tx
+    .update(lessonProgress)
+    .set({
+      quizAttempted: false,
+      quizScorePercent: null,
+      quizIsPassed: null,
+      quizSubmittedAt: null,
+      status: "IN_PROGRESS",
+      completedAt: null,
+    })
+    .where(
+      and(
+        eq(lessonProgress.userId, input.userId),
+        eq(lessonProgress.lessonId, input.lessonId),
+      ),
+    );
+}
+
+/**
+ * The Final half of an admin reset (card S3-03 decision 2): the enrollment
+ * goes back to IN_PROGRESS with Nilai Akhir and completed_at cleared — the
+ * Final re-opens and Nilai Akhir is recomputed when it is redone.
+ */
+export async function revertEnrollmentFinalRow(
+  tx: DbTx,
+  input: { userId: string; courseId: string },
+): Promise<void> {
+  await tx
+    .update(enrollments)
+    .set({
+      status: "IN_PROGRESS",
+      finalScorePercent: null,
+      completedAt: null,
+    })
+    .where(
+      and(
+        eq(enrollments.userId, input.userId),
+        eq(enrollments.courseId, input.courseId),
+      ),
+    );
+}
+
+/**
  * The Final result screen's display read (card S5-02 §2): the STORED Nilai
  * Akhir + the course status — read AFTER submit, never written here.
  */
